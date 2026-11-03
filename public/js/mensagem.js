@@ -70,6 +70,12 @@ export function buildMsg({ items, vidas, over, nome, corretor, opts }) {
   return L.join("\n");
 }
 
+// Não usa wa.me: o redirecionamento dele troca os emojis do texto por "�".
+export function linkWhatsApp(fone, texto) {
+  const telefone = fone ? `phone=55${fone}&` : "";
+  return `https://api.whatsapp.com/send/?${telefone}text=${encodeURIComponent(texto)}`;
+}
+
 const escHtml = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 export function waHtml(t) {
