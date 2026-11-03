@@ -208,7 +208,9 @@ export function renderCotacao() {
   $("#copy").textContent = $("#o-texto").checked ? "Copiar mensagem" : "Copiar legenda";
   lastAuto = buildMsg({ items: planosEscolhidos(), vidas: S.vidas, over: S.over, nome, corretor: corretor(), opts: opcoes(), links: S.linkAtivo });
   $("#nota-envio").textContent = S.linkAtivo
-    ? "Abrir no WhatsApp leva o texto com o link de cada proposta. O link só abre enquanto este computador e o cotador estiverem ligados, e deixa de funcionar quando o cotador é reiniciado. As imagens continuam disponíveis acima, se preferir."
+    ? S.linkLocal
+      ? "Atenção: por enquanto o link é local e só abre neste computador. O cliente não consegue abrir. Até ter o domínio, envie também a imagem pelos botões acima."
+      : "Abrir no WhatsApp leva o texto com o link de cada proposta. As imagens continuam disponíveis acima, se preferir."
     : "Abrir no WhatsApp leva o texto e copia a imagem: na conversa, aperte Ctrl+V para colar a imagem. Com vários planos, copie as outras imagens nos botões acima. Ao copiar, a cotação fica salva no histórico do número.";
   manual = false;
   $("#rawtxt").value = lastAuto;

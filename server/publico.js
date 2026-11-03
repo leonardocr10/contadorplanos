@@ -1,10 +1,18 @@
-// Servidor público: é o único ligado ao túnel. Entrega só as páginas das propostas e os arquivos que
-// elas usam. A API, o histórico e o backup ficam no outro servidor, que não sai deste computador.
+// Servidor das páginas das propostas: entrega só elas e os arquivos que usam. A API, o histórico e o
+// backup ficam no outro servidor, então só esta porta deve ser exposta quando houver um domínio.
 import express from "express";
 import { join } from "node:path";
 import { renderizarProposta } from "./proposta-html.js";
 
 const paginaErro = `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Proposta não encontrada</title><body style="font-family:system-ui,sans-serif;padding:32px"><h1>Proposta não encontrada</h1><p>Confira o link ou peça um novo ao seu corretor.</p></body></html>`;
+
+// Sem PUBLIC_URL, o link é local e só abre neste computador.
+export function enderecoDosLinks(publicUrl, portaPublica) {
+  const url = String(publicUrl ?? "").trim().replace(/\/+$/, "");
+  if (/^https?:\/\/[^\s/]+(\/[^\s]*)?$/i.test(url)) return { url, local: false };
+  if (url) console.error("PUBLIC_URL inválido no arquivo .env: usando o link local.");
+  return { url: `http://127.0.0.1:${portaPublica}`, local: true };
+}
 
 export function criarAppPublica({ banco, pastaPublica, pastaUploads }) {
   const app = express();

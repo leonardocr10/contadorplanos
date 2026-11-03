@@ -1,12 +1,11 @@
-// Inicia o cotador: lê o .env, abre o banco, sobe os servidores, liga o túnel e abre o navegador.
+// Inicia o cotador: lê o .env, abre o banco, sobe os servidores e abre o navegador.
 import { exec } from "node:child_process";
 import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Banco } from "./db.js";
 import { criarApp } from "./app.js";
-import { criarAppPublica } from "./publico.js";
-import { iniciarTunel } from "./tunel.js";
+import { criarAppPublica, enderecoDosLinks } from "./publico.js";
 
 const raiz = join(dirname(fileURLToPath(import.meta.url)), "..");
 try {
@@ -27,13 +26,13 @@ const pastaDados = process.env.COTADOR_PASTA_DADOS || join(raiz, "dados");
 mkdirSync(pastaDados, { recursive: true });
 const banco = new Banco(join(pastaDados, "cotador.db"), join(raiz, "dados", "planos.json"));
 const pastaPublica = join(raiz, "public"), pastaUploads = join(pastaDados, "uploads");
-let tunel = null;
+let estadoLinks = { estado: "conectando", url: null, local: true };
 const app = criarApp({
   banco,
   pastaPublica,
   pastaUploads,
   pastaBackups: join(raiz, "backups"),
-  linkPublico: () => tunel?.estado() ?? { estado: "conectando", url: null },
+  linkPublico: () => estadoLinks,
 });
 
 const servidor = app.listen(porta, "127.0.0.1", (erro) => {
@@ -48,10 +47,10 @@ function iniciarLinks() {
   servidorPublico = criarAppPublica({ banco, pastaPublica, pastaUploads }).listen(portaPublica, "127.0.0.1", (erro) => {
     if (erro) {
       console.error(`A porta ${portaPublica} está ocupada: os links das propostas ficam desligados. Troque PORT_PUBLICA no arquivo .env.`);
-      tunel = { estado: () => ({ estado: "indisponivel", url: null }), encerrar() {} };
+      estadoLinks = { estado: "indisponivel", url: null, local: true };
       return;
     }
-    tunel = iniciarTunel(portaPublica);
+    estadoLinks = { estado: "ativo", ...enderecoDosLinks(process.env.PUBLIC_URL, portaPublica) };
   });
 }
 
@@ -79,7 +78,6 @@ async function tratarErroDePorta(erro) {
 
 for (const sinal of ["SIGINT", "SIGTERM", "SIGBREAK", "SIGHUP"]) {
   process.on(sinal, () => {
-    tunel?.encerrar();
     servidorPublico?.close();
     servidor.close();
     banco.fechar();

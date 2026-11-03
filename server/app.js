@@ -224,7 +224,7 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
   app.post("/api/propostas", (req, res) => {
     const pedido = validarPedidoDeLinks(req.body);
     const { estado, url } = linkPublico();
-    if (estado !== "ativo") return res.status(503).json({ erro: "O link público ainda não está ativo. Tente de novo em instantes.", codigo: "sem_tunel" });
+    if (estado !== "ativo") return res.status(503).json({ erro: "Os links das propostas não estão disponíveis agora. Tente de novo em instantes.", codigo: "sem_link" });
     const corretor = banco.lerConfig();
     const links = pedido.planos.map((id) => {
       const plano = banco.obterPlano(String(id));

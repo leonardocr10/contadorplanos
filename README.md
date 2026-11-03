@@ -14,20 +14,17 @@ Na aba **Meus dados**, preencha seu nome, telefone e corretora. Eles aparecem na
 
 Ao clicar em **Abrir no WhatsApp** ou em **Copiar legenda**, o cotador cria uma página para cada plano e coloca os links na mensagem. O cliente abre a proposta no celular, sem precisar de imagem.
 
-Para isso funcionar, o **cloudflared** precisa estar instalado. Se ele não estiver, o cotador volta a trabalhar com as imagens. Para instalar, rode no terminal:
+**Por enquanto, o link é local:** ele só abre neste computador, com o cotador ligado, e o cliente não consegue abri-lo. Até ter o domínio, envie também a imagem da proposta.
 
-```bash
-winget install --id Cloudflare.cloudflared
+A página guarda os valores do momento em que o link foi criado. Mudar o plano depois não altera o que já foi gerado.
+
+Quando as páginas estiverem publicadas num domínio, coloque o endereço no `.env` e reinicie o cotador:
+
+```
+PUBLIC_URL=https://propostas.seudominio.com.br
 ```
 
-Limitações importantes:
-
-- **O link só abre enquanto o computador e o cotador estiverem ligados.**
-- **O endereço muda sempre que o cotador é reiniciado.** Os links enviados antes disso param de abrir, e é preciso mandar um novo: use **Reabrir cotação** no Histórico.
-- Quem receber o link consegue ver o nome do cliente e os valores da proposta. Por isso, envie o link só para o próprio cliente.
-- A página guarda os valores do momento em que o link foi criado. Mudar o plano depois não altera o que o cliente já recebeu.
-
-Só as páginas das propostas ficam acessíveis pela internet. O cotador, o histórico e o backup continuam só neste computador.
+Quem receber o link consegue ver o nome do cliente e os valores da proposta. Na publicação, exponha só a porta pública: o cotador, o histórico e o backup não têm senha.
 
 ## Leitura automática de tabelas (opcional)
 
@@ -58,4 +55,4 @@ npm install
 npm test
 ```
 
-As portas (`PORT`, padrão 3210, e `PORT_PUBLICA`, padrão 3211) e o modelo do Claude (`ANTHROPIC_MODEL`) ficam no `.env`. O túnel liga a internet apenas à porta pública, atendida por `server/publico.js`.
+As portas (`PORT`, padrão 3210, e `PORT_PUBLICA`, padrão 3211) e o modelo do Claude (`ANTHROPIC_MODEL`) ficam no `.env`. A porta pública é atendida por `server/publico.js` e só entrega as páginas das propostas.

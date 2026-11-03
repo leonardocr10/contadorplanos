@@ -9,6 +9,7 @@ export const S = {
   cor: { nome: "", fone: "", empresa: "" },
   leituraDisponivel: false,
   linkAtivo: false,
+  linkLocal: true,
 };
 
 let renderizar = () => {};

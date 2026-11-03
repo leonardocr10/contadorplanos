@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Banco } from "../server/db.js";
 import { criarApp } from "../server/app.js";
-import { criarAppPublica } from "../server/publico.js";
+import { criarAppPublica, enderecoDosLinks } from "../server/publico.js";
 import { montarSnapshot, renderizarProposta } from "../server/proposta-html.js";
 
 const raiz = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
@@ -108,11 +108,18 @@ test("servidor público não dá acesso à API, ao histórico nem aos arquivos d
   assert.equal((await fetch(publico + "/fonts/figtree-latin-wght-normal.woff2")).status, 200);
 });
 
-test("sem túnel ativo avisa e valida o pedido", async (t) => {
+test("sem PUBLIC_URL o link é local; com domínio usa o domínio", () => {
+  assert.deepEqual(enderecoDosLinks("", 3211), { url: "http://127.0.0.1:3211", local: true });
+  assert.deepEqual(enderecoDosLinks(undefined, 3211), { url: "http://127.0.0.1:3211", local: true });
+  assert.deepEqual(enderecoDosLinks(" https://propostas.exemplo.com.br/ ", 3211), { url: "https://propostas.exemplo.com.br", local: false });
+  assert.equal(enderecoDosLinks("nao e endereco", 3211).local, true);
+});
+
+test("com os links indisponíveis avisa e valida o pedido", async (t) => {
   const { admin } = await subir(t, () => ({ estado: "conectando", url: null }));
   const r = await pedir(admin, { planos: ["plam-saude-pf"], vidas, opts });
   assert.equal(r.status, 503);
-  assert.equal((await r.json()).codigo, "sem_tunel");
+  assert.equal((await r.json()).codigo, "sem_link");
   assert.equal((await pedir(admin, { planos: [], vidas })).status, 400);
   assert.equal((await pedir(admin, { planos: ["x"], vidas: [1] })).status, 400);
 });

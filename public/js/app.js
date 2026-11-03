@@ -59,14 +59,15 @@ $("#b-sim").onclick = async () => {
   $("#b-confirm").hidden = true;
 };
 
-/* ---------- link público ---------- */
-// O túnel leva alguns segundos para conectar e pode cair, então a mensagem acompanha o estado dele.
+/* ---------- links das propostas ---------- */
+// O servidor das páginas sobe logo depois do cotador, então a mensagem acompanha o estado dele.
 async function verificarLink() {
   try {
     const { linkPublico } = await api("/api/status");
     const ativo = linkPublico.estado === "ativo";
-    if (ativo !== S.linkAtivo) {
+    if (ativo !== S.linkAtivo || linkPublico.local !== S.linkLocal) {
       S.linkAtivo = ativo;
+      S.linkLocal = linkPublico.local;
       render();
     }
   } catch {
@@ -80,6 +81,7 @@ async function carregar() {
     const [status, cor] = await Promise.all([api("/api/status"), api("/api/config"), carregarPlanos()]);
     S.leituraDisponivel = status.leituraDisponivel;
     S.linkAtivo = status.linkPublico.estado === "ativo";
+    S.linkLocal = status.linkPublico.local;
     S.cor = cor;
     for (const k of ["nome", "fone", "empresa"]) $("#c-" + k).value = cor[k] ?? "";
   } catch (e) {
