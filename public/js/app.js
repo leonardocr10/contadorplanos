@@ -3,6 +3,7 @@ import { $, S, VIEWS, api, carregarPlanos, definirRender, render, show, toast } 
 import { iniciarCotacao, renderCotacao } from "./cotacao.js";
 import { iniciarPlanos, renderCat } from "./planos.js";
 import { carregarHistorico, iniciarHistorico, renderHist } from "./historico.js";
+import { carregarAceites, renderAceites } from "./aceites.js";
 
 definirRender(() => {
   renderCotacao();
@@ -17,7 +18,8 @@ show(viewDoHash());
 
 /* ---------- meus dados ---------- */
 let salvarTimer;
-for (const k of ["nome", "fone", "empresa"]) {
+const CAMPOS_CONFIG = ["nome", "fone", "empresa", "docsPf", "docsCnpj"];
+for (const k of CAMPOS_CONFIG) {
   const el = $("#c-" + k);
   el.oninput = () => {
     S.cor[k] = el.value;
@@ -83,18 +85,29 @@ async function carregar() {
     S.linkAtivo = status.linkPublico.estado === "ativo";
     S.linkLocal = status.linkPublico.local;
     S.cor = cor;
-    for (const k of ["nome", "fone", "empresa"]) $("#c-" + k).value = cor[k] ?? "";
+    for (const k of CAMPOS_CONFIG) $("#c-" + k).value = cor[k] ?? "";
   } catch (e) {
     S.dbErr = e.message;
   }
   render();
   await carregarHistorico();
+  await verificarAceites();
+}
+
+// O aceite chega do link, fora desta tela, então a lista é conferida de tempos em tempos.
+async function verificarAceites() {
+  try {
+    await carregarAceites();
+  } catch {
+    // O cotador pode estar sendo fechado; a próxima verificação tenta de novo.
+  }
 }
 
 iniciarCotacao();
 iniciarPlanos();
 iniciarHistorico();
 renderHist();
+renderAceites();
 render();
 carregar();
-setInterval(verificarLink, 5000);
+setInterval(() => { verificarLink(); verificarAceites(); }, 5000);

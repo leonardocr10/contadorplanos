@@ -88,6 +88,21 @@ export function linkWhatsApp(fone, texto) {
   return `https://api.whatsapp.com/send/?${telefone}text=${encodeURIComponent(texto)}`;
 }
 
+export function mensagemDocumentos({ cliente, plano, acomodacao, documentos, corretor }) {
+  const L = [
+    cliente ? `Olá, *${cliente}*! Tudo bem? 😊` : "Olá! Tudo bem? 😊",
+    "",
+    `Recebemos o seu aceite da proposta do plano *${plano}* (${acomodacao}).`,
+    "",
+    "Para dar andamento, precisamos que você nos envie os seguintes documentos:",
+    "",
+    ...lines(documentos).map((d) => `• ${d}`),
+  ];
+  const sig = assinatura(corretor);
+  if (sig.length) L.push("", ...sig);
+  return L.join("\n");
+}
+
 const escHtml = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 export function waHtml(t) {

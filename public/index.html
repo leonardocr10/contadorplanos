@@ -14,6 +14,7 @@
       <button id="tab-cot" role="tab" aria-selected="true" data-view="cotacao">Nova cotação</button>
       <button id="tab-cat" role="tab" aria-selected="false" data-view="planos">Planos e valores</button>
       <button id="tab-his" role="tab" aria-selected="false" data-view="historico">Histórico</button>
+      <button id="tab-ace" role="tab" aria-selected="false" data-view="aceites">Aceites <span class="pill" id="ace-selo" hidden style="margin:0 0 0 4px"></span></button>
       <button id="tab-cor" role="tab" aria-selected="false" data-view="corretor">Meus dados</button>
     </nav>
   </header>
@@ -100,6 +101,18 @@
     </div>
   </section>
 
+  <!-- ACEITES -->
+  <section id="v-aceites" hidden>
+    <div class="panel">
+      <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center">
+        <h2>Propostas aceitas</h2>
+        <span class="note" id="ace-count"></span>
+      </div>
+      <div id="ace-list" class="cat"></div>
+      <p class="note" style="margin:0">O botão abre a conversa com a lista de documentos pronta: confira e aperte enviar no WhatsApp.</p>
+    </div>
+  </section>
+
   <!-- CORRETOR -->
   <section id="v-corretor" class="stack" hidden>
     <div class="panel" style="max-width:720px;width:100%">
@@ -110,6 +123,12 @@
         <div class="field"><label for="c-fone">Seu telefone</label><input id="c-fone" type="tel" placeholder="(34) 99999-0000"></div>
       </div>
       <div class="field"><label for="c-empresa">Corretora (opcional)</label><input id="c-empresa" type="text"></div>
+    </div>
+    <div class="panel" style="max-width:720px;width:100%">
+      <h2>Documentos necessários</h2>
+      <p class="note" style="margin:0">Aparecem para o cliente depois do aceite e na mensagem da aba Aceites. Escreva um documento por linha.</p>
+      <div class="field"><label for="c-docsPf">Pessoa física</label><textarea id="c-docsPf"></textarea></div>
+      <div class="field"><label for="c-docsCnpj">CNPJ</label><textarea id="c-docsCnpj"></textarea></div>
     </div>
     <div class="panel" style="max-width:720px;width:100%">
       <h2>Backup</h2>

@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { idadesParaVidas } from "../public/js/calculo.js";
-import { aplicarLinks, buildLegenda, buildMsg, linkWhatsApp, waHtml } from "../public/js/mensagem.js";
+import { aplicarLinks, buildLegenda, buildMsg, linkWhatsApp, mensagemDocumentos, waHtml } from "../public/js/mensagem.js";
 import { themeFor } from "../public/js/proposta.js";
 
 const planos = JSON.parse(readFileSync(new URL("../dados/planos.json", import.meta.url), "utf8"));
@@ -71,6 +71,13 @@ test("legenda com links traz um link por plano e não cita imagens", () => {
   const completo = buildMsg({ items, vidas: idadesParaVidas("35"), over: {}, nome: "", corretor: {}, links: true, opts: { texto: true } });
   assert.ok(completo.includes("[link AMIL OURO]"));
   assert.doesNotMatch(completo, /imagens? estão/);
+});
+
+test("mensagem de documentos lista um documento por linha e traz a assinatura", () => {
+  const msg = mensagemDocumentos({ cliente: "Maria", plano: "PLAM SAÚDE", acomodacao: "Apartamento", documentos: "RG\n\n CPF ", corretor });
+  assert.match(msg, /aceite da proposta do plano \*PLAM SAÚDE\* \(Apartamento\)/);
+  assert.ok(msg.includes("• RG\n• CPF"));
+  assert.ok(msg.endsWith("(34) 91234-5678"));
 });
 
 test("prévia escapa HTML e aplica negrito", () => {

@@ -18,6 +18,17 @@ Ao clicar em **Abrir no WhatsApp** ou em **Copiar legenda**, o cotador cria uma 
 
 A página guarda os valores do momento em que o link foi criado. Mudar o plano depois não altera o que já foi gerado.
 
+### Aceite da proposta
+
+A página da proposta tem o botão **Aceitar proposta**: o cliente escolhe a acomodação e confirma. Depois disso:
+
+- O cliente vê a lista de documentos na própria página. Cadastre as listas de pessoa física e de CNPJ na aba **Meus dados**.
+- O aceite aparece na aba **Aceites**. O botão **Enviar documentos no WhatsApp** abre a conversa com a mensagem pronta, e você só aperta enviar.
+
+O aceite registra o interesse do cliente, mas não substitui a assinatura do contrato com a operadora.
+
+### Publicação
+
 Quando as páginas estiverem publicadas num domínio, coloque o endereço no `.env` e reinicie o cotador:
 
 ```

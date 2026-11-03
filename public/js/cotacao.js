@@ -87,7 +87,7 @@ async function mensagemFinal() {
   if (!S.linkAtivo || !texto.includes("[link ")) return texto;
   const { links } = await api("/api/propostas", {
     metodo: "POST",
-    json: { planos: [...S.selected], vidas: S.vidas, over: S.over, cliente: nomeCliente(), opts: opcoes() },
+    json: { planos: [...S.selected], vidas: S.vidas, over: S.over, cliente: nomeCliente(), fone: normFone($("#fone").value), opts: opcoes() },
   });
   return aplicarLinks(texto, links);
 }

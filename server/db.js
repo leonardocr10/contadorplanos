@@ -62,6 +62,12 @@ const MIGRACOES = [
      dados TEXT NOT NULL,
      criado_em TEXT NOT NULL
    );`,
+  `ALTER TABLE propostas ADD COLUMN fone TEXT NOT NULL DEFAULT '';
+   ALTER TABLE propostas ADD COLUMN aceito_em TEXT;
+   ALTER TABLE propostas ADD COLUMN acomodacao TEXT;
+   ALTER TABLE propostas ADD COLUMN valor REAL;
+   ALTER TABLE propostas ADD COLUMN docs_enviados_em TEXT;
+   CREATE INDEX idx_propostas_aceito ON propostas (aceito_em);`,
 ];
 
 function migrar(db) {
@@ -114,6 +120,13 @@ function linhaParaCotacao(l) {
   return {
     id: l.id, fone: l.fone, cliente: l.cliente, criadoEm: l.criado_em, tipo: l.tipo, idades: l.idades,
     vidas: JSON.parse(l.vidas), over: JSON.parse(l.overrides), planos: JSON.parse(l.planos), mensagem: l.mensagem, status: l.status,
+  };
+}
+
+function linhaParaProposta(l) {
+  return {
+    token: l.token, dados: JSON.parse(l.dados), fone: l.fone, criadoEm: l.criado_em,
+    aceitoEm: l.aceito_em, acomodacao: l.acomodacao, valor: l.valor, docsEnviadosEm: l.docs_enviados_em,
   };
 }
 
@@ -230,32 +243,50 @@ export class Banco {
 
   /* ---------- páginas públicas das propostas ---------- */
   // Guarda uma cópia da proposta: mudar o plano depois não altera o que o cliente já recebeu.
-  // A mesma proposta reaproveita o mesmo link.
-  salvarProposta(dados) {
+  // A mesma proposta para o mesmo número reaproveita o mesmo link. O número entra na chave para o aceite
+  // de um cliente nunca aparecer em nome de outro com os mesmos dados.
+  salvarProposta(dados, fone = "") {
     const json = JSON.stringify(dados);
-    const chave = createHash("sha256").update(json).digest("hex");
+    const chave = createHash("sha256").update(`${fone}\n${json}`).digest("hex");
     const existente = this.db.prepare("SELECT token FROM propostas WHERE chave = ?").get(chave);
     if (existente) return existente.token;
     const token = randomBytes(16).toString("base64url");
-    this.db.prepare("INSERT INTO propostas (token, chave, dados, criado_em) VALUES (?, ?, ?, ?)").run(token, chave, json, new Date().toISOString());
+    this.db.prepare("INSERT INTO propostas (token, chave, dados, criado_em, fone) VALUES (?, ?, ?, ?, ?)").run(token, chave, json, new Date().toISOString(), fone);
     return token;
   }
 
   obterProposta(token) {
-    const l = this.db.prepare("SELECT dados FROM propostas WHERE token = ?").get(token);
-    return l ? JSON.parse(l.dados) : null;
+    const l = this.db.prepare("SELECT * FROM propostas WHERE token = ?").get(token);
+    return l ? linhaParaProposta(l) : null;
+  }
+
+  // Só o primeiro aceite vale: repetir o envio do formulário não muda a escolha já registrada.
+  aceitarProposta(token, acomodacao, valor) {
+    this.db
+      .prepare("UPDATE propostas SET aceito_em = ?, acomodacao = ?, valor = ? WHERE token = ? AND aceito_em IS NULL")
+      .run(new Date().toISOString(), acomodacao, valor, token);
+    return this.obterProposta(token);
+  }
+
+  listarAceites() {
+    return this.db.prepare("SELECT * FROM propostas WHERE aceito_em IS NOT NULL ORDER BY aceito_em DESC").all().map(linhaParaProposta);
+  }
+
+  marcarDocumentosEnviados(token) {
+    const r = this.db.prepare("UPDATE propostas SET docs_enviados_em = ? WHERE token = ? AND aceito_em IS NOT NULL").run(new Date().toISOString(), token);
+    return r.changes > 0 ? this.obterProposta(token) : null;
   }
 
   /* ---------- configuração ---------- */
   lerConfig() {
-    const cfg = { nome: "", fone: "", empresa: "" };
+    const cfg = { nome: "", fone: "", empresa: "", docsPf: "", docsCnpj: "" };
     for (const { chave, valor } of this.db.prepare("SELECT chave, valor FROM config").all()) cfg[chave] = valor;
     return cfg;
   }
 
   gravarConfig(cfg) {
     const st = this.db.prepare("INSERT INTO config (chave, valor) VALUES (?, ?) ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor");
-    for (const k of ["nome", "fone", "empresa"]) if (cfg[k] !== undefined) st.run(k, cfg[k]);
+    for (const k of ["nome", "fone", "empresa", "docsPf", "docsCnpj"]) if (cfg[k] !== undefined) st.run(k, cfg[k]);
     return this.lerConfig();
   }
 

@@ -128,7 +128,7 @@ function validarPedidoDeLinks(b) {
   }
   const o = b.opts ?? {};
   return {
-    planos: b.planos, vidas: b.vidas, over, cliente: textoOpc(b.cliente, "cliente", 200),
+    planos: b.planos, vidas: b.vidas, over, cliente: textoOpc(b.cliente, "cliente", 200), fone: normFone(b.fone),
     opts: { copart: o.copart !== false, rede: o.rede !== false, acom: o.acom !== false },
   };
 }
@@ -229,10 +229,24 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     const links = pedido.planos.map((id) => {
       const plano = banco.obterPlano(String(id));
       if (!plano) throw new ErroEntrada("Um dos planos escolhidos não existe mais.");
-      const token = banco.salvarProposta(montarSnapshot(plano, pedido, corretor));
+      const token = banco.salvarProposta(montarSnapshot(plano, pedido, corretor), pedido.fone);
       return { id: plano.id, nome: plano.nome, url: `${url}/p/${token}` };
     });
     res.status(201).json({ links });
+  });
+
+  /* ---------- aceites ---------- */
+  app.get("/api/aceites", (_req, res) => {
+    res.json(banco.listarAceites().map((a) => ({
+      token: a.token, fone: a.fone, cliente: a.dados.cliente, plano: a.dados.plano.nome, categoria: a.dados.plano.categoria,
+      acomodacao: a.acomodacao, valor: a.valor, aceitoEm: a.aceitoEm, docsEnviadosEm: a.docsEnviadosEm,
+    })));
+  });
+
+  app.post("/api/aceites/:token/documentos", (req, res) => {
+    const a = banco.marcarDocumentosEnviados(req.params.token);
+    if (!a) return res.status(404).json({ erro: "Aceite não encontrado." });
+    res.json({ docsEnviadosEm: a.docsEnviadosEm });
   });
 
   /* ---------- configuração e backup ---------- */
@@ -244,6 +258,8 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
       nome: b.nome === undefined ? undefined : textoOpc(b.nome, "nome", 200),
       fone: b.fone === undefined ? undefined : textoOpc(b.fone, "telefone", 50),
       empresa: b.empresa === undefined ? undefined : textoOpc(b.empresa, "corretora", 200),
+      docsPf: b.docsPf === undefined ? undefined : textoOpc(b.docsPf, "documentos de pessoa física", 5000),
+      docsCnpj: b.docsCnpj === undefined ? undefined : textoOpc(b.docsCnpj, "documentos de CNPJ", 5000),
     }));
   });
 

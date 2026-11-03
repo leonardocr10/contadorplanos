@@ -2,7 +2,8 @@
 // backup ficam no outro servidor, então só esta porta deve ser exposta quando houver um domínio.
 import express from "express";
 import { join } from "node:path";
-import { renderizarProposta } from "./proposta-html.js";
+import { lines } from "../public/js/calculo.js";
+import { opcoesDeAceite, renderizarProposta } from "./proposta-html.js";
 
 const paginaErro = `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Proposta não encontrada</title><body style="font-family:system-ui,sans-serif;padding:32px"><h1>Proposta não encontrada</h1><p>Confira o link ou peça um novo ao seu corretor.</p></body></html>`;
 
@@ -21,15 +22,28 @@ export function criarAppPublica({ banco, pastaPublica, pastaUploads }) {
     res.setHeader("X-Robots-Tag", "noindex, nofollow");
     res.setHeader("Referrer-Policy", "no-referrer");
     res.setHeader("X-Content-Type-Options", "nosniff");
-    res.setHeader("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'");
+    res.setHeader("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
     next();
   });
 
+  const buscar = (token) => (/^[\w-]{20,}$/.test(token) ? banco.obterProposta(token) : null);
+
   app.get("/p/:token", (req, res) => {
-    const proposta = /^[\w-]{20,}$/.test(req.params.token) ? banco.obterProposta(req.params.token) : null;
+    const proposta = buscar(req.params.token);
     if (!proposta) return res.status(404).type("html").send(paginaErro);
+    const config = banco.lerConfig();
+    const documentos = lines(proposta.dados.plano.categoria === "CNPJ" ? config.docsCnpj : config.docsPf);
     res.setHeader("Cache-Control", "no-store");
-    res.type("html").send(renderizarProposta(proposta));
+    res.type("html").send(renderizarProposta(proposta.dados, { token: proposta.token, aceite: proposta, documentos }));
+  });
+
+  // O aceite só acontece por POST: quem apenas abre o link, como a prévia do WhatsApp, não aceita nada.
+  app.post("/p/:token/aceite", express.urlencoded({ extended: false, limit: "4kb" }), (req, res) => {
+    const proposta = buscar(req.params.token);
+    if (!proposta) return res.status(404).type("html").send(paginaErro);
+    const opcao = opcoesDeAceite(proposta.dados).find((o) => o.nome === req.body?.acomodacao);
+    if (opcao && req.body?.confirmo === "1") banco.aceitarProposta(proposta.token, opcao.nome, opcao.valor);
+    res.redirect(303, `/p/${proposta.token}`);
   });
 
   const estaticos = { index: false, dotfiles: "deny" };

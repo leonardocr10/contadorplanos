@@ -121,7 +121,9 @@ test("muda a situação e exclui cotação", async (t) => {
 test("dados do corretor ficam salvos", async (t) => {
   const { base, json } = await contexto(t);
   await json("/api/config", "PUT", { nome: "Diego", fone: "34", empresa: "X" });
-  assert.deepEqual(await (await fetch(base + "/api/config")).json(), { nome: "Diego", fone: "34", empresa: "X" });
+  assert.deepEqual(await (await fetch(base + "/api/config")).json(), { nome: "Diego", fone: "34", empresa: "X", docsPf: "", docsCnpj: "" });
+  await json("/api/config", "PUT", { docsPf: "RG\nCPF" });
+  assert.equal((await (await fetch(base + "/api/config")).json()).docsPf, "RG\nCPF");
 });
 
 test("upload aceita imagem de verdade e serve o arquivo", async (t) => {

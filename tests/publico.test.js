@@ -108,6 +108,83 @@ test("servidor público não dá acesso à API, ao histórico nem aos arquivos d
   assert.equal((await fetch(publico + "/fonts/figtree-latin-wght-normal.woff2")).status, 200);
 });
 
+async function criarLink(admin, publico, extra = {}) {
+  const { links } = await (await pedir(admin, { planos: ["plam-saude-pf"], vidas, over: {}, cliente: "Maria", fone: "(34) 99999-0000", opts, ...extra })).json();
+  return publico + new URL(links[0].url).pathname;
+}
+const aceitar = (url, campos) => fetch(url + "/aceite", {
+  method: "POST", redirect: "manual", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams(campos),
+});
+const listar = async (admin) => (await fetch(admin + "/api/aceites")).json();
+
+test("abrir o link não aceita; aceite exige acomodação válida e confirmação", async (t) => {
+  const { admin, publico } = await subir(t, ativo);
+  const url = await criarLink(admin, publico);
+  const pagina = await (await fetch(url)).text();
+  assert.ok(pagina.includes("Aceitar proposta"));
+  assert.ok(pagina.includes('value="Enfermaria"') && pagina.includes('value="Apartamento"'));
+  assert.equal((await listar(admin)).length, 0);
+
+  await aceitar(url, { acomodacao: "Apartamento" });
+  await aceitar(url, { acomodacao: "Suíte", confirmo: "1" });
+  assert.equal((await listar(admin)).length, 0);
+
+  const r = await aceitar(url, { acomodacao: "Apartamento", confirmo: "1" });
+  assert.equal(r.status, 303);
+  const [a] = await listar(admin);
+  assert.equal(a.fone, "34999990000");
+  assert.equal(a.cliente, "Maria");
+  assert.equal(a.plano, "PLAM SAÚDE");
+  assert.equal(a.acomodacao, "Apartamento");
+  assert.equal(a.valor, 1198.87);
+  assert.equal(a.docsEnviadosEm, null);
+});
+
+test("só o primeiro aceite vale e a página passa a mostrar os documentos", async (t) => {
+  const { admin, publico, banco } = await subir(t, ativo);
+  banco.gravarConfig({ docsPf: "RG e CPF\nComprovante <de> residência", docsCnpj: "Cartão CNPJ", fone: "(34) 90000-2222" });
+  const url = await criarLink(admin, publico);
+  await aceitar(url, { acomodacao: "Enfermaria", confirmo: "1" });
+  await aceitar(url, { acomodacao: "Apartamento", confirmo: "1" });
+  const lista = await listar(admin);
+  assert.equal(lista.length, 1);
+  assert.equal(lista[0].acomodacao, "Enfermaria");
+  const pagina = await (await fetch(url)).text();
+  assert.ok(pagina.includes("Proposta aceita"));
+  assert.ok(pagina.includes("RG e CPF"));
+  assert.ok(pagina.includes("Comprovante &lt;de&gt; residência"));
+  assert.ok(!pagina.includes("Cartão CNPJ"));
+  assert.ok(!pagina.includes('action="/p/'));
+  assert.ok(pagina.includes("phone=5534900002222"));
+});
+
+test("clientes diferentes com os mesmos dados têm links e aceites separados", async (t) => {
+  const { admin, publico } = await subir(t, ativo);
+  const a = await criarLink(admin, publico, { fone: "34999990000" });
+  const b = await criarLink(admin, publico, { fone: "34988887777" });
+  assert.notEqual(a, b);
+  await aceitar(b, { acomodacao: "Enfermaria", confirmo: "1" });
+  assert.deepEqual((await listar(admin)).map((x) => x.fone), ["34988887777"]);
+  assert.ok((await (await fetch(a)).text()).includes("Aceitar proposta"));
+});
+
+test("marca documentos enviados só em aceite existente", async (t) => {
+  const { admin, publico } = await subir(t, ativo);
+  const url = await criarLink(admin, publico);
+  const token = url.split("/").pop();
+  const marcar = (tk) => fetch(`${admin}/api/aceites/${tk}/documentos`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+  assert.equal((await marcar(token)).status, 404);
+  await aceitar(url, { acomodacao: "Enfermaria", confirmo: "1" });
+  assert.equal((await marcar(token)).status, 200);
+  assert.ok((await listar(admin))[0].docsEnviadosEm);
+});
+
+test("servidor público não expõe a lista de aceites", async (t) => {
+  const { publico } = await subir(t, ativo);
+  assert.equal((await fetch(publico + "/api/aceites")).status, 404);
+  assert.equal((await aceitar(publico + "/p/tokenquenaoexistedeverdade123", { acomodacao: "Enfermaria", confirmo: "1" })).status, 404);
+});
+
 test("sem PUBLIC_URL o link é local; com domínio usa o domínio", () => {
   assert.deepEqual(enderecoDosLinks("", 3211), { url: "http://127.0.0.1:3211", local: true });
   assert.deepEqual(enderecoDosLinks(undefined, 3211), { url: "http://127.0.0.1:3211", local: true });

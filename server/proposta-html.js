@@ -1,5 +1,6 @@
 // Página HTML da proposta, aberta pelo cliente no celular. Segue os mesmos blocos da imagem em canvas.
-import { FAIXAS, brl, lines, planPrices, r2, totalVidas } from "../public/js/calculo.js";
+import { FAIXAS, brl, lines, normFone, planPrices, r2, totalVidas } from "../public/js/calculo.js";
+import { linkWhatsApp } from "../public/js/mensagem.js";
 import { themeFor } from "../public/js/proposta.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -21,7 +22,7 @@ export function montarSnapshot(p, { vidas, over, cliente, opts }, corretor, agor
       })),
     },
     plano: {
-      nome: p.nome, subtitulo: p.subtitulo, cidade: p.cidade, taxa: p.taxa, odonto: p.odonto, fidelidade: p.fidelidade,
+      nome: p.nome, subtitulo: p.subtitulo, categoria: p.categoria, cidade: p.cidade, taxa: p.taxa, odonto: p.odonto, fidelidade: p.fidelidade,
       corPrimaria: p.corPrimaria, corEscura: p.corEscura,
       beneficios: p.mostrarExtras ? lines(p.extras) : [],
       copartTexto: opts.copart ? p.copartTexto : "",
@@ -61,7 +62,38 @@ function blocoValores({ precos: v, vidas, plano: p }) {
   return `<section class="valores"><h2 class="sobre">${titulo}</h2>${totais}${faixas}${extras ? `<p class="extras">${esc(extras)}</p>` : ""}</section>`;
 }
 
-export function renderizarProposta(s) {
+// Acomodações que o cliente pode aceitar: só as que têm valor nesta proposta.
+export function opcoesDeAceite(s) {
+  const o = [];
+  if (s.precos.enf != null) o.push({ nome: "Enfermaria", valor: s.precos.enf });
+  if (s.precos.apto != null) o.push({ nome: "Apartamento", valor: s.precos.apto });
+  return o;
+}
+
+function blocoAceite(s, { token, aceite, documentos = [] }) {
+  if (aceite?.aceitoEm) {
+    const data = new Date(aceite.aceitoEm).toLocaleDateString("pt-BR");
+    const fone = normFone(s.corretor.fone);
+    const contato = fone.length >= 10
+      ? `<a class="botao" href="${esc(linkWhatsApp(fone, `Olá! Aceitei a proposta do plano ${s.plano.nome}. Seguem os meus documentos.`))}">Enviar documentos pelo WhatsApp</a>`
+      : "";
+    return `<section class="aceite feito"><h2>Proposta aceita</h2><p>Você aceitou esta proposta em ${esc(data)}: <b>${esc(aceite.acomodacao)}, R$ ${brl(aceite.valor)} por mês</b>.</p>${documentos.length
+      ? `<h3>Documentos necessários</h3><p>Para dar andamento, precisamos que você nos envie:</p><ul>${documentos.map((d) => `<li>${esc(d)}</li>`).join("")}</ul>${contato}`
+      : "<p>Em breve entraremos em contato com os próximos passos.</p>"}</section>`;
+  }
+  const opcoes = opcoesDeAceite(s);
+  if (!token || !opcoes.length) return "";
+  const unica = opcoes.length === 1;
+  return `<section class="aceite" id="aceite"><h2>Aceitar esta proposta</h2>
+<form method="post" action="/p/${esc(token)}/aceite">
+<fieldset><legend>Escolha a acomodação</legend>${opcoes.map((o) =>
+    `<label class="opcao"><input type="radio" name="acomodacao" value="${o.nome}" required${unica ? " checked" : ""}> <span>${o.nome}</span> <b>R$ ${brl(o.valor)}</b></label>`).join("")}</fieldset>
+<label class="confirma"><input type="checkbox" name="confirmo" value="1" required> Li as condições desta proposta e quero seguir com a contratação.</label>
+<button class="botao" type="submit">Aceitar proposta</button>
+</form></section>`;
+}
+
+export function renderizarProposta(s, aceitacao = {}) {
   const p = s.plano, c = s.corretor, T = themeFor(p);
   const sec = (titulo, corpo) => `<section><h2>${esc(titulo)}</h2>${corpo}</section>`;
   const blocos = [`<p class="ola">${s.cliente ? `Olá, ${esc(s.cliente)}! ` : "Olá! "}Preparamos esta proposta para que você conheça as condições do plano ${esc(p.nome)}.</p>`, blocoValores(s)];
@@ -73,6 +105,10 @@ export function renderizarProposta(s) {
   if (p.rede.length) blocos.push(sec(`Rede credenciada – ${p.cidade || "Uberlândia"}`, `<ul>${p.rede.map((h) => `<li>${esc(h)}</li>`).join("")}</ul>`));
   if (p.fidelidade) blocos.push(`<p class="fidelidade">⚠️ Planos CNPJ geram fidelidade de 1 ano.</p>`);
   if (s.legendaAcomodacao) blocos.push(`<p class="nota">*Enfermaria: acomodação compartilhada. *Apartamento: acomodação individual.</p>`);
+  const aceite = blocoAceite(s, aceitacao);
+  // Depois de aceitar, a confirmação e os documentos ficam no topo; antes, o formulário fecha a página.
+  if (aceitacao.aceite?.aceitoEm) blocos.unshift(aceite);
+  else if (aceite) blocos.push(aceite);
   const contato = [c.empresa, c.fone].filter(Boolean).join(" · ");
   const titulo = `Proposta ${p.nome}`;
   return `<!doctype html>
@@ -121,6 +157,16 @@ ul{margin:0;padding-left:20px}
 ul.livre{list-style:none;padding:0}
 li{margin:5px 0;font-weight:600}
 .fidelidade{color:${T.danger};font-weight:700}
+.aceite{background:${T.white};border-radius:16px;padding:18px;box-shadow:0 0 0 2px ${T.thead}}
+.aceite h3{font:700 17px/1.3 "Bricolage Grotesque",Figtree,sans-serif;margin:16px 0 6px}
+fieldset{border:0;margin:0 0 12px;padding:0}
+legend{font-weight:700;padding:0;margin-bottom:8px}
+.opcao{display:flex;align-items:center;gap:10px;border:1px solid ${T.line};border-radius:12px;padding:12px;margin-bottom:8px;cursor:pointer}
+.opcao span{flex:1;font-weight:600}
+.opcao b{font-variant-numeric:tabular-nums;color:${T.val}}
+.confirma{display:flex;gap:10px;align-items:flex-start;font-size:14.5px;margin-bottom:14px;cursor:pointer}
+input[type=radio],input[type=checkbox]{width:20px;height:20px;flex:none;accent-color:${T.thead}}
+.botao{display:block;width:100%;border:0;border-radius:12px;background:${T.thead};color:${T.white};font:700 17px Figtree,sans-serif;padding:15px;margin-top:12px;text-align:center;text-decoration:none;cursor:pointer}
 footer{display:flex;flex-wrap:wrap;gap:6px 20px;justify-content:space-between}
 footer b{display:block;font-size:17px}
 footer span{color:${T.sub};font-size:14px}
