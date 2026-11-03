@@ -1,6 +1,7 @@
 // Página HTML da proposta, aberta pelo cliente: layout com painel lateral, sem rolagem no computador.
 import { FAIXAS, brl, lines, normFone, parseBRL, planPrices, r2, totalVidas } from "../public/js/calculo.js";
 import { linkWhatsApp } from "../public/js/mensagem.js";
+import { hex2rgb, lumRGB, mixRGB, toHex } from "../public/js/proposta.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const temTabela = (t) => String(t || "").includes("|");
@@ -139,6 +140,46 @@ export function paraProposta(s) {
   };
 }
 
+/* ---------- cores da página, a partir da cor do plano ---------- */
+const BRANCO = [255, 255, 255], PRETO = [0, 0, 0];
+export const contraste = (a, b) => {
+  const [x, y] = [lumRGB(a), lumRGB(b)].sort((m, n) => n - m);
+  return (x + 0.05) / (y + 0.05);
+};
+
+// Cor de operadora clara demais é escurecida até ficar legível sobre o fundo, e o texto claro é clareado.
+function ajustarContraste(cor, fundo, direcao) {
+  let c = cor;
+  // O arredondamento pode parar antes do branco ou do preto puros; por isso o limite de passos.
+  for (let i = 0; i < 60; i++) {
+    if (contraste(c, fundo) >= 4.5) return c;
+    c = mixRGB(c, direcao, 0.05);
+  }
+  return direcao;
+}
+const legivelComBranco = (cor) => ajustarContraste(cor, BRANCO, PRETO);
+
+export function paletaProposta(p) {
+  const principal = hex2rgb(p.corPrimaria) ?? hex2rgb(p.corEscura) ?? [0, 103, 179];
+  const escura = hex2rgb(p.corEscura) ?? mixRGB(principal, PRETO, 0.45);
+  const accent = legivelComBranco(principal), navy = legivelComBranco(escura);
+  const side = mixRGB(principal, BRANCO, 0.95);
+  return {
+    navy: toHex(navy),
+    accent: toHex(accent),
+    accentNaBarra: toHex(ajustarContraste(accent, side, PRETO)),
+    side: toHex(side),
+    zebra: toHex(mixRGB(principal, BRANCO, 0.98)),
+    line: toHex(mixRGB(principal, BRANCO, 0.84)),
+    lineSoft: toHex(mixRGB(principal, BRANCO, 0.93)),
+    sobreNavy: toHex(ajustarContraste(mixRGB(navy, BRANCO, 0.8), navy, BRANCO)),
+    rotuloNavy: toHex(ajustarContraste(mixRGB(navy, BRANCO, 0.68), navy, BRANCO)),
+    sobreAccent: toHex(ajustarContraste(mixRGB(accent, BRANCO, 0.88), accent, BRANCO)),
+  };
+}
+
+const variaveisDeCor = (c) => `:root{--navy:${c.navy};--accent:${c.accent};--accent-barra:${c.accentNaBarra};--side:${c.side};--zebra:${c.zebra};--line:${c.line};--line-soft:${c.lineSoft};--sobre-navy:${c.sobreNavy};--rotulo-navy:${c.rotuloNavy};--sobre-accent:${c.sobreAccent}}`;
+
 /* ---------- blocos da página ---------- */
 const ICONES = {
   smile: '<circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01"/><path d="M15 9h.01"/>',
@@ -148,7 +189,7 @@ const ICONES = {
   pin: '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
   check: '<path d="M20 6 9 17l-5-5"/>',
 };
-const svg = (n, s = 18) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="#0067b3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONES[n]}</svg>`;
+const svg = (n, s = 18) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="color:var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONES[n]}</svg>`;
 const SVG_TELEFONE = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>';
 const contagem = (lista) => `· ${lista.length} ${lista.length === 1 ? "item" : "itens"}`;
 const imagem = (caminho, alt) => (/^(img|uploads)\/[\w.-]+$/.test(caminho || "") ? `<img class="tabimg" src="/${esc(caminho)}" alt="${esc(alt)}">` : "");
@@ -181,7 +222,7 @@ function barraLateral(P) {
     ${P.consultor.nome || fone ? `<div class="consultant">
       <span class="eyebrow">Seu consultor</span>
       ${P.consultor.nome ? `<span style="font-size:16px;font-weight:800">${esc(P.consultor.nome)}</span>` : ""}
-      ${P.consultor.corretora ? `<span style="font-size:13px;color:#d6e9f7">${esc(P.consultor.corretora)}</span>` : ""}
+      ${P.consultor.corretora ? `<span style="font-size:13px;color:var(--sobre-navy)">${esc(P.consultor.corretora)}</span>` : ""}
       ${fone ? `<a href="tel:${esc(fone)}">${SVG_TELEFONE}<span>${esc(P.consultor.telefone)}</span></a>` : ""}
     </div>` : ""}
   </aside>`;
@@ -261,7 +302,7 @@ function avisoAceito(s, { aceite, documentos = [] }) {
 
 const CSS = `
 @font-face{font-family:Manrope;font-weight:200 800;font-display:swap;src:url(/fonts/manrope-latin-wght-normal.woff2) format("woff2")}
-:root{--navy:#00466e;--accent:#0067b3;--ink:#10243a;--muted:#4a5d70;--line:#dbe5ef;--line-soft:#eef2f6;--side:#f2f6fa;--zebra:#fafcfe;
+:root{--ink:#10243a;--muted:#4a5d70;
   --ok-bg:#e8f4ec;--ok:#145a32;--low-bg:#e6f1fb;--low:#00508c;--mid-bg:#fff6d6;--mid:#6b4d00;--high-bg:#ffe8d6;--high:#8a3b00}
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -270,7 +311,7 @@ body{margin:0;font-family:Manrope,system-ui,sans-serif;color:var(--ink);backgrou
 .side{flex:1 1 270px;max-width:100%;background:var(--side);border-right:1px solid var(--line);padding:28px 24px;display:flex;flex-direction:column;gap:24px}
 .main{flex:999 1 640px;min-width:0;padding:28px 36px;display:flex;flex-direction:column;gap:22px}
 .eyebrow{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.eyebrow.blue{color:var(--accent)}
+.eyebrow.blue{color:var(--accent-barra)}
 .stack{display:flex;flex-direction:column}
 .client{font-size:18px;font-weight:800;line-height:1.3}
 .small{font-size:13px;color:var(--muted)}
@@ -283,7 +324,7 @@ body{margin:0;font-family:Manrope,system-ui,sans-serif;color:var(--ink);backgrou
 .faixas li b{font-weight:800;color:var(--navy)}
 .vezes{color:var(--accent)}
 .consultant{margin-top:auto;background:var(--navy);color:#fff;border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:6px}
-.consultant .eyebrow{color:#9fd3ff;letter-spacing:.06em}
+.consultant .eyebrow{color:var(--rotulo-navy);letter-spacing:.06em}
 .consultant a{margin-top:4px;min-height:44px;display:flex;align-items:center;justify-content:center;gap:8px;background:#fff;color:var(--navy);border-radius:10px;font-weight:700;font-size:14px;text-decoration:none}
 .hero{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:20px;padding-bottom:20px;border-bottom:1px solid var(--line)}
 h1{margin:0;font-size:36px;font-weight:800;letter-spacing:-.02em;color:var(--navy)}
@@ -295,12 +336,12 @@ h1{margin:0;font-size:36px;font-weight:800;letter-spacing:-.02em;color:var(--nav
 .price{min-width:200px;border:1px solid var(--line);border-radius:16px;padding:14px 18px;display:flex;flex-direction:column;gap:2px}
 .price.featured{background:var(--accent);border-color:var(--accent);color:#fff}
 .price .label{font-size:13px;font-weight:700;color:var(--muted)}
-.price.featured .label{color:#e3f2ff}
+.price.featured .label{color:var(--sobre-accent)}
 .price .value{font-size:30px;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
 .aceitar{position:relative;display:flex}
 .aceitar summary{list-style:none;display:flex;align-items:center;justify-content:center;min-height:44px;padding:0 20px;border-radius:16px;background:var(--navy);color:#fff;font-weight:800;font-size:15px;cursor:pointer;width:100%}
 .aceitar summary::-webkit-details-marker{display:none}
-.aceitar summary:focus-visible,.botao:focus-visible,select:focus-visible,.consultant a:focus-visible{outline:3px solid #9fd3ff;outline-offset:2px}
+.aceitar summary:focus-visible,.botao:focus-visible,select:focus-visible,.consultant a:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
 .painel{position:absolute;right:0;top:calc(100% + 8px);z-index:5;width:340px;max-width:calc(100vw - 32px);background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 12px 32px rgba(0,40,70,.18)}
 fieldset{border:0;margin:0 0 10px;padding:0}
 legend{font-weight:800;font-size:14px;padding:0;margin-bottom:8px}
@@ -330,7 +371,7 @@ h2 .count{font-size:13px;font-weight:600;color:var(--muted)}
 .inteiro{grid-column:2/4}
 .car-top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:8px 16px}
 label.sel{display:flex;flex-direction:column;gap:4px;min-width:0;max-width:100%;font-size:12px;font-weight:700;color:var(--muted)}
-select{min-height:40px;width:100%;max-width:420px;padding:0 10px;border:1px solid #c9d6e3;border-radius:10px;font:600 13px Manrope,system-ui,sans-serif;color:var(--ink);background:#fff}
+select{min-height:40px;width:100%;max-width:420px;padding:0 10px;border:1px solid var(--line);border-radius:10px;font:600 13px Manrope,system-ui,sans-serif;color:var(--ink);background:#fff}
 .car-list{border-top:1px solid var(--line)}
 .car-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 10px}
 .pill{flex:none;min-width:70px;text-align:center;padding:2px 8px;border-radius:999px;font-weight:700;font-size:12px;white-space:nowrap}
@@ -358,7 +399,7 @@ export function renderizarProposta(s, aceitacao = {}) {
 <meta property="og:title" content="${esc(titulo)}">
 <meta property="og:description" content="Valores, coparticipação, carências e rede credenciada.">
 <title>${esc(titulo)}</title>
-<style>${CSS}</style>
+<style>${variaveisDeCor(paletaProposta(s.plano))}${CSS}</style>
 </head>
 <body>
 <div class="page">

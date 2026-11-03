@@ -6,7 +6,8 @@ import { join } from "node:path";
 import { Banco } from "../server/db.js";
 import { criarApp } from "../server/app.js";
 import { criarAppPublica, enderecoDosLinks } from "../server/publico.js";
-import { fmtDias, linhaCoparticipacao, montarSnapshot, nivelPrazo, paraProposta, prazo, renderizarProposta } from "../server/proposta-html.js";
+import { contraste, fmtDias, linhaCoparticipacao, montarSnapshot, nivelPrazo, paletaProposta, paraProposta, prazo, renderizarProposta } from "../server/proposta-html.js";
+import { hex2rgb } from "../public/js/proposta.js";
 
 const raiz = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
 const seed = join(raiz, "dados", "planos.json");
@@ -59,6 +60,34 @@ test("benefícios só aparecem com mostrarExtras e opções são respeitadas", (
   assert.ok(!plam.includes("Rede ·"));
   assert.ok(!plam.includes("acomodação compartilhada"));
   assert.ok(!plam.includes('id="situacao"'), "uma só situação não precisa de seletor");
+});
+
+test("a página segue a cor do plano", () => {
+  const pagina = (id) => renderizarProposta(montarSnapshot(plano(id), { vidas, over: {}, cliente: "", opts }, corretor));
+  const plam = pagina("plam-saude-pf");
+  assert.ok(plam.includes("--navy:#00564d"));
+  assert.ok(plam.includes("--accent:#007e70"));
+  assert.ok(pagina("unimed-pleno-on-pf").includes("--navy:#00643a"));
+  assert.ok(pagina("amil-ouro-total").includes("--navy:#004773"));
+  assert.ok(pagina("plamedh-pf").includes("--navy:#0f5fb3"));
+  // Nada do azul fixo do modelo pode sobrar em um plano verde.
+  for (const fixo of ["#00466e", "#0067b3", "#dbe5ef", "#f2f6fa", "#9fd3ff", "#d6e9f7", "#e3f2ff", "#c9d6e3"]) assert.ok(!plam.includes(fixo), fixo);
+});
+
+test("as cores derivadas têm contraste de 4.5:1 em todos os planos", () => {
+  const cores = [...planos.map((p) => p), { corPrimaria: "#ffff00", corEscura: "#ffee00" }, { corPrimaria: "" , corEscura: "" }];
+  for (const p of cores) {
+    const c = paletaProposta(p), rgb = (h) => hex2rgb(h), branco = [255, 255, 255], ink = rgb("#10243a"), muted = rgb("#4a5d70");
+    const pares = [
+      ["branco sobre preço em destaque", branco, c.accent], ["título", rgb(c.navy), branco], ["destaque sobre branco", rgb(c.accent), branco],
+      ["rótulo do preço", rgb(c.sobreAccent), c.accent], ["corretora", rgb(c.sobreNavy), c.navy], ["rótulo do consultor", rgb(c.rotuloNavy), c.navy],
+      ["texto na barra", ink, c.side], ["texto fraco na barra", muted, c.side], ["título na barra", rgb(c.accentNaBarra), c.side], ["linha zebrada", muted, c.zebra], ["percentual na linha zebrada", rgb(c.accent), c.zebra],
+    ];
+    for (const [nome, a, b] of pares) {
+      const fundo = typeof b === "string" ? rgb(b) : b;
+      assert.ok(contraste(a, fundo) >= 4.5, `${p.id ?? p.corPrimaria}: ${nome} = ${contraste(a, fundo).toFixed(2)}`);
+    }
+  }
 });
 
 test("mostra o subtotal de cada faixa etária", () => {
