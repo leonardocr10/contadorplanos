@@ -114,6 +114,12 @@ export function paraProposta(s) {
     cliente: s.cliente,
     vidas: s.vidas,
     faixaEtaria: listaFaixas(s.precos.linhas),
+    // Subtotal de cada faixa. Acomodação sem valor em alguma faixa fica de fora, como nos totais.
+    faixas: {
+      temEnf: s.precos.enf != null,
+      temApto: s.precos.apto != null,
+      linhas: s.precos.linhas,
+    },
     plano: p.nome,
     subtitulo: p.subtitulo,
     taxa: p.taxa ? `+ ${moeda(p.taxa)} de taxa associativa` : "",
@@ -146,6 +152,18 @@ const svg = (n, s = 18) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" 
 const SVG_TELEFONE = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>';
 const contagem = (lista) => `· ${lista.length} ${lista.length === 1 ? "item" : "itens"}`;
 const imagem = (caminho, alt) => (/^(img|uploads)\/[\w.-]+$/.test(caminho || "") ? `<img class="tabimg" src="/${esc(caminho)}" alt="${esc(alt)}">` : "");
+
+function blocoFaixas({ temEnf, temApto, linhas }) {
+  if (!linhas.length || (!temEnf && !temApto)) return "";
+  return `<section class="faixas">
+      <h2 class="eyebrow">Valor por faixa etária</h2>
+      <ul>${linhas.map((l) => `<li>
+        <b>${esc(l.faixa)} anos${l.n > 1 ? ` <span class="vezes">× ${l.n}</span>` : ""}</b>
+        ${temEnf ? `<span>Enf. ${moeda(l.enf)}</span>` : ""}
+        ${temApto ? `<span>Apto ${moeda(l.apto)}</span>` : ""}
+      </li>`).join("")}</ul>
+    </section>`;
+}
 
 function barraLateral(P) {
   const vidas = P.vidas ? `${P.vidas} ${P.vidas === 1 ? "vida" : "vidas"}${P.faixaEtaria ? ` · ${P.faixaEtaria}` : ""}` : "";
@@ -258,6 +276,12 @@ body{margin:0;font-family:Manrope,system-ui,sans-serif;color:var(--ink);backgrou
 .small{font-size:13px;color:var(--muted)}
 .item{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.4}
 .item svg{flex:none;margin-top:1px}
+.faixas{display:flex;align-items:flex-start;gap:6px 14px;margin-top:-8px}
+.faixas h2{flex:0 0 96px;margin:0;font-size:11px;font-weight:700;line-height:1.3;color:var(--muted)}
+.faixas ul{flex:1;min-width:0;display:flex;flex-wrap:wrap;gap:6px 8px;margin:0;padding:0;list-style:none}
+.faixas li{display:flex;flex-wrap:wrap;gap:2px 10px;padding:4px 10px;border:1px solid var(--line);border-radius:8px;background:var(--side);font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+.faixas li b{font-weight:800;color:var(--navy)}
+.vezes{color:var(--accent)}
 .consultant{margin-top:auto;background:var(--navy);color:#fff;border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:6px}
 .consultant .eyebrow{color:#9fd3ff;letter-spacing:.06em}
 .consultant a{margin-top:4px;min-height:44px;display:flex;align-items:center;justify-content:center;gap:8px;background:#fff;color:var(--navy);border-radius:10px;font-weight:700;font-size:14px;text-decoration:none}
@@ -316,7 +340,7 @@ select{min-height:40px;width:100%;max-width:420px;padding:0 10px;border:1px soli
 .tabimg{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:10px}
 .note{margin:0;font-size:12px;color:var(--muted);line-height:1.45}
 .fidelidade{margin:0;font-size:13px;font-weight:800;color:#a3211f}
-@media (max-width:640px){.main{padding:20px 16px}.side{padding:20px 16px;border-right:0;border-bottom:1px solid var(--line)}h1{font-size:28px}.lado,.prices,.aceitar{width:100%}.price{flex:1 1 100%}.aceitar{flex-direction:column}.painel{position:static;width:100%;max-width:100%;margin-top:8px}}
+@media (max-width:640px){.main{padding:20px 16px}.side{padding:20px 16px;border-right:0;border-bottom:1px solid var(--line)}h1{font-size:28px}.lado,.prices,.aceitar{width:100%}.price{flex:1 1 100%}.aceitar{flex-direction:column}.painel{position:static;width:100%;max-width:100%;margin-top:8px}.faixas{flex-direction:column}.faixas h2{flex:none}.faixas ul,.faixas li{width:100%}.faixas ul{flex:none}.faixas li{justify-content:space-between;padding:6px 10px}.faixas li b{flex:1 1 100%}}
 `;
 
 export function renderizarProposta(s, aceitacao = {}) {
@@ -350,6 +374,7 @@ export function renderizarProposta(s, aceitacao = {}) {
       </div>
       <div class="lado"><div class="prices">${precos}</div>${botaoAceite(s, aceitacao)}</div>
     </div>
+    ${blocoFaixas(P.faixas)}
     <div class="cols">${secaoCoparticipacao(P)}${secaoCarencias(P)}</div>
     ${P.fidelidade ? `<p class="fidelidade">Planos CNPJ geram fidelidade de 1 ano.</p>` : ""}
     ${P.rodape.length ? `<p class="note">${P.rodape.map(esc).join(" ")}</p>` : ""}

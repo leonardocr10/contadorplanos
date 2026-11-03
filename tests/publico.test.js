@@ -61,6 +61,21 @@ test("benefícios só aparecem com mostrarExtras e opções são respeitadas", (
   assert.ok(!plam.includes('id="situacao"'), "uma só situação não precisa de seletor");
 });
 
+test("mostra o subtotal de cada faixa etária", () => {
+  const html = renderizarProposta(montarSnapshot(plano("plam-saude-pf"), { vidas: [1, 0, 0, 2, 0, 0, 0, 0, 0, 0], over: {}, cliente: "", opts }, corretor));
+  assert.ok(html.includes("Valor por faixa etária"));
+  assert.match(html, /<b>0 a 18 anos<\/b>\s*<span>Enf\. R\$ 173,03<\/span>\s*<span>Apto R\$ 271,74<\/span>/);
+  assert.match(html, /<b>29 a 33 anos <span class="vezes">× 2<\/span><\/b>\s*<span>Enf\. R\$ 561,44<\/span>\s*<span>Apto R\$ 862,46<\/span>/);
+});
+
+test("faixas escondem a acomodação sem valor e somem sem idades", () => {
+  const html = renderizarProposta(montarSnapshot(plano("amil-platinum-r1-total"), { vidas, over: {}, cliente: "", opts }, corretor));
+  assert.ok(!html.includes("<span>Enf. "));
+  assert.ok(html.includes("<span>Apto "));
+  const semIdades = renderizarProposta(montarSnapshot(plano("plam-saude-pf"), { vidas: Array(10).fill(0), over: {}, cliente: "", opts }, corretor));
+  assert.ok(!semIdades.includes("Valor por faixa etária"));
+});
+
 test("adaptador lê os formatos reais de coparticipação", () => {
   assert.deepEqual(linhaCoparticipacao(["Consulta", "30%", "30,00"]), { nome: "Consulta", tipo: "pct", pct: "30", teto: 30 });
   assert.deepEqual(linhaCoparticipacao(["Internação", "–", "220,00"]), { nome: "Internação", tipo: "fixo", valor: 220 });
