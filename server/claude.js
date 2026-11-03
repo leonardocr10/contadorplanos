@@ -157,7 +157,7 @@ export async function lerTabela({ nome = "", subtitulo = "", imagens }, { apiKey
     ...dados.map((data) => ({ type: "image", source: { type: "base64", media_type: "image/jpeg", data } })),
     { type: "text", text: montarPrompt(String(nome), String(subtitulo)) },
   ];
-  const fallback = MODELOS_COM_FALLBACK.has(modelo) ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" } : { betas: [] };
+  const fallback = MODELOS_COM_FALLBACK.has(modelo) ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" } : {};
   try {
     // Com streaming, leituras longas de muitas páginas não estouram o tempo limite da conexão.
     const stream = client.beta.messages.stream({ model: modelo, max_tokens: 64000, ...fallback, messages: [{ role: "user", content: conteudo }] });
