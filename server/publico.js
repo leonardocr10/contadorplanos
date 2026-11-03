@@ -21,7 +21,7 @@ export function criarAppPublica({ banco, pastaPublica, pastaUploads }) {
     res.setHeader("X-Robots-Tag", "noindex, nofollow");
     res.setHeader("Referrer-Policy", "no-referrer");
     res.setHeader("X-Content-Type-Options", "nosniff");
-    res.setHeader("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
+    res.setHeader("Content-Security-Policy", "default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; img-src 'self'; font-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'");
     next();
   });
 
@@ -43,6 +43,8 @@ export function criarAppPublica({ banco, pastaPublica, pastaUploads }) {
     if (opcao && req.body?.confirmo === "1") banco.aceitarProposta(proposta.token, opcao.nome, opcao.valor);
     res.redirect(303, `/p/${proposta.token}`);
   });
+
+  app.get("/proposta-pagina.js", (_req, res) => res.sendFile(join(pastaPublica, "proposta-pagina.js")));
 
   const estaticos = { index: false, dotfiles: "deny" };
   app.use("/fonts", express.static(join(pastaPublica, "fonts"), estaticos));

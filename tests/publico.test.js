@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { Banco } from "../server/db.js";
 import { criarApp } from "../server/app.js";
 import { criarAppPublica, enderecoDosLinks } from "../server/publico.js";
-import { montarSnapshot, renderizarProposta } from "../server/proposta-html.js";
+import { fmtDias, linhaCoparticipacao, montarSnapshot, nivelPrazo, paraProposta, prazo, renderizarProposta } from "../server/proposta-html.js";
 
 const raiz = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
 const seed = join(raiz, "dados", "planos.json");
@@ -41,7 +41,7 @@ const ativo = () => ({ estado: "ativo", url: "https://teste.trycloudflare.com" }
 test("página traz valores, tabelas e rede, sem a observação do plano", () => {
   const p = plano("plam-saude-pf");
   const html = renderizarProposta(montarSnapshot(p, { vidas, over: {}, cliente: "Maria", opts }, corretor));
-  for (const trecho of ["PLAM SAÚDE", "Proposta para Maria", "R$ 769,76", "R$ 1.198,87", "R$ 7,00 de taxa associativa", "Consulta médica", "Carências", "Hospital Santa Marta", "Nexyum", "noindex"]) {
+  for (const trecho of ["PLAM SAÚDE", "Proposta para", "Maria", "3 vidas · 0 a 18, 29 a 33 e 34 a 38 anos", "R$ 769,76", "R$ 1.198,87", "R$ 7,00 de taxa associativa", "Consulta médica", "Carências", "Hospital Santa Marta", "Nexyum", "tel:349", "noindex"]) {
     assert.ok(html.includes(trecho), trecho);
   }
   if (p.descricao) assert.ok(!html.includes(p.descricao));
@@ -49,25 +49,98 @@ test("página traz valores, tabelas e rede, sem a observação do plano", () => 
 
 test("benefícios só aparecem com mostrarExtras e opções são respeitadas", () => {
   const amil = renderizarProposta(montarSnapshot(plano("amil-ouro-total"), { vidas, over: {}, cliente: "", opts }, corretor));
-  assert.ok(amil.includes("Benefícios do plano"));
-  assert.ok(amil.includes('class="tab larga"'));
-  const plam = renderizarProposta(montarSnapshot(plano("plam-saude-pf"), { vidas, over: {}, cliente: "", opts: { copart: false, rede: false, acom: false } }, corretor));
-  assert.ok(!plam.includes("Benefícios do plano"));
-  assert.ok(!plam.includes("Como funciona a coparticipação"));
-  assert.ok(!plam.includes("Rede credenciada"));
+  assert.ok(amil.includes("Incluso no plano"));
+  assert.ok(amil.includes('id="situacao"'));
+  assert.ok(!/[\u{1F300}-\u{1FAFF}✈]/u.test(amil), "benefícios sem emoji");
+  const pl = plano("plam-saude-pf");
+  const plam = renderizarProposta(montarSnapshot(pl, { vidas, over: {}, cliente: "", opts: { copart: false, rede: false, acom: false } }, corretor));
+  assert.ok(!plam.includes("Incluso no plano"));
+  assert.ok(!plam.includes(pl.copartTexto));
+  assert.ok(!plam.includes("Rede ·"));
   assert.ok(!plam.includes("acomodação compartilhada"));
+  assert.ok(!plam.includes('id="situacao"'), "uma só situação não precisa de seletor");
+});
+
+test("adaptador lê os formatos reais de coparticipação", () => {
+  assert.deepEqual(linhaCoparticipacao(["Consulta", "30%", "30,00"]), { nome: "Consulta", tipo: "pct", pct: "30", teto: 30 });
+  assert.deepEqual(linhaCoparticipacao(["Internação", "–", "220,00"]), { nome: "Internação", tipo: "fixo", valor: 220 });
+  assert.deepEqual(linhaCoparticipacao(["Consulta", "R$ 30,00"]), { nome: "Consulta", tipo: "fixo", valor: 30, detalhe: "" });
+  assert.deepEqual(linhaCoparticipacao(["Consulta", "Isento"]), { nome: "Consulta", tipo: "isento" });
+  assert.deepEqual(linhaCoparticipacao(["Exame", "40% (por procedimento)"]), { nome: "Exame", tipo: "pct", pct: "40", teto: null, detalhe: "por procedimento" });
+  assert.deepEqual(linhaCoparticipacao(["Exame", "40% limitado a R$ 100,00 (por procedimento)"]), { nome: "Exame", tipo: "pct", pct: "40", teto: 100, detalhe: "por procedimento" });
+  assert.deepEqual(linhaCoparticipacao(["Cirurgia", "R$ 1.000,00 (por procedimento)"]), { nome: "Cirurgia", tipo: "fixo", valor: 1000, detalhe: "por procedimento" });
+  assert.deepEqual(linhaCoparticipacao(["Internação", "R$ 100,00 por evento"]), { nome: "Internação", tipo: "fixo", valor: 100, detalhe: "por evento" });
+  assert.deepEqual(linhaCoparticipacao(["Outro", "conforme contrato"]), { nome: "Outro", tipo: "texto", texto: "conforme contrato" });
+  assert.deepEqual(linhaCoparticipacao(["Outro", "a", "b", "c"]), { nome: "Outro", tipo: "texto", texto: "a · b · c" });
+});
+
+test("nenhuma linha real de coparticipação perde informação", () => {
+  for (const p of planos) {
+    for (const l of p.copartTabela.split("\n").slice(1)) {
+      const c = linhaCoparticipacao(l.split("|").map((x) => x.trim()));
+      assert.notEqual(c.tipo, "texto", `${p.id}: ${l}`);
+    }
+  }
+});
+
+test("prazos seguem as regras de texto e cor", () => {
+  assert.deepEqual([0, 1, 30, 180, 720, 300].map(fmtDias), ["0 dia", "1 dia", "30 dias", "180 dias", "24 meses", "300 dias"]);
+  assert.deepEqual([0, 1, 30, 31, 179, 180, null].map(nivelPrazo), ["ok", "low", "low", "mid", "mid", "high", "neutro"]);
+  assert.deepEqual(prazo("24 horas"), { texto: "24 horas", dias: 1 });
+  assert.deepEqual(prazo("24 meses"), { texto: "24 meses", dias: 720 });
+  assert.deepEqual(prazo("720 dias"), { texto: "24 meses", dias: 720 });
+  assert.deepEqual(prazo("sem carência"), { texto: "sem carência", dias: null });
+});
+
+test("seletor traz as situações reais e uma lista por situação", () => {
+  const s = montarSnapshot(plano("amil-ouro-total"), { vidas, over: {}, cliente: "", opts }, corretor);
+  const P = paraProposta(s);
+  assert.equal(P.situacoes.length, 5);
+  assert.equal(P.situacoes[1], "Sem plano anterior · PRC 607");
+  assert.equal(P.carencias.length, 20);
+  assert.equal(P.carencias[1].prazos[0].texto, "180 dias");
+  assert.equal(P.carencias[1].prazos[1].texto, "1 dia");
+  assert.equal(P.precos.at(-1).destaque, true);
+  const html = renderizarProposta(s);
+  assert.equal(html.match(/data-situacao=/g).length, 5);
+  assert.equal(html.match(/class="car-list" data-situacao="\d"( hidden)?/g).filter((x) => !x.includes("hidden")).length, 1);
+});
+
+test("seções sem itens não aparecem e valores sob consulta", () => {
+  const vazio = { ...plano("plam-saude-pf"), copartTabela: "", carenciaTabela: "", imgCopart: "", imgCarencia: "", faixasEnf: null, faixasApto: null, enfermaria: null, apartamento: null };
+  const html = renderizarProposta(montarSnapshot(vazio, { vidas: Array(10).fill(0), over: {}, cliente: "", opts }, corretor), { token: "x".repeat(22) });
+  assert.ok(!html.includes(">Coparticipação"));
+  assert.ok(!html.includes(">Carências"));
+  assert.ok(html.includes("Sob consulta"));
+  assert.ok(!html.includes("Aceitar proposta"));
+});
+
+test("sem tabela em texto usa a imagem reserva", () => {
+  const p = { ...plano("plam-saude-pf"), copartTabela: "", carenciaTabela: "" };
+  const html = renderizarProposta(montarSnapshot(p, { vidas, over: {}, cliente: "", opts }, corretor));
+  assert.ok(html.includes(`src="/${p.imgCopart}"`));
+  assert.ok(html.includes(`src="/${p.imgCarencia}"`));
+});
+
+test("todos os planos reais geram a página", () => {
+  for (const p of planos) {
+    const html = renderizarProposta(montarSnapshot(plano(p.id), { vidas, over: {}, cliente: "Maria", opts }, corretor), { token: "x".repeat(22) });
+    assert.ok(html.includes(p.nome), p.id);
+    assert.ok(!html.includes("undefined"), p.id);
+  }
 });
 
 test("acomodação sem valor em alguma faixa não aparece", () => {
   const html = renderizarProposta(montarSnapshot(plano("amil-platinum-r1-total"), { vidas, over: {}, cliente: "", opts }, corretor));
-  assert.ok(!html.includes(">Enfermaria<"));
-  assert.ok(html.includes(">Apartamento<"));
+  assert.ok(!html.includes('class="label">Enfermaria'));
+  assert.ok(html.includes('class="label">Apartamento'));
 });
 
 test("texto digitado é escapado", () => {
   const html = renderizarProposta(montarSnapshot(plano("plam-saude-pf"), { vidas, over: {}, cliente: "<script>alert(1)</script>", opts }, corretor));
   assert.ok(!html.includes("<script>"));
   assert.ok(html.includes("&lt;script&gt;"));
+  assert.ok(!html.includes("onclick"));
 });
 
 test("cria link por plano, reaproveita o mesmo e o cliente abre a página", async (t) => {
@@ -105,7 +178,11 @@ test("servidor público não dá acesso à API, ao histórico nem aos arquivos d
   }
   const envio = await fetch(publico + "/api/restaurar", { method: "POST", body: "x" });
   assert.equal(envio.status, 404);
-  assert.equal((await fetch(publico + "/fonts/figtree-latin-wght-normal.woff2")).status, 200);
+  assert.equal((await fetch(publico + "/fonts/manrope-latin-wght-normal.woff2")).status, 200);
+  const script = await fetch(publico + "/proposta-pagina.js");
+  assert.equal(script.status, 200);
+  assert.match(script.headers.get("content-type"), /javascript/);
+  assert.match(script.headers.get("content-security-policy"), /script-src 'self'/);
 });
 
 async function criarLink(admin, publico, extra = {}) {

@@ -1,10 +1,10 @@
-// Página HTML da proposta, aberta pelo cliente no celular. Segue os mesmos blocos da imagem em canvas.
-import { FAIXAS, brl, lines, normFone, planPrices, r2, totalVidas } from "../public/js/calculo.js";
+// Página HTML da proposta, aberta pelo cliente: layout com painel lateral, sem rolagem no computador.
+import { FAIXAS, brl, lines, normFone, parseBRL, planPrices, r2, totalVidas } from "../public/js/calculo.js";
 import { linkWhatsApp } from "../public/js/mensagem.js";
-import { themeFor } from "../public/js/proposta.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const temTabela = (t) => String(t || "").includes("|");
+const moeda = (v) => `R$ ${brl(v)}`;
 
 export function montarSnapshot(p, { vidas, over, cliente, opts }, corretor, agora = new Date()) {
   const v = planPrices(p, vidas, over);
@@ -36,32 +36,6 @@ export function montarSnapshot(p, { vidas, over, cliente, opts }, corretor, agor
   };
 }
 
-function tabela(txt, nota) {
-  const rows = String(txt).split("\n").map((l) => l.split("|").map((x) => x.trim())).filter((r) => r.some(Boolean));
-  if (rows.length < 2) return "";
-  const n = Math.max(...rows.map((r) => r.length)), head = rows[0], colunas = [...Array(n).keys()];
-  // Com 3 colunas ou mais, cada linha vira um cartão no celular, sem rolagem lateral.
-  return `<table class="tab${n >= 3 ? " larga" : ""}"><thead><tr>${colunas.map((i) => `<th>${esc(head[i])}</th>`).join("")}</tr></thead><tbody>${rows.slice(1).map((r) =>
-    `<tr>${colunas.map((i) => `<td data-rotulo="${esc(head[i])}">${esc(r[i])}</td>`).join("")}</tr>`).join("")}</tbody></table>${nota ? `<p class="nota">${esc(nota)}</p>` : ""}`;
-}
-
-const imagem = (caminho, alt) => (/^(img|uploads)\/[\w.-]+$/.test(caminho || "") ? `<img class="tabimg" src="/${esc(caminho)}" alt="${esc(alt)}">` : "");
-
-function blocoValores({ precos: v, vidas, plano: p }) {
-  const temE = v.enf != null, temA = v.apto != null;
-  const total = (rotulo, valor) => `<div><span>${rotulo}</span><strong>R$ ${brl(valor)}</strong></div>`;
-  const totais = temE || temA
-    ? `<div class="totais">${temE ? total("Enfermaria", v.enf) : ""}${temA ? total("Apartamento", v.apto) : ""}</div>`
-    : `<p class="consulta">Valores sob consulta</p>`;
-  const faixas = v.porFaixa
-    ? `<table class="fx"><thead><tr><th>Faixa etária</th><th>Vidas</th>${temE ? "<th>Enfermaria</th>" : ""}${temA ? "<th>Apartamento</th>" : ""}</tr></thead><tbody>${v.linhas.map((l) =>
-      `<tr><td>${esc(l.faixa)} anos</td><td>${l.n}</td>${temE ? `<td>R$ ${brl(l.enf)}</td>` : ""}${temA ? `<td>R$ ${brl(l.apto)}</td>` : ""}</tr>`).join("")}</tbody></table>`
-    : "";
-  const extras = [p.taxa ? `+ R$ ${brl(p.taxa)} de taxa associativa` : "", p.odonto ? "12 meses de odontológico incluso" : ""].filter(Boolean).join(" · ");
-  const titulo = v.porFaixa ? `Valor mensal total · ${vidas} ${vidas === 1 ? "vida" : "vidas"}` : "Valor da mensalidade";
-  return `<section class="valores"><h2 class="sobre">${titulo}</h2>${totais}${faixas}${extras ? `<p class="extras">${esc(extras)}</p>` : ""}</section>`;
-}
-
 // Acomodações que o cliente pode aceitar: só as que têm valor nesta proposta.
 export function opcoesDeAceite(s) {
   const o = [];
@@ -70,47 +44,287 @@ export function opcoesDeAceite(s) {
   return o;
 }
 
-function blocoAceite(s, { token, aceite, documentos = [] }) {
-  if (aceite?.aceitoEm) {
-    const data = new Date(aceite.aceitoEm).toLocaleDateString("pt-BR");
-    const fone = normFone(s.corretor.fone);
-    const contato = fone.length >= 10
-      ? `<a class="botao" href="${esc(linkWhatsApp(fone, `Olá! Aceitei a proposta do plano ${s.plano.nome}. Seguem os meus documentos.`))}">Enviar documentos pelo WhatsApp</a>`
-      : "";
-    return `<section class="aceite feito"><h2>Proposta aceita</h2><p>Você aceitou esta proposta em ${esc(data)}: <b>${esc(aceite.acomodacao)}, R$ ${brl(aceite.valor)} por mês</b>.</p>${documentos.length
-      ? `<h3>Documentos necessários</h3><p>Para dar andamento, precisamos que você nos envie:</p><ul>${documentos.map((d) => `<li>${esc(d)}</li>`).join("")}</ul>${contato}`
-      : "<p>Em breve entraremos em contato com os próximos passos.</p>"}</section>`;
+/* ---------- adaptador: dados da proposta para o formato do layout ---------- */
+const celulas = (txt) => String(txt || "").split("\n").map((l) => l.split("|").map((x) => x.trim())).filter((r) => r.some(Boolean));
+const semParenteses = (s) => s.trim().replace(/^\((.*)\)$/, "$1");
+
+// Texto que o layout não sabe separar em % e teto aparece como está na tabela da operadora.
+export function linhaCoparticipacao(colunas) {
+  const [nome, ...valores] = colunas;
+  const original = valores.filter(Boolean).join(" · ");
+  if (valores.length === 2) {
+    const pct = valores[0].match(/^(\d+(?:[.,]\d+)?)\s*%$/);
+    const limite = /^[\d.]+,\d{2}$/.test(valores[1].replace(/^R\$\s*/, "")) ? parseBRL(valores[1]) : null;
+    if (pct && limite != null) return { nome, tipo: "pct", pct: pct[1], teto: limite };
+    if (/^[–—-]?$/.test(valores[0]) && limite != null) return { nome, tipo: "fixo", valor: limite };
+    return { nome, tipo: "texto", texto: original };
   }
-  const opcoes = opcoesDeAceite(s);
-  if (!token || !opcoes.length) return "";
-  const unica = opcoes.length === 1;
-  return `<section class="aceite" id="aceite"><h2>Aceitar esta proposta</h2>
-<form method="post" action="/p/${esc(token)}/aceite">
-<fieldset><legend>Escolha a acomodação</legend>${opcoes.map((o) =>
-    `<label class="opcao"><input type="radio" name="acomodacao" value="${o.nome}" required${unica ? " checked" : ""}> <span>${o.nome}</span> <b>R$ ${brl(o.valor)}</b></label>`).join("")}</fieldset>
-<label class="confirma"><input type="checkbox" name="confirmo" value="1" required> Li as condições desta proposta e quero seguir com a contratação.</label>
-<button class="botao" type="submit">Aceitar proposta</button>
-</form></section>`;
+  if (valores.length !== 1) return { nome, tipo: "texto", texto: original };
+  const v = valores[0];
+  if (/^isento$/i.test(v)) return { nome, tipo: "isento" };
+  const pct = v.match(/^(\d+(?:[.,]\d+)?)\s*%(?:\s+limitado a\s+R\$\s*([\d.]+,\d{2}))?(.*)$/i);
+  if (pct) return { nome, tipo: "pct", pct: pct[1], teto: pct[2] ? parseBRL(pct[2]) : null, detalhe: semParenteses(pct[3]) };
+  const fixo = v.match(/^R\$\s*([\d.]+,\d{2})(.*)$/);
+  if (fixo) return { nome, tipo: "fixo", valor: parseBRL(fixo[1]), detalhe: semParenteses(fixo[2]) };
+  return { nome, tipo: "texto", texto: original };
 }
 
+export const fmtDias = (d) => (d >= 720 && d % 30 === 0 ? `${d / 30} meses` : d <= 1 ? `${d} dia` : `${d} dias`);
+export const nivelPrazo = (d) => (d == null ? "neutro" : d === 0 ? "ok" : d <= 30 ? "low" : d < 180 ? "mid" : "high");
+
+// Prazos em dias seguem o padrão do layout; "24 horas" e "24 meses" ficam como na tabela da operadora.
+export function prazo(texto) {
+  const m = String(texto).match(/^(\d+)\s*(hora|dia|m[eê]s|mes|ano)/i);
+  if (!m) return { texto, dias: null };
+  const n = Number(m[1]), unidade = m[2].toLowerCase();
+  if (unidade === "dia") return { texto: fmtDias(n), dias: n };
+  const dias = unidade === "hora" ? Math.ceil(n / 24) : unidade === "ano" ? n * 365 : n * 30;
+  return { texto, dias };
+}
+
+function nomeSituacao(titulo) {
+  const m = titulo.match(/^(.*?)\s*\((PRC\s*\d+)\)$/i);
+  return m ? `${m[1]} · ${m[2]}` : titulo;
+}
+
+const ICONE_POR_EMOJI = { "🦷": "smile", "📱": "phone", "✈": "plane", "💊": "pill" };
+
+function beneficio(linha) {
+  const inicio = linha.match(/^[^\p{L}\p{N}(]+/u)?.[0] ?? "";
+  const icone = Object.entries(ICONE_POR_EMOJI).find(([e]) => inicio.includes(e))?.[1] ?? "check";
+  const m = linha.slice(inicio.length).match(/^(.*?)\s*(\([^()]*\))?$/);
+  return { icone, texto: m[1], detalhe: m[2] ?? "" };
+}
+
+function listaFaixas(linhas) {
+  const f = linhas.map((l) => l.faixa);
+  if (!f.length) return "";
+  const lista = f.length > 1 ? `${f.slice(0, -1).join(", ")} e ${f.at(-1)}` : f[0];
+  return `${lista} anos`;
+}
+
+export function paraProposta(s) {
+  const p = s.plano, c = s.corretor;
+  const tabelaCop = celulas(p.copartTabela), tabelaCar = celulas(p.carenciaTabela);
+  const opcoes = opcoesDeAceite(s);
+  const nColunas = Math.max(0, ...tabelaCar.map((r) => r.length));
+  const beneficios = p.beneficios.map(beneficio);
+  if (p.odonto && !beneficios.some((b) => b.icone === "smile")) beneficios.unshift({ icone: "smile", texto: "12 meses de odontológico incluso", detalhe: "" });
+  return {
+    cliente: s.cliente,
+    vidas: s.vidas,
+    faixaEtaria: listaFaixas(s.precos.linhas),
+    plano: p.nome,
+    subtitulo: p.subtitulo,
+    taxa: p.taxa ? `+ ${moeda(p.taxa)} de taxa associativa` : "",
+    cotacao: s.data,
+    precos: opcoes.map((o, i) => ({ label: o.nome, valor: o.valor, destaque: i === opcoes.length - 1 })),
+    beneficios,
+    rede: { cidade: p.cidade || "Uberlândia", hospitais: p.rede },
+    consultor: { nome: c.nome, corretora: c.empresa, telefone: c.fone },
+    copartTexto: p.copartTexto,
+    coparticipacao: tabelaCop.slice(1).map(linhaCoparticipacao),
+    imagemCoparticipacao: p.imgCopart,
+    situacoes: (tabelaCar[0] ?? []).slice(1, Math.max(nColunas, 1)).map(nomeSituacao),
+    carencias: tabelaCar.slice(1).map((r) => ({ nome: r[0], prazos: Array.from({ length: nColunas - 1 }, (_, i) => prazo(r[i + 1] ?? "")) })),
+    imagemCarencia: p.imgCarencia,
+    fidelidade: !!p.fidelidade,
+    rodape: [p.copartNota, p.carenciaNota, s.legendaAcomodacao ? "Enfermaria: acomodação compartilhada. Apartamento: acomodação individual." : ""].filter(Boolean),
+  };
+}
+
+/* ---------- blocos da página ---------- */
+const ICONES = {
+  smile: '<circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><path d="M9 9h.01"/><path d="M15 9h.01"/>',
+  phone: '<rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/>',
+  plane: '<path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/>',
+  pill: '<path d="m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"/><path d="m8.5 8.5 7 7"/>',
+  pin: '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
+  check: '<path d="M20 6 9 17l-5-5"/>',
+};
+const svg = (n, s = 18) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="#0067b3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONES[n]}</svg>`;
+const SVG_TELEFONE = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>';
+const contagem = (lista) => `· ${lista.length} ${lista.length === 1 ? "item" : "itens"}`;
+const imagem = (caminho, alt) => (/^(img|uploads)\/[\w.-]+$/.test(caminho || "") ? `<img class="tabimg" src="/${esc(caminho)}" alt="${esc(alt)}">` : "");
+
+function barraLateral(P) {
+  const vidas = P.vidas ? `${P.vidas} ${P.vidas === 1 ? "vida" : "vidas"}${P.faixaEtaria ? ` · ${P.faixaEtaria}` : ""}` : "";
+  const fone = String(P.consultor.telefone || "").replace(/\D/g, "");
+  return `<aside class="side">
+    <div class="stack" style="gap:4px">
+      <span class="eyebrow blue">Proposta para</span>
+      <span class="client">${esc(P.cliente || "Você")}</span>
+      ${vidas ? `<span class="small">${esc(vidas)}</span>` : ""}
+    </div>
+    ${P.beneficios.length ? `<div class="stack" style="gap:12px"><span class="eyebrow">Incluso no plano</span><div class="stack" style="gap:12px">${P.beneficios.map((b) =>
+      `<div class="item">${svg(b.icone)}<span>${esc(b.texto)}${b.detalhe ? ` <span class="small">${esc(b.detalhe)}</span>` : ""}</span></div>`).join("")}</div></div>` : ""}
+    ${P.rede.hospitais.length ? `<div class="stack" style="gap:8px"><span class="eyebrow">Rede · ${esc(P.rede.cidade)}</span><div class="stack" style="gap:8px">${P.rede.hospitais.map((h) =>
+      `<div class="item">${svg("pin", 16)}<span>${esc(h)}</span></div>`).join("")}</div></div>` : ""}
+    ${P.consultor.nome || fone ? `<div class="consultant">
+      <span class="eyebrow">Seu consultor</span>
+      ${P.consultor.nome ? `<span style="font-size:16px;font-weight:800">${esc(P.consultor.nome)}</span>` : ""}
+      ${P.consultor.corretora ? `<span style="font-size:13px;color:#d6e9f7">${esc(P.consultor.corretora)}</span>` : ""}
+      ${fone ? `<a href="tel:${esc(fone)}">${SVG_TELEFONE}<span>${esc(P.consultor.telefone)}</span></a>` : ""}
+    </div>` : ""}
+  </aside>`;
+}
+
+function linhaCop(c) {
+  const nome = `<span>${esc(c.nome)}${c.detalhe ? ` <span class="small">${esc(c.detalhe)}</span>` : ""}</span>`;
+  if (c.tipo === "texto") return `<div class="copart-row">${nome}<span class="r cap inteiro">${esc(c.texto)}</span></div>`;
+  const pct = c.tipo === "pct" ? `${esc(c.pct)}%` : c.tipo === "isento" ? "isento" : "fixo";
+  const teto = c.tipo === "fixo" ? moeda(c.valor) : c.tipo === "pct" && c.teto != null ? moeda(c.teto) : "—";
+  return `<div class="copart-row">${nome}<span class="r pct">${pct}</span><span class="r cap">${teto}</span></div>`;
+}
+
+function secaoCoparticipacao(P) {
+  const figura = imagem(P.imagemCoparticipacao, "Tabela de coparticipação");
+  if (!P.coparticipacao.length && !figura) return "";
+  return `<section class="col">
+    <div class="stack" style="gap:2px">
+      <h2>Coparticipação ${P.coparticipacao.length ? `<span class="count">${contagem(P.coparticipacao)}</span>` : ""}</h2>
+      ${P.copartTexto ? `<span class="explica">${esc(P.copartTexto)}</span>` : ""}
+    </div>
+    ${P.coparticipacao.length
+    ? `<div class="copart-head"><span>Procedimento</span><span class="r">%</span><span class="r">Teto</span></div><div>${P.coparticipacao.map(linhaCop).join("")}</div>`
+    : figura}
+  </section>`;
+}
+
+function secaoCarencias(P) {
+  const figura = imagem(P.imagemCarencia, "Tabela de carências");
+  if (!P.carencias.length && !figura) return "";
+  if (!P.carencias.length) return `<section class="col wide"><h2>Carências</h2>${figura}</section>`;
+  const varias = P.situacoes.length > 1;
+  const seletor = varias
+    ? `<label class="sel">Situação do plano anterior<select id="situacao">${P.situacoes.map((s, i) => `<option value="${i}">${esc(s)}</option>`).join("")}</select></label>`
+    : "";
+  // Cada situação já vem pronta no HTML: o seletor só troca qual lista fica visível.
+  const listas = P.situacoes.map((_, i) => `<div class="car-list" data-situacao="${i}"${i ? " hidden" : ""}>${P.carencias.map((c) => {
+    const p = c.prazos[i];
+    return `<div class="car-row"><span>${esc(c.nome)}</span>${p.texto ? `<span class="pill ${nivelPrazo(p.dias)}">${esc(p.texto)}</span>` : ""}</div>`;
+  }).join("")}</div>`).join("");
+  return `<section class="col wide">
+    <div class="car-top"><h2>Carências <span class="count">${contagem(P.carencias)}</span></h2>${seletor}</div>
+    ${listas}
+  </section>`;
+}
+
+function botaoAceite(s, { token, aceite }) {
+  const opcoes = opcoesDeAceite(s);
+  if (aceite?.aceitoEm || !token || !opcoes.length) return "";
+  const unica = opcoes.length === 1;
+  return `<details class="aceitar">
+    <summary>Aceitar proposta</summary>
+    <form class="painel" method="post" action="/p/${esc(token)}/aceite">
+      <fieldset><legend>Escolha a acomodação</legend>${opcoes.map((o) =>
+    `<label class="opcao"><input type="radio" name="acomodacao" value="${o.nome}" required${unica ? " checked" : ""}> <span>${o.nome}</span> <b>${moeda(o.valor)}</b></label>`).join("")}</fieldset>
+      <label class="confirma"><input type="checkbox" name="confirmo" value="1" required> <span>Li as condições desta proposta e quero seguir com a contratação.</span></label>
+      <button class="botao" type="submit">Confirmar aceite</button>
+    </form>
+  </details>`;
+}
+
+function avisoAceito(s, { aceite, documentos = [] }) {
+  if (!aceite?.aceitoEm) return "";
+  const data = new Date(aceite.aceitoEm).toLocaleDateString("pt-BR");
+  const fone = normFone(s.corretor.fone);
+  const contato = fone.length >= 10
+    ? `<a class="botao" href="${esc(linkWhatsApp(fone, `Olá! Aceitei a proposta do plano ${s.plano.nome}. Seguem os meus documentos.`))}">Enviar documentos pelo WhatsApp</a>`
+    : "";
+  return `<section class="aceito">
+    <h2>Proposta aceita</h2>
+    <p>Você aceitou esta proposta em ${esc(data)}: <b>${esc(aceite.acomodacao)}, ${moeda(aceite.valor)} por mês</b>.</p>
+    ${documentos.length
+    ? `<h3>Documentos necessários</h3><p>Para dar andamento, precisamos que você nos envie:</p><ul>${documentos.map((d) => `<li>${esc(d)}</li>`).join("")}</ul>${contato}`
+    : "<p>Em breve entraremos em contato com os próximos passos.</p>"}
+  </section>`;
+}
+
+const CSS = `
+@font-face{font-family:Manrope;font-weight:200 800;font-display:swap;src:url(/fonts/manrope-latin-wght-normal.woff2) format("woff2")}
+:root{--navy:#00466e;--accent:#0067b3;--ink:#10243a;--muted:#4a5d70;--line:#dbe5ef;--line-soft:#eef2f6;--side:#f2f6fa;--zebra:#fafcfe;
+  --ok-bg:#e8f4ec;--ok:#145a32;--low-bg:#e6f1fb;--low:#00508c;--mid-bg:#fff6d6;--mid:#6b4d00;--high-bg:#ffe8d6;--high:#8a3b00}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;font-family:Manrope,system-ui,sans-serif;color:var(--ink);background:#fff}
+.page{min-height:100vh;display:flex;flex-wrap:wrap}
+.side{flex:1 1 270px;max-width:100%;background:var(--side);border-right:1px solid var(--line);padding:28px 24px;display:flex;flex-direction:column;gap:24px}
+.main{flex:999 1 640px;min-width:0;padding:28px 36px;display:flex;flex-direction:column;gap:22px}
+.eyebrow{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.eyebrow.blue{color:var(--accent)}
+.stack{display:flex;flex-direction:column}
+.client{font-size:18px;font-weight:800;line-height:1.3}
+.small{font-size:13px;color:var(--muted)}
+.item{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.4}
+.item svg{flex:none;margin-top:1px}
+.consultant{margin-top:auto;background:var(--navy);color:#fff;border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:6px}
+.consultant .eyebrow{color:#9fd3ff;letter-spacing:.06em}
+.consultant a{margin-top:4px;min-height:44px;display:flex;align-items:center;justify-content:center;gap:8px;background:#fff;color:var(--navy);border-radius:10px;font-weight:700;font-size:14px;text-decoration:none}
+.hero{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:20px;padding-bottom:20px;border-bottom:1px solid var(--line)}
+h1{margin:0;font-size:36px;font-weight:800;letter-spacing:-.02em;color:var(--navy)}
+.meta{font-size:12px;font-weight:700;color:var(--muted)}
+.sub{font-size:14px;color:var(--muted)}
+.taxa{font-size:13px;font-weight:700;color:var(--accent)}
+.lado{display:flex;flex-wrap:wrap;gap:12px;align-items:stretch}
+.prices{display:flex;flex-wrap:wrap;gap:12px}
+.price{min-width:200px;border:1px solid var(--line);border-radius:16px;padding:14px 18px;display:flex;flex-direction:column;gap:2px}
+.price.featured{background:var(--accent);border-color:var(--accent);color:#fff}
+.price .label{font-size:13px;font-weight:700;color:var(--muted)}
+.price.featured .label{color:#e3f2ff}
+.price .value{font-size:30px;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
+.aceitar{position:relative;display:flex}
+.aceitar summary{list-style:none;display:flex;align-items:center;justify-content:center;min-height:44px;padding:0 20px;border-radius:16px;background:var(--navy);color:#fff;font-weight:800;font-size:15px;cursor:pointer;width:100%}
+.aceitar summary::-webkit-details-marker{display:none}
+.aceitar summary:focus-visible,.botao:focus-visible,select:focus-visible,.consultant a:focus-visible{outline:3px solid #9fd3ff;outline-offset:2px}
+.painel{position:absolute;right:0;top:calc(100% + 8px);z-index:5;width:340px;max-width:calc(100vw - 32px);background:#fff;border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 12px 32px rgba(0,40,70,.18)}
+fieldset{border:0;margin:0 0 10px;padding:0}
+legend{font-weight:800;font-size:14px;padding:0;margin-bottom:8px}
+.opcao{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;font-size:14px;cursor:pointer}
+.opcao span{flex:1;font-weight:600}
+.opcao b{white-space:nowrap;color:var(--navy)}
+.confirma{display:flex;gap:10px;align-items:flex-start;font-size:13px;line-height:1.4;cursor:pointer}
+input[type=radio],input[type=checkbox]{width:18px;height:18px;flex:none;accent-color:var(--accent)}
+.botao{display:flex;align-items:center;justify-content:center;width:100%;min-height:44px;margin-top:12px;border:0;border-radius:10px;background:var(--accent);color:#fff;font:800 15px Manrope,system-ui,sans-serif;text-decoration:none;cursor:pointer}
+.aceito{border:2px solid var(--accent);border-radius:16px;padding:16px 18px;font-size:14px;line-height:1.45}
+.aceito p{margin:6px 0}
+.aceito h3{margin:12px 0 0;font-size:15px;font-weight:800;color:var(--navy)}
+.aceito ul{margin:4px 0;padding-left:20px}
+.aceito .botao{max-width:340px}
+.cols{display:flex;flex-wrap:wrap;gap:32px}
+.col{flex:1 1 320px;min-width:0;display:flex;flex-direction:column;gap:10px}
+.col.wide{flex:1.2 1 360px}
+h2{margin:0;font-size:17px;font-weight:800;color:var(--navy)}
+h2 .count{font-size:13px;font-weight:600;color:var(--muted)}
+.explica{font-size:12px;line-height:1.4;color:var(--muted)}
+.copart-head,.copart-row{display:grid;grid-template-columns:minmax(0,1fr) 56px 92px;gap:8px;align-items:center;padding:6px 10px}
+.copart-head{padding-bottom:4px;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line)}
+.copart-row,.car-row{font-size:13px;border-bottom:1px solid var(--line-soft)}
+.copart-row:nth-child(even),.car-row:nth-child(even){background:var(--zebra)}
+.copart-row .small{font-size:11px}
+.r{text-align:right}.pct{font-weight:700;color:var(--accent)}.cap{font-weight:600}
+.inteiro{grid-column:2/4}
+.car-top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:8px 16px}
+label.sel{display:flex;flex-direction:column;gap:4px;min-width:0;max-width:100%;font-size:12px;font-weight:700;color:var(--muted)}
+select{min-height:40px;width:100%;max-width:420px;padding:0 10px;border:1px solid #c9d6e3;border-radius:10px;font:600 13px Manrope,system-ui,sans-serif;color:var(--ink);background:#fff}
+.car-list{border-top:1px solid var(--line)}
+.car-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 10px}
+.pill{flex:none;min-width:70px;text-align:center;padding:2px 8px;border-radius:999px;font-weight:700;font-size:12px;white-space:nowrap}
+.pill.ok{background:var(--ok-bg);color:var(--ok)}.pill.low{background:var(--low-bg);color:var(--low)}
+.pill.mid{background:var(--mid-bg);color:var(--mid)}.pill.high{background:var(--high-bg);color:var(--high)}
+.pill.neutro{background:var(--line-soft);color:var(--ink)}
+.tabimg{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:10px}
+.note{margin:0;font-size:12px;color:var(--muted);line-height:1.45}
+.fidelidade{margin:0;font-size:13px;font-weight:800;color:#a3211f}
+@media (max-width:640px){.main{padding:20px 16px}.side{padding:20px 16px;border-right:0;border-bottom:1px solid var(--line)}h1{font-size:28px}.lado,.prices,.aceitar{width:100%}.price{flex:1 1 100%}.aceitar{flex-direction:column}.painel{position:static;width:100%;max-width:100%;margin-top:8px}}
+`;
+
 export function renderizarProposta(s, aceitacao = {}) {
-  const p = s.plano, c = s.corretor, T = themeFor(p);
-  const sec = (titulo, corpo) => `<section><h2>${esc(titulo)}</h2>${corpo}</section>`;
-  const blocos = [`<p class="ola">${s.cliente ? `Olá, ${esc(s.cliente)}! ` : "Olá! "}Preparamos esta proposta para que você conheça as condições do plano ${esc(p.nome)}.</p>`, blocoValores(s)];
-  if (p.beneficios.length) blocos.push(sec("Benefícios do plano", `<ul class="livre">${p.beneficios.map((b) => `<li>${esc(b)}</li>`).join("")}</ul>`));
-  const copTab = p.copartTabela ? tabela(p.copartTabela, p.copartNota) : imagem(p.imgCopart, "Tabela de coparticipação");
-  if (p.copartTexto || copTab) blocos.push(sec(p.copartTexto ? "Como funciona a coparticipação?" : "Tabela de coparticipação", `${p.copartTexto ? `<p>${esc(p.copartTexto)}</p>` : ""}${copTab}`));
-  const carTab = p.carenciaTabela ? tabela(p.carenciaTabela, p.carenciaNota) : imagem(p.imgCarencia, "Tabela de carências");
-  if (carTab) blocos.push(sec("Carências", carTab));
-  if (p.rede.length) blocos.push(sec(`Rede credenciada – ${p.cidade || "Uberlândia"}`, `<ul>${p.rede.map((h) => `<li>${esc(h)}</li>`).join("")}</ul>`));
-  if (p.fidelidade) blocos.push(`<p class="fidelidade">⚠️ Planos CNPJ geram fidelidade de 1 ano.</p>`);
-  if (s.legendaAcomodacao) blocos.push(`<p class="nota">*Enfermaria: acomodação compartilhada. *Apartamento: acomodação individual.</p>`);
-  const aceite = blocoAceite(s, aceitacao);
-  // Depois de aceitar, a confirmação e os documentos ficam no topo; antes, o formulário fecha a página.
-  if (aceitacao.aceite?.aceitoEm) blocos.unshift(aceite);
-  else if (aceite) blocos.push(aceite);
-  const contato = [c.empresa, c.fone].filter(Boolean).join(" · ");
-  const titulo = `Proposta ${p.nome}`;
+  const P = paraProposta(s);
+  const titulo = `Proposta ${P.plano}`;
+  const precos = P.precos.length
+    ? P.precos.map((p) => `<div class="price${p.destaque ? " featured" : ""}"><span class="label">${esc(p.label)}</span><span class="value">${moeda(p.valor)}</span></div>`).join("")
+    : `<div class="price"><span class="label">Valor mensal</span><span class="value">Sob consulta</span></div>`;
   return `<!doctype html>
 <html lang="pt-BR">
 <head>
@@ -120,74 +334,28 @@ export function renderizarProposta(s, aceitacao = {}) {
 <meta property="og:title" content="${esc(titulo)}">
 <meta property="og:description" content="Valores, coparticipação, carências e rede credenciada.">
 <title>${esc(titulo)}</title>
-<style>
-@font-face{font-family:Figtree;font-weight:300 900;font-display:swap;src:url(/fonts/figtree-latin-wght-normal.woff2) format("woff2")}
-@font-face{font-family:"Bricolage Grotesque";font-weight:200 800;font-display:swap;src:url(/fonts/bricolage-grotesque-latin-wght-normal.woff2) format("woff2")}
-*{box-sizing:border-box}
-body{margin:0;background:${T.bg};color:${T.ink};font:500 16px/1.5 Figtree,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
-header,footer{background:${T.band};color:${T.white};padding:24px 20px}
-header small{display:block;color:${T.eyebrow};font-weight:700;font-size:13px;letter-spacing:.04em;text-transform:uppercase}
-h1{font:700 30px/1.15 "Bricolage Grotesque",Figtree,sans-serif;margin:6px 0}
-header p{margin:0;color:${T.sub}}
-main{max-width:760px;margin:0 auto;padding:20px 16px}
-section{margin:0 0 26px}
-h2{font:700 21px/1.25 "Bricolage Grotesque",Figtree,sans-serif;color:${T.accent};margin:0 0 10px}
-h2.sobre{font:700 12.5px/1.3 Figtree,sans-serif;color:${T.muted};letter-spacing:.04em;text-transform:uppercase}
-p{margin:0 0 12px}
-.valores{background:${T.white};border-radius:16px;padding:18px}
-.totais{display:flex;flex-wrap:wrap;gap:12px 28px}
-.totais span{display:block;color:${T.muted};font-weight:600;font-size:14px}
-.totais strong{font:700 27px/1.2 "Bricolage Grotesque",Figtree,sans-serif;font-variant-numeric:tabular-nums}
-.consulta{font:700 24px "Bricolage Grotesque",Figtree,sans-serif;margin:0}
-table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
-.fx{margin-top:14px;font-size:14px;font-weight:600}
-.fx th{color:${T.muted};font-size:11px;font-weight:700;text-align:left;text-transform:uppercase;padding:6px}
-.fx td{padding:8px 6px}
-.fx tbody tr:nth-child(odd){background:${T.soft}}
-.extras{color:${T.accent};font-weight:700;font-size:14px;margin:12px 0 0}
-.tab{background:${T.white};border-radius:14px;overflow:hidden;box-shadow:0 0 0 1px ${T.line};font-size:15px}
-.tab th{background:${T.thead};color:${T.white};font-size:13px;font-weight:700;padding:11px 12px;text-align:center}
-.tab td{padding:11px 12px;text-align:center;font-weight:700;color:${T.val};border-top:1px solid ${T.line}}
-.tab th:first-child,.tab td:first-child{text-align:left}
-.tab td:first-child{color:${T.ink};font-weight:600}
-.tab tbody tr:nth-child(even){background:${T.soft2}}
-.nota{color:${T.muted};font-size:13.5px;margin-top:10px}
-.tabimg{display:block;width:100%;height:auto;background:${T.white};border-radius:10px}
-ul{margin:0;padding-left:20px}
-ul.livre{list-style:none;padding:0}
-li{margin:5px 0;font-weight:600}
-.fidelidade{color:${T.danger};font-weight:700}
-.aceite{background:${T.white};border-radius:16px;padding:18px;box-shadow:0 0 0 2px ${T.thead}}
-.aceite h3{font:700 17px/1.3 "Bricolage Grotesque",Figtree,sans-serif;margin:16px 0 6px}
-fieldset{border:0;margin:0 0 12px;padding:0}
-legend{font-weight:700;padding:0;margin-bottom:8px}
-.opcao{display:flex;align-items:center;gap:10px;border:1px solid ${T.line};border-radius:12px;padding:12px;margin-bottom:8px;cursor:pointer}
-.opcao span{flex:1;font-weight:600}
-.opcao b{font-variant-numeric:tabular-nums;color:${T.val}}
-.confirma{display:flex;gap:10px;align-items:flex-start;font-size:14.5px;margin-bottom:14px;cursor:pointer}
-input[type=radio],input[type=checkbox]{width:20px;height:20px;flex:none;accent-color:${T.thead}}
-.botao{display:block;width:100%;border:0;border-radius:12px;background:${T.thead};color:${T.white};font:700 17px Figtree,sans-serif;padding:15px;margin-top:12px;text-align:center;text-decoration:none;cursor:pointer}
-footer{display:flex;flex-wrap:wrap;gap:6px 20px;justify-content:space-between}
-footer b{display:block;font-size:17px}
-footer span{color:${T.sub};font-size:14px}
-footer time{color:${T.eyebrow};font-size:14px}
-@media (max-width:640px){
-  .larga thead{display:none}
-  .larga,.larga tbody,.larga tr,.larga td{display:block;width:100%}
-  .larga tr{padding:8px 0;border-top:1px solid ${T.line}}
-  .larga tr:first-child{border-top:0}
-  .larga td{display:flex;justify-content:space-between;gap:16px;border:0;padding:5px 12px;text-align:right}
-  .larga td::before{content:attr(data-rotulo);flex:1 1 0;color:${T.muted};font-size:13px;font-weight:600;text-align:left}
-  .larga td:first-child{display:block;font-size:15.5px;font-weight:700;text-align:left}
-  .larga td:first-child::before{content:none}
-  .larga td:empty{display:none}
-}
-</style>
+<style>${CSS}</style>
 </head>
 <body>
-<header><small>${s.cliente ? `Proposta para ${esc(s.cliente)}` : "Proposta de plano de saúde"}</small><h1>${esc(p.nome)}</h1>${p.subtitulo ? `<p>${esc(p.subtitulo)}</p>` : ""}</header>
-<main>${blocos.join("\n")}</main>
-<footer><div><b>${esc(c.nome || "Cotação de plano de saúde")}</b><span>${esc(contato || "Valores sujeitos a confirmação da operadora")}</span></div><time>Cotação de ${esc(s.data)}</time></footer>
+<div class="page">
+  ${barraLateral(P)}
+  <main class="main">
+    ${avisoAceito(s, aceitacao)}
+    <div class="hero">
+      <div class="stack" style="gap:6px">
+        <span class="meta">Cotação de ${esc(P.cotacao)}</span>
+        <h1>${esc(P.plano)}</h1>
+        ${P.subtitulo ? `<span class="sub">${esc(P.subtitulo)}</span>` : ""}
+        ${P.taxa ? `<span class="taxa">${esc(P.taxa)}</span>` : ""}
+      </div>
+      <div class="lado"><div class="prices">${precos}</div>${botaoAceite(s, aceitacao)}</div>
+    </div>
+    <div class="cols">${secaoCoparticipacao(P)}${secaoCarencias(P)}</div>
+    ${P.fidelidade ? `<p class="fidelidade">Planos CNPJ geram fidelidade de 1 ano.</p>` : ""}
+    ${P.rodape.length ? `<p class="note">${P.rodape.map(esc).join(" ")}</p>` : ""}
+  </main>
+</div>
+<script src="/proposta-pagina.js" defer></script>
 </body>
 </html>`;
 }
