@@ -45,6 +45,7 @@ export function criarAppPublica({ banco, pastaPublica, pastaUploads }) {
   });
 
   app.get("/proposta-pagina.js", (_req, res) => res.sendFile(join(pastaPublica, "proposta-pagina.js")));
+  app.get("/filtro-select.js", (_req, res) => res.sendFile(join(pastaPublica, "js", "filtro-select.js")));
 
   const estaticos = { index: false, dotfiles: "deny" };
   app.use("/fonts", express.static(join(pastaPublica, "fonts"), estaticos));

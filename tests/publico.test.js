@@ -227,6 +227,7 @@ test("servidor público não dá acesso à API, ao histórico nem aos arquivos d
   assert.equal(script.status, 200);
   assert.match(script.headers.get("content-type"), /javascript/);
   assert.match(script.headers.get("content-security-policy"), /script-src 'self'/);
+  assert.match((await fetch(publico + "/filtro-select.js")).headers.get("content-type"), /javascript/);
 });
 
 async function criarLink(admin, publico, extra = {}) {

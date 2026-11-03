@@ -80,6 +80,17 @@ test("mensagem de documentos lista um documento por linha e traz a assinatura", 
   assert.ok(msg.endsWith("(34) 91234-5678"));
 });
 
+test("filtro dos selects ignora acentos e maiúsculas e procura também no grupo", async () => {
+  const { filtrarOpcoes, normalizar } = await import("../public/js/filtro-select.js");
+  assert.equal(normalizar(" PLAM Saúde "), "plam saude");
+  const opcoes = [{ texto: "PLAM SAÚDE", grupo: "Pessoa física" }, { texto: "AMIL OURO", grupo: "Pessoa física" }, { texto: "Plano X", grupo: "CNPJ" }];
+  assert.deepEqual(filtrarOpcoes(opcoes, "saude").map((o) => o.texto), ["PLAM SAÚDE"]);
+  assert.deepEqual(filtrarOpcoes(opcoes, "cnpj").map((o) => o.texto), ["Plano X"]);
+  assert.deepEqual(filtrarOpcoes([{ texto: "Unimed – carências" }, { texto: "Unimed – coparticipação" }], "unimed car").map((o) => o.texto), ["Unimed – carências"]);
+  assert.equal(filtrarOpcoes(opcoes, "").length, 3);
+  assert.equal(filtrarOpcoes(opcoes, "nada").length, 0);
+});
+
 test("prévia escapa HTML e aplica negrito", () => {
   assert.equal(waHtml("*<b>*"), "<b>&lt;b&gt;</b>");
 });

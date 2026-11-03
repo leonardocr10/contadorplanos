@@ -372,6 +372,8 @@ h2 .count{font-size:13px;font-weight:600;color:var(--muted)}
 .car-top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:8px 16px}
 label.sel{display:flex;flex-direction:column;gap:4px;min-width:0;max-width:100%;font-size:12px;font-weight:700;color:var(--muted)}
 select{min-height:40px;width:100%;max-width:420px;padding:0 10px;border:1px solid var(--line);border-radius:10px;font:600 13px Manrope,system-ui,sans-serif;color:var(--ink);background:#fff}
+label.sel .fs{width:320px;max-width:100%}
+.fs-botao{font-size:13px;font-weight:600}
 .car-list{border-top:1px solid var(--line)}
 .car-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 10px}
 .pill{flex:none;min-width:70px;text-align:center;padding:2px 8px;border-radius:999px;font-weight:700;font-size:12px;white-space:nowrap}
@@ -421,7 +423,7 @@ export function renderizarProposta(s, aceitacao = {}) {
     ${P.rodape.length ? `<p class="note">${P.rodape.map(esc).join(" ")}</p>` : ""}
   </main>
 </div>
-<script src="/proposta-pagina.js" defer></script>
+<script type="module" src="/proposta-pagina.js"></script>
 </body>
 </html>`;
 }

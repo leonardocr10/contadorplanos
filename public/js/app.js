@@ -5,6 +5,9 @@ import { iniciarPlanos, renderCat } from "./planos.js";
 import { carregarHistorico, iniciarHistorico, renderHist } from "./historico.js";
 import { carregarAceites, renderAceites } from "./aceites.js";
 import { carregarDocumentos, iniciarDocumentos, renderDocumentos } from "./documentos.js";
+import { iniciarFiltroSelects } from "./filtro-select.js";
+
+iniciarFiltroSelects();
 
 definirRender(() => {
   renderCotacao();

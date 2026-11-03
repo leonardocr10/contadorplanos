@@ -1,7 +1,18 @@
 // Tela "Documentos": cadastro dos documentos e o que fica ativo em cada plano.
 import { $, S, api, esc, toast } from "./estado.js";
+import { normalizar } from "./filtro-select.js";
 
-let docs = [], planoId = null, editando = null, excluindo = null;
+let docs = [], planoId = null, editando = null, excluindo = null, planosAberto = null, filtroPlanos = "";
+
+const icone = (corpo) => `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${corpo}</svg>`;
+const ICONES = {
+  planos: icone('<path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="m3 6 1 1 2-2"/><path d="m3 12 1 1 2-2"/><path d="m3 18 1 1 2-2"/>'),
+  todos: icone('<path d="m2 12 5 5L18 6"/><path d="m12 16 1 1L22 6"/>'),
+  nenhum: icone('<circle cx="12" cy="12" r="9"/><path d="m5.7 5.7 12.6 12.6"/>'),
+  editar: icone('<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>'),
+  excluir: icone('<path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>'),
+};
+const botaoIcone = (nome, rotulo, atributos, extra = "") => `<button type="button" class="iconbtn doc-acao ${extra}" title="${esc(rotulo)}" aria-label="${esc(rotulo)}" ${atributos}>${ICONES[nome]}</button>`;
 
 export async function carregarDocumentos() {
   docs = await api("/api/documentos");
@@ -17,6 +28,38 @@ function renderSeletor() {
   $("#doc-plano").innerHTML = grupo("PF", "Pessoa física") + grupo("CNPJ", "CNPJ");
 }
 
+function painelPlanos(d) {
+  const grupo = (cat, rotulo) => {
+    const lista = S.plans.filter((p) => p.categoria === cat);
+    if (!lista.length) return "";
+    return `<div class="doc-grupo" data-grupo>
+      <div class="label">${rotulo}</div>
+      <div class="doc-planos">${lista.map((p) => `<label class="uchk" data-nome-plano="${esc(normalizar(p.nome))}"><input type="checkbox" data-plano="${esc(p.id)}" ${d.planos.includes(p.id) ? "checked" : ""}> ${esc(p.nome)}${p.ativo === false ? " (oculto)" : ""}</label>`).join("")}</div>
+    </div>`;
+  };
+  return `<div class="doc-painel" style="flex:1 1 100%">
+    <div class="field"><label for="doc-filtro-${d.id}">Planos com este documento: marque ou desmarque</label><input type="text" id="doc-filtro-${d.id}" data-filtro-planos placeholder="Filtrar planos…" autocomplete="off" value="${esc(filtroPlanos)}"></div>
+    ${grupo("PF", "Pessoa física")}${grupo("CNPJ", "CNPJ")}
+    <div class="note" data-sem-planos hidden>Nenhum plano encontrado.</div>
+  </div>`;
+}
+
+function aplicarFiltroPlanos(row) {
+  const palavras = normalizar(filtroPlanos).split(/\s+/).filter(Boolean);
+  let algum = false;
+  row.querySelectorAll("[data-grupo]").forEach((g) => {
+    let noGrupo = false;
+    g.querySelectorAll("[data-nome-plano]").forEach((l) => {
+      l.hidden = !palavras.every((p) => l.dataset.nomePlano.includes(p));
+      noGrupo ||= !l.hidden;
+    });
+    g.hidden = !noGrupo;
+    algum ||= noGrupo;
+  });
+  const vazio = row.querySelector("[data-sem-planos]");
+  if (vazio) vazio.hidden = algum;
+}
+
 export function renderDocumentos() {
   renderSeletor();
   const ativos = docs.filter((d) => d.planos.includes(planoId)).length;
@@ -28,7 +71,7 @@ export function renderDocumentos() {
   }
   const total = S.plans.length;
   box.innerHTML = docs.map((d) => {
-    const ativo = d.planos.includes(planoId);
+    const ativo = d.planos.includes(planoId), aberto = planosAberto === d.id;
     const nome = editando === d.id
       ? `<input type="text" data-nome value="${esc(d.nome)}" aria-label="Nome do documento"><div class="actions" style="margin-top:8px"><button class="btn primary" data-salvar>Salvar</button><button class="btn" data-cancelar>Cancelar</button></div>`
       : `<b>${esc(d.nome)}</b><span>Ativo em ${d.planos.length} de ${total} planos</span>`;
@@ -36,11 +79,13 @@ export function renderDocumentos() {
       <div class="t" style="flex:1 1 240px">${nome}</div>
       <label class="uchk"><input type="checkbox" data-ativo ${ativo ? "checked" : ""} ${planoId ? "" : "disabled"}> <span class="pill ${ativo ? "" : "off"}" style="margin:0">${ativo ? "ATIVO" : "INATIVO"}</span></label>
       <div class="actions">
-        <button class="btn" data-todos="1">Ativar em todos</button>
-        <button class="btn" data-todos="0">Inativar em todos</button>
-        <button class="btn" data-editar>Editar</button>
-        <button class="btn danger" data-excluir>Excluir</button>
+        ${botaoIcone("planos", `Ver e marcar os planos de ${d.nome}`, `data-ver-planos aria-expanded="${aberto}"`, aberto ? "ligado" : "")}
+        ${botaoIcone("todos", "Ativar em todos os planos", 'data-todos="1"')}
+        ${botaoIcone("nenhum", "Inativar em todos os planos", 'data-todos="0"')}
+        ${botaoIcone("editar", "Editar nome", "data-editar")}
+        ${botaoIcone("excluir", "Excluir documento", "data-excluir", "perigo")}
       </div>
+      ${aberto ? painelPlanos(d) : ""}
       ${excluindo === d.id ? `<div class="status" style="flex:1 1 100%">Excluir <b>${esc(d.nome)}</b> de todos os planos? <div class="actions" style="margin-top:8px"><button class="btn danger" data-excluir-sim>Sim, excluir</button><button class="btn" data-excluir-nao>Manter</button></div></div>` : ""}
     </div>`;
   }).join("");
@@ -66,6 +111,25 @@ function ligarLinha(row) {
     api(`${url}/planos/${encodeURIComponent(planoId)}`, { metodo: "PUT", json: { ativo: e.target.checked } }));
   row.querySelectorAll("[data-todos]").forEach((b) => (b.onclick = () => executar(() =>
     api(`${url}/planos`, { metodo: "PUT", json: { ativo: b.dataset.todos === "1" } }))));
+
+  on("[data-ver-planos]", () => {
+    planosAberto = planosAberto === id ? null : id;
+    filtroPlanos = "";
+    renderDocumentos();
+    if (planosAberto === id) $(`#doc-filtro-${id}`)?.focus();
+  });
+  const filtro = row.querySelector("[data-filtro-planos]");
+  if (filtro) {
+    aplicarFiltroPlanos(row);
+    filtro.oninput = () => { filtroPlanos = filtro.value; aplicarFiltroPlanos(row); };
+  }
+  row.querySelectorAll("[data-plano]").forEach((c) => (c.onchange = async () => {
+    const plano = c.dataset.plano;
+    await executar(() => api(`${url}/planos/${encodeURIComponent(plano)}`, { metodo: "PUT", json: { ativo: c.checked } }));
+    // A lista é redesenhada: o foco volta para o plano que acabou de ser marcado.
+    [...document.querySelectorAll(`.catrow[data-id="${id}"] [data-plano]`)].find((x) => x.dataset.plano === plano)?.focus();
+  }));
+
   on("[data-editar]", () => { editando = id; excluindo = null; renderDocumentos(); });
   on("[data-cancelar]", () => { editando = null; renderDocumentos(); });
   const salvarNome = () => executar(async () => {
@@ -79,6 +143,7 @@ function ligarLinha(row) {
   on("[data-excluir-nao]", () => { excluindo = null; renderDocumentos(); });
   on("[data-excluir-sim]", () => executar(async () => {
     excluindo = null;
+    if (planosAberto === id) planosAberto = null;
     await api(url, { metodo: "DELETE" });
     toast("Documento excluído");
   }));
