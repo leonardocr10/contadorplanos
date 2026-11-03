@@ -1,0 +1,216 @@
+// Tela "Nova cotação": formulário, cartões de planos, prévia do WhatsApp e imagens da proposta.
+import { FAIXAS, brl, hasFaixas, idadesParaVidas, normFone, parseBRL, planPrices, totalVidas } from "./calculo.js";
+import { $, S, esc, render, toast } from "./estado.js";
+import { buildMsg, waHtml } from "./mensagem.js";
+import { makeCard } from "./proposta.js";
+import { renderHistCli, saveQuote } from "./historico.js";
+
+const planosEscolhidos = () => S.selected.map((id) => S.plans.find((p) => p.id === id)).filter(Boolean);
+const nomeCliente = () => $("#cliente").value.trim();
+const corretor = () => ({ nome: S.cor.nome.trim(), fone: S.cor.fone.trim(), empresa: S.cor.empresa.trim() });
+const opcoes = () => ({ copart: $("#o-copart").checked, rede: $("#o-rede").checked, acom: $("#o-acom").checked, texto: $("#o-texto").checked });
+const prices = (p) => planPrices(p, S.vidas, S.over);
+
+/* ---------- beneficiários ---------- */
+function renderFaixas() {
+  const tv = totalVidas(S.vidas);
+  $("#vidas-total").textContent = `${tv} ${tv === 1 ? "vida" : "vidas"}`;
+  $("#faixas").innerHTML = FAIXAS.map((f, i) => `<div class="fx" data-on="${S.vidas[i] ? 1 : 0}"><span>${f} anos</span><div class="ctr"><button class="iconbtn" data-m="${i}" aria-label="Menos uma pessoa de ${f} anos">−</button><b>${S.vidas[i]}</b><button class="iconbtn" data-p="${i}" aria-label="Mais uma pessoa de ${f} anos">+</button></div></div>`).join("");
+  $("#faixas").querySelectorAll("[data-m]").forEach((b) => (b.onclick = () => { const i = +b.dataset.m; S.vidas[i] = Math.max(0, S.vidas[i] - 1); $("#idades").value = ""; render(); }));
+  $("#faixas").querySelectorAll("[data-p]").forEach((b) => (b.onclick = () => { const i = +b.dataset.p; S.vidas[i]++; $("#idades").value = ""; render(); }));
+}
+
+/* ---------- planos ---------- */
+function renderPlans() {
+  const box = $("#plans");
+  if (!S.loaded) { box.innerHTML = `<div class="status">${S.dbErr ? esc(S.dbErr) : "Carregando planos…"}</div>`; return; }
+  const list = S.plans.filter((p) => p.categoria === S.tipo && p.ativo !== false);
+  if (!list.length) { box.innerHTML = `<div class="status">Nenhum plano ${S.tipo === "PF" ? "para pessoa física" : "CNPJ"} cadastrado. Adicione na aba <b>Planos e valores</b>.</div>`; return; }
+  box.innerHTML = list.map((p) => {
+    const v = prices(p);
+    const pr = v.porFaixa ? `Total: Enf. R$ ${brl(v.enf) || "—"} · Apto R$ ${brl(v.apto) || "—"}`
+      : hasFaixas(p) && !totalVidas(S.vidas) ? "Tabela por faixa etária: informe as idades"
+      : v.enf || v.apto ? `Enf. R$ ${brl(v.enf) || "—"} · Apto R$ ${brl(v.apto) || "—"}` : "Valores sob consulta";
+    return `<button class="plan" aria-pressed="${S.selected.includes(p.id)}" data-id="${esc(p.id)}"><b>${esc(p.nome)}</b><span>${pr}</span></button>`;
+  }).join("");
+  box.querySelectorAll(".plan").forEach((b) => (b.onclick = () => {
+    const id = b.dataset.id;
+    S.selected = S.selected.includes(id) ? S.selected.filter((x) => x !== id) : [...S.selected, id];
+    render();
+  }));
+}
+
+function renderSel() {
+  const box = $("#sel"), items = planosEscolhidos();
+  if (!items.length) { box.innerHTML = ""; return; }
+  const tv = totalVidas(S.vidas);
+  box.innerHTML = `<div class="note">Valores desta cotação:</div>` + items.map((p) => {
+    const v = prices(p);
+    const remover = `<button class="iconbtn" title="Tirar da proposta" aria-label="Tirar ${esc(p.nome)} da proposta" data-rm="1">×</button>`;
+    if (v.porFaixa) return `<div class="selitem" data-id="${esc(p.id)}"><div class="name">${esc(p.nome)}<small>${esc(p.subtitulo || "")} · ${tv} ${tv === 1 ? "vida" : "vidas"}</small></div>
+      <div class="tot"><small>Enfermaria total</small>${v.enf != null ? "R$ " + brl(v.enf) : "falta valor"}</div>
+      <div class="tot"><small>Apartamento total</small>${v.apto != null ? "R$ " + brl(v.apto) : "falta valor"}</div>
+      ${remover}</div>`;
+    return `<div class="selitem" data-id="${esc(p.id)}"><div class="name">${esc(p.nome)}<small>${esc(p.subtitulo || "")}</small></div>
+      <div class="field"><label for="enf-${esc(p.id)}">Enfermaria R$</label><input class="money" type="text" inputmode="decimal" id="enf-${esc(p.id)}" data-k="enf" value="${brl(v.enf)}"></div>
+      <div class="field"><label for="apto-${esc(p.id)}">Apartamento R$</label><input class="money" type="text" inputmode="decimal" id="apto-${esc(p.id)}" data-k="apto" value="${brl(v.apto)}"></div>
+      ${remover}</div>`;
+  }).join("");
+  box.querySelectorAll(".selitem").forEach((row) => {
+    const id = row.dataset.id;
+    row.querySelectorAll("input").forEach((inp) => inp.addEventListener("change", () => {
+      S.over[id] = S.over[id] || {};
+      S.over[id][inp.dataset.k] = parseBRL(inp.value);
+      inp.value = brl(S.over[id][inp.dataset.k]);
+      render();
+    }));
+    row.querySelector("[data-rm]").onclick = () => { S.selected = S.selected.filter((x) => x !== id); render(); };
+  });
+}
+
+/* ---------- mensagem ---------- */
+let manual = false, lastAuto = "";
+const currentMsg = () => (manual ? $("#rawtxt").value : lastAuto);
+
+function waLink() {
+  const d = normFone($("#fone").value);
+  return `https://wa.me/${d ? "55" + d : ""}?text=${encodeURIComponent(currentMsg())}`;
+}
+
+function paintChat(msg) {
+  const chat = $("#chat");
+  if (!msg) { chat.innerHTML = `<div class="empty">Escolha um ou mais planos para ver a mensagem aqui.</div>`; return; }
+  const hh = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  let h = `<div class="bubble">${waHtml(msg)}<span class="meta">${hh} ✓✓</span></div>`;
+  for (const u of cardUrls) h += `<div class="bubble img"><img src="${u}" alt="Imagem da proposta"><span class="meta">${hh} ✓✓</span></div>`;
+  chat.innerHTML = h;
+}
+
+function dadosCotacao() {
+  return {
+    fone: normFone($("#fone").value), cliente: nomeCliente(), tipo: S.tipo, idades: $("#idades").value.trim(), vidas: [...S.vidas],
+    over: JSON.parse(JSON.stringify(S.over)),
+    planos: planosEscolhidos().map((p) => { const v = prices(p); return { id: p.id, nome: p.nome, enf: v.enf ?? null, apto: v.apto ?? null }; }),
+    mensagem: currentMsg(),
+  };
+}
+const salvar = (silent) => saveQuote(dadosCotacao(), silent);
+
+/* ---------- imagens ---------- */
+let cardUrls = [], cards = [], cardSeq = 0;
+async function renderCards() {
+  const seq = ++cardSeq, items = planosEscolhidos(), box = $("#imgs");
+  if (!items.length) {
+    box.innerHTML = `<div class="note">As imagens aparecem quando você escolhe um plano.</div>`;
+    cardUrls.forEach(URL.revokeObjectURL);
+    cardUrls = [];
+    cards = [];
+    paintChat(currentMsg());
+    return;
+  }
+  const params = { vidas: [...S.vidas], over: S.over, nome: nomeCliente(), corretor: corretor(), opts: opcoes() };
+  const made = [];
+  for (const p of items) {
+    const cv = await makeCard(p, params);
+    const blob = await new Promise((r) => cv.toBlob(r, "image/png"));
+    made.push({ p, blob, url: URL.createObjectURL(blob) });
+  }
+  if (seq !== cardSeq) { made.forEach((m) => URL.revokeObjectURL(m.url)); return; }
+  cardUrls.forEach(URL.revokeObjectURL);
+  cards = made;
+  cardUrls = made.map((m) => m.url);
+  box.innerHTML = made.map((m, i) => `<figure><img src="${m.url}" alt="Proposta ${esc(m.p.nome)}"><figcaption>${esc(m.p.nome)}</figcaption><button class="btn primary" data-cp="${i}">Copiar imagem</button><button class="btn" data-dl="${i}">Baixar</button></figure>`).join("");
+  box.querySelectorAll("[data-dl]").forEach((b) => (b.onclick = () => saveCard(cards[+b.dataset.dl])));
+  box.querySelectorAll("[data-cp]").forEach((b) => (b.onclick = () => copyCard(cards[+b.dataset.cp])));
+  paintChat(currentMsg());
+}
+
+const fileName = (p) => `Proposta ${p.nome.replace(/[\\/:*?"<>|]/g, "")}${nomeCliente() ? " - " + nomeCliente().replace(/[\\/:*?"<>|]/g, "") : ""}.png`;
+
+function saveCard(m) {
+  const a = document.createElement("a");
+  a.href = m.url;
+  a.download = fileName(m.p);
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  salvar(true);
+}
+
+async function copyCard(m) {
+  try {
+    await navigator.clipboard.write([new ClipboardItem({ "image/png": m.blob })]);
+  } catch {
+    toast("Este navegador não copia imagens: use Baixar");
+    return;
+  }
+  const ok = await salvar(true);
+  toast(ok ? "Imagem copiada e salva no histórico: cole no WhatsApp" : "Imagem copiada: cole no WhatsApp");
+}
+
+/* ---------- render ---------- */
+let cardTimer;
+export function renderCotacao() {
+  renderFaixas();
+  renderPlans();
+  renderSel();
+  const nome = nomeCliente();
+  $("#pv-nome").textContent = nome || "Cliente";
+  $("#av").textContent = (nome[0] || "?").toUpperCase();
+  $("#copy").textContent = $("#o-texto").checked ? "Copiar mensagem" : "Copiar legenda";
+  lastAuto = buildMsg({ items: planosEscolhidos(), vidas: S.vidas, over: S.over, nome, corretor: corretor(), opts: opcoes() });
+  manual = false;
+  $("#rawtxt").value = lastAuto;
+  paintChat(lastAuto);
+  clearTimeout(cardTimer);
+  cardTimer = setTimeout(renderCards, 250);
+}
+
+export function iniciarCotacao() {
+  $("#tipo").onclick = (e) => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    S.tipo = b.dataset.t;
+    for (const x of $("#tipo").children) x.setAttribute("aria-pressed", x === b);
+    S.selected = S.selected.filter((id) => (S.plans.find((p) => p.id === id) || {}).categoria === S.tipo);
+    render();
+  };
+  for (const id of ["cliente", "fone", "o-copart", "o-rede", "o-acom", "o-texto"]) $("#" + id).addEventListener("input", render);
+  $("#idades").addEventListener("input", () => { S.vidas = idadesParaVidas($("#idades").value); render(); });
+  $("#limpar-vidas").onclick = () => { S.vidas = Array(10).fill(0); $("#idades").value = ""; render(); };
+  $("#rawtxt").addEventListener("input", () => { manual = true; paintChat($("#rawtxt").value); });
+
+  $("#copy").onclick = async () => {
+    const t = currentMsg();
+    if (!t) { toast("Escolha um plano primeiro"); return; }
+    try {
+      await navigator.clipboard.writeText(t);
+      const ok = await salvar(true);
+      toast(ok ? "Mensagem copiada e salva no histórico" : "Mensagem copiada");
+    } catch {
+      $("#raw").open = true;
+      const ta = $("#rawtxt");
+      ta.focus();
+      ta.select();
+      toast("Selecionei o texto: use Ctrl+C");
+      salvar(true);
+    }
+  };
+  $("#wa").addEventListener("click", (e) => {
+    if (!currentMsg()) { e.preventDefault(); toast("Escolha um plano primeiro"); return; }
+    $("#wa").href = waLink();
+    salvar(true);
+  });
+  $("#salvar-hist").onclick = async () => {
+    if (!currentMsg()) { toast("Escolha um plano primeiro"); return; }
+    if (await salvar(false)) toast("Cotação salva no histórico");
+  };
+  $("#fone").addEventListener("input", () => {
+    const f = normFone($("#fone").value);
+    if (f.length >= 10 && !nomeCliente()) {
+      const h = S.hist.find((x) => x.fone === f && x.cliente);
+      if (h) { $("#cliente").value = h.cliente; render(); }
+    }
+    renderHistCli();
+  });
+}
