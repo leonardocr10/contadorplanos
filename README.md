@@ -4,9 +4,10 @@ Monta cotações por faixa etária e gera uma imagem de proposta por plano para 
 
 ## Como usar
 
-1. Instale o **Node.js** versão LTS: https://nodejs.org (só na primeira vez).
-2. Dê dois cliques em **`iniciar.bat`**. Na primeira vez ele instala o que falta, o que pode levar alguns minutos. Depois, o cotador abre sozinho no navegador.
-3. Deixe a janela preta aberta enquanto usa o cotador. Para encerrar, feche essa janela.
+1. Dê dois cliques em **`iniciar.bat`**. Ele instala o que faltar, inclusive o Node.js, e pode levar alguns minutos na primeira vez. Se o Windows pedir permissão, clique em Sim. Depois, o cotador abre sozinho no navegador.
+2. Deixe a janela preta aberta enquanto usa o cotador. Para encerrar, feche essa janela.
+
+Se o Node.js não puder ser instalado automaticamente, baixe a versão LTS em https://nodejs.org e abra o `iniciar.bat` de novo.
 
 Na aba **Meus dados**, preencha seu nome, telefone e corretora. Eles aparecem na imagem e na legenda.
 
