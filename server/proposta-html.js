@@ -22,7 +22,7 @@ export function montarSnapshot(p, { vidas, over, cliente, opts }, corretor, agor
       })),
     },
     plano: {
-      nome: p.nome, subtitulo: p.subtitulo, categoria: p.categoria, cidade: p.cidade, taxa: p.taxa, odonto: p.odonto, fidelidade: p.fidelidade,
+      id: p.id, nome: p.nome, subtitulo: p.subtitulo, categoria: p.categoria, cidade: p.cidade, taxa: p.taxa, odonto: p.odonto, fidelidade: p.fidelidade,
       corPrimaria: p.corPrimaria, corEscura: p.corEscura,
       beneficios: p.mostrarExtras ? lines(p.extras) : [],
       copartTexto: opts.copart ? p.copartTexto : "",

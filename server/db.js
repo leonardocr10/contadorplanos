@@ -68,6 +68,28 @@ const MIGRACOES = [
    ALTER TABLE propostas ADD COLUMN valor REAL;
    ALTER TABLE propostas ADD COLUMN docs_enviados_em TEXT;
    CREATE INDEX idx_propostas_aceito ON propostas (aceito_em);`,
+  (db) => {
+    db.exec(`CREATE TABLE documentos (
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       nome TEXT NOT NULL UNIQUE COLLATE NOCASE
+     );
+     CREATE TABLE documentos_planos (
+       documento_id INTEGER NOT NULL,
+       plano_id TEXT NOT NULL,
+       PRIMARY KEY (documento_id, plano_id)
+     );`);
+    // Converte as listas antigas de pessoa física e CNPJ, ativando cada documento nos planos do tipo.
+    for (const [chave, categoria] of [["docsPf", "PF"], ["docsCnpj", "CNPJ"]]) {
+      const valor = db.prepare("SELECT valor FROM config WHERE chave = ?").get(chave)?.valor ?? "";
+      const planos = db.prepare("SELECT id FROM planos WHERE categoria = ?").all(categoria);
+      for (const nome of valor.split("\n").map((x) => x.trim()).filter(Boolean)) {
+        db.prepare("INSERT OR IGNORE INTO documentos (nome) VALUES (?)").run(nome);
+        const { id } = db.prepare("SELECT id FROM documentos WHERE nome = ?").get(nome);
+        for (const p of planos) db.prepare("INSERT OR IGNORE INTO documentos_planos (documento_id, plano_id) VALUES (?, ?)").run(id, p.id);
+      }
+    }
+    db.exec("DELETE FROM config WHERE chave IN ('docsPf', 'docsCnpj')");
+  },
 ];
 
 function migrar(db) {
@@ -78,7 +100,8 @@ function migrar(db) {
   for (let v = versao; v < MIGRACOES.length; v++) {
     db.exec("BEGIN");
     try {
-      db.exec(MIGRACOES[v]);
+      if (typeof MIGRACOES[v] === "function") MIGRACOES[v](db);
+      else db.exec(MIGRACOES[v]);
       db.exec(`PRAGMA user_version = ${v + 1}`);
       db.exec("COMMIT");
     } catch (e) {
@@ -192,7 +215,67 @@ export class Banco {
   }
 
   excluirPlano(id) {
+    this.db.prepare("DELETE FROM documentos_planos WHERE plano_id = ?").run(id);
     return this.db.prepare("DELETE FROM planos WHERE id = ?").run(id).changes > 0;
+  }
+
+  /* ---------- documentos por plano ---------- */
+  listarDocumentos() {
+    const vinculos = this.db.prepare("SELECT documento_id, plano_id FROM documentos_planos").all();
+    return this.db.prepare("SELECT id, nome FROM documentos ORDER BY id").all().map((d) => ({
+      id: d.id, nome: d.nome, planos: vinculos.filter((v) => v.documento_id === d.id).map((v) => v.plano_id),
+    }));
+  }
+
+  obterDocumento(id) {
+    return this.listarDocumentos().find((d) => d.id === id) ?? null;
+  }
+
+  documentoComNome(nome) {
+    return this.db.prepare("SELECT id FROM documentos WHERE nome = ?").get(nome)?.id ?? null;
+  }
+
+  criarDocumento(nome, planoId) {
+    const id = Number(this.db.prepare("INSERT INTO documentos (nome) VALUES (?)").run(nome).lastInsertRowid);
+    if (planoId) this.definirDocumentoNoPlano(id, planoId, true);
+    return this.obterDocumento(id);
+  }
+
+  renomearDocumento(id, nome) {
+    this.db.prepare("UPDATE documentos SET nome = ? WHERE id = ?").run(nome, id);
+    return this.obterDocumento(id);
+  }
+
+  excluirDocumento(id) {
+    this.db.prepare("DELETE FROM documentos_planos WHERE documento_id = ?").run(id);
+    return this.db.prepare("DELETE FROM documentos WHERE id = ?").run(id).changes > 0;
+  }
+
+  definirDocumentoNoPlano(id, planoId, ativo) {
+    const sql = ativo
+      ? "INSERT OR IGNORE INTO documentos_planos (documento_id, plano_id) VALUES (?, ?)"
+      : "DELETE FROM documentos_planos WHERE documento_id = ? AND plano_id = ?";
+    this.db.prepare(sql).run(id, planoId);
+    return this.obterDocumento(id);
+  }
+
+  definirDocumentoEmTodos(id, ativo) {
+    this.db.prepare("DELETE FROM documentos_planos WHERE documento_id = ?").run(id);
+    if (ativo) this.db.prepare("INSERT INTO documentos_planos (documento_id, plano_id) SELECT ?, id FROM planos").run(id);
+    return this.obterDocumento(id);
+  }
+
+  documentosDoPlano(planoId) {
+    return this.db
+      .prepare("SELECT d.nome FROM documentos d JOIN documentos_planos v ON v.documento_id = d.id WHERE v.plano_id = ? ORDER BY d.id")
+      .all(planoId)
+      .map((d) => d.nome);
+  }
+
+  // Links criados antes dos documentos por plano guardam só o nome do plano.
+  documentosDaProposta(dados) {
+    const id = dados.plano.id ?? this.db.prepare("SELECT id FROM planos WHERE nome = ?").get(dados.plano.nome)?.id;
+    return id ? this.documentosDoPlano(id) : [];
   }
 
   /* ---------- cotações ---------- */
@@ -279,14 +362,14 @@ export class Banco {
 
   /* ---------- configuração ---------- */
   lerConfig() {
-    const cfg = { nome: "", fone: "", empresa: "", docsPf: "", docsCnpj: "" };
+    const cfg = { nome: "", fone: "", empresa: "" };
     for (const { chave, valor } of this.db.prepare("SELECT chave, valor FROM config").all()) cfg[chave] = valor;
     return cfg;
   }
 
   gravarConfig(cfg) {
     const st = this.db.prepare("INSERT INTO config (chave, valor) VALUES (?, ?) ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor");
-    for (const k of ["nome", "fone", "empresa", "docsPf", "docsCnpj"]) if (cfg[k] !== undefined) st.run(k, cfg[k]);
+    for (const k of ["nome", "fone", "empresa"]) if (cfg[k] !== undefined) st.run(k, cfg[k]);
     return this.lerConfig();
   }
 

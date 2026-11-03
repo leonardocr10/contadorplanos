@@ -6,7 +6,7 @@ export const S = {
   plans: [], loaded: false, dbErr: null,
   tipo: "PF", selected: [], over: {}, vidas: Array(10).fill(0),
   hist: [], histLoaded: false, histErr: null,
-  cor: { nome: "", fone: "", empresa: "", docsPf: "", docsCnpj: "" },
+  cor: { nome: "", fone: "", empresa: "" },
   leituraDisponivel: false,
   linkAtivo: false,
   linkLocal: true,
@@ -24,7 +24,7 @@ export function toast(t) {
   toast.t = setTimeout(() => (el.hidden = true), 2200);
 }
 
-export const VIEWS = ["cotacao", "planos", "historico", "aceites", "corretor"];
+export const VIEWS = ["cotacao", "planos", "documentos", "historico", "aceites", "corretor"];
 export function show(v) {
   for (const b of document.querySelectorAll(".tabs button")) b.setAttribute("aria-selected", b.dataset.view === v);
   for (const id of VIEWS) $("#v-" + id).hidden = id !== v;

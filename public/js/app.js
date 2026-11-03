@@ -4,10 +4,12 @@ import { iniciarCotacao, renderCotacao } from "./cotacao.js";
 import { iniciarPlanos, renderCat } from "./planos.js";
 import { carregarHistorico, iniciarHistorico, renderHist } from "./historico.js";
 import { carregarAceites, renderAceites } from "./aceites.js";
+import { carregarDocumentos, iniciarDocumentos, renderDocumentos } from "./documentos.js";
 
 definirRender(() => {
   renderCotacao();
   renderCat();
+  renderDocumentos();
 });
 
 /* ---------- abas ---------- */
@@ -18,7 +20,7 @@ show(viewDoHash());
 
 /* ---------- meus dados ---------- */
 let salvarTimer;
-const CAMPOS_CONFIG = ["nome", "fone", "empresa", "docsPf", "docsCnpj"];
+const CAMPOS_CONFIG = ["nome", "fone", "empresa"];
 for (const k of CAMPOS_CONFIG) {
   const el = $("#c-" + k);
   el.oninput = () => {
@@ -91,6 +93,7 @@ async function carregar() {
   }
   render();
   await carregarHistorico();
+  await carregarDocumentos().catch((e) => toast(e.message));
   await verificarAceites();
 }
 
@@ -106,6 +109,7 @@ async function verificarAceites() {
 iniciarCotacao();
 iniciarPlanos();
 iniciarHistorico();
+iniciarDocumentos();
 renderHist();
 renderAceites();
 render();

@@ -2,7 +2,6 @@
 // backup ficam no outro servidor, então só esta porta deve ser exposta quando houver um domínio.
 import express from "express";
 import { join } from "node:path";
-import { lines } from "../public/js/calculo.js";
 import { opcoesDeAceite, renderizarProposta } from "./proposta-html.js";
 
 const paginaErro = `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Proposta não encontrada</title><body style="font-family:system-ui,sans-serif;padding:32px"><h1>Proposta não encontrada</h1><p>Confira o link ou peça um novo ao seu corretor.</p></body></html>`;
@@ -31,8 +30,7 @@ export function criarAppPublica({ banco, pastaPublica, pastaUploads }) {
   app.get("/p/:token", (req, res) => {
     const proposta = buscar(req.params.token);
     if (!proposta) return res.status(404).type("html").send(paginaErro);
-    const config = banco.lerConfig();
-    const documentos = lines(proposta.dados.plano.categoria === "CNPJ" ? config.docsCnpj : config.docsPf);
+    const documentos = banco.documentosDaProposta(proposta.dados);
     res.setHeader("Cache-Control", "no-store");
     res.type("html").send(renderizarProposta(proposta.dados, { token: proposta.token, aceite: proposta, documentos }));
   });

@@ -1,11 +1,10 @@
 // Tela "Aceites": clientes que aceitaram a proposta pelo link e o envio da lista de documentos.
-import { brl, fmtFone, lines } from "./calculo.js";
+import { brl, fmtFone } from "./calculo.js";
 import { $, S, api, esc, toast } from "./estado.js";
 import { linkWhatsApp, mensagemDocumentos } from "./mensagem.js";
 
 let aceites = [], assinatura = null;
 const fmtData = (iso) => new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
-const docsDe = (a) => (a.categoria === "CNPJ" ? S.cor.docsCnpj : S.cor.docsPf);
 
 export async function carregarAceites() {
   const lista = await api("/api/aceites");
@@ -40,15 +39,15 @@ export function renderAceites() {
 }
 
 async function enviarDocumentos(a) {
-  if (!lines(docsDe(a)).length) {
-    toast(`Cadastre os documentos de ${a.categoria === "CNPJ" ? "CNPJ" : "pessoa física"} em Meus dados`);
+  if (!a.documentos.length) {
+    toast(`Nenhum documento ativo para ${a.plano}: ative na aba Documentos`);
     return;
   }
   if (!a.fone) {
     toast("Este aceite não tem o número do cliente");
     return;
   }
-  const texto = mensagemDocumentos({ cliente: a.cliente, plano: a.plano, acomodacao: a.acomodacao, documentos: docsDe(a), corretor: S.cor });
+  const texto = mensagemDocumentos({ cliente: a.cliente, plano: a.plano, acomodacao: a.acomodacao, documentos: a.documentos, corretor: S.cor });
   window.open(linkWhatsApp(a.fone, texto), "_blank", "noopener");
   try {
     await api(`/api/aceites/${encodeURIComponent(a.token)}/documentos`, { metodo: "POST", json: {} });

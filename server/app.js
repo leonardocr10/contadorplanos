@@ -11,6 +11,7 @@ import { montarSnapshot } from "./proposta-html.js";
 const MAX_UPLOAD = 15 * 1024 * 1024;
 
 class ErroEntrada extends Error {}
+class ErroNaoEncontrado extends Error {}
 
 const textoOpc = (v, campo, max = 100_000) => {
   if (v == null) return "";
@@ -240,6 +241,7 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     res.json(banco.listarAceites().map((a) => ({
       token: a.token, fone: a.fone, cliente: a.dados.cliente, plano: a.dados.plano.nome, categoria: a.dados.plano.categoria,
       acomodacao: a.acomodacao, valor: a.valor, aceitoEm: a.aceitoEm, docsEnviadosEm: a.docsEnviadosEm,
+      documentos: banco.documentosDaProposta(a.dados),
     })));
   });
 
@@ -247,6 +249,54 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     const a = banco.marcarDocumentosEnviados(req.params.token);
     if (!a) return res.status(404).json({ erro: "Aceite não encontrado." });
     res.json({ docsEnviadosEm: a.docsEnviadosEm });
+  });
+
+  /* ---------- documentos por plano ---------- */
+  const documentoDaRota = (req) => {
+    const id = Number(req.params.id);
+    const documento = Number.isInteger(id) ? banco.obterDocumento(id) : null;
+    if (!documento) throw new ErroNaoEncontrado("Documento não encontrado.");
+    return documento;
+  };
+  const nomeDeDocumento = (b, idAtual) => {
+    const nome = textoOpc(b?.nome, "documento", 300);
+    if (!nome) throw new ErroEntrada("Escreva o nome do documento.");
+    const existente = banco.documentoComNome(nome);
+    if (existente != null && existente !== idAtual) throw new ErroEntrada("Já existe um documento com esse nome.");
+    return nome;
+  };
+  const ativoDoPedido = (b) => {
+    if (typeof b?.ativo !== "boolean") throw new ErroEntrada("Informe se o documento fica ativo ou inativo.");
+    return b.ativo;
+  };
+
+  app.get("/api/documentos", (_req, res) => res.json(banco.listarDocumentos()));
+
+  app.post("/api/documentos", (req, res) => {
+    const nome = nomeDeDocumento(req.body);
+    const planoId = req.body?.planoId ? String(req.body.planoId) : null;
+    if (planoId && !banco.obterPlano(planoId)) throw new ErroNaoEncontrado("Plano não encontrado.");
+    res.status(201).json(banco.criarDocumento(nome, planoId));
+  });
+
+  app.put("/api/documentos/:id", (req, res) => {
+    const d = documentoDaRota(req);
+    res.json(banco.renomearDocumento(d.id, nomeDeDocumento(req.body, d.id)));
+  });
+
+  app.delete("/api/documentos/:id", (req, res) => {
+    banco.excluirDocumento(documentoDaRota(req).id);
+    res.status(204).end();
+  });
+
+  app.put("/api/documentos/:id/planos", (req, res) => {
+    res.json(banco.definirDocumentoEmTodos(documentoDaRota(req).id, ativoDoPedido(req.body)));
+  });
+
+  app.put("/api/documentos/:id/planos/:planoId", (req, res) => {
+    const d = documentoDaRota(req);
+    if (!banco.obterPlano(req.params.planoId)) throw new ErroNaoEncontrado("Plano não encontrado.");
+    res.json(banco.definirDocumentoNoPlano(d.id, req.params.planoId, ativoDoPedido(req.body)));
   });
 
   /* ---------- configuração e backup ---------- */
@@ -258,8 +308,6 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
       nome: b.nome === undefined ? undefined : textoOpc(b.nome, "nome", 200),
       fone: b.fone === undefined ? undefined : textoOpc(b.fone, "telefone", 50),
       empresa: b.empresa === undefined ? undefined : textoOpc(b.empresa, "corretora", 200),
-      docsPf: b.docsPf === undefined ? undefined : textoOpc(b.docsPf, "documentos de pessoa física", 5000),
-      docsCnpj: b.docsCnpj === undefined ? undefined : textoOpc(b.docsCnpj, "documentos de CNPJ", 5000),
     }));
   });
 
@@ -277,6 +325,7 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
   // eslint-disable-next-line no-unused-vars
   app.use((err, _req, res, _next) => {
     if (err instanceof ErroEntrada || err instanceof ErroBackup) return res.status(400).json({ erro: err.message });
+    if (err instanceof ErroNaoEncontrado) return res.status(404).json({ erro: err.message });
     if (err instanceof ErroLeitura) return res.status(err.status).json({ erro: err.message, codigo: err.codigo });
     if (err.type === "entity.too.large") return res.status(413).json({ erro: "O arquivo enviado é grande demais." });
     if (err.type === "entity.parse.failed") return res.status(400).json({ erro: "Os dados enviados são inválidos." });

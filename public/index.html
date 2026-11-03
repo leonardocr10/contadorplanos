@@ -13,6 +13,7 @@
     <nav class="tabs" role="tablist">
       <button id="tab-cot" role="tab" aria-selected="true" data-view="cotacao">Nova cotação</button>
       <button id="tab-cat" role="tab" aria-selected="false" data-view="planos">Planos e valores</button>
+      <button id="tab-doc" role="tab" aria-selected="false" data-view="documentos">Documentos</button>
       <button id="tab-his" role="tab" aria-selected="false" data-view="historico">Histórico</button>
       <button id="tab-ace" role="tab" aria-selected="false" data-view="aceites">Aceites <span class="pill" id="ace-selo" hidden style="margin:0 0 0 4px"></span></button>
       <button id="tab-cor" role="tab" aria-selected="false" data-view="corretor">Meus dados</button>
@@ -101,6 +102,21 @@
     </div>
   </section>
 
+  <!-- DOCUMENTOS -->
+  <section id="v-documentos" hidden>
+    <div class="panel">
+      <h2>Documentos necessários</h2>
+      <p class="note" style="margin:0">Cadastre os documentos e escolha quais ficam ativos em cada plano. Os ativos aparecem para o cliente depois do aceite e na mensagem da aba Aceites.</p>
+      <div class="field"><label for="doc-plano">Plano</label><select id="doc-plano"></select></div>
+      <form id="doc-form" class="row" style="grid-template-columns:minmax(0,1fr) auto;align-items:end">
+        <div class="field"><label for="doc-nome">Novo documento (já entra ativo no plano escolhido)</label><input id="doc-nome" type="text" placeholder="Ex.: Comprovante de residência" autocomplete="off"></div>
+        <button class="btn primary" type="submit">Adicionar</button>
+      </form>
+      <div class="note" id="doc-count"></div>
+      <div id="doc-list" class="cat"></div>
+    </div>
+  </section>
+
   <!-- ACEITES -->
   <section id="v-aceites" hidden>
     <div class="panel">
@@ -123,12 +139,6 @@
         <div class="field"><label for="c-fone">Seu telefone</label><input id="c-fone" type="tel" placeholder="(34) 99999-0000"></div>
       </div>
       <div class="field"><label for="c-empresa">Corretora (opcional)</label><input id="c-empresa" type="text"></div>
-    </div>
-    <div class="panel" style="max-width:720px;width:100%">
-      <h2>Documentos necessários</h2>
-      <p class="note" style="margin:0">Aparecem para o cliente depois do aceite e na mensagem da aba Aceites. Escreva um documento por linha.</p>
-      <div class="field"><label for="c-docsPf">Pessoa física</label><textarea id="c-docsPf"></textarea></div>
-      <div class="field"><label for="c-docsCnpj">CNPJ</label><textarea id="c-docsCnpj"></textarea></div>
     </div>
     <div class="panel" style="max-width:720px;width:100%">
       <h2>Backup</h2>

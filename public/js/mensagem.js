@@ -96,7 +96,7 @@ export function mensagemDocumentos({ cliente, plano, acomodacao, documentos, cor
     "",
     "Para dar andamento, precisamos que você nos envie os seguintes documentos:",
     "",
-    ...lines(documentos).map((d) => `• ${d}`),
+    ...documentos.map((d) => `• ${d}`),
   ];
   const sig = assinatura(corretor);
   if (sig.length) L.push("", ...sig);

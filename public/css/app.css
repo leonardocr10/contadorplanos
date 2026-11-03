@@ -162,3 +162,4 @@ textarea.mono{font:13px/1.5 var(--mono);min-height:140px}
 .cropwrap canvas{display:block;width:100%;touch-action:none;cursor:crosshair}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 body{margin:0}
+@media (max-width:560px){.tabs{flex-wrap:wrap;justify-content:center;border-radius:18px}.tabs button{padding:8px 12px}}

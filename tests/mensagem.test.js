@@ -74,7 +74,7 @@ test("legenda com links traz um link por plano e não cita imagens", () => {
 });
 
 test("mensagem de documentos lista um documento por linha e traz a assinatura", () => {
-  const msg = mensagemDocumentos({ cliente: "Maria", plano: "PLAM SAÚDE", acomodacao: "Apartamento", documentos: "RG\n\n CPF ", corretor });
+  const msg = mensagemDocumentos({ cliente: "Maria", plano: "PLAM SAÚDE", acomodacao: "Apartamento", documentos: ["RG", "CPF"], corretor });
   assert.match(msg, /aceite da proposta do plano \*PLAM SAÚDE\* \(Apartamento\)/);
   assert.ok(msg.includes("• RG\n• CPF"));
   assert.ok(msg.endsWith("(34) 91234-5678"));
