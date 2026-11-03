@@ -10,6 +10,25 @@ Monta cotações por faixa etária e gera uma imagem de proposta por plano para 
 
 Na aba **Meus dados**, preencha seu nome, telefone e corretora. Eles aparecem na imagem e na legenda.
 
+## Links das propostas
+
+Ao clicar em **Abrir no WhatsApp** ou em **Copiar legenda**, o cotador cria uma página para cada plano e coloca os links na mensagem. O cliente abre a proposta no celular, sem precisar de imagem.
+
+Para isso funcionar, o **cloudflared** precisa estar instalado. Se ele não estiver, o cotador volta a trabalhar com as imagens. Para instalar, rode no terminal:
+
+```bash
+winget install --id Cloudflare.cloudflared
+```
+
+Limitações importantes:
+
+- **O link só abre enquanto o computador e o cotador estiverem ligados.**
+- **O endereço muda sempre que o cotador é reiniciado.** Os links enviados antes disso param de abrir, e é preciso mandar um novo: use **Reabrir cotação** no Histórico.
+- Quem receber o link consegue ver o nome do cliente e os valores da proposta. Por isso, envie o link só para o próprio cliente.
+- A página guarda os valores do momento em que o link foi criado. Mudar o plano depois não altera o que o cliente já recebeu.
+
+Só as páginas das propostas ficam acessíveis pela internet. O cotador, o histórico e o backup continuam só neste computador.
+
 ## Leitura automática de tabelas (opcional)
 
 Para o Claude ler o PDF ou a imagem de uma tabela nova, é preciso ter uma chave da API, criada em https://platform.claude.com. O uso da API é cobrado à parte.
@@ -39,4 +58,4 @@ npm install
 npm test
 ```
 
-A porta (`PORT`, padrão 3210) e o modelo do Claude (`ANTHROPIC_MODEL`) ficam no `.env`.
+As portas (`PORT`, padrão 3210, e `PORT_PUBLICA`, padrão 3211) e o modelo do Claude (`ANTHROPIC_MODEL`) ficam no `.env`. O túnel liga a internet apenas à porta pública, atendida por `server/publico.js`.

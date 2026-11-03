@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { normFone } from "../public/js/calculo.js";
 import { ErroBackup, STATUS } from "./db.js";
 import { ErroLeitura, MODELO_PADRAO, lerTabela } from "./claude.js";
+import { montarSnapshot } from "./proposta-html.js";
 
 const MAX_UPLOAD = 15 * 1024 * 1024;
 
@@ -113,7 +114,26 @@ const carimbo = (d = new Date()) => {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
 };
 
-export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env = process.env, clienteClaude }) {
+function validarPedidoDeLinks(b) {
+  if (!b || typeof b !== "object") throw new ErroEntrada("Dados da proposta inválidos.");
+  if (!Array.isArray(b.planos) || !b.planos.length) throw new ErroEntrada("Escolha ao menos um plano.");
+  if (!Array.isArray(b.vidas) || b.vidas.length !== 10 || !b.vidas.every((n) => Number.isInteger(n) && n >= 0)) {
+    throw new ErroEntrada("As vidas da cotação são inválidas.");
+  }
+  const over = {};
+  for (const [id, o] of Object.entries(b.over && typeof b.over === "object" ? b.over : {})) {
+    over[id] = {};
+    if (o?.enf !== undefined) over[id].enf = numeroOpc(o.enf, "enfermaria");
+    if (o?.apto !== undefined) over[id].apto = numeroOpc(o.apto, "apartamento");
+  }
+  const o = b.opts ?? {};
+  return {
+    planos: b.planos, vidas: b.vidas, over, cliente: textoOpc(b.cliente, "cliente", 200),
+    opts: { copart: o.copart !== false, rede: o.rede !== false, acom: o.acom !== false },
+  };
+}
+
+export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env = process.env, clienteClaude, linkPublico = () => ({ estado: "indisponivel", url: null }) }) {
   const app = express();
   app.disable("x-powered-by");
   mkdirSync(pastaUploads, { recursive: true });
@@ -128,7 +148,7 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
   const modelo = () => (env.ANTHROPIC_MODEL || "").trim() || MODELO_PADRAO;
 
   app.get("/api/status", (_req, res) => {
-    res.json({ app: "cotador", leituraDisponivel: !!chave() || !!clienteClaude, modelo: modelo() });
+    res.json({ app: "cotador", leituraDisponivel: !!chave() || !!clienteClaude, modelo: modelo(), linkPublico: linkPublico() });
   });
 
   app.post("/api/ler-tabela", express.json({ limit: "160mb" }), async (req, res) => {
@@ -198,6 +218,21 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
   app.delete("/api/cotacoes/:id", (req, res) => {
     if (!banco.excluirCotacao(req.params.id)) return res.status(404).json({ erro: "Cotação não encontrada." });
     res.status(204).end();
+  });
+
+  /* ---------- links públicos das propostas ---------- */
+  app.post("/api/propostas", (req, res) => {
+    const pedido = validarPedidoDeLinks(req.body);
+    const { estado, url } = linkPublico();
+    if (estado !== "ativo") return res.status(503).json({ erro: "O link público ainda não está ativo. Tente de novo em instantes.", codigo: "sem_tunel" });
+    const corretor = banco.lerConfig();
+    const links = pedido.planos.map((id) => {
+      const plano = banco.obterPlano(String(id));
+      if (!plano) throw new ErroEntrada("Um dos planos escolhidos não existe mais.");
+      const token = banco.salvarProposta(montarSnapshot(plano, pedido, corretor));
+      return { id: plano.id, nome: plano.nome, url: `${url}/p/${token}` };
+    });
+    res.status(201).json({ links });
   });
 
   /* ---------- configuração e backup ---------- */

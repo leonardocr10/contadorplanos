@@ -59,11 +59,27 @@ $("#b-sim").onclick = async () => {
   $("#b-confirm").hidden = true;
 };
 
+/* ---------- link público ---------- */
+// O túnel leva alguns segundos para conectar e pode cair, então a mensagem acompanha o estado dele.
+async function verificarLink() {
+  try {
+    const { linkPublico } = await api("/api/status");
+    const ativo = linkPublico.estado === "ativo";
+    if (ativo !== S.linkAtivo) {
+      S.linkAtivo = ativo;
+      render();
+    }
+  } catch {
+    // O cotador pode estar sendo fechado; a próxima verificação tenta de novo.
+  }
+}
+
 /* ---------- carga inicial ---------- */
 async function carregar() {
   try {
     const [status, cor] = await Promise.all([api("/api/status"), api("/api/config"), carregarPlanos()]);
     S.leituraDisponivel = status.leituraDisponivel;
+    S.linkAtivo = status.linkPublico.estado === "ativo";
     S.cor = cor;
     for (const k of ["nome", "fone", "empresa"]) $("#c-" + k).value = cor[k] ?? "";
   } catch (e) {
@@ -79,3 +95,4 @@ iniciarHistorico();
 renderHist();
 render();
 carregar();
+setInterval(verificarLink, 5000);

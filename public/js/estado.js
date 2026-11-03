@@ -8,6 +8,7 @@ export const S = {
   hist: [], histLoaded: false, histErr: null,
   cor: { nome: "", fone: "", empresa: "" },
   leituraDisponivel: false,
+  linkAtivo: false,
 };
 
 let renderizar = () => {};

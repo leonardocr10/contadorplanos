@@ -1,7 +1,7 @@
 // Banco local em node:sqlite: migrações versionadas, seed e acesso a planos, cotações e configuração.
 import { DatabaseSync } from "node:sqlite";
 import { copyFileSync, existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -55,6 +55,12 @@ const MIGRACOES = [
    CREATE TABLE config (
      chave TEXT PRIMARY KEY,
      valor TEXT NOT NULL DEFAULT ''
+   );`,
+  `CREATE TABLE propostas (
+     token TEXT PRIMARY KEY,
+     chave TEXT NOT NULL UNIQUE,
+     dados TEXT NOT NULL,
+     criado_em TEXT NOT NULL
    );`,
 ];
 
@@ -220,6 +226,24 @@ export class Banco {
 
   excluirCotacao(id) {
     return this.db.prepare("DELETE FROM cotacoes WHERE id = ?").run(id).changes > 0;
+  }
+
+  /* ---------- páginas públicas das propostas ---------- */
+  // Guarda uma cópia da proposta: mudar o plano depois não altera o que o cliente já recebeu.
+  // A mesma proposta reaproveita o mesmo link.
+  salvarProposta(dados) {
+    const json = JSON.stringify(dados);
+    const chave = createHash("sha256").update(json).digest("hex");
+    const existente = this.db.prepare("SELECT token FROM propostas WHERE chave = ?").get(chave);
+    if (existente) return existente.token;
+    const token = randomBytes(16).toString("base64url");
+    this.db.prepare("INSERT INTO propostas (token, chave, dados, criado_em) VALUES (?, ?, ?, ?)").run(token, chave, json, new Date().toISOString());
+    return token;
+  }
+
+  obterProposta(token) {
+    const l = this.db.prepare("SELECT dados FROM propostas WHERE token = ?").get(token);
+    return l ? JSON.parse(l.dados) : null;
   }
 
   /* ---------- configuração ---------- */

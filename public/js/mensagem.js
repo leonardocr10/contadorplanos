@@ -3,7 +3,14 @@ import { FAIXAS, brl, lines, planPrices, totalVidas } from "./calculo.js";
 
 const assinatura = (c) => [c.nome && `*${c.nome}*`, c.empresa, c.fone].filter(Boolean);
 
-export function buildLegenda({ items, nome, corretor }) {
+// Marca o lugar do link no texto. O link de verdade só é criado na hora de enviar.
+export const marcadorLink = (p) => `[link ${p.nome}]`;
+
+export function aplicarLinks(texto, links) {
+  return links.reduce((t, l) => t.replaceAll(marcadorLink(l), l.url), texto);
+}
+
+export function buildLegenda({ items, nome, corretor, links = false }) {
   if (!items.length) return "";
   const nomes = items.map((p) => `*${p.nome}*`);
   const lista = nomes.length > 1 ? nomes.slice(0, -1).join(", ") + " e " + nomes.at(-1) : nomes[0];
@@ -12,14 +19,18 @@ export function buildLegenda({ items, nome, corretor }) {
     "",
     `Segue a sua proposta do${items.length > 1 ? "s planos" : " plano"} ${lista}, com valores, coparticipação, carências e rede credenciada.`,
   ];
+  if (links) {
+    L.push("", items.length > 1 ? "Toque no link de cada plano para ver os detalhes:" : "Toque no link para ver os detalhes:");
+    for (const p of items) L.push("", ...(items.length > 1 ? [`*${p.nome}*`] : []), marcadorLink(p));
+  }
   const sig = assinatura(corretor);
   if (sig.length) L.push("", ...sig);
   return L.join("\n");
 }
 
-export function buildMsg({ items, vidas, over, nome, corretor, opts }) {
+export function buildMsg({ items, vidas, over, nome, corretor, opts, links = false }) {
   if (!items.length) return "";
-  if (!opts.texto) return buildLegenda({ items, nome, corretor });
+  if (!opts.texto) return buildLegenda({ items, nome, corretor, links });
   const L = [];
   L.push(nome ? `Olá, *${nome}*! Tudo bem? 😊` : "Olá! Tudo bem? 😊");
   L.push(items.length === 1
@@ -30,6 +41,7 @@ export function buildMsg({ items, vidas, over, nome, corretor, opts }) {
     const v = planPrices(p, vidas, over);
     L.push("", sep, `🏥 *${p.nome}*`);
     if (p.subtitulo) L.push(`_${p.subtitulo}_`);
+    if (links) L.push("", "🔗 *Proposta completa:*", marcadorLink(p));
     if (v.porFaixa) {
       const tv = totalVidas(vidas);
       L.push("", `💰 *Valor da mensalidade* (${tv} ${tv === 1 ? "vida" : "vidas"})`);
@@ -64,7 +76,7 @@ export function buildMsg({ items, vidas, over, nome, corretor, opts }) {
     if (txts.length) L.push("", "❓ *Como funciona a coparticipação?*", txts[0]);
   }
   if (opts.acom) L.push("", "_*Enfermaria: acomodação compartilhada._", "_*Apartamento: acomodação individual._");
-  L.push("", `📎 Na${items.length > 1 ? "s imagens" : " imagem"} estão as tabelas de coparticipação e carência.`);
+  if (!links) L.push("", `📎 Na${items.length > 1 ? "s imagens" : " imagem"} estão as tabelas de coparticipação e carência.`);
   const sig = assinatura(corretor);
   if (sig.length) L.push("", ...sig);
   return L.join("\n");

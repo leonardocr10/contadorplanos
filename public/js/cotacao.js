@@ -1,7 +1,7 @@
 // Tela "Nova cotação": formulário, cartões de planos, prévia do WhatsApp e imagens da proposta.
 import { FAIXAS, brl, hasFaixas, idadesParaVidas, normFone, parseBRL, planPrices, totalVidas } from "./calculo.js";
-import { $, S, esc, render, toast } from "./estado.js";
-import { buildMsg, linkWhatsApp, waHtml } from "./mensagem.js";
+import { $, S, api, esc, render, toast } from "./estado.js";
+import { aplicarLinks, buildMsg, linkWhatsApp, waHtml } from "./mensagem.js";
 import { makeCard } from "./proposta.js";
 import { renderHistCli, saveQuote } from "./historico.js";
 
@@ -77,19 +77,40 @@ function paintChat(msg) {
   if (!msg) { chat.innerHTML = `<div class="empty">Escolha um ou mais planos para ver a mensagem aqui.</div>`; return; }
   const hh = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   let h = `<div class="bubble">${waHtml(msg)}<span class="meta">${hh} ✓✓</span></div>`;
-  for (const u of cardUrls) h += `<div class="bubble img"><img src="${u}" alt="Imagem da proposta"><span class="meta">${hh} ✓✓</span></div>`;
+  for (const u of S.linkAtivo ? [] : cardUrls) h += `<div class="bubble img"><img src="${u}" alt="Imagem da proposta"><span class="meta">${hh} ✓✓</span></div>`;
   chat.innerHTML = h;
 }
 
-function dadosCotacao() {
+// Cria os links das propostas e troca os marcadores do texto pelos endereços.
+async function mensagemFinal() {
+  const texto = currentMsg();
+  if (!S.linkAtivo || !texto.includes("[link ")) return texto;
+  const { links } = await api("/api/propostas", {
+    metodo: "POST",
+    json: { planos: [...S.selected], vidas: S.vidas, over: S.over, cliente: nomeCliente(), opts: opcoes() },
+  });
+  return aplicarLinks(texto, links);
+}
+
+function dadosCotacao(mensagem) {
   return {
     fone: normFone($("#fone").value), cliente: nomeCliente(), tipo: S.tipo, idades: $("#idades").value.trim(), vidas: [...S.vidas],
     over: JSON.parse(JSON.stringify(S.over)),
     planos: planosEscolhidos().map((p) => { const v = prices(p); return { id: p.id, nome: p.nome, enf: v.enf ?? null, apto: v.apto ?? null }; }),
-    mensagem: currentMsg(),
+    mensagem,
   };
 }
-const salvar = (silent) => saveQuote(dadosCotacao(), silent);
+
+async function salvar(silent, mensagemPronta) {
+  try {
+    const temNumero = normFone($("#fone").value).length >= 10;
+    const mensagem = mensagemPronta ?? (temNumero ? await mensagemFinal() : currentMsg());
+    return await saveQuote(dadosCotacao(mensagem), silent);
+  } catch (e) {
+    toast(e.message);
+    return false;
+  }
+}
 
 /* ---------- imagens ---------- */
 let cardUrls = [], cards = [], cardSeq = 0, cardsProntos = false;
@@ -156,6 +177,16 @@ async function copyCard(m) {
 // porque com a nova aba em primeiro plano o navegador recusaria a cópia.
 async function abrirWhatsApp() {
   if (!currentMsg()) { toast("Escolha um plano primeiro"); return; }
+  if (S.linkAtivo) {
+    try {
+      const mensagem = await mensagemFinal();
+      window.open(linkWhatsApp(normFone($("#fone").value), mensagem), "_blank", "noopener");
+      salvar(true, mensagem);
+    } catch (e) {
+      toast(e.message);
+    }
+    return;
+  }
   if (!cardsProntos) { toast("A imagem ainda está sendo gerada: tente de novo em um instante"); return; }
   const copiou = await copiarImagem(cards[0]);
   window.open(linkWhatsApp(normFone($("#fone").value), currentMsg()), "_blank", "noopener");
@@ -175,7 +206,10 @@ export function renderCotacao() {
   $("#pv-nome").textContent = nome || "Cliente";
   $("#av").textContent = (nome[0] || "?").toUpperCase();
   $("#copy").textContent = $("#o-texto").checked ? "Copiar mensagem" : "Copiar legenda";
-  lastAuto = buildMsg({ items: planosEscolhidos(), vidas: S.vidas, over: S.over, nome, corretor: corretor(), opts: opcoes() });
+  lastAuto = buildMsg({ items: planosEscolhidos(), vidas: S.vidas, over: S.over, nome, corretor: corretor(), opts: opcoes(), links: S.linkAtivo });
+  $("#nota-envio").textContent = S.linkAtivo
+    ? "Abrir no WhatsApp leva o texto com o link de cada proposta. O link só abre enquanto este computador e o cotador estiverem ligados, e deixa de funcionar quando o cotador é reiniciado. As imagens continuam disponíveis acima, se preferir."
+    : "Abrir no WhatsApp leva o texto e copia a imagem: na conversa, aperte Ctrl+V para colar a imagem. Com vários planos, copie as outras imagens nos botões acima. Ao copiar, a cotação fica salva no histórico do número.";
   manual = false;
   $("#rawtxt").value = lastAuto;
   paintChat(lastAuto);
@@ -199,19 +233,26 @@ export function iniciarCotacao() {
   $("#rawtxt").addEventListener("input", () => { manual = true; paintChat($("#rawtxt").value); });
 
   $("#copy").onclick = async () => {
-    const t = currentMsg();
-    if (!t) { toast("Escolha um plano primeiro"); return; }
+    if (!currentMsg()) { toast("Escolha um plano primeiro"); return; }
+    let t;
+    try {
+      t = await mensagemFinal();
+    } catch (e) {
+      toast(e.message);
+      return;
+    }
     try {
       await navigator.clipboard.writeText(t);
-      const ok = await salvar(true);
+      const ok = await salvar(true, t);
       toast(ok ? "Mensagem copiada e salva no histórico" : "Mensagem copiada");
     } catch {
       $("#raw").open = true;
       const ta = $("#rawtxt");
+      ta.value = t;
       ta.focus();
       ta.select();
       toast("Selecionei o texto: use Ctrl+C");
-      salvar(true);
+      salvar(true, t);
     }
   };
   $("#wa").addEventListener("click", (e) => { e.preventDefault(); abrirWhatsApp(); });

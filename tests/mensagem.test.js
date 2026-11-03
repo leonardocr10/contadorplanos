@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { idadesParaVidas } from "../public/js/calculo.js";
-import { buildLegenda, buildMsg, linkWhatsApp, waHtml } from "../public/js/mensagem.js";
+import { aplicarLinks, buildLegenda, buildMsg, linkWhatsApp, waHtml } from "../public/js/mensagem.js";
 import { themeFor } from "../public/js/proposta.js";
 
 const planos = JSON.parse(readFileSync(new URL("../dados/planos.json", import.meta.url), "utf8"));
@@ -59,6 +59,18 @@ test("link do WhatsApp preserva os emojis e não passa pelo wa.me", () => {
   assert.equal(url.searchParams.get("text"), "Olá 😊 ✅");
   assert.ok(url.search.includes("%F0%9F%98%8A"));
   assert.equal(new URL(linkWhatsApp("", "Oi")).searchParams.has("phone"), false);
+});
+
+test("legenda com links traz um link por plano e não cita imagens", () => {
+  const items = [plano("plam-saude-pf"), plano("amil-ouro-total")];
+  const msg = buildLegenda({ items, nome: "", corretor: {}, links: true });
+  assert.ok(msg.includes("[link PLAM SAÚDE]") && msg.includes("[link AMIL OURO]"));
+  const final = aplicarLinks(msg, [{ nome: "PLAM SAÚDE", url: "https://x/p/a" }, { nome: "AMIL OURO", url: "https://x/p/b" }]);
+  assert.ok(final.includes("https://x/p/a") && final.includes("https://x/p/b"));
+  assert.ok(!final.includes("[link "));
+  const completo = buildMsg({ items, vidas: idadesParaVidas("35"), over: {}, nome: "", corretor: {}, links: true, opts: { texto: true } });
+  assert.ok(completo.includes("[link AMIL OURO]"));
+  assert.doesNotMatch(completo, /imagens? estão/);
 });
 
 test("prévia escapa HTML e aplica negrito", () => {
