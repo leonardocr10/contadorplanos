@@ -25,7 +25,7 @@ if %NODE_MAIOR% LSS 22 goto nodeantigo
 node scripts\verificar-dependencias.js
 if not errorlevel 1 goto instalado
 echo Instalando as dependências do cotador. Isso pode levar alguns minutos.
-call npm install --omit=dev --no-fund --no-audit
+call npm ci --omit=dev --no-fund --no-audit
 if errorlevel 1 goto falhainstalar
 node scripts\verificar-dependencias.js
 if errorlevel 1 goto falhainstalar
