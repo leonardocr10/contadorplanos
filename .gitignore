@@ -1,0 +1,6 @@
+node_modules/
+.env
+dados/cotador.db*
+dados/uploads/
+backups/
+public/vendor/

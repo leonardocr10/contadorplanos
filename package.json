@@ -1,0 +1,21 @@
+{
+  "name": "cotador",
+  "version": "1.0.0",
+  "description": "Cotador local de planos de saúde: monta cotações por faixa etária e gera a imagem da proposta para o WhatsApp.",
+  "private": true,
+  "type": "module",
+  "main": "server/index.js",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server/index.js",
+    "test": "node --disable-warning=ExperimentalWarning --test",
+    "postinstall": "node scripts/copiar-pdfjs.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.4.0",
+    "express": "^5.3.0",
+    "pdfjs-dist": "^6.5.438"
+  }
+}
