@@ -44,7 +44,7 @@ function closeModal() {
 
 function openEditor(p) {
   const ed = $("#editor"), isNew = !p;
-  p = p || { categoria: S.tipo, subtitulo: "Plano com coparticipação", cidade: "Uberlândia", ativo: true, ordem: (S.plans.length + 1) * 10 };
+  p = p || { fidelidade: S.tipo === "CNPJ", categoria: S.tipo, subtitulo: "Plano com coparticipação", cidade: "Uberlândia", ativo: true, ordem: (S.plans.length + 1) * 10 };
   const opt = (cur) => `<option value="">Sem imagem</option>` + (cur && !IMAGES[cur] ? `<option value="${esc(cur)}" selected>Imagem enviada</option>` : "") + Object.entries(IMAGES).map(([k, v]) => `<option value="${k}" ${cur === k ? "selected" : ""}>${v}</option>`).join("");
   openModal();
   ed.innerHTML = `<div class="modal-head"><h2 id="ed-title">${isNew ? "Novo plano" : "Editar " + esc(p.nome)}</h2><button class="iconbtn" id="e-x" aria-label="Fechar">×</button></div>
@@ -109,6 +109,7 @@ function openEditor(p) {
   };
   $("#e-fx3").onchange = aplicarModeloFaixas;
   aplicarModeloFaixas();
+  if (isNew) $("#e-cat").onchange = () => { $("#e-fid").checked = $("#e-cat").value === "CNPJ"; };
   $("#e-cancel").onclick = closeModal;
   $("#e-x").onclick = closeModal;
   wireUpdater();

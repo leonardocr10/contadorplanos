@@ -100,6 +100,7 @@ const MIGRACOES = [
   },
   // Sem mudança na estrutura: marca a chegada do PLAM TOTAL (ver PLANOS_NOVOS).
   () => {},
+  "UPDATE planos SET fidelidade = 1 WHERE categoria = 'CNPJ'",
 ];
 
 // Planos lançados depois que o banco já existia: entram uma única vez, ao atualizar.

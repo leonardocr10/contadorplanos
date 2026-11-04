@@ -206,6 +206,25 @@ test("banco na versão anterior recebe só o PLAM TOTAL", (t) => {
   b.fechar();
 });
 
+test("planos CNPJ ficam com fidelidade ao atualizar, e a marcação pode ser retirada depois", (t) => {
+  const pasta = mkdtempSync(join(tmpdir(), "cotador-fid-"));
+  t.after(() => rmSync(pasta, { recursive: true, force: true }));
+  const arq = join(pasta, "c.db");
+  let b = new Banco(arq, seed);
+  const id = "plam-total-cnpj";
+  b.gravarPlano(id, { ...b.obterPlano(id), fidelidade: false });
+  b.db.exec("PRAGMA user_version = 7");
+  b.fechar();
+  b = new Banco(arq, seed);
+  assert.ok(b.listarPlanos().filter((p) => p.categoria === "CNPJ").every((p) => p.fidelidade));
+  assert.ok(b.listarPlanos().filter((p) => p.categoria === "PF").every((p) => !p.fidelidade));
+  b.gravarPlano(id, { ...b.obterPlano(id), fidelidade: false });
+  b.fechar();
+  b = new Banco(arq, seed);
+  assert.equal(b.obterPlano(id).fidelidade, false);
+  b.fechar();
+});
+
 test("banco antigo recebe o plano novo uma vez; se excluído, não volta", (t) => {
   const pasta = mkdtempSync(join(tmpdir(), "cotador-novo-"));
   t.after(() => rmSync(pasta, { recursive: true, force: true }));
