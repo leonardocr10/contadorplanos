@@ -382,6 +382,26 @@ test("link antigo, sem o id do plano, encontra os documentos pelo nome", async (
   assert.deepEqual(banco.documentosDaProposta({ plano: { nome: "Plano apagado" } }), []);
 });
 
+test("enviar documentos abre o WhatsApp do telefone atual de Meus dados", async (t) => {
+  const { admin, publico, banco } = await subir(t, ativo);
+  const salvarFone = (fone) => fetch(admin + "/api/config", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nome: "Corretor", fone, empresa: "" }) });
+  const destino = async (url) => (await (await fetch(url)).text()).match(/send\/\?phone=(\d+)/)?.[1];
+  await salvarFone("(34) 90000-1111");
+  const url = await criarLink(admin, publico);
+  const doc = await (await fetch(admin + "/api/documentos", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nome: "RG", planoId: "plam-saude-pf" }) })).json();
+  assert.ok(doc);
+  await aceitar(url, { acomodacao: "Enfermaria", confirmo: "1" });
+  assert.equal(await destino(url), "5534900001111");
+
+  await salvarFone("(34) 90000-2222");
+  assert.equal(await destino(url), "5534900002222");
+
+  // Sem telefone em Meus dados, usa o que ficou guardado na proposta.
+  await salvarFone("");
+  assert.equal(await destino(url), "5534900001111");
+  assert.ok(banco.listarAceites().length === 1);
+});
+
 test("clientes diferentes com os mesmos dados têm links e aceites separados", async (t) => {
   const { admin, publico } = await subir(t, ativo);
   const a = await criarLink(admin, publico, { fone: "34999990000" });
