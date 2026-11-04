@@ -477,7 +477,7 @@ test("link antigo, sem o id do plano, encontra os documentos pelo nome", async (
 test("enviar documentos abre o WhatsApp do telefone atual de Meus dados", async (t) => {
   const { admin, publico, banco } = await subir(t, ativo);
   const salvarFone = (fone) => fetch(admin + "/api/config", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nome: "Corretor", fone, empresa: "" }) });
-  const destino = async (url) => (await (await fetch(url)).text()).match(/send\/\?phone=(\d+)/)?.[1];
+  const destino = async (url) => (await (await fetch(url)).text()).match(/send\/?\?phone=(\d+)/)?.[1];
   await salvarFone("(34) 90000-1111");
   const url = await criarLink(admin, publico);
   const doc = await (await fetch(admin + "/api/documentos", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nome: "RG", planoId: "plam-saude-pf" }) })).json();

@@ -1,7 +1,7 @@
 // Tela "Histórico" e o quadro "Histórico deste número" da cotação.
 import { brl, fmtFone, normFone } from "./calculo.js";
 import { $, S, api, esc, render, show, toast } from "./estado.js";
-import { waHtml } from "./mensagem.js";
+import { linkConversaDireta, waHtml } from "./mensagem.js";
 
 const STATUS = ["Enviada", "Em negociação", "Fechou", "Perdida"];
 const stClass = (s) => ({ "Em negociação": "st-neg", "Fechou": "st-ok", "Perdida": "st-off" }[s] || "st-env");
@@ -137,7 +137,7 @@ export function renderHist() {
   box.innerHTML = gs.map(([f, l]) => {
     const nome = l.find((h) => h.cliente)?.cliente || "Sem nome";
     return `<details class="hg" data-fone="${esc(f)}" ${abertos.has(f) ? "open" : ""}><summary><span class="hg-name">${esc(nome)}</span><span class="hg-meta">${fmtFone(f)} · ${l.length} ${l.length === 1 ? "cotação" : "cotações"} · última em ${fmtData(l[0].criadoEm)}</span><span class="pill ${stClass(l[0].status)}">${esc(l[0].status || "Enviada")}</span></summary>
-      <div class="cat" style="margin-top:10px"><div class="actions"><a class="btn" href="https://wa.me/55${esc(f)}" target="_blank" rel="noopener">Abrir conversa no WhatsApp</a></div>${l.map((h) => quoteRow(h, true)).join("")}</div></details>`;
+      <div class="cat" style="margin-top:10px"><div class="actions"><a class="btn" href="${esc(linkConversaDireta(f, "", navigator.userAgent))}" target="_blank" rel="noopener">Abrir conversa no WhatsApp</a></div>${l.map((h) => quoteRow(h, true)).join("")}</div></details>`;
   }).join("");
   wireRows(box);
 }

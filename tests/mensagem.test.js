@@ -151,3 +151,8 @@ test("enviar documentos abre direto o WhatsApp Web no computador e o aplicativo 
   assert.equal(web.searchParams.get("text"), "Olá 😊");
   assert.equal(new URL(linkConversaDireta("34999990000", "Oi", "Mozilla/5.0 (Linux; Android 14)")).hostname, "api.whatsapp.com");
 });
+
+test("conversa direta sem número ou sem texto não deixa parâmetro vazio", () => {
+  assert.equal(linkConversaDireta("", "Oi"), "https://web.whatsapp.com/send?text=Oi");
+  assert.equal(linkConversaDireta("34999990000"), "https://web.whatsapp.com/send?phone=5534999990000");
+});

@@ -1,7 +1,7 @@
 // Tela "Nova cotação": formulário, cartões de planos, prévia do WhatsApp e imagens da proposta.
 import { FAIXAS, brl, hasFaixas, normFone, parseBRL, planPrices, totalVidas } from "./calculo.js";
 import { $, S, api, esc, render, toast } from "./estado.js";
-import { buildMsg, linkWhatsApp, textoDosLinks, waHtml } from "./mensagem.js";
+import { buildMsg, linkConversaDireta, textoDosLinks, waHtml } from "./mensagem.js";
 import { paginaParaPng } from "./imagem-proposta.js";
 import { renderHistCli, saveQuote } from "./historico.js";
 
@@ -180,7 +180,7 @@ async function abrirWhatsApp() {
   if (!currentMsg()) { toast("Escolha um plano primeiro"); return; }
   if (!cardsProntos) { toast("A imagem ainda está sendo gerada: tente de novo em um instante"); return; }
   const copiou = await copiarImagem(cards[0]);
-  window.open(linkWhatsApp(normFone($("#fone").value), currentMsg()), "_blank", "noopener");
+  window.open(linkConversaDireta(normFone($("#fone").value), currentMsg(), navigator.userAgent), "_blank", "noopener");
   salvar(true);
   if (!copiou) {
     saveCard(cards[0]);

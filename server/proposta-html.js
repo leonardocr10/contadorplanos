@@ -1,6 +1,6 @@
 // Página HTML da proposta, aberta pelo cliente: layout com painel lateral, sem rolagem no computador.
 import { brl, lines, normFone, parseBRL, planPrices, r2, totalVidas } from "../public/js/calculo.js";
-import { linkWhatsApp } from "../public/js/mensagem.js";
+import { linkConversaDireta } from "../public/js/mensagem.js";
 import { hex2rgb, lumRGB, mixRGB, toHex } from "../public/js/cores.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -287,13 +287,13 @@ function botaoAceite(s, { token, aceite }, paraImagem) {
   </details>`;
 }
 
-function avisoAceito(s, { aceite, documentos = [], foneCorretor }) {
+function avisoAceito(s, { aceite, documentos = [], foneCorretor, agente = "" }) {
   if (!aceite?.aceitoEm) return "";
   const data = new Date(aceite.aceitoEm).toLocaleDateString("pt-BR");
   // O telefone é o atual de Meus dados; o da proposta só vale se ele não estiver preenchido.
   const fone = [foneCorretor, s.corretor.fone].map(normFone).find((f) => f.length >= 10);
   const contato = fone
-    ? `<a class="botao" href="${esc(linkWhatsApp(fone, `Olá! Aceitei a proposta do plano ${s.plano.nome}. Seguem os meus documentos.`))}">Enviar documentos pelo WhatsApp</a>`
+    ? `<a class="botao" href="${esc(linkConversaDireta(fone, `Olá! Aceitei a proposta do plano ${s.plano.nome}. Seguem os meus documentos.`, agente))}">Enviar documentos pelo WhatsApp</a>`
     : "";
   return `<section class="aceito">
     <h2>Proposta aceita</h2>
