@@ -91,13 +91,18 @@ test("as cores derivadas têm contraste de 4.5:1 em todos os planos", () => {
   }
 });
 
-test("mostra vidas, valor por pessoa e subtotal de cada faixa etária", () => {
+test("mostra vidas e valor por pessoa de cada faixa etária, com o total da cotação", () => {
   const html = renderizarProposta(montarSnapshot(plano("plam-saude-pf"), { vidas: [1, 0, 0, 2, 0, 0, 0, 0, 0, 0], over: {}, cliente: "", opts }, corretor));
   assert.ok(html.includes("Valor por faixa etária"));
   const linha = (faixa, n, ...v) => new RegExp(String.raw`<td>${faixa} anos</td><td class="r">${n}</td>${v.map((x) => `<td[^>]*>R\\$\\s${x}</td>`).join("")}`);
-  assert.match(html, linha("0 a 18", 1, "173,03", "173,03", "271,74", "271,74"));
-  assert.match(html, linha("29 a 33", 2, "280,72", "561,44", "431,23", "862,46"));
+  assert.match(html, linha("0 a 18", 1, "173,03", "271,74"));
+  assert.match(html, linha("29 a 33", 2, "280,72", "431,23"));
+  assert.match(html, /<td>Total<\/td><td class="r">3<\/td><td class="r">R\$\s734,47<\/td><td class="r">R\$\s1\.134,20<\/td>/);
+  assert.ok(!/subtotal/i.test(html));
+  assert.ok(!html.includes('class="faixas compacta"'));
   assert.ok(html.includes("/img/logo-plam.png"));
+  const muitas = renderizarProposta(montarSnapshot(plano("plam-saude-pf"), { vidas: [1, 1, 1, 1, 0, 0, 0, 0, 0, 0], over: {}, cliente: "", opts }, corretor));
+  assert.ok(muitas.includes('class="faixas compacta"'));
 });
 
 test("faixas escondem a acomodação sem valor e somem sem idades", () => {
@@ -178,7 +183,7 @@ test("PLAMEDH BASIC usa 3 faixas e soma as idades no grupo", () => {
   assert.equal(v.enf, 1645.25);
   assert.equal(v.apto, null);
   const html = renderizarProposta(montarSnapshot(p, { vidas: [1, 1, 0, 2, 0, 0, 0, 0, 0, 1], over: {}, cliente: "", opts }, corretor));
-  assert.ok(html.includes("19 a 58 anos") && html.includes(">3</td>") && html.includes("R$ 275,85") && html.includes("R$ 827,55"));
+  assert.ok(html.includes("19 a 58 anos") && html.includes(">3</td>") && html.includes("R$ 275,85") && html.includes("R$ 1.645,25"));
   assert.ok(html.includes("/img/logo-plamedh.png"));
   assert.ok(!html.includes(">Apartamento<"));
   // Os outros planos seguem com as 10 faixas.

@@ -200,16 +200,15 @@ const imagem = (caminho, alt) => (/^(img|uploads)\/[\w.-]+$/.test(caminho || "")
 
 function blocoFaixas({ temEnf, temApto, totalEnf, totalApto, linhas }) {
   if (!linhas.length || (!temEnf && !temApto)) return "";
-  const porPessoa = (subtotal, n) => moeda(r2(subtotal / n));
-  const titulos = (nome) => `<th class="r">${nome} por pessoa</th><th class="r">${nome} subtotal</th>`;
-  const celulas = (subtotal, n) => `<td class="r">${porPessoa(subtotal, n)}</td><td class="r sub-faixa">${moeda(subtotal)}</td>`;
+  const porPessoa = (subtotal, n) => `<td class="r">${moeda(r2(subtotal / n))}</td>`;
   const total = linhas.reduce((a, l) => a + l.n, 0);
-  return `<section class="faixas">
+  // A última linha traz o total da cotação: a soma de todas as vidas, igual ao valor em destaque.
+  return `<section class="faixas${linhas.length >= 4 ? " compacta" : ""}">
       <h2>Valor por faixa etária</h2>
       <div class="faixas-rolagem"><table>
-        <thead><tr><th>Faixa etária</th><th class="r">Vidas</th>${temEnf ? titulos("Enfermaria") : ""}${temApto ? titulos("Apartamento") : ""}</tr></thead>
-        <tbody>${linhas.map((l) => `<tr><td>${esc(l.faixa)} anos</td><td class="r">${l.n}</td>${temEnf ? celulas(l.enf, l.n) : ""}${temApto ? celulas(l.apto, l.n) : ""}</tr>`).join("")}</tbody>
-        <tfoot><tr><td>Total</td><td class="r">${total}</td>${temEnf ? `<td></td><td class="r">${moeda(totalEnf)}</td>` : ""}${temApto ? `<td></td><td class="r">${moeda(totalApto)}</td>` : ""}</tr></tfoot>
+        <thead><tr><th>Faixa etária</th><th class="r">Vidas</th>${temEnf ? `<th class="r">Enfermaria por pessoa</th>` : ""}${temApto ? `<th class="r">Apartamento por pessoa</th>` : ""}</tr></thead>
+        <tbody>${linhas.map((l) => `<tr><td>${esc(l.faixa)} anos</td><td class="r">${l.n}</td>${temEnf ? porPessoa(l.enf, l.n) : ""}${temApto ? porPessoa(l.apto, l.n) : ""}</tr>`).join("")}</tbody>
+        <tfoot><tr><td>Total</td><td class="r">${total}</td>${temEnf ? `<td class="r">${moeda(totalEnf)}</td>` : ""}${temApto ? `<td class="r">${moeda(totalApto)}</td>` : ""}</tr></tfoot>
       </table></div>
     </section>`;
 }
@@ -349,8 +348,10 @@ body{margin:0;font-family:Manrope,system-ui,sans-serif;color:var(--ink);backgrou
 .faixas th.r{text-align:right}
 .faixas td{padding:6px 10px;white-space:nowrap;border-bottom:1px solid var(--line-soft)}
 .faixas tbody tr:nth-child(even){background:var(--zebra)}
-.faixas .sub-faixa{font-weight:700}
 .faixas tfoot td{font-weight:800;color:var(--navy);border-top:2px solid var(--line);border-bottom:0}
+.faixas.compacta table{font-size:11.5px}
+.faixas.compacta th{padding:3px 10px;font-size:10px}
+.faixas.compacta td{padding:2px 10px}
 .marca{flex:1 1 400px;display:flex;align-items:center;gap:16px;min-width:0}
 .logo-plano{display:block;flex:none;height:48px;width:auto;max-width:150px;object-fit:contain}
 .consultant{margin-top:auto;background:var(--navy);color:#fff;border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:6px}
