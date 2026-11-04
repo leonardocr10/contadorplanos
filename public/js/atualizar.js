@@ -197,7 +197,6 @@ function renderReview(box) {
     <div class="field">${chk("uc-extras", "Atualizar benefícios e linhas extras", R.extras.length > 0)}<textarea id="uv-extras">${esc(R.extras.join("\n"))}</textarea></div>
     <div class="field">${chk("uc-desc", "Atualizar observação do plano", !!R.descricao)}<textarea id="uv-desc">${esc(R.descricao)}</textarea></div>
     <div class="field">${chk("uc-copart", "Atualizar explicação da coparticipação", !!R.copart)}<textarea id="uv-copart">${esc(R.copart)}</textarea></div>
-    ${chk("uc-odonto", `Marcar "12 meses de odontológico incluso"`, R.odonto)}
     <div class="row"><div class="field">${chk("uc-cores", "Atualizar cores da operadora", !!(R.cor1 && R.cor2))}<div class="actions"><input id="uv-cor1" type="color" value="${esc(R.cor1 || "#0f9d4f")}" aria-label="Cor principal"><input id="uv-cor2" type="color" value="${esc(R.cor2 || "#0b5a45")}" aria-label="Cor escura"></div></div></div>
   </div>
   <div class="urev">
@@ -235,7 +234,6 @@ function renderReview(box) {
       if (on("uc-tcop")) $("#e-tcop").value = $("#uv-tcop").value;
       if (on("uc-cores")) { $("#e-cor1").value = $("#uv-cor1").value; $("#e-cor2").value = $("#uv-cor2").value; }
       if (on("uc-tcar")) $("#e-tcar").value = $("#uv-tcar").value;
-      $("#e-odonto").checked = on("uc-odonto");
       for (const [cid, ce, sid] of [["uc-imgcop", ce1, "#e-imgcop"], ["uc-imgcar", ce2, "#e-imgcar"]]) {
         if (!on(cid)) continue;
         uMsg("Enviando imagens das tabelas…");

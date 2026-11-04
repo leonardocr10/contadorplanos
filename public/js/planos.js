@@ -74,7 +74,7 @@ function openEditor(p) {
     <div class="field"><label for="e-taxa">Taxa associativa R$</label><input class="money" id="e-taxa" type="text" inputmode="decimal" value="${brl(p.taxa)}"></div>
   </div>
   <div class="checks">
-    <label><input type="checkbox" id="e-odonto" ${p.odonto ? "checked" : ""}> 12 meses de odontológico incluso</label>
+
     <label><input type="checkbox" id="e-fid" ${p.fidelidade ? "checked" : ""}> Prazo de fidelidade de 12 meses para contratação via CNPJ</label>
     <label><input type="checkbox" id="e-ativo" ${p.ativo !== false ? "checked" : ""}> Mostrar na cotação</label>
     <label><input type="checkbox" id="e-showex" ${p.mostrarExtras ? "checked" : ""}> Mostrar benefícios na proposta</label>
@@ -140,7 +140,7 @@ function openEditor(p) {
     const data = {
       nome, categoria: $("#e-cat").value, subtitulo: $("#e-sub").value.trim(),
       enfermaria: parseBRL($("#e-enf").value), apartamento: parseBRL($("#e-apto").value), taxa: parseBRL($("#e-taxa").value),
-      odonto: $("#e-odonto").checked, fidelidade: $("#e-fid").checked, ativo: $("#e-ativo").checked, mostrarExtras: $("#e-showex").checked, mostrarObservacao: $("#e-showobs").checked,
+      odonto: !!p.odonto, fidelidade: $("#e-fid").checked, ativo: $("#e-ativo").checked, mostrarExtras: $("#e-showex").checked, mostrarObservacao: $("#e-showobs").checked,
       corPrimaria: $("#e-cor1").value, corEscura: $("#e-cor2").value, cidade: $("#e-cidade").value.trim(), ordem: parseBRL($("#e-ordem").value) ?? 0,
       rede: $("#e-rede").value.trim(), descricao: $("#e-desc").value.trim(), extras: $("#e-extras").value.trim(), copartTexto: $("#e-copart").value.trim(),
       copartTabela: $("#e-tcop").value.trim(), copartNota: $("#e-ncop").value.trim(), carenciaTabela: $("#e-tcar").value.trim(), carenciaNota: $("#e-ncar").value.trim(),
