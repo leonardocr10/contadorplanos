@@ -11,7 +11,7 @@ const corretor = { nome: "Diego Araújo", empresa: "Corretora", fone: "(34) 9123
 test("legenda com um plano", () => {
   const msg = buildLegenda({ items: [plano("plam-saude-pf")], nome: "Maria", corretor });
   assert.equal(msg, [
-    "Olá, *Maria*! Tudo bem? 😊",
+    "Olá, *Maria*!",
     "",
     "Segue a sua proposta do plano *PLAM SAÚDE*, com valores, coparticipação, carências e rede credenciada.",
     "",
@@ -24,7 +24,8 @@ test("legenda com um plano", () => {
 test("legenda com 2 planos", () => {
   const msg = buildLegenda({ items: [plano("plam-saude-pf"), plano("amil-ouro-total")], nome: "", corretor: {} });
   assert.match(msg, /dos planos \*PLAM SAÚDE\* e \*AMIL OURO\*/);
-  assert.ok(msg.startsWith("Olá! Tudo bem?"));
+  assert.ok(msg.startsWith("Olá!\n"));
+  assert.ok(!msg.includes("Tudo bem") && !msg.includes("😊"));
 });
 
 test("legenda com 3 planos", () => {
@@ -42,6 +43,30 @@ test("texto completo traz totais e não traz a observação do plano", () => {
   assert.match(msg, /Total Apartamento: R\$ 1\.198,87/);
   assert.match(msg, /R\$ 7,00 de taxa associativa/);
   if (p.descricao) assert.ok(!msg.includes(p.descricao));
+});
+
+test("valor da mensalidade vem em tabela alinhada, com o valor total de cada faixa", () => {
+  const p = plano("plam-saude-pf");
+  const msg = buildMsg({
+    items: [p], vidas: idadesParaVidas("35, 32, 30, 7"), over: {}, nome: "Maria", corretor,
+    opts: { texto: true },
+  });
+  assert.ok(msg.startsWith("Olá, *Maria*!\n") && !msg.includes("Tudo bem") && !msg.includes("😊"));
+  const bloco = msg.match(/```\n([\s\S]*?)\n```/)[1].split("\n");
+  assert.match(bloco[0], /^Idade\s+Enf\. R\$\s+Apto R\$$/);
+  assert.equal(bloco.length, 4);
+  assert.match(bloco[2], /^29 a 33 ×2\s/);
+  assert.equal(new Set(bloco.map((l) => l.length)).size, 1, "colunas alinhadas");
+  assert.ok(Math.max(...bloco.map((l) => l.length)) <= 33, "cabe no celular");
+  assert.ok(!msg.includes("▫"));
+  const html = waHtml(msg);
+  assert.ok(html.includes('<span class="wa-mono">Idade') && !html.includes("```"));
+});
+
+test("tabela de valores mostra só a acomodação com valor", () => {
+  const p = { ...plano("plam-saude-pf"), faixasApto: null, apartamento: null };
+  const msg = buildMsg({ items: [p], vidas: idadesParaVidas("35"), over: {}, nome: "", corretor: {}, opts: { texto: true } });
+  assert.match(msg.match(/```\n(.*)\n/)[1], /^Idade\s+Enf\. R\$$/);
 });
 
 test("benefícios só saem no texto completo dos planos com mostrarExtras", () => {

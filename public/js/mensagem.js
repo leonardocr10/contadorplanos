@@ -2,6 +2,25 @@
 import { FAIXAS, brl, lines, planPrices, totalVidas } from "./calculo.js";
 
 const assinatura = (c) => [c.nome && `*${c.nome}*`, c.empresa, c.fone].filter(Boolean);
+const saudacao = (nome) => (nome ? `Olá, *${nome}*!` : "Olá!");
+
+// O WhatsApp não tem tabela: o bloco ``` usa letras de mesma largura, então as colunas ficam alinhadas.
+// Sem "R$" nas linhas, a tabela cabe na largura do celular.
+function tabelaValores(linhas) {
+  const temEnf = linhas.some((l) => l.enf != null), temApto = linhas.some((l) => l.apto != null);
+  const valor = (preco, n) => (preco != null ? brl(preco * n) : "—");
+  const tabela = [
+    ["Idade", ...(temEnf ? ["Enf. R$"] : []), ...(temApto ? ["Apto R$"] : [])],
+    ...linhas.map((l) => [
+      `${FAIXAS[l.i]}${l.n > 1 ? ` ×${l.n}` : ""}`,
+      ...(temEnf ? [valor(l.enf, l.n)] : []),
+      ...(temApto ? [valor(l.apto, l.n)] : []),
+    ]),
+  ];
+  const larguras = tabela[0].map((_, c) => Math.max(...tabela.map((r) => r[c].length)));
+  const texto = tabela.map((r) => r.map((t, c) => (c ? t.padStart(larguras[c]) : t.padEnd(larguras[c]))).join("  "));
+  return ["```", ...texto, "```"].join("\n");
+}
 
 // Marca o lugar do link no texto. O link de verdade só é criado na hora de enviar.
 export const marcadorLink = (p) => `[link ${p.nome}]`;
@@ -15,7 +34,7 @@ export function buildLegenda({ items, nome, corretor, links = false }) {
   const nomes = items.map((p) => `*${p.nome}*`);
   const lista = nomes.length > 1 ? nomes.slice(0, -1).join(", ") + " e " + nomes.at(-1) : nomes[0];
   const L = [
-    nome ? `Olá, *${nome}*! Tudo bem? 😊` : "Olá! Tudo bem? 😊",
+    saudacao(nome),
     "",
     `Segue a sua proposta do${items.length > 1 ? "s planos" : " plano"} ${lista}, com valores, coparticipação, carências e rede credenciada.`,
   ];
@@ -32,7 +51,7 @@ export function buildMsg({ items, vidas, over, nome, corretor, opts, links = fal
   if (!items.length) return "";
   if (!opts.texto) return buildLegenda({ items, nome, corretor, links });
   const L = [];
-  L.push(nome ? `Olá, *${nome}*! Tudo bem? 😊` : "Olá! Tudo bem? 😊");
+  L.push(saudacao(nome));
   L.push(items.length === 1
     ? `Preparamos esta proposta para que você conheça as condições do plano *${items[0].nome}*.`
     : `Preparamos esta proposta para que você conheça as condições de ${items.length} opções de plano.`);
@@ -45,10 +64,7 @@ export function buildMsg({ items, vidas, over, nome, corretor, opts, links = fal
     if (v.porFaixa) {
       const tv = totalVidas(vidas);
       L.push("", `💰 *Valor da mensalidade* (${tv} ${tv === 1 ? "vida" : "vidas"})`);
-      for (const l of v.linhas) {
-        L.push(`▫️ ${l.n > 1 ? l.n + "× " : ""}${FAIXAS[l.i]} anos: ` + [l.enf != null ? `Enf. R$ ${brl(l.enf * l.n)}` : "", l.apto != null ? `Apto R$ ${brl(l.apto * l.n)}` : ""].filter(Boolean).join(" · "));
-      }
-      L.push("");
+      L.push(tabelaValores(v.linhas), "");
       if (v.enf != null) L.push(`✅ *Total Enfermaria: R$ ${brl(v.enf)}*`);
       if (v.apto != null) L.push(`✅ *Total Apartamento: R$ ${brl(v.apto)}*`);
     } else {
@@ -106,5 +122,8 @@ export function mensagemDocumentos({ cliente, plano, acomodacao, documentos, cor
 const escHtml = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 export function waHtml(t) {
-  return escHtml(t).replace(/\*([^*\n]+)\*/g, "<b>$1</b>").replace(/(^|[\s(])_([^_\n]+)_/g, "$1<i>$2</i>");
+  return escHtml(t)
+    .replace(/\*([^*\n]+)\*/g, "<b>$1</b>")
+    .replace(/(^|[\s(])_([^_\n]+)_/g, "$1<i>$2</i>")
+    .replace(/```\n([\s\S]*?)\n```\n?/g, '<span class="wa-mono">$1</span>');
 }
