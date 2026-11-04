@@ -2,78 +2,97 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { idadesParaVidas } from "../public/js/calculo.js";
-import { aplicarLinks, buildLegenda, buildMsg, linkWhatsApp, mensagemDocumentos, waHtml } from "../public/js/mensagem.js";
+import { buildMsg, linkWhatsApp, mensagemDocumentos, waHtml } from "../public/js/mensagem.js";
 
 const planos = JSON.parse(readFileSync(new URL("../dados/planos.json", import.meta.url), "utf8"));
 const plano = (id) => planos.find((p) => p.id === id);
 const corretor = { nome: "Diego Araújo", empresa: "Corretora", fone: "(34) 91234-5678" };
 
-test("legenda com um plano", () => {
-  const msg = buildLegenda({ items: [plano("plam-saude-pf")], nome: "Maria", corretor });
+const OPTS = { copart: true, rede: true, acom: true };
+const CORRETOR = { nome: "Diego Araújo", empresa: "Corretora Exemplo", fone: "(34) 99999-1234" };
+const COPART_MODELO = "Você paga a mensalidade normalmente e, caso utilize consultas, exames ou procedimentos, paga apenas um pequeno valor conforme a tabela de coparticipação. Esses valores vêm no boleto do mês seguinte.";
+const montar = (ids, idades, extra = {}) => buildMsg({ items: ids.map(plano), vidas: idadesParaVidas(idades), over: {}, nome: "Maria", corretor: CORRETOR, opts: OPTS, ...extra });
+
+test("teste 1: PLAM SAÚDE é idêntico ao modelo", () => {
+  // O texto da coparticipação vem do cadastro do plano; aqui usa o do modelo.
+  const msg = buildMsg({ items: [{ ...plano("plam-saude-pf"), copartTexto: COPART_MODELO }], vidas: idadesParaVidas("7"), over: {}, nome: "Maria", corretor: CORRETOR, opts: OPTS });
+  console.log(msg);
   assert.equal(msg, [
-    "Olá, *Maria*!",
+    "Olá, *Maria*! Tudo bem? 😊",
+    "Preparamos esta proposta para que você conheça as condições do plano *PLAM SAÚDE*.",
     "",
-    "Segue a sua proposta do plano *PLAM SAÚDE*, com valores, coparticipação, carências e rede credenciada.",
+    "━━━━━━━━━━━━━━",
+    "🏥 *PLAM SAÚDE*",
+    "_Plam Total Adesão – plano com coparticipação_",
+    "",
+    "💰 *Valor da mensalidade* (1 vida)",
+    "▫️ 0 a 18 anos: Enf. R$ 173,03 · Apto R$ 271,74",
+    "",
+    "✅ *Total Enfermaria: R$ 173,03*",
+    "✅ *Total Apartamento: R$ 271,74*",
+    "➕ R$ 7,00 de taxa associativa",
+    "",
+    "🏨 *Rede credenciada – Uberlândia*",
+    "• Hospital de Clínicas do Triângulo",
+    "• Hospital Santa Marta",
+    "• Hospital Madrecor",
+    "• Laboratório Exame",
+    "• Laboratório Exame – Unidade Hospital do Triângulo",
+    "━━━━━━━━━━━━━━",
+    "",
+    "❓ *Como funciona a coparticipação?*",
+    COPART_MODELO,
+    "",
+    "_*Enfermaria: acomodação compartilhada._",
+    "_*Apartamento: acomodação individual._",
+    "",
+    "📎 As tabelas de coparticipação e carência seguem na imagem.",
     "",
     "*Diego Araújo*",
-    "Corretora",
-    "(34) 91234-5678",
+    "Corretora Exemplo · (34) 99999-1234",
   ].join("\n"));
 });
 
-test("legenda com 2 planos", () => {
-  const msg = buildLegenda({ items: [plano("plam-saude-pf"), plano("amil-ouro-total")], nome: "", corretor: {} });
-  assert.match(msg, /dos planos \*PLAM SAÚDE\* e \*AMIL OURO\*/);
-  assert.ok(msg.startsWith("Olá!\n"));
-  assert.ok(!msg.includes("Tudo bem") && !msg.includes("😊"));
+test("teste 2: idades 35, 32 e 7", () => {
+  const msg = montar(["plam-saude-pf"], "35, 32, 7");
+  for (const f of ["▫️ 0 a 18 anos", "▫️ 29 a 33 anos", "▫️ 34 a 38 anos"]) assert.ok(msg.includes(f), f);
+  assert.ok(msg.includes("✅ *Total Enfermaria: R$ 769,76*") && msg.includes("✅ *Total Apartamento: R$ 1.198,87*"));
 });
 
-test("legenda com 3 planos", () => {
-  const msg = buildLegenda({ items: [plano("plam-saude-pf"), plano("plamedh-pf"), plano("amil-ouro-total")], nome: "", corretor: {} });
-  assert.match(msg, /dos planos \*PLAM SAÚDE\*, \*PLAMEDH\* e \*AMIL OURO\*/);
+test("teste 3: duas pessoas na mesma faixa", () => {
+  assert.ok(montar(["plam-saude-pf"], "25, 26").includes("▫️ 2× 24 a 28 anos: Enf. R$ 501,28 · Apto R$ 750,02"));
 });
 
-test("texto completo traz totais e não traz a observação do plano", () => {
+test("teste 4: AMIL PLATINUM R1 só com apartamento e com benefícios", () => {
+  const msg = montar(["amil-platinum-r1-total"], "40");
+  assert.ok(!msg.includes("Enf.") && !msg.includes("Total Enfermaria") && !msg.includes("—"));
+  assert.ok(msg.includes("🎁 *Benefícios do plano*"));
+});
+
+test("teste 5: dois planos", () => {
+  const msg = montar(["plam-saude-pf", "amil-ouro-total"], "35");
+  assert.ok(msg.includes("dos planos *PLAM SAÚDE* e *AMIL OURO*"));
+  assert.equal(msg.split("Como funciona a coparticipação?").length, 2);
+  assert.ok(msg.includes("seguem nas imagens."));
+});
+
+test("teste 6: sem nome e sem Meus dados", () => {
+  const msg = montar(["plam-saude-pf"], "35", { nome: "", corretor: {} });
+  assert.ok(msg.startsWith("Olá! Tudo bem? 😊\n"));
+  assert.ok(msg.endsWith("seguem na imagem."));
+});
+
+test("regras: sem idades, assinatura parcial, sem link, sem descrição e sem linhas sobrando", () => {
   const p = plano("plam-saude-pf");
-  const msg = buildMsg({
-    items: [p], vidas: idadesParaVidas("35, 32, 7"), over: {}, nome: "Maria", corretor,
-    opts: { texto: true, copart: true, rede: true, acom: true },
-  });
-  assert.match(msg, /Total Enfermaria: R\$ 769,76/);
-  assert.match(msg, /Total Apartamento: R\$ 1\.198,87/);
-  assert.match(msg, /R\$ 7,00 de taxa associativa/);
+  const semIdades = montar(["plam-saude-pf"], "", { over: { [p.id]: { enf: 100, apto: 200 } } });
+  assert.ok(semIdades.includes("✅ *Enfermaria: R$ 100,00*") && semIdades.includes("✅ *Apartamento: R$ 200,00*"));
+  const vazio = buildMsg({ items: [{ ...p, faixasEnf: null, faixasApto: null, enfermaria: null, apartamento: null }], vidas: Array(10).fill(0), over: {}, nome: "", corretor: {}, opts: OPTS });
+  assert.ok(vazio.includes("• Valores sob consulta"));
+  assert.ok(montar(["plam-saude-pf"], "35", { corretor: { nome: "D", fone: "1" } }).endsWith("*D*\n1"));
+  const msg = montar(["plam-saude-pf"], "35");
+  assert.ok(!msg.includes("[link") && !msg.includes("Proposta completa"));
   if (p.descricao) assert.ok(!msg.includes(p.descricao));
-});
-
-test("valor da mensalidade vem em tabela alinhada, com o valor total de cada faixa", () => {
-  const p = plano("plam-saude-pf");
-  const msg = buildMsg({
-    items: [p], vidas: idadesParaVidas("35, 32, 30, 7"), over: {}, nome: "Maria", corretor,
-    opts: { texto: true },
-  });
-  assert.ok(msg.startsWith("Olá, *Maria*!\n") && !msg.includes("Tudo bem") && !msg.includes("😊"));
-  const bloco = msg.match(/```\n([\s\S]*?)\n```/)[1].split("\n");
-  assert.match(bloco[0], /^Idade\s+Enf\. R\$\s+Apto R\$$/);
-  assert.equal(bloco.length, 4);
-  assert.match(bloco[2], /^29 a 33 ×2\s/);
-  assert.equal(new Set(bloco.map((l) => l.length)).size, 1, "colunas alinhadas");
-  assert.ok(Math.max(...bloco.map((l) => l.length)) <= 33, "cabe no celular");
-  assert.ok(!msg.includes("▫"));
-  const html = waHtml(msg);
-  assert.ok(html.includes('<span class="wa-mono">Idade') && !html.includes("```"));
-});
-
-test("tabela de valores mostra só a acomodação com valor", () => {
-  const p = { ...plano("plam-saude-pf"), faixasApto: null, apartamento: null };
-  const msg = buildMsg({ items: [p], vidas: idadesParaVidas("35"), over: {}, nome: "", corretor: {}, opts: { texto: true } });
-  assert.match(msg.match(/```\n(.*)\n/)[1], /^Idade\s+Enf\. R\$$/);
-});
-
-test("benefícios só saem no texto completo dos planos com mostrarExtras", () => {
-  const opts = { texto: true, copart: false, rede: false, acom: false };
-  const base = { vidas: idadesParaVidas("35"), over: {}, nome: "", corretor: {}, opts };
-  assert.match(buildMsg({ ...base, items: [plano("amil-ouro-total")] }), /Benefícios do plano/);
-  assert.doesNotMatch(buildMsg({ ...base, items: [plano("plam-saude-pf")] }), /Benefícios do plano/);
+  assert.ok(!/\n\n\n/.test(msg) && !/[ \t]\n/.test(msg));
 });
 
 test("link do WhatsApp preserva os emojis e não passa pelo wa.me", () => {
@@ -83,18 +102,6 @@ test("link do WhatsApp preserva os emojis e não passa pelo wa.me", () => {
   assert.equal(url.searchParams.get("text"), "Olá 😊 ✅");
   assert.ok(url.search.includes("%F0%9F%98%8A"));
   assert.equal(new URL(linkWhatsApp("", "Oi")).searchParams.has("phone"), false);
-});
-
-test("legenda com links traz um link por plano e não cita imagens", () => {
-  const items = [plano("plam-saude-pf"), plano("amil-ouro-total")];
-  const msg = buildLegenda({ items, nome: "", corretor: {}, links: true });
-  assert.ok(msg.includes("[link PLAM SAÚDE]") && msg.includes("[link AMIL OURO]"));
-  const final = aplicarLinks(msg, [{ nome: "PLAM SAÚDE", url: "https://x/p/a" }, { nome: "AMIL OURO", url: "https://x/p/b" }]);
-  assert.ok(final.includes("https://x/p/a") && final.includes("https://x/p/b"));
-  assert.ok(!final.includes("[link "));
-  const completo = buildMsg({ items, vidas: idadesParaVidas("35"), over: {}, nome: "", corretor: {}, links: true, opts: { texto: true } });
-  assert.ok(completo.includes("[link AMIL OURO]"));
-  assert.doesNotMatch(completo, /imagens? estão/);
 });
 
 test("mensagem de documentos lista um documento por linha e traz a assinatura", () => {

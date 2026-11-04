@@ -1,14 +1,14 @@
 // Tela "Nova cotação": formulário, cartões de planos, prévia do WhatsApp e imagens da proposta.
 import { FAIXAS, brl, hasFaixas, normFone, parseBRL, planPrices, totalVidas } from "./calculo.js";
 import { $, S, api, esc, render, toast } from "./estado.js";
-import { aplicarLinks, buildMsg, linkWhatsApp, waHtml } from "./mensagem.js";
+import { buildMsg, linkWhatsApp, waHtml } from "./mensagem.js";
 import { paginaParaPng } from "./imagem-proposta.js";
 import { renderHistCli, saveQuote } from "./historico.js";
 
 const planosEscolhidos = () => S.selected.map((id) => S.plans.find((p) => p.id === id)).filter(Boolean);
 const nomeCliente = () => $("#cliente").value.trim();
 const corretor = () => ({ nome: S.cor.nome.trim(), fone: S.cor.fone.trim(), empresa: S.cor.empresa.trim() });
-const opcoes = () => ({ copart: $("#o-copart").checked, rede: $("#o-rede").checked, acom: $("#o-acom").checked, texto: $("#o-texto").checked });
+const opcoes = () => ({ copart: $("#o-copart").checked, rede: $("#o-rede").checked, acom: $("#o-acom").checked });
 const prices = (p) => planPrices(p, S.vidas, S.over);
 
 /* ---------- beneficiários ---------- */
@@ -77,19 +77,8 @@ function paintChat(msg) {
   if (!msg) { chat.innerHTML = `<div class="empty">Escolha um ou mais planos para ver a mensagem aqui.</div>`; return; }
   const hh = new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
   let h = `<div class="bubble">${waHtml(msg)}<span class="meta">${hh} ✓✓</span></div>`;
-  for (const u of S.linkAtivo ? [] : cardUrls) h += `<div class="bubble img"><img src="${u}" alt="Imagem da proposta"><span class="meta">${hh} ✓✓</span></div>`;
+  for (const u of cardUrls) h += `<div class="bubble img"><img src="${u}" alt="Imagem da proposta"><span class="meta">${hh} ✓✓</span></div>`;
   chat.innerHTML = h;
-}
-
-// Cria os links das propostas e troca os marcadores do texto pelos endereços.
-async function mensagemFinal() {
-  const texto = currentMsg();
-  if (!S.linkAtivo || !texto.includes("[link ")) return texto;
-  const { links } = await api("/api/propostas", {
-    metodo: "POST",
-    json: { planos: [...S.selected], vidas: S.vidas, over: S.over, cliente: nomeCliente(), fone: normFone($("#fone").value), opts: opcoes() },
-  });
-  return aplicarLinks(texto, links);
 }
 
 function dadosCotacao(mensagem) {
@@ -101,11 +90,9 @@ function dadosCotacao(mensagem) {
   };
 }
 
-async function salvar(silent, mensagemPronta) {
+async function salvar(silent) {
   try {
-    const temNumero = normFone($("#fone").value).length >= 10;
-    const mensagem = mensagemPronta ?? (temNumero ? await mensagemFinal() : currentMsg());
-    return await saveQuote(dadosCotacao(mensagem), silent);
+    return await saveQuote(dadosCotacao(currentMsg()), silent);
   } catch (e) {
     toast(e.message);
     return false;
@@ -187,16 +174,6 @@ async function copyCard(m) {
 // porque com a nova aba em primeiro plano o navegador recusaria a cópia.
 async function abrirWhatsApp() {
   if (!currentMsg()) { toast("Escolha um plano primeiro"); return; }
-  if (S.linkAtivo) {
-    try {
-      const mensagem = await mensagemFinal();
-      window.open(linkWhatsApp(normFone($("#fone").value), mensagem), "_blank", "noopener");
-      salvar(true, mensagem);
-    } catch (e) {
-      toast(e.message);
-    }
-    return;
-  }
   if (!cardsProntos) { toast("A imagem ainda está sendo gerada: tente de novo em um instante"); return; }
   const copiou = await copiarImagem(cards[0]);
   window.open(linkWhatsApp(normFone($("#fone").value), currentMsg()), "_blank", "noopener");
@@ -215,13 +192,8 @@ export function renderCotacao() {
   const nome = nomeCliente();
   $("#pv-nome").textContent = nome || "Cliente";
   $("#av").textContent = (nome[0] || "?").toUpperCase();
-  $("#copy").textContent = $("#o-texto").checked ? "Copiar mensagem" : "Copiar legenda";
-  lastAuto = buildMsg({ items: planosEscolhidos(), vidas: S.vidas, over: S.over, nome, corretor: corretor(), opts: opcoes(), links: S.linkAtivo });
-  $("#nota-envio").textContent = S.linkAtivo
-    ? S.linkLocal
-      ? "Atenção: por enquanto o link é local e só abre neste computador. O cliente não consegue abrir. Até ter o domínio, envie também a imagem pelos botões acima."
-      : "Abrir no WhatsApp leva o texto com o link de cada proposta. As imagens continuam disponíveis acima, se preferir."
-    : "Abrir no WhatsApp leva o texto e copia a imagem: na conversa, aperte Ctrl+V para colar a imagem. Com vários planos, copie as outras imagens nos botões acima. Ao copiar, a cotação fica salva no histórico do número.";
+  lastAuto = buildMsg({ items: planosEscolhidos(), vidas: S.vidas, over: S.over, nome, corretor: corretor(), opts: opcoes() });
+  $("#nota-envio").textContent = "Abrir no WhatsApp leva o texto e copia a imagem: na conversa, aperte Ctrl+V para colar a imagem. Com vários planos, copie as outras imagens nos botões acima. Ao copiar, a cotação fica salva no histórico do número.";
   manual = false;
   $("#rawtxt").value = lastAuto;
   paintChat(lastAuto);
@@ -239,22 +211,16 @@ export function iniciarCotacao() {
     S.selected = S.selected.filter((id) => (S.plans.find((p) => p.id === id) || {}).categoria === S.tipo);
     render();
   };
-  for (const id of ["cliente", "fone", "o-copart", "o-rede", "o-acom", "o-texto"]) $("#" + id).addEventListener("input", render);
+  for (const id of ["cliente", "fone", "o-copart", "o-rede", "o-acom"]) $("#" + id).addEventListener("input", render);
   $("#limpar-vidas").onclick = () => { S.vidas = Array(10).fill(0); render(); };
   $("#rawtxt").addEventListener("input", () => { manual = true; paintChat($("#rawtxt").value); });
 
   $("#copy").onclick = async () => {
     if (!currentMsg()) { toast("Escolha um plano primeiro"); return; }
-    let t;
-    try {
-      t = await mensagemFinal();
-    } catch (e) {
-      toast(e.message);
-      return;
-    }
+    const t = currentMsg();
     try {
       await navigator.clipboard.writeText(t);
-      const ok = await salvar(true, t);
+      const ok = await salvar(true);
       toast(ok ? "Mensagem copiada e salva no histórico" : "Mensagem copiada");
     } catch {
       $("#raw").open = true;
@@ -263,7 +229,7 @@ export function iniciarCotacao() {
       ta.focus();
       ta.select();
       toast("Selecionei o texto: use Ctrl+C");
-      salvar(true, t);
+      salvar(true);
     }
   };
   $("#wa").addEventListener("click", (e) => { e.preventDefault(); abrirWhatsApp(); });

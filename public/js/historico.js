@@ -130,7 +130,7 @@ export function renderHist() {
     return (qd.length >= 3 && f.includes(qd)) || l.some((h) => (h.cliente || "").toLowerCase().includes(q));
   });
   $("#hist-count").textContent = `${groups.size} ${groups.size === 1 ? "cliente" : "clientes"} · ${S.hist.length} ${S.hist.length === 1 ? "cotação" : "cotações"}`;
-  if (!S.hist.length) { box.innerHTML = `<div class="status">Nenhuma cotação salva ainda. Monte uma cotação com o WhatsApp do cliente e clique em <b>Copiar legenda</b>: ela aparece aqui.</div>`; return; }
+  if (!S.hist.length) { box.innerHTML = `<div class="status">Nenhuma cotação salva ainda. Monte uma cotação com o WhatsApp do cliente e clique em <b>Copiar mensagem</b>: ela aparece aqui.</div>`; return; }
   if (!gs.length) { box.innerHTML = `<div class="status">Nenhum cliente encontrado.</div>`; return; }
   // Mantém abertos os clientes que já estavam abertos ao redesenhar a lista.
   const abertos = new Set([...box.querySelectorAll("details.hg[open]")].map((d) => d.dataset.fone));
