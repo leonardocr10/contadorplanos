@@ -7,7 +7,7 @@ import { Banco } from "../server/db.js";
 import { criarApp } from "../server/app.js";
 import { criarAppPublica, enderecoDosLinks } from "../server/publico.js";
 import { contraste, fmtDias, linhaCoparticipacao, montarSnapshot, nivelPrazo, paletaProposta, paraProposta, prazo, renderizarProposta } from "../server/proposta-html.js";
-import { hex2rgb } from "../public/js/proposta.js";
+import { hex2rgb } from "../public/js/cores.js";
 
 const raiz = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
 const seed = join(raiz, "dados", "planos.json");
@@ -185,6 +185,32 @@ test("texto digitado é escapado", () => {
   assert.ok(!html.includes("<script>"));
   assert.ok(html.includes("&lt;script&gt;"));
   assert.ok(!html.includes("onclick"));
+});
+
+test("versão para imagem é a mesma página, sem script nem seletor, e mostra todas as situações", () => {
+  const s = montarSnapshot(plano("amil-ouro-total"), { vidas, over: {}, cliente: "Maria", opts }, corretor);
+  const html = renderizarProposta(s, {}, { paraImagem: true });
+  assert.ok(!html.includes("<script") && !html.includes("<select"));
+  assert.ok(html.includes("Proposta para") && html.includes("AMIL OURO"));
+  const proposta = paraProposta(s);
+  assert.ok(proposta.situacoes.length > 1);
+  assert.equal((html.match(/<th>/g) ?? []).length, proposta.situacoes.length + 1);
+  assert.match(renderizarProposta(s), /<script type="module"/);
+
+  // Plano com uma situação só: o HTML é idêntico ao do link, tirando o script.
+  const simples = montarSnapshot(plano("unimed-udiplan-on-pf"), { vidas, over: {}, cliente: "Maria", opts }, corretor);
+  assert.equal(renderizarProposta(simples, {}, { paraImagem: true }), renderizarProposta(simples).replace(/<script.*<\/script>/, ""));
+});
+
+test("prévia da imagem funciona sem link ativo e não salva proposta", async (t) => {
+  const { admin, banco } = await subir(t, () => ({ estado: "parado", url: "" }));
+  const r = await fetch(admin + "/api/propostas/previa", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ planos: ["plam-saude-pf"], vidas, over: {}, cliente: "Maria", opts }) });
+  assert.equal(r.status, 200);
+  const { paginas } = await r.json();
+  assert.equal(paginas[0].id, "plam-saude-pf");
+  assert.ok(paginas[0].html.includes("R$ 769,76"));
+  assert.equal(banco.listarAceites().length, 0);
+  assert.equal((await (await pedir(admin, { planos: ["plam-saude-pf"], vidas, over: {}, cliente: "Maria", opts })).status), 503);
 });
 
 test("cria link por plano, reaproveita o mesmo e o cliente abre a página", async (t) => {

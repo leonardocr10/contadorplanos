@@ -1,7 +1,7 @@
 // Página HTML da proposta, aberta pelo cliente: layout com painel lateral, sem rolagem no computador.
 import { FAIXAS, brl, lines, normFone, parseBRL, planPrices, r2, totalVidas } from "../public/js/calculo.js";
 import { linkWhatsApp } from "../public/js/mensagem.js";
-import { hex2rgb, lumRGB, mixRGB, toHex } from "../public/js/proposta.js";
+import { hex2rgb, lumRGB, mixRGB, toHex } from "../public/js/cores.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const temTabela = (t) => String(t || "").includes("|");
@@ -250,7 +250,17 @@ function secaoCoparticipacao(P) {
   </section>`;
 }
 
-function secaoCarencias(P) {
+// Na imagem não há como trocar a situação: todas aparecem, uma por coluna.
+function matrizCarencias(P) {
+  return `<section class="col matriz">
+    <h2>Carências <span class="count">${contagem(P.carencias)}</span></h2>
+    <table><thead><tr><th>Procedimento</th>${P.situacoes.map((s) => `<th>${esc(s)}</th>`).join("")}</tr></thead>
+    <tbody>${P.carencias.map((c) => `<tr><td>${esc(c.nome)}</td>${c.prazos.map((p) => `<td>${p.texto ? `<span class="pill ${nivelPrazo(p.dias)}">${esc(p.texto)}</span>` : ""}</td>`).join("")}</tr>`).join("")}</tbody></table>
+  </section>`;
+}
+
+function secaoCarencias(P, paraImagem) {
+  if (paraImagem && P.situacoes.length > 1 && P.carencias.length) return matrizCarencias(P);
   const figura = imagem(P.imagemCarencia, "Tabela de carências");
   if (!P.carencias.length && !figura) return "";
   if (!P.carencias.length) return `<section class="col wide"><h2>Carências</h2>${figura}</section>`;
@@ -380,13 +390,21 @@ label.sel .fs{width:320px;max-width:100%}
 .pill.ok{background:var(--ok-bg);color:var(--ok)}.pill.low{background:var(--low-bg);color:var(--low)}
 .pill.mid{background:var(--mid-bg);color:var(--mid)}.pill.high{background:var(--high-bg);color:var(--high)}
 .pill.neutro{background:var(--line-soft);color:var(--ink)}
+.matriz{flex-basis:100%}
+.matriz table{width:100%;border-collapse:collapse;font-size:13px;border-top:1px solid var(--line)}
+.matriz th{padding:8px 6px;font-size:11px;font-weight:700;line-height:1.3;text-align:center;vertical-align:bottom;color:var(--muted);border-bottom:1px solid var(--line)}
+.matriz th:first-child{text-align:left;padding-left:10px}
+.matriz td{padding:5px 6px;text-align:center;border-bottom:1px solid var(--line-soft)}
+.matriz td:first-child{text-align:left;padding-left:10px}
+.matriz tbody tr:nth-child(even){background:var(--zebra)}
 .tabimg{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:10px}
 .note{margin:0;font-size:12px;color:var(--muted);line-height:1.45}
 .fidelidade{margin:0;font-size:13px;font-weight:800;color:#a3211f}
 @media (max-width:640px){.main{padding:20px 16px}.side{padding:20px 16px;border-right:0;border-bottom:1px solid var(--line)}h1{font-size:28px}.lado,.prices,.aceitar{width:100%}.price{flex:1 1 100%}.aceitar{flex-direction:column}.painel{position:static;width:100%;max-width:100%;margin-top:8px}.faixas{flex-direction:column}.faixas h2{flex:none}.faixas ul,.faixas li{width:100%}.faixas ul{flex:none}.faixas li{justify-content:space-between;padding:6px 10px}.faixas li b{flex:1 1 100%}}
 `;
 
-export function renderizarProposta(s, aceitacao = {}) {
+// paraImagem: a mesma página, sem o que só funciona no navegador (script e seletor de situação).
+export function renderizarProposta(s, aceitacao = {}, { paraImagem = false } = {}) {
   const P = paraProposta(s);
   const titulo = `Proposta ${P.plano}`;
   const precos = P.precos.length
@@ -418,12 +436,12 @@ export function renderizarProposta(s, aceitacao = {}) {
       <div class="lado"><div class="prices">${precos}</div>${botaoAceite(s, aceitacao)}</div>
     </div>
     ${blocoFaixas(P.faixas)}
-    <div class="cols">${secaoCoparticipacao(P)}${secaoCarencias(P)}</div>
+    <div class="cols">${secaoCoparticipacao(P)}${secaoCarencias(P, paraImagem)}</div>
     ${P.fidelidade ? `<p class="fidelidade">Planos CNPJ geram fidelidade de 1 ano.</p>` : ""}
     ${P.rodape.length ? `<p class="note">${P.rodape.map(esc).join(" ")}</p>` : ""}
   </main>
 </div>
-<script type="module" src="/proposta-pagina.js"></script>
+${paraImagem ? "" : '<script type="module" src="/proposta-pagina.js"></script>'}
 </body>
 </html>`;
 }

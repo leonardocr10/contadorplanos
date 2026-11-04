@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { normFone } from "../public/js/calculo.js";
 import { ErroBackup, STATUS } from "./db.js";
 import { ErroLeitura, MODELO_PADRAO, lerTabela } from "./claude.js";
-import { montarSnapshot } from "./proposta-html.js";
+import { montarSnapshot, renderizarProposta } from "./proposta-html.js";
 
 const MAX_UPLOAD = 15 * 1024 * 1024;
 
@@ -234,6 +234,19 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
       return { id: plano.id, nome: plano.nome, url: `${url}/p/${token}` };
     });
     res.status(201).json({ links });
+  });
+
+  // Página de cada plano para virar imagem: nada fica salvo.
+  app.post("/api/propostas/previa", (req, res) => {
+    const pedido = validarPedidoDeLinks(req.body);
+    const corretor = banco.lerConfig();
+    res.json({
+      paginas: pedido.planos.map((id) => {
+        const plano = banco.obterPlano(String(id));
+        if (!plano) throw new ErroEntrada("Um dos planos escolhidos não existe mais.");
+        return { id: plano.id, html: renderizarProposta(montarSnapshot(plano, pedido, corretor), {}, { paraImagem: true }) };
+      }),
+    });
   });
 
   /* ---------- aceites ---------- */

@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { idadesParaVidas } from "../public/js/calculo.js";
 import { aplicarLinks, buildLegenda, buildMsg, linkWhatsApp, mensagemDocumentos, waHtml } from "../public/js/mensagem.js";
-import { themeFor } from "../public/js/proposta.js";
 
 const planos = JSON.parse(readFileSync(new URL("../dados/planos.json", import.meta.url), "utf8"));
 const plano = (id) => planos.find((p) => p.id === id);
@@ -93,12 +92,4 @@ test("filtro dos selects ignora acentos e maiúsculas e procura também no grupo
 
 test("prévia escapa HTML e aplica negrito", () => {
   assert.equal(waHtml("*<b>*"), "<b>&lt;b&gt;</b>");
-});
-
-test("tema usa as cores da operadora", () => {
-  const t = themeFor(plano("plam-saude-pf"));
-  assert.equal(t.band, "#00564d");
-  assert.equal(t.thead, "#007e70");
-  // A cor principal da PLAMEDH é clara, então os títulos usam a cor escura.
-  assert.equal(themeFor(plano("plamedh-pf")).accent, "#0f5fb3");
 });

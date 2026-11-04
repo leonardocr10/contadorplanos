@@ -15,7 +15,7 @@ Na aba **Meus dados**, preencha seu nome, telefone e corretora. Eles aparecem na
 
 Ao clicar em **Abrir no WhatsApp** ou em **Copiar legenda**, o cotador cria uma página para cada plano e coloca os links na mensagem. O cliente abre a proposta no celular, sem precisar de imagem.
 
-**Por enquanto, o link é local:** ele só abre neste computador, com o cotador ligado, e o cliente não consegue abri-lo. Até ter o domínio, envie também a imagem da proposta.
+**Por enquanto, o link é local:** ele só abre neste computador, com o cotador ligado, e o cliente não consegue abri-lo. Até ter o domínio, envie também a imagem da proposta. A imagem é gerada a partir da mesma página do link, sem o botão de aceite e com todas as situações de carência.
 
 A página guarda os valores do momento em que o link foi criado. Mudar o plano depois não altera o que já foi gerado.
 

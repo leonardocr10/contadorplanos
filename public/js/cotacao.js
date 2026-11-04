@@ -2,7 +2,7 @@
 import { FAIXAS, brl, hasFaixas, idadesParaVidas, normFone, parseBRL, planPrices, totalVidas } from "./calculo.js";
 import { $, S, api, esc, render, toast } from "./estado.js";
 import { aplicarLinks, buildMsg, linkWhatsApp, waHtml } from "./mensagem.js";
-import { makeCard } from "./proposta.js";
+import { paginaParaPng } from "./imagem-proposta.js";
 import { renderHistCli, saveQuote } from "./historico.js";
 
 const planosEscolhidos = () => S.selected.map((id) => S.plans.find((p) => p.id === id)).filter(Boolean);
@@ -124,12 +124,22 @@ async function renderCards() {
     paintChat(currentMsg());
     return;
   }
-  const params = { vidas: [...S.vidas], over: S.over, nome: nomeCliente(), corretor: corretor(), opts: opcoes() };
   const made = [];
-  for (const p of items) {
-    const cv = await makeCard(p, params);
-    const blob = await new Promise((r) => cv.toBlob(r, "image/png"));
-    made.push({ p, blob, url: URL.createObjectURL(blob) });
+  try {
+    const { paginas } = await api("/api/propostas/previa", {
+      metodo: "POST",
+      json: { planos: items.map((p) => p.id), vidas: S.vidas, over: S.over, cliente: nomeCliente(), opts: opcoes() },
+    });
+    for (const [i, p] of items.entries()) {
+      if (seq !== cardSeq) break;
+      const blob = await paginaParaPng(paginas[i].html);
+      made.push({ p, blob, url: URL.createObjectURL(blob) });
+    }
+  } catch (e) {
+    console.error("Falha ao gerar a imagem:", e);
+    made.forEach((m) => URL.revokeObjectURL(m.url));
+    if (seq === cardSeq) box.innerHTML = `<div class="status">Não consegui gerar a imagem: ${esc(e.message)}</div>`;
+    return;
   }
   if (seq !== cardSeq) { made.forEach((m) => URL.revokeObjectURL(m.url)); return; }
   cardUrls.forEach(URL.revokeObjectURL);
