@@ -91,17 +91,19 @@ test("as cores derivadas têm contraste de 4.5:1 em todos os planos", () => {
   }
 });
 
-test("mostra o subtotal de cada faixa etária", () => {
+test("mostra vidas, valor por pessoa e subtotal de cada faixa etária", () => {
   const html = renderizarProposta(montarSnapshot(plano("plam-saude-pf"), { vidas: [1, 0, 0, 2, 0, 0, 0, 0, 0, 0], over: {}, cliente: "", opts }, corretor));
   assert.ok(html.includes("Valor por faixa etária"));
-  assert.match(html, /<b>0 a 18 anos<\/b>\s*<span>Enf\. R\$ 173,03<\/span>\s*<span>Apto R\$ 271,74<\/span>/);
-  assert.match(html, /<b>29 a 33 anos <span class="vezes">× 2<\/span><\/b>\s*<span>Enf\. R\$ 561,44<\/span>\s*<span>Apto R\$ 862,46<\/span>/);
+  const linha = (faixa, n, ...v) => new RegExp(String.raw`<td>${faixa} anos</td><td class="r">${n}</td>${v.map((x) => `<td[^>]*>R\\$\\s${x}</td>`).join("")}`);
+  assert.match(html, linha("0 a 18", 1, "173,03", "173,03", "271,74", "271,74"));
+  assert.match(html, linha("29 a 33", 2, "280,72", "561,44", "431,23", "862,46"));
+  assert.ok(html.includes("/img/logo-plam.png"));
 });
 
 test("faixas escondem a acomodação sem valor e somem sem idades", () => {
   const html = renderizarProposta(montarSnapshot(plano("amil-platinum-r1-total"), { vidas, over: {}, cliente: "", opts }, corretor));
-  assert.ok(!html.includes("<span>Enf. "));
-  assert.ok(html.includes("<span>Apto "));
+  assert.ok(!html.includes("Enfermaria por pessoa"));
+  assert.ok(html.includes("Apartamento por pessoa"));
   const semIdades = renderizarProposta(montarSnapshot(plano("plam-saude-pf"), { vidas: Array(10).fill(0), over: {}, cliente: "", opts }, corretor));
   assert.ok(!semIdades.includes("Valor por faixa etária"));
 });
@@ -176,7 +178,8 @@ test("PLAMEDH BASIC usa 3 faixas e soma as idades no grupo", () => {
   assert.equal(v.enf, 1645.25);
   assert.equal(v.apto, null);
   const html = renderizarProposta(montarSnapshot(p, { vidas: [1, 1, 0, 2, 0, 0, 0, 0, 0, 1], over: {}, cliente: "", opts }, corretor));
-  assert.ok(html.includes("19 a 58 anos") && html.includes("× 3") && html.includes("R$ 827,55"));
+  assert.ok(html.includes("19 a 58 anos") && html.includes(">3</td>") && html.includes("R$ 275,85") && html.includes("R$ 827,55"));
+  assert.ok(html.includes("/img/logo-plamedh.png"));
   assert.ok(!html.includes(">Apartamento<"));
   // Os outros planos seguem com as 10 faixas.
   assert.equal(planPrices(plano("plam-saude-pf"), [0, 1, 1, 0, 0, 0, 0, 0, 0, 0]).linhas.length, 2);

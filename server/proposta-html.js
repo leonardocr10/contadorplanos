@@ -120,6 +120,8 @@ export function paraProposta(s) {
     faixas: {
       temEnf: s.precos.enf != null,
       temApto: s.precos.apto != null,
+      totalEnf: s.precos.enf,
+      totalApto: s.precos.apto,
       linhas: s.precos.linhas,
     },
     plano: p.nome,
@@ -196,16 +198,34 @@ const svg = (n, s = 18) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" 
 const SVG_TELEFONE = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>';
 const imagem = (caminho, alt) => (/^(img|uploads)\/[\w.-]+$/.test(caminho || "") ? `<img class="tabimg" src="/${esc(caminho)}" alt="${esc(alt)}">` : "");
 
-function blocoFaixas({ temEnf, temApto, linhas }) {
+function blocoFaixas({ temEnf, temApto, totalEnf, totalApto, linhas }) {
   if (!linhas.length || (!temEnf && !temApto)) return "";
+  const porPessoa = (subtotal, n) => moeda(r2(subtotal / n));
+  const titulos = (nome) => `<th class="r">${nome} por pessoa</th><th class="r">${nome} subtotal</th>`;
+  const celulas = (subtotal, n) => `<td class="r">${porPessoa(subtotal, n)}</td><td class="r sub-faixa">${moeda(subtotal)}</td>`;
+  const total = linhas.reduce((a, l) => a + l.n, 0);
   return `<section class="faixas">
-      <h2 class="eyebrow">Valor por faixa etária</h2>
-      <ul>${linhas.map((l) => `<li>
-        <b>${esc(l.faixa)} anos${l.n > 1 ? ` <span class="vezes">× ${l.n}</span>` : ""}</b>
-        ${temEnf ? `<span>Enf. ${moeda(l.enf)}</span>` : ""}
-        ${temApto ? `<span>Apto ${moeda(l.apto)}</span>` : ""}
-      </li>`).join("")}</ul>
+      <h2>Valor por faixa etária</h2>
+      <div class="faixas-rolagem"><table>
+        <thead><tr><th>Faixa etária</th><th class="r">Vidas</th>${temEnf ? titulos("Enfermaria") : ""}${temApto ? titulos("Apartamento") : ""}</tr></thead>
+        <tbody>${linhas.map((l) => `<tr><td>${esc(l.faixa)} anos</td><td class="r">${l.n}</td>${temEnf ? celulas(l.enf, l.n) : ""}${temApto ? celulas(l.apto, l.n) : ""}</tr>`).join("")}</tbody>
+        <tfoot><tr><td>Total</td><td class="r">${total}</td>${temEnf ? `<td></td><td class="r">${moeda(totalEnf)}</td>` : ""}${temApto ? `<td></td><td class="r">${moeda(totalApto)}</td>` : ""}</tr></tfoot>
+      </table></div>
     </section>`;
+}
+
+// A logo vem do nome do plano, por isso vale também para propostas já enviadas.
+const LOGOS = [
+  [/^PLAMEDH/i, "plamedh", "Plamedh"],
+  [/^PLAM\s/i, "plam", "PLAM"],
+  [/^AMIL/i, "amil", "Amil"],
+  [/^UNIMED/i, "unimed", "Unimed Uberlândia"],
+  [/^SUL\s?AM[ÉE]RICA/i, "sulamerica", "SulAmérica"],
+];
+
+function logoDoPlano(nome) {
+  const logo = LOGOS.find(([regra]) => regra.test(nome || ""));
+  return logo ? `<img class="logo-plano" src="/img/logo-${logo[1]}.png" alt="${logo[2]}">` : "";
 }
 
 function barraLateral(P) {
@@ -322,12 +342,17 @@ body{margin:0;font-family:Manrope,system-ui,sans-serif;color:var(--ink);backgrou
 .small{font-size:13px;color:var(--muted)}
 .item{display:flex;gap:10px;align-items:flex-start;font-size:14px;line-height:1.4}
 .item svg{flex:none;margin-top:1px}
-.faixas{display:flex;align-items:flex-start;gap:6px 14px;margin-top:-8px}
-.faixas h2{flex:0 0 96px;margin:0;font-size:11px;font-weight:700;line-height:1.3;color:var(--muted)}
-.faixas ul{flex:1;min-width:0;display:flex;flex-wrap:wrap;gap:6px 8px;margin:0;padding:0;list-style:none}
-.faixas li{display:flex;flex-wrap:wrap;gap:2px 10px;padding:4px 10px;border:1px solid var(--line);border-radius:8px;background:var(--side);font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
-.faixas li b{font-weight:800;color:var(--navy)}
-.vezes{color:var(--accent)}
+.faixas{display:flex;flex-direction:column;gap:8px}
+.faixas-rolagem{overflow-x:auto}
+.faixas table{width:100%;border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums}
+.faixas th{padding:6px 10px;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;text-align:left;color:var(--muted);border-bottom:1px solid var(--line)}
+.faixas th.r{text-align:right}
+.faixas td{padding:6px 10px;white-space:nowrap;border-bottom:1px solid var(--line-soft)}
+.faixas tbody tr:nth-child(even){background:var(--zebra)}
+.faixas .sub-faixa{font-weight:700}
+.faixas tfoot td{font-weight:800;color:var(--navy);border-top:2px solid var(--line);border-bottom:0}
+.marca{flex:1 1 400px;display:flex;align-items:center;gap:16px;min-width:0}
+.logo-plano{display:block;flex:none;height:48px;width:auto;max-width:150px;object-fit:contain}
 .consultant{margin-top:auto;background:var(--navy);color:#fff;border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:6px}
 .consultant .eyebrow{color:var(--rotulo-navy);letter-spacing:.06em}
 .consultant a{margin-top:4px;min-height:44px;display:flex;align-items:center;justify-content:center;gap:8px;background:#fff;color:var(--navy);border-radius:10px;font-weight:700;font-size:14px;text-decoration:none}
@@ -388,7 +413,7 @@ label.sel select,label.sel .fs{width:420px;max-width:100%}
 .note{margin:0;font-size:12px;color:var(--muted);line-height:1.45}
 .observacao p{margin:0;font-size:13px;line-height:1.45;white-space:pre-line}
 .fidelidade{margin:0;font-size:13px;font-weight:800;color:#a3211f}
-@media (max-width:640px){.main{padding:20px 16px}.side{padding:20px 16px;border-right:0;border-bottom:1px solid var(--line)}h1{font-size:28px}.lado,.prices,.aceitar{width:100%}.price{flex:1 1 100%}.aceitar{flex-direction:column}.painel{position:static;width:100%;max-width:100%;margin-top:8px}.faixas{flex-direction:column}.faixas h2{flex:none}.faixas ul,.faixas li{width:100%}.faixas ul{flex:none}.faixas li{justify-content:space-between;padding:6px 10px}.faixas li b{flex:1 1 100%}}
+@media (max-width:640px){.main{padding:20px 16px}.side{padding:20px 16px;border-right:0;border-bottom:1px solid var(--line)}h1{font-size:28px}.lado,.prices,.aceitar{width:100%}.price{flex:1 1 100%}.aceitar{flex-direction:column}.painel{position:static;width:100%;max-width:100%;margin-top:8px}.marca{flex:1 1 100%;flex-direction:column;align-items:flex-start;gap:12px}}
 `;
 
 // paraImagem: a mesma página do link, sem script e com o botão de aceite só desenhado.
@@ -415,12 +440,12 @@ export function renderizarProposta(s, aceitacao = {}, { paraImagem = false } = {
   <main class="main">
     ${avisoAceito(s, aceitacao)}
     <div class="hero">
-      <div class="stack" style="gap:6px">
+      <div class="marca">${logoDoPlano(P.plano)}<div class="stack" style="gap:6px">
         <span class="meta">Cotação de ${esc(P.cotacao)}</span>
         <h1>${esc(P.plano)}</h1>
         ${P.subtitulo ? `<span class="sub">${esc(P.subtitulo)}</span>` : ""}
         ${P.taxa ? `<span class="taxa">${esc(P.taxa)}</span>` : ""}
-      </div>
+      </div></div>
       <div class="lado"><div class="prices">${precos}</div>${botaoAceite(s, aceitacao, paraImagem)}</div>
     </div>
     ${blocoFaixas(P.faixas)}
