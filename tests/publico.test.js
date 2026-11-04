@@ -182,6 +182,30 @@ test("PLAMEDH BASIC usa 3 faixas e soma as idades no grupo", () => {
   assert.equal(planPrices(plano("plam-saude-pf"), [0, 1, 1, 0, 0, 0, 0, 0, 0, 0]).linhas.length, 2);
 });
 
+test("PLAM TOTAL CNPJ traz os valores da tabela nas 10 faixas", () => {
+  const p = plano("plam-total-cnpj");
+  assert.equal(p.categoria, "CNPJ");
+  const v = planPrices(p, [1, 0, 0, 0, 0, 0, 0, 0, 0, 1]);
+  assert.equal(v.enf, 916.78);
+  assert.equal(v.apto, 1220.06);
+  assert.equal(v.linhas.length, 2);
+});
+
+test("banco na versão anterior recebe só o PLAM TOTAL", (t) => {
+  const pasta = mkdtempSync(join(tmpdir(), "cotador-total-"));
+  t.after(() => rmSync(pasta, { recursive: true, force: true }));
+  const arq = join(pasta, "c.db");
+  let b = new Banco(arq, seed);
+  b.excluirPlano("plam-total-cnpj");
+  b.excluirPlano("plamedh-basic-pme");
+  b.db.exec("PRAGMA user_version = 6");
+  b.fechar();
+  b = new Banco(arq, seed);
+  assert.ok(b.obterPlano("plam-total-cnpj"));
+  assert.equal(b.obterPlano("plamedh-basic-pme"), null);
+  b.fechar();
+});
+
 test("banco antigo recebe o plano novo uma vez; se excluído, não volta", (t) => {
   const pasta = mkdtempSync(join(tmpdir(), "cotador-novo-"));
   t.after(() => rmSync(pasta, { recursive: true, force: true }));
@@ -385,7 +409,7 @@ test("cadastra documentos e ativa ou inativa por plano", async (t) => {
   assert.equal((await api(`/api/documentos/${rg.id}/planos/plam-saude-pf`, "PUT", { ativo: "sim" })).status, 400);
   assert.equal((await api(`/api/documentos/${rg.id}/planos/nao-existe`, "PUT", { ativo: true })).status, 404);
 
-  assert.equal((await (await api(`/api/documentos/${rg.id}/planos`, "PUT", { ativo: true })).json()).planos.length, 14);
+  assert.equal((await (await api(`/api/documentos/${rg.id}/planos`, "PUT", { ativo: true })).json()).planos.length, 15);
   assert.equal((await (await api(`/api/documentos/${rg.id}/planos`, "PUT", { ativo: false })).json()).planos.length, 0);
 
   assert.equal((await (await api(`/api/documentos/${cpf.id}`, "PUT", { nome: "CPF novo" })).json()).nome, "CPF novo");

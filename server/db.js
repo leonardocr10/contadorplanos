@@ -98,10 +98,12 @@ const MIGRACOES = [
     const existe = db.prepare("PRAGMA table_info(planos)").all().some((c) => c.name === "faixas_modelo");
     if (!existe) db.exec("ALTER TABLE planos ADD COLUMN faixas_modelo TEXT NOT NULL DEFAULT ''");
   },
+  // Sem mudança na estrutura: marca a chegada do PLAM TOTAL (ver PLANOS_NOVOS).
+  () => {},
 ];
 
 // Planos lançados depois que o banco já existia: entram uma única vez, ao atualizar.
-const PLANOS_NOVOS = [{ id: "plamedh-basic-pme", versao: 6 }];
+const PLANOS_NOVOS = [{ id: "plamedh-basic-pme", versao: 6 }, { id: "plam-total-cnpj", versao: 7 }];
 
 function migrar(db) {
   const versao = db.prepare("PRAGMA user_version").get().user_version;
