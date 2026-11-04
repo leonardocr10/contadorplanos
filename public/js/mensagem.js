@@ -43,6 +43,7 @@ export function buildMsg({ items, vidas, over, nome, corretor, opts }) {
     if (p.mostrarExtras && lines(p.extras).length) L.push("", "🎁 *Benefícios do plano*", ...lines(p.extras));
     const rede = lines(p.rede);
     if (opts.rede && rede.length) L.push("", `🏨 *Rede credenciada – ${p.cidade || "Uberlândia"}*`, ...rede.map((h) => `• ${h}`));
+    if (p.mostrarObservacao && p.descricao) L.push("", "📝 *Observação*", p.descricao);
     if (p.fidelidade) L.push("", "⚠️ *Prazo de fidelidade de 12 meses para contratação via CNPJ*");
   }
   L.push(SEPARADOR);

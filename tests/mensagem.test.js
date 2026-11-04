@@ -130,3 +130,10 @@ test("Copiar link: um plano traz só o endereço; vários trazem o nome de cada 
   assert.equal(textoDosLinks([{ nome: "A", url: "http://x/p/1" }]), "http://x/p/1");
   assert.equal(textoDosLinks([{ nome: "A", url: "http://x/p/1" }, { nome: "B", url: "http://x/p/2" }]), "*A*\nhttp://x/p/1\n\n*B*\nhttp://x/p/2");
 });
+
+test("observação entra na mensagem só quando marcada", () => {
+  const p = { ...plano("plam-saude-pf"), descricao: "Observação de teste" };
+  const base = { vidas: idadesParaVidas("35"), over: {}, nome: "", corretor: {}, opts: OPTS };
+  assert.ok(!buildMsg({ ...base, items: [p] }).includes("Observação de teste"));
+  assert.ok(buildMsg({ ...base, items: [{ ...p, mostrarObservacao: true }] }).includes("📝 *Observação*\nObservação de teste"));
+});
