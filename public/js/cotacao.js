@@ -3,6 +3,7 @@ import { FAIXAS, brl, hasFaixas, normFone, parseBRL, planPrices, totalVidas } fr
 import { $, S, api, esc, render, toast } from "./estado.js";
 import { buildMsg, linkConversaDireta, textoDosLinks, waHtml } from "./mensagem.js";
 import { paginaParaPng } from "./imagem-proposta.js";
+import { imagemParaPdf } from "./pdf-imagem.js";
 import { renderHistCli, saveQuote } from "./historico.js";
 
 const planosEscolhidos = () => S.selected.map((id) => S.plans.find((p) => p.id === id)).filter(Boolean);
@@ -133,22 +134,41 @@ async function renderCards() {
   cards = made;
   cardsProntos = true;
   cardUrls = made.map((m) => m.url);
-  box.innerHTML = made.map((m, i) => `<figure><img src="${m.url}" alt="Proposta ${esc(m.p.nome)}"><figcaption>${esc(m.p.nome)}</figcaption><button class="btn primary" data-cp="${i}">Copiar imagem</button><button class="btn" data-dl="${i}">Baixar</button></figure>`).join("");
+  box.innerHTML = made.map((m, i) => `<figure><img src="${m.url}" alt="Proposta ${esc(m.p.nome)}"><figcaption>${esc(m.p.nome)}</figcaption><button class="btn primary" data-cp="${i}">Copiar imagem</button><button class="btn" data-dl="${i}">Baixar imagem</button><button class="btn" data-pdf="${i}">Baixar PDF</button></figure>`).join("");
   box.querySelectorAll("[data-dl]").forEach((b) => (b.onclick = () => saveCard(cards[+b.dataset.dl])));
+  box.querySelectorAll("[data-pdf]").forEach((b) => (b.onclick = () => savePdf(cards[+b.dataset.pdf], b)));
   box.querySelectorAll("[data-cp]").forEach((b) => (b.onclick = () => copyCard(cards[+b.dataset.cp])));
   paintChat(currentMsg());
 }
 
-const fileName = (p) => `Proposta ${p.nome.replace(/[\\/:*?"<>|]/g, "")}${nomeCliente() ? " - " + nomeCliente().replace(/[\\/:*?"<>|]/g, "") : ""}.png`;
+const fileName = (p, extensao = "png") => `Proposta ${p.nome.replace(/[\\/:*?"<>|]/g, "")}${nomeCliente() ? " - " + nomeCliente().replace(/[\\/:*?"<>|]/g, "") : ""}.${extensao}`;
 
-function saveCard(m) {
+function baixarArquivo(url, nome) {
   const a = document.createElement("a");
-  a.href = m.url;
-  a.download = fileName(m.p);
+  a.href = url;
+  a.download = nome;
   document.body.appendChild(a);
   a.click();
   a.remove();
   salvar(true);
+}
+
+function saveCard(m) {
+  baixarArquivo(m.url, fileName(m.p));
+}
+
+async function savePdf(m, botao) {
+  botao.disabled = true;
+  try {
+    const url = URL.createObjectURL(await imagemParaPdf(m.blob));
+    baixarArquivo(url, fileName(m.p, "pdf"));
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  } catch (e) {
+    console.error("Falha ao gerar o PDF:", e);
+    toast("Não consegui gerar o PDF: tente de novo");
+  } finally {
+    botao.disabled = false;
+  }
 }
 
 const AVISO_SEM_COPIA = "O navegador não copia imagem neste endereço: ela foi baixada. Arraste o arquivo para a conversa";
