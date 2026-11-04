@@ -13,6 +13,8 @@ Na aba **Meus dados**, preencha seu nome, telefone e corretora. Eles aparecem na
 
 ## Links das propostas
 
+As páginas das propostas ficam abertas para a internet na porta 9090. Execute o `iniciar.bat` como administrador na primeira vez, para ele liberar a porta no firewall do Windows, e preencha no `.env` o endereço público, como `PUBLIC_URL=http://IP_DA_MAQUINA:9090`. A tela do cotador (porta 3210) não tem login e continua abrindo só na própria máquina.
+
 Ao clicar em **Abrir no WhatsApp** ou em **Copiar legenda**, o cotador cria uma página para cada plano e coloca os links na mensagem. O cliente abre a proposta no celular, sem precisar de imagem.
 
 **Por enquanto, o link é local:** ele só abre neste computador, com o cotador ligado, e o cliente não consegue abri-lo. Até ter o domínio, envie também a imagem da proposta. A imagem mostra a mesma página do link, na tela de computador, com a primeira situação de carência. O botão de aceite e o seletor da imagem são só desenho: para aceitar ou trocar a situação, o cliente precisa do link.
@@ -67,4 +69,4 @@ npm install
 npm test
 ```
 
-As portas (`PORT`, padrão 3210, e `PORT_PUBLICA`, padrão 3211) e o modelo do Claude (`ANTHROPIC_MODEL`) ficam no `.env`. A porta pública é atendida por `server/publico.js` e só entrega as páginas das propostas.
+As portas (`PORT`, padrão 3210, e `PORT_PUBLICA`, padrão 9090) e o modelo do Claude (`ANTHROPIC_MODEL`) ficam no `.env`. A porta pública é atendida por `server/publico.js` e só entrega as páginas das propostas.

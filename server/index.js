@@ -15,7 +15,9 @@ try {
 }
 
 const porta = Number(process.env.PORT) || 3210;
-const portaPublica = Number(process.env.PORT_PUBLICA) || porta + 1;
+// Só as páginas das propostas saem para a internet; a tela do cotador, que não tem login, fica nesta máquina.
+const portaPublica = Number(process.env.PORT_PUBLICA) || 9090;
+const hostPublico = process.env.HOST_PUBLICO || "0.0.0.0";
 const endereco = `http://localhost:${porta}`;
 const abrirNavegador = () => {
   if (process.env.COTADOR_NAO_ABRIR) return;
@@ -44,13 +46,14 @@ const servidor = app.listen(porta, "127.0.0.1", (erro) => {
 
 let servidorPublico = null;
 function iniciarLinks() {
-  servidorPublico = criarAppPublica({ banco, pastaPublica, pastaUploads }).listen(portaPublica, "127.0.0.1", (erro) => {
+  servidorPublico = criarAppPublica({ banco, pastaPublica, pastaUploads }).listen(portaPublica, hostPublico, (erro) => {
     if (erro) {
       console.error(`A porta ${portaPublica} está ocupada: os links das propostas ficam desligados. Troque PORT_PUBLICA no arquivo .env.`);
       estadoLinks = { estado: "indisponivel", url: null, local: true };
       return;
     }
     estadoLinks = { estado: "ativo", ...enderecoDosLinks(process.env.PUBLIC_URL, portaPublica) };
+    console.log(`Propostas na internet pela porta ${portaPublica}. Links: ${estadoLinks.url}`);
   });
 }
 

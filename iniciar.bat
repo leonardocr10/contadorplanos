@@ -33,6 +33,24 @@ if errorlevel 1 goto falhainstalar
 
 if not exist .env copy .env.example .env >nul
 
+rem Abre a porta das propostas no firewall do Windows. Só funciona como administrador.
+netsh advfirewall firewall show rule name="Cotador Propostas 9090" >nul 2>nul
+if not errorlevel 1 goto portaliberada
+netsh advfirewall firewall add rule name="Cotador Propostas 9090" dir=in action=allow protocol=TCP localport=9090 >nul 2>nul
+if not errorlevel 1 goto portaliberada
+echo ATENÇÃO: não consegui liberar a porta 9090 no firewall.
+echo Clique com o botão direito neste arquivo e escolha Executar como administrador.
+echo.
+:portaliberada
+
+findstr /b /r /c:"PUBLIC_URL=." .env >nul 2>nul
+if not errorlevel 1 goto temendereco
+echo ATENÇÃO: os links das propostas só abrem nesta máquina.
+echo No arquivo .env, preencha PUBLIC_URL com o endereço público, por exemplo:
+echo PUBLIC_URL=http://IP_DA_MAQUINA:9090
+echo.
+:temendereco
+
 echo Cotador rodando. Feche esta janela para encerrar.
 echo.
 node --disable-warning=ExperimentalWarning server\index.js
