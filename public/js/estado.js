@@ -24,7 +24,7 @@ export function toast(t) {
   toast.t = setTimeout(() => (el.hidden = true), 2200);
 }
 
-export const VIEWS = ["cotacao", "planos", "documentos", "historico", "aceites", "corretor"];
+export const VIEWS = ["cotacao", "planos", "documentos", "historico", "aceites", "corretor", "configuracoes"];
 export function show(v) {
   for (const b of document.querySelectorAll(".tabs button")) b.setAttribute("aria-selected", b.dataset.view === v);
   for (const id of VIEWS) $("#v-" + id).hidden = id !== v;

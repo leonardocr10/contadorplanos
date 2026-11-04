@@ -135,7 +135,7 @@ function validarPedidoDeLinks(b) {
   };
 }
 
-export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env = process.env, exigirLogin = false, aceitarQualquerHost = false, clienteClaude, linkPublico = () => ({ estado: "indisponivel", url: null }) }) {
+export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env = process.env, exigirLogin = false, aceitarQualquerHost = false, sistema, clienteClaude, linkPublico = () => ({ estado: "indisponivel", url: null }) }) {
   const app = express();
   app.disable("x-powered-by");
   mkdirSync(pastaUploads, { recursive: true });
@@ -251,6 +251,19 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
       }),
     });
   });
+
+  /* ---------- atualização do sistema ---------- */
+  if (sistema) {
+    app.get("/api/sistema/versao", async (_req, res) => res.json(await sistema.versao()));
+    app.post("/api/sistema/atualizar", async (_req, res) => {
+      try {
+        res.json(await sistema.atualizar());
+      } catch (e) {
+        console.error(e);
+        res.status(500).json({ erro: "O GitHub não aceitou a atualização. Veja a janela do cotador no servidor." });
+      }
+    });
+  }
 
   /* ---------- aceites ---------- */
   app.get("/api/aceites", (_req, res) => {

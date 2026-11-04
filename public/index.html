@@ -17,6 +17,7 @@
       <button id="tab-his" role="tab" aria-selected="false" data-view="historico">Histórico</button>
       <button id="tab-ace" role="tab" aria-selected="false" data-view="aceites">Aceites <span class="pill" id="ace-selo" hidden style="margin:0 0 0 4px"></span></button>
       <button id="tab-cor" role="tab" aria-selected="false" data-view="corretor">Meus dados</button>
+      <button id="tab-cfg" role="tab" aria-selected="false" data-view="configuracoes">Configurações</button>
       <form method="post" action="/sair" style="display:contents"><button type="submit">Sair</button></form>
     </nav>
   </header>
@@ -127,6 +128,16 @@
   </section>
 
   <!-- CORRETOR -->
+  <section id="v-configuracoes" class="stack" hidden>
+    <div class="panel">
+      <h2>Atualizar sistema</h2>
+      <p class="note">Baixa a versão mais recente do GitHub e reinicia o cotador. Os seus dados não são alterados, e os clientes ficam sem acesso aos links por alguns instantes.</p>
+      <p class="note" id="cfg-versao"></p>
+      <div class="actions"><button class="btn primary" id="cfg-atualizar">Atualizar agora</button></div>
+      <p class="note" id="cfg-msg" role="status"></p>
+    </div>
+  </section>
+
   <section id="v-corretor" class="stack" hidden>
     <div class="panel" style="max-width:720px;width:100%">
       <h2>Meus dados</h2>

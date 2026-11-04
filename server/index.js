@@ -4,6 +4,7 @@ import { mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Banco } from "./db.js";
+import { CODIGO_REINICIAR, criarSistema } from "./sistema.js";
 import { criarApp } from "./app.js";
 import { criarAppExterna, criarAppPublica, enderecoDosLinks } from "./publico.js";
 
@@ -29,7 +30,18 @@ mkdirSync(pastaDados, { recursive: true });
 const banco = new Banco(join(pastaDados, "cotador.db"), join(raiz, "dados", "planos.json"));
 const pastaPublica = join(raiz, "public"), pastaUploads = join(pastaDados, "uploads");
 let estadoLinks = { estado: "conectando", url: null, local: true };
+const sistema = criarSistema({
+  raiz,
+  podeReiniciar: () => process.env.COTADOR_PELO_BAT === "1",
+  reiniciar: () => {
+    servidorPublico?.close();
+    servidor.close();
+    banco.fechar();
+    process.exit(CODIGO_REINICIAR);
+  },
+});
 const opcoesCotador = {
+  sistema,
   banco,
   pastaPublica,
   pastaUploads,

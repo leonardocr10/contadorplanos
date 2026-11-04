@@ -22,6 +22,7 @@ set "PATH=%ProgramFiles%\nodejs;%PATH%"
 for /f "tokens=1 delims=v." %%a in ('node -v') do set NODE_MAIOR=%%a
 if %NODE_MAIOR% LSS 22 goto nodeantigo
 
+:iniciar
 node scripts\verificar-dependencias.js
 if not errorlevel 1 goto instalado
 echo Instalando as dependências do cotador. Isso pode levar alguns minutos.
@@ -53,7 +54,10 @@ echo.
 
 echo Cotador rodando. Feche esta janela para encerrar.
 echo.
+set COTADOR_PELO_BAT=1
 node --disable-warning=ExperimentalWarning server\index.js
+rem O código 75 significa que o sistema foi atualizado e precisa reiniciar.
+if errorlevel 75 if not errorlevel 76 goto iniciar
 if errorlevel 1 pause
 exit /b
 

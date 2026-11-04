@@ -11,6 +11,10 @@ Se o Node.js não puder ser instalado automaticamente, baixe a versão LTS em ht
 
 Na aba **Meus dados**, preencha seu nome, telefone e corretora. Eles aparecem na imagem e na legenda.
 
+## Atualizar o sistema
+
+Na aba **Configurações**, clique em **Atualizar agora**. O cotador baixa a versão nova do GitHub e reinicia sozinho, desde que tenha sido aberto pelo `iniciar.bat`.
+
 ## Login
 
 A tela do cotador pede login e senha, definidos no arquivo `.env`, que não vai para o GitHub:

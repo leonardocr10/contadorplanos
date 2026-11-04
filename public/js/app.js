@@ -5,6 +5,7 @@ import { iniciarPlanos, renderCat } from "./planos.js";
 import { carregarHistorico, iniciarHistorico, renderHist } from "./historico.js";
 import { carregarAceites, renderAceites } from "./aceites.js";
 import { carregarDocumentos, iniciarDocumentos, renderDocumentos } from "./documentos.js";
+import { iniciarConfiguracoes } from "./configuracoes.js";
 import { iniciarFiltroSelects } from "./filtro-select.js";
 
 iniciarFiltroSelects();
@@ -16,7 +17,7 @@ definirRender(() => {
 });
 
 /* ---------- abas ---------- */
-document.querySelectorAll(".tabs button").forEach((b) => (b.onclick = () => show(b.dataset.view)));
+document.querySelectorAll(".tabs button[data-view]").forEach((b) => (b.onclick = () => show(b.dataset.view)));
 const viewDoHash = () => (VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "cotacao");
 addEventListener("hashchange", () => show(viewDoHash()));
 show(viewDoHash());
@@ -113,6 +114,7 @@ iniciarCotacao();
 iniciarPlanos();
 iniciarHistorico();
 iniciarDocumentos();
+iniciarConfiguracoes();
 renderHist();
 renderAceites();
 render();
