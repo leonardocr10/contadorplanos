@@ -24,7 +24,7 @@ Depois de alterar, reinicie o cotador. As páginas das propostas continuam abrin
 
 ## Links das propostas
 
-As páginas das propostas ficam abertas para a internet na porta 9090. Execute o `iniciar.bat` como administrador na primeira vez, para ele liberar a porta no firewall do Windows, e preencha no `.env` o endereço público, como `PUBLIC_URL=http://IP_DA_MAQUINA:9090`. A tela do cotador (porta 3210) não tem login e continua abrindo só na própria máquina.
+As páginas das propostas ficam abertas para a internet na porta 9090. Execute o `iniciar.bat` como administrador na primeira vez, para ele liberar a porta no firewall do Windows, e preencha no `.env` o endereço público, como `PUBLIC_URL=http://IP_DA_MAQUINA:9090`. A tela do cotador também abre nessa porta, sempre com login. Use uma senha forte e, se possível, um domínio com HTTPS: sem HTTPS, a senha e os dados trafegam sem criptografia.
 
 Ao clicar em **Abrir no WhatsApp** ou em **Copiar legenda**, o cotador cria uma página para cada plano e coloca os links na mensagem. O cliente abre a proposta no celular, sem precisar de imagem.
 

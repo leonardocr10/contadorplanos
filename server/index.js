@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Banco } from "./db.js";
 import { criarApp } from "./app.js";
-import { criarAppPublica, enderecoDosLinks } from "./publico.js";
+import { criarAppExterna, criarAppPublica, enderecoDosLinks } from "./publico.js";
 
 const raiz = join(dirname(fileURLToPath(import.meta.url)), "..");
 try {
@@ -15,7 +15,7 @@ try {
 }
 
 const porta = Number(process.env.PORT) || 3210;
-// Só as páginas das propostas saem para a internet; a tela do cotador, que não tem login, fica nesta máquina.
+// Na internet, as propostas abrem sem login e a tela do cotador exige login.
 const portaPublica = Number(process.env.PORT_PUBLICA) || 9090;
 const hostPublico = process.env.HOST_PUBLICO || "0.0.0.0";
 const endereco = `http://localhost:${porta}`;
@@ -29,14 +29,15 @@ mkdirSync(pastaDados, { recursive: true });
 const banco = new Banco(join(pastaDados, "cotador.db"), join(raiz, "dados", "planos.json"));
 const pastaPublica = join(raiz, "public"), pastaUploads = join(pastaDados, "uploads");
 let estadoLinks = { estado: "conectando", url: null, local: true };
-const app = criarApp({
+const opcoesCotador = {
   banco,
   pastaPublica,
   pastaUploads,
   pastaBackups: join(raiz, "backups"),
   exigirLogin: true,
   linkPublico: () => estadoLinks,
-});
+};
+const app = criarApp(opcoesCotador);
 
 const servidor = app.listen(porta, "127.0.0.1", (erro) => {
   if (erro) return tratarErroDePorta(erro);
@@ -47,14 +48,16 @@ const servidor = app.listen(porta, "127.0.0.1", (erro) => {
 
 let servidorPublico = null;
 function iniciarLinks() {
-  servidorPublico = criarAppPublica({ banco, pastaPublica, pastaUploads }).listen(portaPublica, hostPublico, (erro) => {
+  const publica = criarAppPublica({ banco, pastaPublica, pastaUploads });
+  const cotador = criarApp({ ...opcoesCotador, aceitarQualquerHost: true });
+  servidorPublico = criarAppExterna({ publica, cotador }).listen(portaPublica, hostPublico, (erro) => {
     if (erro) {
       console.error(`A porta ${portaPublica} está ocupada: os links das propostas ficam desligados. Troque PORT_PUBLICA no arquivo .env.`);
       estadoLinks = { estado: "indisponivel", url: null, local: true };
       return;
     }
     estadoLinks = { estado: "ativo", ...enderecoDosLinks(process.env.PUBLIC_URL, portaPublica) };
-    console.log(`Propostas na internet pela porta ${portaPublica}. Links: ${estadoLinks.url}`);
+    console.log(`Cotador e propostas na internet pela porta ${portaPublica}. Links: ${estadoLinks.url}`);
   });
 }
 

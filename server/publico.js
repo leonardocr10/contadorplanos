@@ -14,6 +14,22 @@ export function enderecoDosLinks(publicUrl, portaPublica) {
   return { url: `http://127.0.0.1:${portaPublica}`, local: true };
 }
 
+// Porta da internet: as propostas abrem sem login; todo o resto vai para a tela do cotador, que exige login.
+export function criarAppExterna({ publica, cotador }) {
+  const app = express();
+  app.disable("x-powered-by");
+  const daProposta = /^\/(p\/|proposta-pagina\.js$|filtro-select\.js$|fonts\/|img\/|uploads\/)/;
+  app.use((req, res, next) => {
+    if (daProposta.test(req.path)) return publica(req, res, next);
+    res.setHeader("X-Robots-Tag", "noindex, nofollow");
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader("Referrer-Policy", "no-referrer");
+    cotador(req, res, next);
+  });
+  return app;
+}
+
 export function criarAppPublica({ banco, pastaPublica, pastaUploads }) {
   const app = express();
   app.disable("x-powered-by");

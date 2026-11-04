@@ -135,14 +135,14 @@ function validarPedidoDeLinks(b) {
   };
 }
 
-export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env = process.env, exigirLogin = false, clienteClaude, linkPublico = () => ({ estado: "indisponivel", url: null }) }) {
+export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env = process.env, exigirLogin = false, aceitarQualquerHost = false, clienteClaude, linkPublico = () => ({ estado: "indisponivel", url: null }) }) {
   const app = express();
   app.disable("x-powered-by");
   mkdirSync(pastaUploads, { recursive: true });
 
-  // O banco guarda dados de clientes: só atende quem acessa pelo próprio computador.
+  // O banco guarda dados de clientes: fora deste computador, só a versão externa atende, e sempre com login.
   app.use((req, res, next) => {
-    if (["localhost", "127.0.0.1"].includes(req.hostname)) return next();
+    if (aceitarQualquerHost || ["localhost", "127.0.0.1"].includes(req.hostname)) return next();
     res.status(403).json({ erro: "Acesso permitido só neste computador." });
   });
 
