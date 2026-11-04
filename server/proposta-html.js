@@ -424,7 +424,7 @@ export function renderizarProposta(s, aceitacao = {}, { paraImagem = false } = {
     </div>
     ${blocoFaixas(P.faixas)}
     <div class="cols">${secaoCoparticipacao(P)}${secaoCarencias(P)}</div>
-    ${P.fidelidade ? `<p class="fidelidade">Planos CNPJ geram fidelidade de 1 ano.</p>` : ""}
+    ${P.fidelidade ? `<p class="fidelidade">Prazo de fidelidade de 12 meses para contratação via CNPJ</p>` : ""}
     ${P.rodape.length ? `<p class="note">${P.rodape.map(esc).join(" ")}</p>` : ""}
   </main>
 </div>

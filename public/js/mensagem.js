@@ -43,7 +43,7 @@ export function buildMsg({ items, vidas, over, nome, corretor, opts }) {
     if (p.mostrarExtras && lines(p.extras).length) L.push("", "🎁 *Benefícios do plano*", ...lines(p.extras));
     const rede = lines(p.rede);
     if (opts.rede && rede.length) L.push("", `🏨 *Rede credenciada – ${p.cidade || "Uberlândia"}*`, ...rede.map((h) => `• ${h}`));
-    if (p.fidelidade) L.push("", "⚠️ *Planos CNPJ geram fidelidade de 1 ano*");
+    if (p.fidelidade) L.push("", "⚠️ *Prazo de fidelidade de 12 meses para contratação via CNPJ*");
   }
   L.push(SEPARADOR);
   const copart = opts.copart && items.map((p) => (p.copartTexto || "").trim()).find(Boolean);
