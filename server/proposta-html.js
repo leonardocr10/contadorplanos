@@ -3,9 +3,10 @@ import { brl, lines, normFone, parseBRL, planPrices, r2, totalVidas } from "../p
 import { linkConversaDireta } from "../public/js/mensagem.js";
 import { hex2rgb, lumRGB, mixRGB, toHex } from "../public/js/cores.js";
 
-const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+export const FONTE = '@font-face{font-family:Manrope;font-weight:200 800;font-display:swap;src:url(/fonts/manrope-latin-wght-normal.woff2) format("woff2")}';
+export const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 const temTabela = (t) => String(t || "").includes("|");
-const moeda = (v) => `R$ ${brl(v)}`;
+export const moeda = (v) => `R$ ${brl(v)}`;
 
 export function montarSnapshot(p, { vidas, over, cliente, opts }, corretor, agora = new Date()) {
   const v = planPrices(p, vidas, over);
@@ -222,7 +223,7 @@ const LOGOS = [
   [/^SUL\s?AM[ÉE]RICA/i, "sulamerica", "SulAmérica"],
 ];
 
-function logoDoPlano(nome) {
+export function logoDoPlano(nome) {
   const logo = LOGOS.find(([regra]) => regra.test(nome || ""));
   return logo ? `<img class="logo-plano" src="/img/logo-${logo[1]}.png" alt="${logo[2]}">` : "";
 }
@@ -325,7 +326,7 @@ function avisoAceito(s, { aceite, documentos = [], foneCorretor, agente = "" }) 
 }
 
 const CSS = `
-@font-face{font-family:Manrope;font-weight:200 800;font-display:swap;src:url(/fonts/manrope-latin-wght-normal.woff2) format("woff2")}
+${FONTE}
 :root{--ink:#10243a;--muted:#4a5d70;
   --ok-bg:#e8f4ec;--ok:#145a32;--low-bg:#e6f1fb;--low:#00508c;--mid-bg:#fff6d6;--mid:#6b4d00;--high-bg:#ffe8d6;--high:#8a3b00}
 *{box-sizing:border-box}

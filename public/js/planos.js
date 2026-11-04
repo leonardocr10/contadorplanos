@@ -30,12 +30,12 @@ export function renderCat() {
 }
 
 let lastFocus = null;
-function openModal() {
+export function openModal() {
   lastFocus = document.activeElement;
   $("#modal").hidden = false;
   document.documentElement.style.overflow = "hidden";
 }
-function closeModal() {
+export function closeModal() {
   $("#modal").hidden = true;
   $("#editor").innerHTML = "";
   document.documentElement.style.overflow = "";

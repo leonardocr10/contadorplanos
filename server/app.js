@@ -8,6 +8,7 @@ import { ErroBackup, STATUS } from "./db.js";
 import { ErroLeitura, MODELO_PADRAO, lerTabela } from "./claude.js";
 import { criarLogin } from "./login.js";
 import { montarSnapshot, renderizarProposta } from "./proposta-html.js";
+import { MAX_PLANOS_COMPARATIVO, renderizarComparativo } from "./comparativo-html.js";
 
 const MAX_UPLOAD = 15 * 1024 * 1024;
 
@@ -254,6 +255,21 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
         return { id: plano.id, html: renderizarProposta(montarSnapshot(plano, pedido, corretor), {}, { paraImagem: true }) };
       }),
     });
+  });
+
+  // Vários planos lado a lado para virar imagem: nada fica salvo.
+  app.post("/api/propostas/comparativo", (req, res) => {
+    const pedido = validarPedidoDeLinks(req.body);
+    if (pedido.planos.length < 2 || pedido.planos.length > MAX_PLANOS_COMPARATIVO) {
+      throw new ErroEntrada(`Escolha de 2 a ${MAX_PLANOS_COMPARATIVO} planos para comparar.`);
+    }
+    const corretor = banco.lerConfig();
+    const snapshots = pedido.planos.map((id) => {
+      const plano = banco.obterPlano(String(id));
+      if (!plano) throw new ErroEntrada("Um dos planos escolhidos não existe mais.");
+      return montarSnapshot(plano, pedido, corretor);
+    });
+    res.json({ html: renderizarComparativo(snapshots) });
   });
 
   /* ---------- atualização do sistema ---------- */

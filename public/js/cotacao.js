@@ -4,6 +4,7 @@ import { $, S, api, esc, render, toast } from "./estado.js";
 import { buildMsg, linkConversaDireta, textoDosLinks, waHtml } from "./mensagem.js";
 import { paginaParaPng } from "./imagem-proposta.js";
 import { imagemParaPdf } from "./pdf-imagem.js";
+import { abrirComparativo } from "./comparativo.js";
 import { renderHistCli, saveQuote } from "./historico.js";
 
 const planosEscolhidos = () => S.selected.map((id) => S.plans.find((p) => p.id === id)).filter(Boolean);
@@ -121,7 +122,7 @@ async function renderCards() {
     for (const [i, p] of items.entries()) {
       if (seq !== cardSeq) break;
       const blob = await paginaParaPng(paginas[i].html);
-      made.push({ p, blob, url: URL.createObjectURL(blob) });
+      made.push({ p, titulo: `Proposta ${p.nome}`, blob, url: URL.createObjectURL(blob) });
     }
   } catch (e) {
     console.error("Falha ao gerar a imagem:", e);
@@ -141,7 +142,7 @@ async function renderCards() {
   paintChat(currentMsg());
 }
 
-const fileName = (p, extensao = "png") => `Proposta ${p.nome.replace(/[\\/:*?"<>|]/g, "")}${nomeCliente() ? " - " + nomeCliente().replace(/[\\/:*?"<>|]/g, "") : ""}.${extensao}`;
+const fileName = (m, extensao = "png") => `${m.titulo.replace(/[\\/:*?"<>|]/g, "")}${nomeCliente() ? " - " + nomeCliente().replace(/[\\/:*?"<>|]/g, "") : ""}.${extensao}`;
 
 function baixarArquivo(url, nome) {
   const a = document.createElement("a");
@@ -154,14 +155,14 @@ function baixarArquivo(url, nome) {
 }
 
 function saveCard(m) {
-  baixarArquivo(m.url, fileName(m.p));
+  baixarArquivo(m.url, fileName(m));
 }
 
 async function savePdf(m, botao) {
   botao.disabled = true;
   try {
     const url = URL.createObjectURL(await imagemParaPdf(m.blob));
-    baixarArquivo(url, fileName(m.p, "pdf"));
+    baixarArquivo(url, fileName(m, "pdf"));
     setTimeout(() => URL.revokeObjectURL(url), 10000);
   } catch (e) {
     console.error("Falha ao gerar o PDF:", e);
@@ -261,6 +262,7 @@ export function renderCotacao() {
   lastAuto = buildMsg({ items: planosEscolhidos(), vidas: S.vidas, over: S.over, nome, corretor: corretor(), opts: opcoes() });
   $("#nota-envio").textContent = "Abrir no WhatsApp leva o texto e copia a imagem: na conversa, aperte Ctrl+V para colar a imagem. Com vários planos, copie as outras imagens nos botões acima. Ao copiar, a cotação fica salva no histórico do número.";
   $("#links-gerados").hidden = true;
+  $("#comparar").hidden = planosEscolhidos().length < 2;
   manual = false;
   $("#rawtxt").value = lastAuto;
   paintChat(lastAuto);
@@ -300,6 +302,11 @@ export function iniciarCotacao() {
     }
   };
   $("#copiar-link").onclick = copiarLink;
+  $("#comparar").onclick = () => abrirComparativo(
+    planosEscolhidos(),
+    { vidas: S.vidas, over: S.over, cliente: nomeCliente(), opts: opcoes() },
+    { copiar: copyCard, baixar: saveCard, baixarPdf: savePdf },
+  );
   $("#wa").addEventListener("click", (e) => { e.preventDefault(); abrirWhatsApp(); });
   $("#salvar-hist").onclick = async () => {
     if (!currentMsg()) { toast("Escolha um plano primeiro"); return; }
