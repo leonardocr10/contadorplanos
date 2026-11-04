@@ -91,7 +91,6 @@ function reopen(h) {
   for (const x of $("#tipo").children) x.setAttribute("aria-pressed", x.dataset.t === S.tipo);
   $("#cliente").value = h.cliente || "";
   $("#fone").value = fmtFone(h.fone || "");
-  $("#idades").value = h.idades || "";
   S.vidas = Array.isArray(h.vidas) && h.vidas.length === 10 ? [...h.vidas] : Array(10).fill(0);
   S.over = h.over && typeof h.over === "object" ? JSON.parse(JSON.stringify(h.over)) : {};
   const ids = (h.planos || []).map((x) => x.id);
