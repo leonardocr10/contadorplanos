@@ -47,7 +47,7 @@ async function enviarDocumentos(a) {
     toast("Este aceite não tem o número do cliente");
     return;
   }
-  const texto = mensagemDocumentos({ cliente: a.cliente, plano: a.plano, acomodacao: a.acomodacao, documentos: a.documentos, corretor: S.cor });
+  const texto = mensagemDocumentos({ cliente: a.cliente, plano: a.plano, acomodacao: a.acomodacao, valor: a.valor, documentos: a.documentos, corretor: S.cor });
   window.open(linkWhatsApp(a.fone, texto), "_blank", "noopener");
   try {
     await api(`/api/aceites/${encodeURIComponent(a.token)}/documentos`, { metodo: "POST", json: {} });

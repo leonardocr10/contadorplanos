@@ -68,11 +68,11 @@ export function linkWhatsApp(fone, texto) {
   return `https://api.whatsapp.com/send/?${telefone}text=${encodeURIComponent(texto)}`;
 }
 
-export function mensagemDocumentos({ cliente, plano, acomodacao, documentos, corretor }) {
+export function mensagemDocumentos({ cliente, plano, acomodacao, valor, documentos, corretor }) {
   const L = [
     cliente ? `Olá, *${cliente}*! Tudo bem? 😊` : "Olá! Tudo bem? 😊",
     "",
-    `Recebemos o seu aceite da proposta do plano *${plano}* (${acomodacao}).`,
+    `Recebemos o seu aceite da proposta do plano *${plano}* (${acomodacao})${valor != null ? `, no valor de *R$ ${brl(valor)}* por mês` : ""}.`,
     "",
     "Para dar andamento, precisamos que você nos envie os seguintes documentos:",
     "",

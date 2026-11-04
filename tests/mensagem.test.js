@@ -137,3 +137,9 @@ test("observação entra na mensagem só quando marcada", () => {
   assert.ok(!buildMsg({ ...base, items: [p] }).includes("Observação de teste"));
   assert.ok(buildMsg({ ...base, items: [{ ...p, mostrarObservacao: true }] }).includes("📝 *Observação*\nObservação de teste"));
 });
+
+test("mensagem de documentos informa o valor aceito", () => {
+  const msg = mensagemDocumentos({ cliente: "Maria", plano: "PLAM SAÚDE", acomodacao: "Enfermaria", valor: 1234.5, documentos: ["RG"], corretor });
+  assert.match(msg, /\(Enfermaria\), no valor de \*R\$ 1\.234,50\* por mês\./);
+  assert.ok(!mensagemDocumentos({ cliente: "", plano: "X", acomodacao: "Enfermaria", documentos: [], corretor: {} }).includes("no valor"));
+});
