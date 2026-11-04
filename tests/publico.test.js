@@ -8,6 +8,7 @@ import { criarApp } from "../server/app.js";
 import { criarAppPublica, enderecoDosLinks } from "../server/publico.js";
 import { contraste, fmtDias, linhaCoparticipacao, montarSnapshot, nivelPrazo, paletaProposta, paraProposta, prazo, renderizarProposta } from "../server/proposta-html.js";
 import { hex2rgb } from "../public/js/cores.js";
+import { planPrices } from "../public/js/calculo.js";
 
 const raiz = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
 const seed = join(raiz, "dados", "planos.json");
@@ -166,6 +167,36 @@ test("marcar observação fica salvo no plano", async (t) => {
   assert.equal(p.mostrarObservacao, false);
   const r = await fetch(admin + "/api/planos/" + p.id, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...p, mostrarObservacao: true }) });
   assert.equal((await r.json()).mostrarObservacao, true);
+});
+
+test("PLAMEDH BASIC usa 3 faixas e soma as idades no grupo", () => {
+  const p = plano("plamedh-basic-pme");
+  const v = planPrices(p, [1, 1, 0, 2, 0, 0, 0, 0, 0, 1]);
+  assert.deepEqual(v.linhas.map((l) => [l.faixa, l.n]), [["0 a 18", 1], ["19 a 58", 3], ["59 ou mais", 1]]);
+  assert.equal(v.enf, 1645.25);
+  assert.equal(v.apto, null);
+  const html = renderizarProposta(montarSnapshot(p, { vidas: [1, 1, 0, 2, 0, 0, 0, 0, 0, 1], over: {}, cliente: "", opts }, corretor));
+  assert.ok(html.includes("19 a 58 anos") && html.includes("× 3") && html.includes("R$ 827,55"));
+  assert.ok(!html.includes(">Apartamento<"));
+  // Os outros planos seguem com as 10 faixas.
+  assert.equal(planPrices(plano("plam-saude-pf"), [0, 1, 1, 0, 0, 0, 0, 0, 0, 0]).linhas.length, 2);
+});
+
+test("banco antigo recebe o plano novo uma vez; se excluído, não volta", (t) => {
+  const pasta = mkdtempSync(join(tmpdir(), "cotador-novo-"));
+  t.after(() => rmSync(pasta, { recursive: true, force: true }));
+  const arq = join(pasta, "c.db");
+  let b = new Banco(arq, seed);
+  b.excluirPlano("plamedh-basic-pme");
+  b.db.exec("PRAGMA user_version = 5");
+  b.fechar();
+  b = new Banco(arq, seed);
+  assert.ok(b.obterPlano("plamedh-basic-pme"));
+  b.excluirPlano("plamedh-basic-pme");
+  b.fechar();
+  b = new Banco(arq, seed);
+  assert.equal(b.obterPlano("plamedh-basic-pme"), null);
+  b.fechar();
 });
 
 test("coparticipação e carências não mostram a quantidade de itens", () => {
@@ -354,7 +385,7 @@ test("cadastra documentos e ativa ou inativa por plano", async (t) => {
   assert.equal((await api(`/api/documentos/${rg.id}/planos/plam-saude-pf`, "PUT", { ativo: "sim" })).status, 400);
   assert.equal((await api(`/api/documentos/${rg.id}/planos/nao-existe`, "PUT", { ativo: true })).status, 404);
 
-  assert.equal((await (await api(`/api/documentos/${rg.id}/planos`, "PUT", { ativo: true })).json()).planos.length, 13);
+  assert.equal((await (await api(`/api/documentos/${rg.id}/planos`, "PUT", { ativo: true })).json()).planos.length, 14);
   assert.equal((await (await api(`/api/documentos/${rg.id}/planos`, "PUT", { ativo: false })).json()).planos.length, 0);
 
   assert.equal((await (await api(`/api/documentos/${cpf.id}`, "PUT", { nome: "CPF novo" })).json()).nome, "CPF novo");

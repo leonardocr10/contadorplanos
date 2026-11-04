@@ -65,6 +65,7 @@ function validarPlano(b) {
     fidelidade: !!b.fidelidade,
     mostrarExtras: !!b.mostrarExtras,
     mostrarObservacao: !!b.mostrarObservacao,
+    faixasModelo: b.faixasModelo === "3" ? "3" : "",
     cidade: textoOpc(b.cidade, "cidade", 200),
     rede: textoOpc(b.rede, "rede"),
     extras: textoOpc(b.extras, "benefícios"),

@@ -1,5 +1,5 @@
 // Mensagem do WhatsApp no Modelo A e demais textos (funções puras).
-import { FAIXAS, brl, lines, planPrices, totalVidas } from "./calculo.js";
+import { brl, lines, planPrices, totalVidas } from "./calculo.js";
 
 function assinatura(c) {
   const contato = [c.empresa, c.fone].filter(Boolean).join(" · ");
@@ -15,7 +15,7 @@ function blocoValores(L, v, vidas) {
   if (v.porFaixa) {
     for (const l of v.linhas) {
       const valores = [l.enf != null && `Enf. R$ ${brl(l.enf * l.n)}`, l.apto != null && `Apto R$ ${brl(l.apto * l.n)}`].filter(Boolean).join(" · ");
-      L.push(`▫️ ${l.n > 1 ? l.n + "× " : ""}${FAIXAS[l.i]} anos: ${valores}`);
+      L.push(`▫️ ${l.n > 1 ? l.n + "× " : ""}${l.faixa} anos: ${valores}`);
     }
     L.push("");
     if (v.enf != null) L.push(`✅ *Total Enfermaria: R$ ${brl(v.enf)}*`);

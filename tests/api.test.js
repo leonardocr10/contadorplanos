@@ -33,10 +33,10 @@ const cotacao = (extra = {}) => ({
   planos: [{ id: "plam-saude-pf", nome: "PLAM SAÚDE", enf: 769.76, apto: 1198.87 }], mensagem: "Olá", ...extra,
 });
 
-test("seed traz os 13 planos com os mesmos valores", async (t) => {
+test("seed traz os 14 planos com os mesmos valores", async (t) => {
   const { base } = await contexto(t);
   const planos = await (await fetch(base + "/api/planos")).json();
-  assert.equal(planos.length, 13);
+  assert.equal(planos.length, 14);
   for (const s of planosSeed) {
     const p = planos.find((x) => x.id === s.id);
     assert.deepEqual(p.faixasEnf, s.faixasEnf ?? null, s.id);
@@ -54,7 +54,7 @@ test("seed só roda com a tabela vazia", async (t) => {
   const { banco } = await contexto(t);
   banco.excluirPlano("plam-saude-pf");
   banco.semear();
-  assert.equal(banco.listarPlanos().length, 12);
+  assert.equal(banco.listarPlanos().length, 13);
 });
 
 test("criar, editar e excluir plano, com erro em português", async (t) => {

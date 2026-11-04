@@ -1,5 +1,5 @@
 // Página HTML da proposta, aberta pelo cliente: layout com painel lateral, sem rolagem no computador.
-import { FAIXAS, brl, lines, normFone, parseBRL, planPrices, r2, totalVidas } from "../public/js/calculo.js";
+import { brl, lines, normFone, parseBRL, planPrices, r2, totalVidas } from "../public/js/calculo.js";
 import { linkWhatsApp } from "../public/js/mensagem.js";
 import { hex2rgb, lumRGB, mixRGB, toHex } from "../public/js/cores.js";
 
@@ -17,7 +17,7 @@ export function montarSnapshot(p, { vidas, over, cliente, opts }, corretor, agor
     precos: {
       porFaixa: v.porFaixa, enf: v.enf ?? null, apto: v.apto ?? null,
       linhas: v.linhas.map((l) => ({
-        faixa: FAIXAS[l.i], n: l.n,
+        faixa: l.faixa, n: l.n,
         enf: l.enf != null ? r2(l.enf * l.n) : null,
         apto: l.apto != null ? r2(l.apto * l.n) : null,
       })),

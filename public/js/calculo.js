@@ -27,6 +27,22 @@ export function idadesParaVidas(texto) {
   return vidas;
 }
 
+// Tabela de 3 faixas: as idades continuam informadas nas 10 faixas e são somadas nestes grupos.
+const GRUPOS_3_FAIXAS = [
+  { faixa: "0 a 18", indices: [0] },
+  { faixa: "19 a 58", indices: [1, 2, 3, 4, 5, 6, 7, 8] },
+  { faixa: "59 ou mais", indices: [9] },
+];
+
+function agruparLinhas(linhas, modelo) {
+  if (modelo !== "3") return linhas;
+  return GRUPOS_3_FAIXAS.flatMap((g) => {
+    const doGrupo = linhas.filter((l) => g.indices.includes(l.i));
+    if (!doGrupo.length) return [];
+    return [{ ...doGrupo[0], faixa: g.faixa, n: doGrupo.reduce((a, l) => a + l.n, 0) }];
+  });
+}
+
 export function planPrices(p, vidas, over = {}) {
   if (hasFaixas(p) && totalVidas(vidas) > 0) {
     const linhas = [];
@@ -36,9 +52,9 @@ export function planPrices(p, vidas, over = {}) {
       const e = p.faixasEnf?.[i] ?? null, a = p.faixasApto?.[i] ?? null;
       if (e == null) eOk = false; else enf += e * n;
       if (a == null) aOk = false; else apto += a * n;
-      linhas.push({ i, n, enf: e, apto: a });
+      linhas.push({ i, n, enf: e, apto: a, faixa: FAIXAS[i] });
     });
-    return { porFaixa: true, linhas, enf: eOk ? r2(enf) : null, apto: aOk ? r2(apto) : null };
+    return { porFaixa: true, linhas: agruparLinhas(linhas, p.faixasModelo), enf: eOk ? r2(enf) : null, apto: aOk ? r2(apto) : null };
   }
   const o = over[p.id] || {};
   return { porFaixa: false, linhas: [], enf: o.enf !== undefined ? o.enf : p.enfermaria, apto: o.apto !== undefined ? o.apto : p.apartamento };

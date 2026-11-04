@@ -94,7 +94,14 @@ const MIGRACOES = [
     const existe = db.prepare("PRAGMA table_info(planos)").all().some((c) => c.name === "mostrar_observacao");
     if (!existe) db.exec("ALTER TABLE planos ADD COLUMN mostrar_observacao INTEGER NOT NULL DEFAULT 0");
   },
+  (db) => {
+    const existe = db.prepare("PRAGMA table_info(planos)").all().some((c) => c.name === "faixas_modelo");
+    if (!existe) db.exec("ALTER TABLE planos ADD COLUMN faixas_modelo TEXT NOT NULL DEFAULT ''");
+  },
 ];
+
+// Planos lançados depois que o banco já existia: entram uma única vez, ao atualizar.
+const PLANOS_NOVOS = [{ id: "plamedh-basic-pme", versao: 6 }];
 
 function migrar(db) {
   const versao = db.prepare("PRAGMA user_version").get().user_version;
@@ -120,7 +127,7 @@ const COLUNAS_PLANO = {
   enfermaria: "enfermaria", apartamento: "apartamento", taxa: "taxa", cidade: "cidade", rede: "rede", extras: "extras",
   descricao: "descricao", copartTexto: "copart_texto", copartTabela: "copart_tabela", copartNota: "copart_nota",
   carenciaTabela: "carencia_tabela", carenciaNota: "carencia_nota", imgCopart: "img_copart", imgCarencia: "img_carencia",
-  corPrimaria: "cor_primaria", corEscura: "cor_escura",
+  corPrimaria: "cor_primaria", corEscura: "cor_escura", faixasModelo: "faixas_modelo",
 };
 const COLUNAS_BOOL = { ativo: "ativo", odonto: "odonto", fidelidade: "fidelidade", mostrarExtras: "mostrar_extras", mostrarObservacao: "mostrar_observacao" };
 const COLUNAS_JSON = { faixasEnf: "faixas_enf", faixasApto: "faixas_apto" };
@@ -169,12 +176,24 @@ export class Banco {
 
   abrir() {
     this.db = new DatabaseSync(this.caminho);
+    const versaoAntes = this.db.prepare("PRAGMA user_version").get().user_version;
     migrar(this.db);
     this.semear();
+    this.incluirPlanosNovos(versaoAntes);
   }
 
   fechar() {
     this.db.close();
+  }
+
+  incluirPlanosNovos(versaoAntes) {
+    const novos = PLANOS_NOVOS.filter((n) => versaoAntes > 0 && versaoAntes < n.versao);
+    if (!novos.length || !this.caminhoSeed || !existsSync(this.caminhoSeed)) return;
+    const planos = JSON.parse(readFileSync(this.caminhoSeed, "utf8"));
+    for (const { id } of novos) {
+      const p = planos.find((x) => x.id === id);
+      if (p && !this.obterPlano(id)) this.gravarPlano(id, p);
+    }
   }
 
   semear() {
