@@ -187,15 +187,13 @@ test("texto digitado é escapado", () => {
   assert.ok(!html.includes("onclick"));
 });
 
-test("versão para imagem tem o botão e o seletor do modelo, sem script nem formulário", () => {
+test("versão para imagem é a página do link, sem script nem formulário", () => {
   const s = montarSnapshot(plano("amil-ouro-total"), { vidas, over: {}, cliente: "Maria", opts }, corretor);
   const html = renderizarProposta(s, {}, { paraImagem: true });
   assert.ok(!html.includes("<script") && !html.includes("<form"));
   assert.ok(html.includes("Aceitar proposta") && html.includes('id="situacao"'));
-  assert.ok(html.includes('class="faixas-lado"') && !html.includes('<section class="faixas"'));
-  assert.ok(html.includes("0 a 18") && html.includes("34 a 38"));
-  assert.match(renderizarProposta(s), /<script type="module"/);
-  assert.ok(!renderizarProposta(s).includes('class="faixas-lado"'));
+  const semAceite = (h) => h.replace(/<details class="aceitar">.*?<\/details>/s, "").replace(/<script.*<\/script>/, "");
+  assert.equal(semAceite(html), semAceite(renderizarProposta(s, { token: "x".repeat(22) })));
 });
 
 test("prévia da imagem funciona sem link ativo e não salva proposta", async (t) => {
