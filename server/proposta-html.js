@@ -164,7 +164,8 @@ const legivelComBranco = (cor) => ajustarContraste(cor, BRANCO, PRETO);
 export function paletaProposta(p) {
   const principal = hex2rgb(p.corPrimaria) ?? hex2rgb(p.corEscura) ?? [0, 103, 179];
   const escura = hex2rgb(p.corEscura) ?? mixRGB(principal, PRETO, 0.45);
-  const accent = legivelComBranco(principal), navy = legivelComBranco(escura);
+  // O destaque também aparece nas linhas zebradas, um pouco mais escuras que o branco.
+  const accent = ajustarContraste(principal, mixRGB(principal, BRANCO, 0.98), PRETO), navy = legivelComBranco(escura);
   const side = mixRGB(principal, BRANCO, 0.95);
   return {
     navy: toHex(navy),

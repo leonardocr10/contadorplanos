@@ -102,10 +102,14 @@ const MIGRACOES = [
   () => {},
   "UPDATE planos SET fidelidade = 1 WHERE categoria = 'CNPJ'",
   "UPDATE cotacoes SET status = CASE status WHEN 'Em negociação' THEN 'Em Negociação' WHEN 'Fechou' THEN 'Vendida' WHEN 'Perdida' THEN 'Negativa' ELSE status END",
+  (db) => {
+    const colunas = db.prepare("PRAGMA table_info(planos)").all().map((c) => c.name);
+    for (const c of ["faixas_enf_familia", "faixas_apto_familia"]) if (!colunas.includes(c)) db.exec(`ALTER TABLE planos ADD COLUMN ${c} TEXT`);
+  },
 ];
 
 // Planos lançados depois que o banco já existia: entram uma única vez, ao atualizar.
-const PLANOS_NOVOS = [{ id: "plamedh-basic-pme", versao: 6 }, { id: "plam-total-cnpj", versao: 7 }];
+const PLANOS_NOVOS = [{ id: "plamedh-basic-pme", versao: 6 }, { id: "plam-total-cnpj", versao: 7 }, ...["sulamerica-direto-nacional", "sulamerica-especial-100-rc", "sulamerica-especial-100-r1", "sulamerica-executivo-pleno"].map((id) => ({ id, versao: 10 }))];
 
 function migrar(db) {
   const versao = db.prepare("PRAGMA user_version").get().user_version;
@@ -134,7 +138,7 @@ const COLUNAS_PLANO = {
   corPrimaria: "cor_primaria", corEscura: "cor_escura", faixasModelo: "faixas_modelo",
 };
 const COLUNAS_BOOL = { ativo: "ativo", odonto: "odonto", fidelidade: "fidelidade", mostrarExtras: "mostrar_extras", mostrarObservacao: "mostrar_observacao" };
-const COLUNAS_JSON = { faixasEnf: "faixas_enf", faixasApto: "faixas_apto" };
+const COLUNAS_JSON = { faixasEnf: "faixas_enf", faixasApto: "faixas_apto", faixasEnfFamilia: "faixas_enf_familia", faixasAptoFamilia: "faixas_apto_familia" };
 
 function planoParaLinha(p) {
   const l = {};

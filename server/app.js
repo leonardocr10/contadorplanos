@@ -58,6 +58,8 @@ function validarPlano(b) {
     ativo: b.ativo !== false,
     faixasEnf: faixasOpc(b.faixasEnf, "enfermaria"),
     faixasApto: faixasOpc(b.faixasApto, "apartamento"),
+    faixasEnfFamilia: faixasOpc(b.faixasEnfFamilia, "enfermaria com 3 ou mais vidas"),
+    faixasAptoFamilia: faixasOpc(b.faixasAptoFamilia, "apartamento com 3 ou mais vidas"),
     enfermaria: numeroOpc(b.enfermaria, "enfermaria"),
     apartamento: numeroOpc(b.apartamento, "apartamento"),
     taxa: numeroOpc(b.taxa, "taxa associativa"),

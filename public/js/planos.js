@@ -145,6 +145,7 @@ function openEditor(p) {
       copartTabela: $("#e-tcop").value.trim(), copartNota: $("#e-ncop").value.trim(), carenciaTabela: $("#e-tcar").value.trim(), carenciaNota: $("#e-ncar").value.trim(),
       imgCopart: $("#e-imgcop").value, imgCarencia: $("#e-imgcar").value,
       faixasModelo: $("#e-fx3").checked ? "3" : "",
+      faixasEnfFamilia: p.faixasEnfFamilia ?? null, faixasAptoFamilia: p.faixasAptoFamilia ?? null,
       faixasEnf: FAIXAS.map((_, i) => parseBRL($("#e-fe-" + ($("#e-fx3").checked && i >= 1 && i <= 8 ? 1 : i)).value)), faixasApto: FAIXAS.map((_, i) => parseBRL($("#e-fa-" + ($("#e-fx3").checked && i >= 1 && i <= 8 ? 1 : i)).value)),
     };
     const btn = $("#e-save");

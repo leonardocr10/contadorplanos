@@ -45,11 +45,15 @@ function agruparLinhas(linhas, modelo) {
 
 export function planPrices(p, vidas, over = {}) {
   if (hasFaixas(p) && totalVidas(vidas) > 0) {
+    // Alguns planos têm preço menor para titular com 2 ou mais dependentes (3 vidas ou mais).
+    const familia = totalVidas(vidas) >= 3;
+    const tabelaEnf = familia && p.faixasEnfFamilia ? p.faixasEnfFamilia : p.faixasEnf;
+    const tabelaApto = familia && p.faixasAptoFamilia ? p.faixasAptoFamilia : p.faixasApto;
     const linhas = [];
     let enf = 0, apto = 0, eOk = true, aOk = true;
     vidas.forEach((n, i) => {
       if (!n) return;
-      const e = p.faixasEnf?.[i] ?? null, a = p.faixasApto?.[i] ?? null;
+      const e = tabelaEnf?.[i] ?? null, a = tabelaApto?.[i] ?? null;
       if (e == null) eOk = false; else enf += e * n;
       if (a == null) aOk = false; else apto += a * n;
       linhas.push({ i, n, enf: e, apto: a, faixa: FAIXAS[i] });

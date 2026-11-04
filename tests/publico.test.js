@@ -225,6 +225,23 @@ test("planos CNPJ ficam com fidelidade ao atualizar, e a marcação pode ser ret
   b.fechar();
 });
 
+test("SulAmérica muda de tabela a partir de 3 vidas", () => {
+  const p = plano("sulamerica-direto-nacional");
+  const duas = planPrices(p, [1, 0, 0, 1, 0, 0, 0, 0, 0, 0]);
+  assert.equal(duas.enf, 610.04);
+  assert.equal(duas.apto, 671);
+  const tres = planPrices(p, [2, 0, 0, 1, 0, 0, 0, 0, 0, 0]);
+  assert.equal(tres.enf, 691.55);
+  assert.equal(tres.apto, 760.67);
+  const so = planPrices(plano("sulamerica-executivo-pleno"), [0, 0, 0, 0, 0, 0, 0, 0, 0, 3]);
+  assert.equal(so.enf, null);
+  assert.equal(so.apto, 11240.76);
+  // Plano sem a segunda tabela não muda.
+  assert.equal(planPrices(plano("plam-saude-pf"), [3, 0, 0, 0, 0, 0, 0, 0, 0, 0]).enf, 519.09);
+  const pagina = renderizarProposta(montarSnapshot(p, { vidas, over: {}, cliente: "", opts }, corretor));
+  assert.ok(pagina.includes('id="situacao"') && pagina.includes("Prazo contratual") && pagina.includes("52,32"));
+});
+
 test("banco antigo recebe o plano novo uma vez; se excluído, não volta", (t) => {
   const pasta = mkdtempSync(join(tmpdir(), "cotador-novo-"));
   t.after(() => rmSync(pasta, { recursive: true, force: true }));
@@ -428,7 +445,7 @@ test("cadastra documentos e ativa ou inativa por plano", async (t) => {
   assert.equal((await api(`/api/documentos/${rg.id}/planos/plam-saude-pf`, "PUT", { ativo: "sim" })).status, 400);
   assert.equal((await api(`/api/documentos/${rg.id}/planos/nao-existe`, "PUT", { ativo: true })).status, 404);
 
-  assert.equal((await (await api(`/api/documentos/${rg.id}/planos`, "PUT", { ativo: true })).json()).planos.length, 15);
+  assert.equal((await (await api(`/api/documentos/${rg.id}/planos`, "PUT", { ativo: true })).json()).planos.length, 19);
   assert.equal((await (await api(`/api/documentos/${rg.id}/planos`, "PUT", { ativo: false })).json()).planos.length, 0);
 
   assert.equal((await (await api(`/api/documentos/${cpf.id}`, "PUT", { nome: "CPF novo" })).json()).nome, "CPF novo");
