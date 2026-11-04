@@ -5,7 +5,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-export const STATUS = ["Enviada", "Em negociação", "Fechou", "Perdida"];
+export const STATUS = ["Enviada", "Em Negociação", "Vendida", "Negativa"];
 
 const MIGRACOES = [
   `CREATE TABLE planos (
@@ -101,6 +101,7 @@ const MIGRACOES = [
   // Sem mudança na estrutura: marca a chegada do PLAM TOTAL (ver PLANOS_NOVOS).
   () => {},
   "UPDATE planos SET fidelidade = 1 WHERE categoria = 'CNPJ'",
+  "UPDATE cotacoes SET status = CASE status WHEN 'Em negociação' THEN 'Em Negociação' WHEN 'Fechou' THEN 'Vendida' WHEN 'Perdida' THEN 'Negativa' ELSE status END",
 ];
 
 // Planos lançados depois que o banco já existia: entram uma única vez, ao atualizar.

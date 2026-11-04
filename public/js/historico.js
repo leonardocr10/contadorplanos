@@ -3,8 +3,8 @@ import { brl, fmtFone, normFone } from "./calculo.js";
 import { $, S, api, esc, render, show, toast } from "./estado.js";
 import { linkConversaDireta, waHtml } from "./mensagem.js";
 
-const STATUS = ["Enviada", "Em negociação", "Fechou", "Perdida"];
-const stClass = (s) => ({ "Em negociação": "st-neg", "Fechou": "st-ok", "Perdida": "st-off" }[s] || "st-env");
+const STATUS = ["Enviada", "Em Negociação", "Vendida", "Negativa"];
+const stClass = (s) => ({ "Em Negociação": "st-neg", "Vendida": "st-ok", "Negativa": "st-off" }[s] || "st-env");
 const fmtData = (iso) => {
   try { return new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }); } catch { return ""; }
 };

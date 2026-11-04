@@ -113,8 +113,8 @@ test("muda a situação e exclui cotação", async (t) => {
   const c = await (await json("/api/cotacoes", "POST", cotacao())).json();
   assert.equal(c.status, "Enviada");
   assert.equal((await json(`/api/cotacoes/${c.id}`, "PATCH", { status: "Inventada" })).status, 400);
-  assert.equal((await (await json(`/api/cotacoes/${c.id}`, "PATCH", { status: "Fechou" })).json()).status, "Fechou");
-  assert.equal((await (await fetch(`${base}/api/cotacoes?status=Fechou`)).json()).length, 1);
+  assert.equal((await (await json(`/api/cotacoes/${c.id}`, "PATCH", { status: "Vendida" })).json()).status, "Vendida");
+  assert.equal((await (await fetch(`${base}/api/cotacoes?status=Vendida`)).json()).length, 1);
   assert.equal((await fetch(`${base}/api/cotacoes/${c.id}`, { method: "DELETE" })).status, 204);
 });
 
@@ -184,4 +184,21 @@ test("página e pdf.js são servidos localmente", async (t) => {
   if (existsSync(join(raiz, "public", "vendor", "pdfjs", "pdf.min.mjs"))) {
     assert.match((await fetch(base + "/vendor/pdfjs/pdf.min.mjs")).headers.get("content-type"), /javascript/);
   }
+});
+
+test("situações antigas do histórico são convertidas ao atualizar", async () => {
+  const { mkdtempSync, rmSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join: juntar } = await import("node:path");
+  const pasta = mkdtempSync(juntar(tmpdir(), "cotador-status-"));
+  const arq = juntar(pasta, "c.db");
+  let b = new Banco(arq);
+  const inserir = b.db.prepare("INSERT INTO cotacoes (id, fone, cliente, criado_em, tipo, idades, vidas, overrides, planos, mensagem, status) VALUES (?, '34900000000', '', '2026-01-01', 'PF', '', '[]', '{}', '[]', '', ?)");
+  ["Em negociação", "Fechou", "Perdida", "Enviada"].forEach((s, i) => inserir.run("c" + i, s));
+  b.db.exec("PRAGMA user_version = 8");
+  b.fechar();
+  b = new Banco(arq);
+  assert.deepEqual(b.db.prepare("SELECT status FROM cotacoes ORDER BY id").all().map((l) => l.status), ["Em Negociação", "Vendida", "Negativa", "Enviada"]);
+  b.fechar();
+  rmSync(pasta, { recursive: true, force: true });
 });
