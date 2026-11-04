@@ -139,14 +139,14 @@ test("prazos seguem as regras de texto e cor", () => {
 test("seletor traz as situações reais e uma lista por situação", () => {
   const s = montarSnapshot(plano("amil-ouro-total"), { vidas, over: {}, cliente: "", opts }, corretor);
   const P = paraProposta(s);
-  assert.equal(P.situacoes.length, 5);
-  assert.equal(P.situacoes[1], "Sem plano anterior · PRC 607");
+  assert.equal(P.situacoes.length, 3);
+  assert.equal(P.situacoes[0], "Sem plano anterior · PRC 607");
   assert.equal(P.carencias.length, 20);
-  assert.equal(P.carencias[1].prazos[0].texto, "180 dias");
-  assert.equal(P.carencias[1].prazos[1].texto, "1 dia");
+  assert.equal(P.carencias[1].prazos[0].texto, "1 dia");
+  assert.equal(P.carencias[1].prazos[2].texto, "0 dia");
   assert.equal(P.precos.at(-1).destaque, true);
   const html = renderizarProposta(s);
-  assert.equal(html.match(/data-situacao=/g).length, 5);
+  assert.equal(html.match(/data-situacao=/g).length, 3);
   assert.equal(html.match(/class="car-list" data-situacao="\d"( hidden)?/g).filter((x) => !x.includes("hidden")).length, 1);
 });
 
