@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { normFone } from "../public/js/calculo.js";
 import { ErroBackup, STATUS } from "./db.js";
 import { ErroLeitura, MODELO_PADRAO, lerTabela } from "./claude.js";
+import { criarLogin } from "./login.js";
 import { montarSnapshot, renderizarProposta } from "./proposta-html.js";
 
 const MAX_UPLOAD = 15 * 1024 * 1024;
@@ -134,7 +135,7 @@ function validarPedidoDeLinks(b) {
   };
 }
 
-export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env = process.env, clienteClaude, linkPublico = () => ({ estado: "indisponivel", url: null }) }) {
+export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env = process.env, exigirLogin = false, clienteClaude, linkPublico = () => ({ estado: "indisponivel", url: null }) }) {
   const app = express();
   app.disable("x-powered-by");
   mkdirSync(pastaUploads, { recursive: true });
@@ -144,6 +145,8 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     if (["localhost", "127.0.0.1"].includes(req.hostname)) return next();
     res.status(403).json({ erro: "Acesso permitido só neste computador." });
   });
+
+  if (exigirLogin) app.use(criarLogin(env));
 
   const chave = () => (env.ANTHROPIC_API_KEY || "").trim();
   const modelo = () => (env.ANTHROPIC_MODEL || "").trim() || MODELO_PADRAO;

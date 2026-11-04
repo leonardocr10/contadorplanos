@@ -46,6 +46,10 @@ export async function api(url, { metodo = "GET", json, corpo, tipo } = {}) {
   } catch {
     throw new Error("Não consegui falar com o cotador. Verifique se a janela dele está aberta.");
   }
+  if (r.status === 401) {
+    location.href = "/login";
+    throw new Error("Entre com o seu login para continuar.");
+  }
   if (r.status === 204) return null;
   const dados = await r.json().catch(() => null);
   if (!r.ok) {

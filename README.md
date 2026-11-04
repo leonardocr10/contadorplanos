@@ -11,6 +11,17 @@ Se o Node.js não puder ser instalado automaticamente, baixe a versão LTS em ht
 
 Na aba **Meus dados**, preencha seu nome, telefone e corretora. Eles aparecem na imagem e na legenda.
 
+## Login
+
+A tela do cotador pede login e senha, definidos no arquivo `.env`, que não vai para o GitHub:
+
+```
+LOGIN_USUARIO=seu_login
+LOGIN_SENHA=sua_senha
+```
+
+Depois de alterar, reinicie o cotador. As páginas das propostas continuam abrindo sem login para o cliente.
+
 ## Links das propostas
 
 As páginas das propostas ficam abertas para a internet na porta 9090. Execute o `iniciar.bat` como administrador na primeira vez, para ele liberar a porta no firewall do Windows, e preencha no `.env` o endereço público, como `PUBLIC_URL=http://IP_DA_MAQUINA:9090`. A tela do cotador (porta 3210) não tem login e continua abrindo só na própria máquina.

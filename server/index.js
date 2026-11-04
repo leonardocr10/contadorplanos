@@ -34,6 +34,7 @@ const app = criarApp({
   pastaPublica,
   pastaUploads,
   pastaBackups: join(raiz, "backups"),
+  exigirLogin: true,
   linkPublico: () => estadoLinks,
 });
 
