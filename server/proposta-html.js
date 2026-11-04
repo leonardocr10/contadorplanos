@@ -26,6 +26,7 @@ export function montarSnapshot(p, { vidas, over, cliente, opts }, corretor, agor
       id: p.id, nome: p.nome, subtitulo: p.subtitulo, categoria: p.categoria, cidade: p.cidade, taxa: p.taxa, odonto: p.odonto, fidelidade: p.fidelidade,
       corPrimaria: p.corPrimaria, corEscura: p.corEscura,
       beneficios: p.mostrarExtras ? lines(p.extras) : [],
+      observacao: p.mostrarObservacao ? p.descricao : "",
       copartTexto: opts.copart ? p.copartTexto : "",
       copartTabela: temTabela(p.copartTabela) ? p.copartTabela : "", copartNota: p.copartNota,
       carenciaTabela: temTabela(p.carenciaTabela) ? p.carenciaTabela : "", carenciaNota: p.carenciaNota,
@@ -136,6 +137,7 @@ export function paraProposta(s) {
     carencias: tabelaCar.slice(1).map((r) => ({ nome: r[0], prazos: Array.from({ length: nColunas - 1 }, (_, i) => prazo(r[i + 1] ?? "")) })),
     imagemCarencia: p.imgCarencia,
     fidelidade: !!p.fidelidade,
+    observacao: p.observacao || "",
     rodape: [p.copartNota, p.carenciaNota, s.legendaAcomodacao ? "Enfermaria: acomodação compartilhada. Apartamento: acomodação individual." : ""].filter(Boolean),
   };
 }
@@ -382,6 +384,7 @@ label.sel select,label.sel .fs{width:420px;max-width:100%}
 .pill.neutro{background:var(--line-soft);color:var(--ink)}
 .tabimg{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:10px}
 .note{margin:0;font-size:12px;color:var(--muted);line-height:1.45}
+.observacao p{margin:4px 0 0;font-size:13px;line-height:1.45;white-space:pre-line}
 .fidelidade{margin:0;font-size:13px;font-weight:800;color:#a3211f}
 @media (max-width:640px){.main{padding:20px 16px}.side{padding:20px 16px;border-right:0;border-bottom:1px solid var(--line)}h1{font-size:28px}.lado,.prices,.aceitar{width:100%}.price{flex:1 1 100%}.aceitar{flex-direction:column}.painel{position:static;width:100%;max-width:100%;margin-top:8px}.faixas{flex-direction:column}.faixas h2{flex:none}.faixas ul,.faixas li{width:100%}.faixas ul{flex:none}.faixas li{justify-content:space-between;padding:6px 10px}.faixas li b{flex:1 1 100%}}
 `;
@@ -420,6 +423,7 @@ export function renderizarProposta(s, aceitacao = {}, { paraImagem = false } = {
     </div>
     ${blocoFaixas(P.faixas)}
     <div class="cols">${secaoCoparticipacao(P)}${secaoCarencias(P)}</div>
+    ${P.observacao ? `<section class="observacao"><h2>Observação</h2><p>${esc(P.observacao)}</p></section>` : ""}
     ${P.fidelidade ? `<p class="fidelidade">Planos CNPJ geram fidelidade de 1 ano.</p>` : ""}
     ${P.rodape.length ? `<p class="note">${P.rodape.map(esc).join(" ")}</p>` : ""}
   </main>

@@ -150,6 +150,22 @@ test("seletor traz as situações reais e uma lista por situação", () => {
   assert.equal(html.match(/class="car-list" data-situacao="\d"( hidden)?/g).filter((x) => !x.includes("hidden")).length, 1);
 });
 
+test("observação só aparece quando marcada, no link e na imagem", () => {
+  const p = { ...plano("plam-saude-pf"), descricao: "Observação de teste" };
+  assert.ok(!renderizarProposta(montarSnapshot(p, { vidas, over: {}, cliente: "", opts }, corretor)).includes("Observação de teste"));
+  const s = montarSnapshot({ ...p, mostrarObservacao: true }, { vidas, over: {}, cliente: "", opts }, corretor);
+  assert.ok(renderizarProposta(s).includes("Observação de teste"));
+  assert.ok(renderizarProposta(s, {}, { paraImagem: true }).includes("Observação de teste"));
+});
+
+test("marcar observação fica salvo no plano", async (t) => {
+  const { admin } = await subir(t, ativo);
+  const p = (await (await fetch(admin + "/api/planos")).json())[0];
+  assert.equal(p.mostrarObservacao, false);
+  const r = await fetch(admin + "/api/planos/" + p.id, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...p, mostrarObservacao: true }) });
+  assert.equal((await r.json()).mostrarObservacao, true);
+});
+
 test("coparticipação e carências não mostram a quantidade de itens", () => {
   const s = montarSnapshot(plano("plam-saude-pf"), { vidas, over: {}, cliente: "", opts }, corretor);
   for (const html of [renderizarProposta(s), renderizarProposta(s, {}, { paraImagem: true })]) {

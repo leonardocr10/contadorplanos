@@ -90,6 +90,10 @@ const MIGRACOES = [
     }
     db.exec("DELETE FROM config WHERE chave IN ('docsPf', 'docsCnpj')");
   },
+  (db) => {
+    const existe = db.prepare("PRAGMA table_info(planos)").all().some((c) => c.name === "mostrar_observacao");
+    if (!existe) db.exec("ALTER TABLE planos ADD COLUMN mostrar_observacao INTEGER NOT NULL DEFAULT 0");
+  },
 ];
 
 function migrar(db) {
@@ -118,7 +122,7 @@ const COLUNAS_PLANO = {
   carenciaTabela: "carencia_tabela", carenciaNota: "carencia_nota", imgCopart: "img_copart", imgCarencia: "img_carencia",
   corPrimaria: "cor_primaria", corEscura: "cor_escura",
 };
-const COLUNAS_BOOL = { ativo: "ativo", odonto: "odonto", fidelidade: "fidelidade", mostrarExtras: "mostrar_extras" };
+const COLUNAS_BOOL = { ativo: "ativo", odonto: "odonto", fidelidade: "fidelidade", mostrarExtras: "mostrar_extras", mostrarObservacao: "mostrar_observacao" };
 const COLUNAS_JSON = { faixasEnf: "faixas_enf", faixasApto: "faixas_apto" };
 
 function planoParaLinha(p) {

@@ -64,6 +64,7 @@ function validarPlano(b) {
     odonto: !!b.odonto,
     fidelidade: !!b.fidelidade,
     mostrarExtras: !!b.mostrarExtras,
+    mostrarObservacao: !!b.mostrarObservacao,
     cidade: textoOpc(b.cidade, "cidade", 200),
     rede: textoOpc(b.rede, "rede"),
     extras: textoOpc(b.extras, "benefícios"),

@@ -185,3 +185,6 @@ body{margin:0}
   .tabs form button{margin-top:auto}
 }
 @media (max-width:900px){.tabs{flex-wrap:wrap;border-radius:18px}}
+
+/* Salvar sempre à vista no editor do plano. */
+.modal-acoes{position:sticky;bottom:-24px;z-index:2;margin:0 -20px -20px;padding:12px 20px;background:var(--surface);border-top:1px solid var(--line)}

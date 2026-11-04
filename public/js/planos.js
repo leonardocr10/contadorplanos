@@ -77,6 +77,7 @@ function openEditor(p) {
     <label><input type="checkbox" id="e-fid" ${p.fidelidade ? "checked" : ""}> Fidelidade de 1 ano (CNPJ)</label>
     <label><input type="checkbox" id="e-ativo" ${p.ativo !== false ? "checked" : ""}> Mostrar na cotação</label>
     <label><input type="checkbox" id="e-showex" ${p.mostrarExtras ? "checked" : ""}> Mostrar benefícios na proposta</label>
+    <label><input type="checkbox" id="e-showobs" ${p.mostrarObservacao ? "checked" : ""}> Mostrar observação na proposta</label>
   </div>
   <div class="row">
     <div class="field"><label for="e-cidade">Cidade da rede</label><input id="e-cidade" type="text" value="${esc(p.cidade || "")}"></div>
@@ -85,7 +86,7 @@ function openEditor(p) {
     <div class="field"><label for="e-ordem">Ordem na lista</label><input id="e-ordem" type="text" inputmode="numeric" value="${esc(p.ordem ?? "")}"></div>
   </div>
   <div class="field"><label for="e-rede">Rede hospitalar (um hospital por linha)</label><textarea id="e-rede">${esc(p.rede || "")}</textarea></div>
-  <div class="field"><label for="e-desc">Observação do plano (opcional)</label><textarea id="e-desc">${esc(p.descricao || "")}</textarea></div>
+  <div class="field"><label for="e-desc">Observação do plano (opcional; aparece na imagem e no link se marcar "Mostrar observação")</label><textarea id="e-desc">${esc(p.descricao || "")}</textarea></div>
   <div class="field"><label for="e-extras">Benefícios do plano (um por linha; aparecem na proposta se marcar "Mostrar benefícios")</label><textarea id="e-extras">${esc(p.extras || "")}</textarea></div>
   <div class="field"><label for="e-copart">Como funciona a coparticipação</label><textarea id="e-copart">${esc(p.copartTexto || "")}</textarea></div>
   <div class="field"><label for="e-tcop">Tabela de coparticipação da proposta (1ª linha com os títulos; colunas separadas por | ). Quando preenchida, substitui a imagem.</label><textarea id="e-tcop" class="mono">${esc(p.copartTabela || "")}</textarea></div>
@@ -96,7 +97,7 @@ function openEditor(p) {
     <div class="field"><label for="e-imgcop">Imagem da coparticipação</label><select id="e-imgcop">${opt(p.imgCopart)}</select></div>
     <div class="field"><label for="e-imgcar">Imagem das carências</label><select id="e-imgcar">${opt(p.imgCarencia)}</select></div>
   </div>
-  <div class="actions"><button class="btn primary" id="e-save">Salvar plano</button><button class="btn" id="e-cancel">Cancelar</button>${isNew ? "" : `<button class="btn danger" id="e-del">Excluir plano</button>`}</div>
+  <div class="actions modal-acoes"><button class="btn primary" id="e-save">Salvar plano</button><button class="btn" id="e-cancel">Cancelar</button>${isNew ? "" : `<button class="btn danger" id="e-del">Excluir plano</button>`}</div>
   <div id="e-confirm" hidden class="status">Excluir <b>${esc(p.nome)}</b> de vez? <div class="actions" style="margin-top:8px"><button class="btn danger" id="e-del2">Sim, excluir</button><button class="btn" id="e-del-no">Manter</button></div></div>
   <div id="e-msg" class="note"></div>`;
   $("#modal").scrollTop = 0;
@@ -130,7 +131,7 @@ function openEditor(p) {
     const data = {
       nome, categoria: $("#e-cat").value, subtitulo: $("#e-sub").value.trim(),
       enfermaria: parseBRL($("#e-enf").value), apartamento: parseBRL($("#e-apto").value), taxa: parseBRL($("#e-taxa").value),
-      odonto: $("#e-odonto").checked, fidelidade: $("#e-fid").checked, ativo: $("#e-ativo").checked, mostrarExtras: $("#e-showex").checked,
+      odonto: $("#e-odonto").checked, fidelidade: $("#e-fid").checked, ativo: $("#e-ativo").checked, mostrarExtras: $("#e-showex").checked, mostrarObservacao: $("#e-showobs").checked,
       corPrimaria: $("#e-cor1").value, corEscura: $("#e-cor2").value, cidade: $("#e-cidade").value.trim(), ordem: parseBRL($("#e-ordem").value) ?? 0,
       rede: $("#e-rede").value.trim(), descricao: $("#e-desc").value.trim(), extras: $("#e-extras").value.trim(), copartTexto: $("#e-copart").value.trim(),
       copartTabela: $("#e-tcop").value.trim(), copartNota: $("#e-ncop").value.trim(), carenciaTabela: $("#e-tcar").value.trim(), carenciaNota: $("#e-ncar").value.trim(),
