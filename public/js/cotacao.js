@@ -1,7 +1,7 @@
 // Tela "Nova cotação": formulário, cartões de planos, prévia do WhatsApp e imagens da proposta.
 import { FAIXAS, brl, hasFaixas, normFone, parseBRL, planPrices, totalVidas } from "./calculo.js";
 import { $, S, api, esc, render, toast } from "./estado.js";
-import { buildMsg, linkWhatsApp, waHtml } from "./mensagem.js";
+import { buildMsg, linkWhatsApp, textoDosLinks, waHtml } from "./mensagem.js";
 import { paginaParaPng } from "./imagem-proposta.js";
 import { renderHistCli, saveQuote } from "./historico.js";
 
@@ -183,6 +183,45 @@ async function abrirWhatsApp() {
   else toast("Imagem copiada: aperte Ctrl+V na conversa do WhatsApp");
 }
 
+/* ---------- link da proposta ---------- */
+// Em endereço http, como o da VPS, o navegador não oferece a área de transferência moderna.
+async function copiarTexto(texto) {
+  try {
+    await navigator.clipboard.writeText(texto);
+    return true;
+  } catch {
+    const campo = document.createElement("textarea");
+    campo.value = texto;
+    campo.style.cssText = "position:fixed;opacity:0";
+    document.body.append(campo);
+    campo.select();
+    const ok = document.execCommand("copy");
+    campo.remove();
+    return ok;
+  }
+}
+
+// O link leva à página com o botão de aceite. Ele fica visível, caso o navegador recuse a cópia.
+async function copiarLink() {
+  if (!S.selected.length) { toast("Escolha um plano primeiro"); return; }
+  const caixa = $("#links-gerados");
+  let texto;
+  try {
+    const { links } = await api("/api/propostas", {
+      metodo: "POST",
+      json: { planos: [...S.selected], vidas: S.vidas, over: S.over, cliente: nomeCliente(), fone: normFone($("#fone").value), opts: opcoes() },
+    });
+    texto = textoDosLinks(links);
+  } catch (e) {
+    toast(e.message);
+    return;
+  }
+  caixa.textContent = texto;
+  caixa.hidden = false;
+  if (await copiarTexto(texto)) toast(S.linkLocal ? "Link copiado, mas ele só abre neste computador: preencha PUBLIC_URL no .env" : "Link copiado: cole na conversa do cliente");
+  else toast("O navegador bloqueou a cópia: selecione o link abaixo dos botões");
+}
+
 /* ---------- render ---------- */
 let cardTimer;
 export function renderCotacao() {
@@ -194,6 +233,7 @@ export function renderCotacao() {
   $("#av").textContent = (nome[0] || "?").toUpperCase();
   lastAuto = buildMsg({ items: planosEscolhidos(), vidas: S.vidas, over: S.over, nome, corretor: corretor(), opts: opcoes() });
   $("#nota-envio").textContent = "Abrir no WhatsApp leva o texto e copia a imagem: na conversa, aperte Ctrl+V para colar a imagem. Com vários planos, copie as outras imagens nos botões acima. Ao copiar, a cotação fica salva no histórico do número.";
+  $("#links-gerados").hidden = true;
   manual = false;
   $("#rawtxt").value = lastAuto;
   paintChat(lastAuto);
@@ -232,6 +272,7 @@ export function iniciarCotacao() {
       salvar(true);
     }
   };
+  $("#copiar-link").onclick = copiarLink;
   $("#wa").addEventListener("click", (e) => { e.preventDefault(); abrirWhatsApp(); });
   $("#salvar-hist").onclick = async () => {
     if (!currentMsg()) { toast("Escolha um plano primeiro"); return; }

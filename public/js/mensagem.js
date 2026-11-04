@@ -55,6 +55,12 @@ export function buildMsg({ items, vidas, over, nome, corretor, opts }) {
   return L.join("\n");
 }
 
+// Um plano: só o endereço. Vários: o nome de cada plano acima do seu link.
+export function textoDosLinks(links) {
+  if (links.length === 1) return links[0].url;
+  return links.map((l) => `*${l.nome}*\n${l.url}`).join("\n\n");
+}
+
 // Não usa wa.me: o redirecionamento dele troca os emojis do texto por "�".
 export function linkWhatsApp(fone, texto) {
   const telefone = fone ? `phone=55${fone}&` : "";

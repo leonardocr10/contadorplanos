@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { idadesParaVidas } from "../public/js/calculo.js";
-import { buildMsg, linkWhatsApp, mensagemDocumentos, waHtml } from "../public/js/mensagem.js";
+import { buildMsg, linkWhatsApp, textoDosLinks, mensagemDocumentos, waHtml } from "../public/js/mensagem.js";
 
 const planos = JSON.parse(readFileSync(new URL("../dados/planos.json", import.meta.url), "utf8"));
 const plano = (id) => planos.find((p) => p.id === id);
@@ -124,4 +124,9 @@ test("filtro dos selects ignora acentos e maiúsculas e procura também no grupo
 
 test("prévia escapa HTML e aplica negrito", () => {
   assert.equal(waHtml("*<b>*"), "<b>&lt;b&gt;</b>");
+});
+
+test("Copiar link: um plano traz só o endereço; vários trazem o nome de cada um", () => {
+  assert.equal(textoDosLinks([{ nome: "A", url: "http://x/p/1" }]), "http://x/p/1");
+  assert.equal(textoDosLinks([{ nome: "A", url: "http://x/p/1" }, { nome: "B", url: "http://x/p/2" }]), "*A*\nhttp://x/p/1\n\n*B*\nhttp://x/p/2");
 });

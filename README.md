@@ -30,7 +30,7 @@ Depois de alterar, reinicie o cotador. As páginas das propostas continuam abrin
 
 As páginas das propostas ficam abertas para a internet na porta 9090. Execute o `iniciar.bat` como administrador na primeira vez, para ele liberar a porta no firewall do Windows, e preencha no `.env` o endereço público, como `PUBLIC_URL=http://IP_DA_MAQUINA:9090`. A tela do cotador também abre nessa porta, sempre com login. Use uma senha forte e, se possível, um domínio com HTTPS: sem HTTPS, a senha e os dados trafegam sem criptografia.
 
-A mensagem enviada não traz link: vai o texto e a imagem da proposta.
+A mensagem enviada não traz link: vai o texto e a imagem da proposta. O botão **Copiar link** cria a página de cada plano escolhido, com o botão de aceite, e copia o endereço para você enviar ao cliente.
 
 **Por enquanto, o link é local:** ele só abre neste computador, com o cotador ligado, e o cliente não consegue abri-lo. Até ter o domínio, envie também a imagem da proposta. A imagem mostra a mesma página do link, na tela de computador, com a primeira situação de carência. O botão de aceite e o seletor da imagem são só desenho: para aceitar ou trocar a situação, o cliente precisa do link.
 
