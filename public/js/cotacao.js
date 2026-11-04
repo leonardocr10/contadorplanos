@@ -151,6 +151,8 @@ function saveCard(m) {
   salvar(true);
 }
 
+const AVISO_SEM_COPIA = "O navegador não copia imagem neste endereço: ela foi baixada. Arraste o arquivo para a conversa";
+
 async function copiarImagem(m) {
   try {
     await navigator.clipboard.write([new ClipboardItem({ "image/png": m.blob })]);
@@ -163,7 +165,9 @@ async function copiarImagem(m) {
 
 async function copyCard(m) {
   if (!(await copiarImagem(m))) {
-    toast("O navegador bloqueou a cópia da imagem: use Baixar");
+    // Em endereço sem HTTPS o navegador não deixa copiar imagem: o arquivo é baixado no lugar.
+    saveCard(m);
+    toast(AVISO_SEM_COPIA);
     return;
   }
   const ok = await salvar(true);
@@ -178,7 +182,10 @@ async function abrirWhatsApp() {
   const copiou = await copiarImagem(cards[0]);
   window.open(linkWhatsApp(normFone($("#fone").value), currentMsg()), "_blank", "noopener");
   salvar(true);
-  if (!copiou) toast("O texto foi para o WhatsApp, mas o navegador bloqueou a imagem: use Baixar");
+  if (!copiou) {
+    saveCard(cards[0]);
+    toast(AVISO_SEM_COPIA);
+  }
   else if (cards.length > 1) toast(`Imagem de ${cards[0].p.nome} copiada: aperte Ctrl+V na conversa. Copie as outras nos botões Copiar imagem`);
   else toast("Imagem copiada: aperte Ctrl+V na conversa do WhatsApp");
 }
