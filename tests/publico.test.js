@@ -58,7 +58,7 @@ test("benefícios só aparecem com mostrarExtras e opções são respeitadas", (
   const plam = renderizarProposta(montarSnapshot(pl, { vidas, over: {}, cliente: "", opts: { copart: false, rede: false, acom: false } }, corretor));
   assert.ok(!plam.includes("Incluso no plano"));
   assert.ok(!plam.includes(pl.copartTexto));
-  assert.ok(!plam.includes("Rede ·"));
+  assert.ok(!plam.includes("Rede Credenciada"));
   assert.ok(!plam.includes("acomodação compartilhada"));
   assert.ok(!plam.includes('id="situacao"'), "uma só situação não precisa de seletor");
 });

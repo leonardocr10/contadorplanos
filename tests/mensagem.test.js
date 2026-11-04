@@ -32,7 +32,7 @@ test("teste 1: PLAM SAÚDE é idêntico ao modelo", () => {
     "✅ *Total Apartamento: R$ 271,74*",
     "➕ R$ 7,00 de taxa associativa",
     "",
-    "🏨 *Rede credenciada – Uberlândia*",
+    "🏨 *Rede Credenciada*",
     "• Hospital de Clínicas do Triângulo",
     "• Hospital Santa Marta",
     "• Hospital Madrecor",

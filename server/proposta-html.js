@@ -218,7 +218,7 @@ function barraLateral(P) {
     </div>
     ${P.beneficios.length ? `<div class="stack" style="gap:12px"><span class="eyebrow">Incluso no plano</span><div class="stack" style="gap:12px">${P.beneficios.map((b) =>
       `<div class="item">${svg(b.icone)}<span>${esc(b.texto)}${b.detalhe ? ` <span class="small">${esc(b.detalhe)}</span>` : ""}</span></div>`).join("")}</div></div>` : ""}
-    ${P.rede.hospitais.length ? `<div class="stack" style="gap:8px"><span class="eyebrow">Rede · ${esc(P.rede.cidade)}</span><div class="stack" style="gap:8px">${P.rede.hospitais.map((h) =>
+    ${P.rede.hospitais.length ? `<div class="stack" style="gap:8px"><span class="eyebrow">Rede Credenciada</span><div class="stack" style="gap:8px">${P.rede.hospitais.map((h) =>
       `<div class="item">${svg("pin", 16)}<span>${esc(h)}</span></div>`).join("")}</div></div>` : ""}
     ${P.observacao ? `<div class="stack observacao" style="gap:8px"><span class="eyebrow">Observação</span><p>${esc(P.observacao)}</p></div>` : ""}
     ${P.consultor.nome || fone ? `<div class="consultant">
