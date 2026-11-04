@@ -24,7 +24,7 @@ export function renderCat() {
   box.innerHTML = ["PF", "CNPJ"].map((cat) => {
     const l = S.plans.filter((p) => p.categoria === cat);
     if (!l.length) return "";
-    return `<div class="label" style="margin-top:6px">${cat === "PF" ? "Pessoa física" : "CNPJ"}</div>` + l.map((p) => `<div class="catrow"><div class="t"><b>${p.ativo === false ? '<span class="pill off">OCULTO</span>' : ""}${esc(p.nome)}</b><span>Enf. ${p.enfermaria != null ? "R$ " + brl(p.enfermaria) : "—"} · Apto ${p.apartamento != null ? "R$ " + brl(p.apartamento) : "—"}${p.taxa ? " · taxa R$ " + brl(p.taxa) : ""}</span></div><button class="btn" data-ed="${esc(p.id)}">Editar</button></div>`).join("");
+    return `<div class="label" style="margin-top:6px">${cat === "PF" ? "Pessoa física" : "CNPJ"}</div>` + l.map((p) => `<div class="catrow"><div class="t"><b>${p.ativo === false ? '<span class="pill off">OCULTO</span>' : ""}${esc(p.nome)}</b></div><button class="btn" data-ed="${esc(p.id)}">Editar</button></div>`).join("");
   }).join("");
   box.querySelectorAll("[data-ed]").forEach((b) => (b.onclick = () => openEditor(S.plans.find((p) => p.id === b.dataset.ed))));
 }
