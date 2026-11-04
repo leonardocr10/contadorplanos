@@ -75,7 +75,7 @@ function openEditor(p) {
   </div>
   <div class="checks">
     <label><input type="checkbox" id="e-odonto" ${p.odonto ? "checked" : ""}> 12 meses de odontológico incluso</label>
-    <label><input type="checkbox" id="e-fid" ${p.fidelidade ? "checked" : ""}> Fidelidade de 1 ano (CNPJ)</label>
+    <label><input type="checkbox" id="e-fid" ${p.fidelidade ? "checked" : ""}> Prazo de fidelidade de 12 meses para contratação via CNPJ</label>
     <label><input type="checkbox" id="e-ativo" ${p.ativo !== false ? "checked" : ""}> Mostrar na cotação</label>
     <label><input type="checkbox" id="e-showex" ${p.mostrarExtras ? "checked" : ""}> Mostrar benefícios na proposta</label>
     <label><input type="checkbox" id="e-showobs" ${p.mostrarObservacao ? "checked" : ""}> Mostrar observação na proposta</label>
