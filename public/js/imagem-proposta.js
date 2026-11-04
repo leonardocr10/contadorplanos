@@ -1,6 +1,6 @@
-// Transforma o HTML da página da proposta em PNG, para a imagem sair igual ao link.
+// Transforma o HTML da página da proposta em PNG, na tela de computador de 1440×900 do layout.
 // Dentro de um SVG o navegador não busca arquivos externos: fontes e figuras entram no próprio documento.
-const LARGURA = 1280, ESCALA = 2;
+const LARGURA = 1440, ALTURA_MINIMA = 900, ESCALA = 2;
 
 const arquivos = new Map();
 function comoDataUrl(url) {
@@ -37,7 +37,7 @@ async function medirAltura(doc) {
   const quadro = document.createElement("iframe");
   quadro.setAttribute("aria-hidden", "true");
   quadro.tabIndex = -1;
-  quadro.style.cssText = `position:fixed;left:-${LARGURA * 2}px;top:0;width:${LARGURA}px;height:600px;border:0;visibility:hidden`;
+  quadro.style.cssText = `position:fixed;left:-${LARGURA * 2}px;top:0;width:${LARGURA}px;height:${ALTURA_MINIMA}px;border:0;visibility:hidden`;
   quadro.srcdoc = `<!doctype html>${doc.documentElement.outerHTML}`;
   try {
     await new Promise((ok, erro) => {

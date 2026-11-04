@@ -187,19 +187,15 @@ test("texto digitado é escapado", () => {
   assert.ok(!html.includes("onclick"));
 });
 
-test("versão para imagem é a mesma página, sem script nem seletor, e mostra todas as situações", () => {
+test("versão para imagem tem o botão e o seletor do modelo, sem script nem formulário", () => {
   const s = montarSnapshot(plano("amil-ouro-total"), { vidas, over: {}, cliente: "Maria", opts }, corretor);
   const html = renderizarProposta(s, {}, { paraImagem: true });
-  assert.ok(!html.includes("<script") && !html.includes("<select"));
-  assert.ok(html.includes("Proposta para") && html.includes("AMIL OURO"));
-  const proposta = paraProposta(s);
-  assert.ok(proposta.situacoes.length > 1);
-  assert.equal((html.match(/<th>/g) ?? []).length, proposta.situacoes.length + 1);
+  assert.ok(!html.includes("<script") && !html.includes("<form"));
+  assert.ok(html.includes("Aceitar proposta") && html.includes('id="situacao"'));
+  assert.ok(html.includes('class="faixas-lado"') && !html.includes('<section class="faixas"'));
+  assert.ok(html.includes("0 a 18") && html.includes("34 a 38"));
   assert.match(renderizarProposta(s), /<script type="module"/);
-
-  // Plano com uma situação só: o HTML é idêntico ao do link, tirando o script.
-  const simples = montarSnapshot(plano("unimed-udiplan-on-pf"), { vidas, over: {}, cliente: "Maria", opts }, corretor);
-  assert.equal(renderizarProposta(simples, {}, { paraImagem: true }), renderizarProposta(simples).replace(/<script.*<\/script>/, ""));
+  assert.ok(!renderizarProposta(s).includes('class="faixas-lado"'));
 });
 
 test("prévia da imagem funciona sem link ativo e não salva proposta", async (t) => {

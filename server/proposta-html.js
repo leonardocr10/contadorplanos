@@ -206,7 +206,17 @@ function blocoFaixas({ temEnf, temApto, linhas }) {
     </section>`;
 }
 
-function barraLateral(P) {
+// Na imagem, os valores por idade ficam na barra lateral.
+function tabelaFaixasLateral({ temEnf, temApto, linhas }) {
+  if (!linhas.length || (!temEnf && !temApto)) return "";
+  return `<div class="faixas-lado">
+      <span class="eyebrow">Valor por faixa etária</span>
+      <table><thead><tr><th>Idade</th>${temEnf ? "<th>Enf.</th>" : ""}${temApto ? "<th>Apto</th>" : ""}</tr></thead>
+      <tbody>${linhas.map((l) => `<tr><td>${esc(l.faixa)}${l.n > 1 ? ` × ${l.n}` : ""}</td>${temEnf ? `<td>${moeda(l.enf)}</td>` : ""}${temApto ? `<td>${moeda(l.apto)}</td>` : ""}</tr>`).join("")}</tbody></table>
+    </div>`;
+}
+
+function barraLateral(P, paraImagem) {
   const vidas = P.vidas ? `${P.vidas} ${P.vidas === 1 ? "vida" : "vidas"}${P.faixaEtaria ? ` · ${P.faixaEtaria}` : ""}` : "";
   const fone = String(P.consultor.telefone || "").replace(/\D/g, "");
   return `<aside class="side">
@@ -215,6 +225,7 @@ function barraLateral(P) {
       <span class="client">${esc(P.cliente || "Você")}</span>
       ${vidas ? `<span class="small">${esc(vidas)}</span>` : ""}
     </div>
+    ${paraImagem ? tabelaFaixasLateral(P.faixas) : ""}
     ${P.beneficios.length ? `<div class="stack" style="gap:12px"><span class="eyebrow">Incluso no plano</span><div class="stack" style="gap:12px">${P.beneficios.map((b) =>
       `<div class="item">${svg(b.icone)}<span>${esc(b.texto)}${b.detalhe ? ` <span class="small">${esc(b.detalhe)}</span>` : ""}</span></div>`).join("")}</div></div>` : ""}
     ${P.rede.hospitais.length ? `<div class="stack" style="gap:8px"><span class="eyebrow">Rede · ${esc(P.rede.cidade)}</span><div class="stack" style="gap:8px">${P.rede.hospitais.map((h) =>
@@ -250,17 +261,7 @@ function secaoCoparticipacao(P) {
   </section>`;
 }
 
-// Na imagem não há como trocar a situação: todas aparecem, uma por coluna.
-function matrizCarencias(P) {
-  return `<section class="col matriz">
-    <h2>Carências <span class="count">${contagem(P.carencias)}</span></h2>
-    <table><thead><tr><th>Procedimento</th>${P.situacoes.map((s) => `<th>${esc(s)}</th>`).join("")}</tr></thead>
-    <tbody>${P.carencias.map((c) => `<tr><td>${esc(c.nome)}</td>${c.prazos.map((p) => `<td>${p.texto ? `<span class="pill ${nivelPrazo(p.dias)}">${esc(p.texto)}</span>` : ""}</td>`).join("")}</tr>`).join("")}</tbody></table>
-  </section>`;
-}
-
-function secaoCarencias(P, paraImagem) {
-  if (paraImagem && P.situacoes.length > 1 && P.carencias.length) return matrizCarencias(P);
+function secaoCarencias(P) {
   const figura = imagem(P.imagemCarencia, "Tabela de carências");
   if (!P.carencias.length && !figura) return "";
   if (!P.carencias.length) return `<section class="col wide"><h2>Carências</h2>${figura}</section>`;
@@ -279,8 +280,9 @@ function secaoCarencias(P, paraImagem) {
   </section>`;
 }
 
-function botaoAceite(s, { token, aceite }) {
+function botaoAceite(s, { token, aceite }, paraImagem) {
   const opcoes = opcoesDeAceite(s);
+  if (paraImagem) return opcoes.length ? `<details class="aceitar"><summary>Aceitar proposta</summary></details>` : "";
   if (aceite?.aceitoEm || !token || !opcoes.length) return "";
   const unica = opcoes.length === 1;
   return `<details class="aceitar">
@@ -382,7 +384,7 @@ h2 .count{font-size:13px;font-weight:600;color:var(--muted)}
 .car-top{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-end;gap:8px 16px}
 label.sel{display:flex;flex-direction:column;gap:4px;min-width:0;max-width:100%;font-size:12px;font-weight:700;color:var(--muted)}
 select{min-height:40px;width:100%;max-width:420px;padding:0 10px;border:1px solid var(--line);border-radius:10px;font:600 13px Manrope,system-ui,sans-serif;color:var(--ink);background:#fff}
-label.sel .fs{width:320px;max-width:100%}
+label.sel select,label.sel .fs{width:320px;max-width:100%}
 .fs-botao{font-size:13px;font-weight:600}
 .car-list{border-top:1px solid var(--line)}
 .car-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 10px}
@@ -390,20 +392,18 @@ label.sel .fs{width:320px;max-width:100%}
 .pill.ok{background:var(--ok-bg);color:var(--ok)}.pill.low{background:var(--low-bg);color:var(--low)}
 .pill.mid{background:var(--mid-bg);color:var(--mid)}.pill.high{background:var(--high-bg);color:var(--high)}
 .pill.neutro{background:var(--line-soft);color:var(--ink)}
-.matriz{flex-basis:100%}
-.matriz table{width:100%;border-collapse:collapse;font-size:13px;border-top:1px solid var(--line)}
-.matriz th{padding:8px 6px;font-size:11px;font-weight:700;line-height:1.3;text-align:center;vertical-align:bottom;color:var(--muted);border-bottom:1px solid var(--line)}
-.matriz th:first-child{text-align:left;padding-left:10px}
-.matriz td{padding:5px 6px;text-align:center;border-bottom:1px solid var(--line-soft)}
-.matriz td:first-child{text-align:left;padding-left:10px}
-.matriz tbody tr:nth-child(even){background:var(--zebra)}
+.faixas-lado{display:flex;flex-direction:column;gap:6px}
+.faixas-lado table{width:100%;border-collapse:collapse;font-size:11.5px;font-variant-numeric:tabular-nums}
+.faixas-lado th{padding:0 0 4px;font-size:10.5px;font-weight:700;text-align:right;color:var(--muted);border-bottom:1px solid var(--line)}
+.faixas-lado td{padding:4px 0 4px 6px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
+.faixas-lado th:first-child,.faixas-lado td:first-child{padding-left:0;text-align:left;font-weight:800;color:var(--navy)}
 .tabimg{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:10px}
 .note{margin:0;font-size:12px;color:var(--muted);line-height:1.45}
 .fidelidade{margin:0;font-size:13px;font-weight:800;color:#a3211f}
 @media (max-width:640px){.main{padding:20px 16px}.side{padding:20px 16px;border-right:0;border-bottom:1px solid var(--line)}h1{font-size:28px}.lado,.prices,.aceitar{width:100%}.price{flex:1 1 100%}.aceitar{flex-direction:column}.painel{position:static;width:100%;max-width:100%;margin-top:8px}.faixas{flex-direction:column}.faixas h2{flex:none}.faixas ul,.faixas li{width:100%}.faixas ul{flex:none}.faixas li{justify-content:space-between;padding:6px 10px}.faixas li b{flex:1 1 100%}}
 `;
 
-// paraImagem: a mesma página, sem o que só funciona no navegador (script e seletor de situação).
+// paraImagem: a página sem script, com o botão de aceite só desenhado e os valores por idade na barra lateral.
 export function renderizarProposta(s, aceitacao = {}, { paraImagem = false } = {}) {
   const P = paraProposta(s);
   const titulo = `Proposta ${P.plano}`;
@@ -423,7 +423,7 @@ export function renderizarProposta(s, aceitacao = {}, { paraImagem = false } = {
 </head>
 <body>
 <div class="page">
-  ${barraLateral(P)}
+  ${barraLateral(P, paraImagem)}
   <main class="main">
     ${avisoAceito(s, aceitacao)}
     <div class="hero">
@@ -433,10 +433,10 @@ export function renderizarProposta(s, aceitacao = {}, { paraImagem = false } = {
         ${P.subtitulo ? `<span class="sub">${esc(P.subtitulo)}</span>` : ""}
         ${P.taxa ? `<span class="taxa">${esc(P.taxa)}</span>` : ""}
       </div>
-      <div class="lado"><div class="prices">${precos}</div>${botaoAceite(s, aceitacao)}</div>
+      <div class="lado"><div class="prices">${precos}</div>${botaoAceite(s, aceitacao, paraImagem)}</div>
     </div>
-    ${blocoFaixas(P.faixas)}
-    <div class="cols">${secaoCoparticipacao(P)}${secaoCarencias(P, paraImagem)}</div>
+    ${paraImagem ? "" : blocoFaixas(P.faixas)}
+    <div class="cols">${secaoCoparticipacao(P)}${secaoCarencias(P)}</div>
     ${P.fidelidade ? `<p class="fidelidade">Planos CNPJ geram fidelidade de 1 ano.</p>` : ""}
     ${P.rodape.length ? `<p class="note">${P.rodape.map(esc).join(" ")}</p>` : ""}
   </main>
