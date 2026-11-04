@@ -1,7 +1,7 @@
 // Tela "Aceites": clientes que aceitaram a proposta pelo link e o envio da lista de documentos.
 import { brl, fmtFone } from "./calculo.js";
 import { $, S, api, esc, toast } from "./estado.js";
-import { linkWhatsApp, mensagemDocumentos } from "./mensagem.js";
+import { linkConversaDireta, mensagemDocumentos } from "./mensagem.js";
 
 let aceites = [], assinatura = null;
 const fmtData = (iso) => new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
@@ -48,7 +48,7 @@ async function enviarDocumentos(a) {
     return;
   }
   const texto = mensagemDocumentos({ cliente: a.cliente, plano: a.plano, acomodacao: a.acomodacao, valor: a.valor, documentos: a.documentos, corretor: S.cor });
-  window.open(linkWhatsApp(a.fone, texto), "_blank", "noopener");
+  window.open(linkConversaDireta(a.fone, texto, navigator.userAgent), "_blank", "noopener");
   try {
     await api(`/api/aceites/${encodeURIComponent(a.token)}/documentos`, { metodo: "POST", json: {} });
     await carregarAceites();

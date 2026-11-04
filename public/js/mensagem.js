@@ -68,6 +68,13 @@ export function linkWhatsApp(fone, texto) {
   return `https://api.whatsapp.com/send/?${telefone}text=${encodeURIComponent(texto)}`;
 }
 
+// Abre a conversa direto: no computador vai ao WhatsApp Web, sem a página intermediária.
+// No celular, o link normal já abre o aplicativo.
+export function linkConversaDireta(fone, texto, agente = "") {
+  if (/Android|iPhone|iPad|iPod/i.test(agente)) return linkWhatsApp(fone, texto);
+  return `https://web.whatsapp.com/send?phone=55${fone}&text=${encodeURIComponent(texto)}`;
+}
+
 export function mensagemDocumentos({ cliente, plano, acomodacao, valor, documentos, corretor }) {
   const L = [
     cliente ? `Olá, *${cliente}*! Tudo bem? 😊` : "Olá! Tudo bem? 😊",

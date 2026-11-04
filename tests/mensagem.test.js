@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { idadesParaVidas } from "../public/js/calculo.js";
-import { buildMsg, linkWhatsApp, textoDosLinks, mensagemDocumentos, waHtml } from "../public/js/mensagem.js";
+import { buildMsg, linkConversaDireta, linkWhatsApp, textoDosLinks, mensagemDocumentos, waHtml } from "../public/js/mensagem.js";
 
 const planos = JSON.parse(readFileSync(new URL("../dados/planos.json", import.meta.url), "utf8"));
 const plano = (id) => planos.find((p) => p.id === id);
@@ -142,4 +142,12 @@ test("mensagem de documentos informa o valor aceito", () => {
   const msg = mensagemDocumentos({ cliente: "Maria", plano: "PLAM SAÚDE", acomodacao: "Enfermaria", valor: 1234.5, documentos: ["RG"], corretor });
   assert.match(msg, /\(Enfermaria\), no valor de \*R\$ 1\.234,50\* por mês\./);
   assert.ok(!mensagemDocumentos({ cliente: "", plano: "X", acomodacao: "Enfermaria", documentos: [], corretor: {} }).includes("no valor"));
+});
+
+test("enviar documentos abre direto o WhatsApp Web no computador e o aplicativo no celular", () => {
+  const web = new URL(linkConversaDireta("34999990000", "Olá 😊", "Mozilla/5.0 (Windows NT 10.0)"));
+  assert.equal(web.hostname, "web.whatsapp.com");
+  assert.equal(web.searchParams.get("phone"), "5534999990000");
+  assert.equal(web.searchParams.get("text"), "Olá 😊");
+  assert.equal(new URL(linkConversaDireta("34999990000", "Oi", "Mozilla/5.0 (Linux; Android 14)")).hostname, "api.whatsapp.com");
 });
