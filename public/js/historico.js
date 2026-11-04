@@ -31,8 +31,8 @@ export async function saveQuote(dados, silent) {
     await api("/api/cotacoes", { metodo: "POST", json: dados });
     await carregarHistorico();
     return true;
-  } catch {
-    toast("Não deu para salvar no histórico");
+  } catch (e) {
+    toast(`Não deu para salvar no histórico: ${e.message}`);
     return false;
   }
 }
@@ -64,8 +64,8 @@ function wireRows(box) {
         await api(`/api/cotacoes/${encodeURIComponent(h.id)}`, { metodo: "PATCH", json: { status: st.value } });
         await carregarHistorico();
         toast("Situação atualizada");
-      } catch {
-        toast("Não deu para atualizar");
+      } catch (e) {
+        toast(`Não deu para atualizar: ${e.message}`);
       }
     };
     const d = row.querySelector("[data-del]");
@@ -78,8 +78,8 @@ function wireRows(box) {
           await api(`/api/cotacoes/${encodeURIComponent(h.id)}`, { metodo: "DELETE" });
           await carregarHistorico();
           toast("Cotação excluída");
-        } catch {
-          toast("Não deu para excluir");
+        } catch (e) {
+          toast(`Não deu para excluir: ${e.message}`);
         }
       };
     }
