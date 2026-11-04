@@ -62,15 +62,13 @@ function openEditor(p) {
     <div class="field"><label for="e-sub">Subtítulo</label><input id="e-sub" type="text" value="${esc(p.subtitulo || "")}"></div>
   </div>
   <div class="label">Tabela por faixa etária (valor por pessoa)</div>
-  <label><input type="checkbox" id="e-fx3" ${p.faixasModelo === "3" ? "checked" : ""}> Tabela de 3 faixas (0 a 18, 19 a 58 e 59 ou mais)</label>
+  <label ${p.id === "plamedh-basic-pme" ? "" : "style=\"display:none\""}><input type="checkbox" id="e-fx3" ${p.faixasModelo === "3" ? "checked" : ""}> Tabela de 3 faixas (0 a 18, 19 a 58 e 59 ou mais)</label>
   <div class="field"><label for="e-paste">Colar da planilha: copie as 10 linhas do Excel (faixa, enfermaria, apartamento) e cole aqui</label>
     <textarea id="e-paste" style="min-height:56px" placeholder="De 0 a 18 anos	R$ 171,20	R$ 190,04"></textarea></div>
   <div style="overflow-x:auto"><table class="ftab"><thead><tr><th>Faixa</th><th>Enfermaria R$</th><th>Apartamento R$</th></tr></thead><tbody>
     ${FAIXAS.map((f, i) => `<tr id="e-fr-${i}"><td id="e-fl-${i}">${f} anos</td><td><input class="money" type="text" inputmode="decimal" id="e-fe-${i}" value="${brl(p.faixasEnf?.[i])}"></td><td><input class="money" type="text" inputmode="decimal" id="e-fa-${i}" value="${brl(p.faixasApto?.[i])}"></td></tr>`).join("")}
   </tbody></table></div>
   <div class="row">
-    <div class="field"><label for="e-enf">Valor de referência Enfermaria R$ (usado sem idades)</label><input class="money" id="e-enf" type="text" inputmode="decimal" value="${brl(p.enfermaria)}"></div>
-    <div class="field"><label for="e-apto">Valor de referência Apartamento R$ (usado sem idades)</label><input class="money" id="e-apto" type="text" inputmode="decimal" value="${brl(p.apartamento)}"></div>
     <div class="field"><label for="e-taxa">Taxa associativa R$</label><input class="money" id="e-taxa" type="text" inputmode="decimal" value="${brl(p.taxa)}"></div>
   </div>
   <div class="checks">
@@ -139,7 +137,7 @@ function openEditor(p) {
     if (!nome) { $("#e-msg").textContent = "Dê um nome ao plano."; return; }
     const data = {
       nome, categoria: $("#e-cat").value, subtitulo: $("#e-sub").value.trim(),
-      enfermaria: parseBRL($("#e-enf").value), apartamento: parseBRL($("#e-apto").value), taxa: parseBRL($("#e-taxa").value),
+      enfermaria: p.enfermaria ?? null, apartamento: p.apartamento ?? null, taxa: parseBRL($("#e-taxa").value),
       odonto: !!p.odonto, fidelidade: $("#e-fid").checked, ativo: $("#e-ativo").checked, mostrarExtras: $("#e-showex").checked, mostrarObservacao: $("#e-showobs").checked,
       corPrimaria: $("#e-cor1").value, corEscura: $("#e-cor2").value, cidade: $("#e-cidade").value.trim(), ordem: parseBRL($("#e-ordem").value) ?? 0,
       rede: $("#e-rede").value.trim(), descricao: $("#e-desc").value.trim(), extras: $("#e-extras").value.trim(), copartTexto: $("#e-copart").value.trim(),

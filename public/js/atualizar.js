@@ -221,8 +221,6 @@ function renderReview(box) {
           if (ie >= 0) $("#e-fe-" + i).value = brl(R.cols[ie].valores[i]);
           if (ia >= 0) $("#e-fa-" + i).value = brl(R.cols[ia].valores[i]);
         });
-        if (ie >= 0) $("#e-enf").value = brl(R.cols[ie].valores[8]);
-        if (ia >= 0) $("#e-apto").value = brl(R.cols[ia].valores[8]);
       }
       const on = (id) => $("#" + id).checked;
       if (on("uc-taxa")) $("#e-taxa").value = $("#uv-taxa").value;
