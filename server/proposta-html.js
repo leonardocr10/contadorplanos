@@ -191,7 +191,6 @@ const ICONES = {
 };
 const svg = (n, s = 18) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" style="color:var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONES[n]}</svg>`;
 const SVG_TELEFONE = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>';
-const contagem = (lista) => `· ${lista.length} ${lista.length === 1 ? "item" : "itens"}`;
 const imagem = (caminho, alt) => (/^(img|uploads)\/[\w.-]+$/.test(caminho || "") ? `<img class="tabimg" src="/${esc(caminho)}" alt="${esc(alt)}">` : "");
 
 function blocoFaixas({ temEnf, temApto, linhas }) {
@@ -241,7 +240,7 @@ function secaoCoparticipacao(P) {
   if (!P.coparticipacao.length && !figura) return "";
   return `<section class="col">
     <div class="stack" style="gap:2px">
-      <h2>Coparticipação ${P.coparticipacao.length ? `<span class="count">${contagem(P.coparticipacao)}</span>` : ""}</h2>
+      <h2>Coparticipação</h2>
       ${P.copartTexto ? `<span class="explica">${esc(P.copartTexto)}</span>` : ""}
     </div>
     ${P.coparticipacao.length
@@ -264,7 +263,7 @@ function secaoCarencias(P) {
     return `<div class="car-row"><span>${esc(c.nome)}</span>${p.texto ? `<span class="pill ${nivelPrazo(p.dias)}">${esc(p.texto)}</span>` : ""}</div>`;
   }).join("")}</div>`).join("");
   return `<section class="col wide">
-    <div class="car-top"><h2>Carências <span class="count">${contagem(P.carencias)}</span></h2>${seletor}</div>
+    <div class="car-top"><h2>Carências</h2>${seletor}</div>
     ${listas}
   </section>`;
 }
@@ -361,7 +360,6 @@ input[type=radio],input[type=checkbox]{width:18px;height:18px;flex:none;accent-c
 .col{flex:1 1 320px;min-width:0;display:flex;flex-direction:column;gap:10px}
 .col.wide{flex:1.2 1 360px}
 h2{margin:0;font-size:17px;font-weight:800;color:var(--navy)}
-h2 .count{font-size:13px;font-weight:600;color:var(--muted)}
 .explica{font-size:12px;line-height:1.4;color:var(--muted)}
 .copart-head,.copart-row{display:grid;grid-template-columns:minmax(0,1fr) 56px 92px;gap:8px;align-items:center;padding:6px 10px}
 .copart-head{padding-bottom:4px;font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line)}

@@ -150,6 +150,14 @@ test("seletor traz as situações reais e uma lista por situação", () => {
   assert.equal(html.match(/class="car-list" data-situacao="\d"( hidden)?/g).filter((x) => !x.includes("hidden")).length, 1);
 });
 
+test("coparticipação e carências não mostram a quantidade de itens", () => {
+  const s = montarSnapshot(plano("plam-saude-pf"), { vidas, over: {}, cliente: "", opts }, corretor);
+  for (const html of [renderizarProposta(s), renderizarProposta(s, {}, { paraImagem: true })]) {
+    assert.ok(html.includes("<h2>Coparticipação</h2>") && html.includes("<h2>Carências</h2>"));
+    assert.doesNotMatch(html, /· \d+ ite(m|ns)/);
+  }
+});
+
 test("seções sem itens não aparecem e valores sob consulta", () => {
   const vazio = { ...plano("plam-saude-pf"), copartTabela: "", carenciaTabela: "", imgCopart: "", imgCarencia: "", faixasEnf: null, faixasApto: null, enfermaria: null, apartamento: null };
   const html = renderizarProposta(montarSnapshot(vazio, { vidas: Array(10).fill(0), over: {}, cliente: "", opts }, corretor), { token: "x".repeat(22) });
