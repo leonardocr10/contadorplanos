@@ -155,6 +155,8 @@ test("observação só aparece quando marcada, no link e na imagem", () => {
   assert.ok(!renderizarProposta(montarSnapshot(p, { vidas, over: {}, cliente: "", opts }, corretor)).includes("Observação de teste"));
   const s = montarSnapshot({ ...p, mostrarObservacao: true }, { vidas, over: {}, cliente: "", opts }, corretor);
   assert.ok(renderizarProposta(s).includes("Observação de teste"));
+  const html = renderizarProposta(s);
+  assert.ok(html.indexOf("Observação de teste") < html.indexOf("</aside>"), "fica na barra lateral");
   assert.ok(renderizarProposta(s, {}, { paraImagem: true }).includes("Observação de teste"));
 });
 

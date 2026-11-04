@@ -220,6 +220,7 @@ function barraLateral(P) {
       `<div class="item">${svg(b.icone)}<span>${esc(b.texto)}${b.detalhe ? ` <span class="small">${esc(b.detalhe)}</span>` : ""}</span></div>`).join("")}</div></div>` : ""}
     ${P.rede.hospitais.length ? `<div class="stack" style="gap:8px"><span class="eyebrow">Rede · ${esc(P.rede.cidade)}</span><div class="stack" style="gap:8px">${P.rede.hospitais.map((h) =>
       `<div class="item">${svg("pin", 16)}<span>${esc(h)}</span></div>`).join("")}</div></div>` : ""}
+    ${P.observacao ? `<div class="stack observacao" style="gap:8px"><span class="eyebrow">Observação</span><p>${esc(P.observacao)}</p></div>` : ""}
     ${P.consultor.nome || fone ? `<div class="consultant">
       <span class="eyebrow">Seu consultor</span>
       ${P.consultor.nome ? `<span style="font-size:16px;font-weight:800">${esc(P.consultor.nome)}</span>` : ""}
@@ -384,7 +385,7 @@ label.sel select,label.sel .fs{width:420px;max-width:100%}
 .pill.neutro{background:var(--line-soft);color:var(--ink)}
 .tabimg{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:10px}
 .note{margin:0;font-size:12px;color:var(--muted);line-height:1.45}
-.observacao p{margin:4px 0 0;font-size:13px;line-height:1.45;white-space:pre-line}
+.observacao p{margin:0;font-size:13px;line-height:1.45;white-space:pre-line}
 .fidelidade{margin:0;font-size:13px;font-weight:800;color:#a3211f}
 @media (max-width:640px){.main{padding:20px 16px}.side{padding:20px 16px;border-right:0;border-bottom:1px solid var(--line)}h1{font-size:28px}.lado,.prices,.aceitar{width:100%}.price{flex:1 1 100%}.aceitar{flex-direction:column}.painel{position:static;width:100%;max-width:100%;margin-top:8px}.faixas{flex-direction:column}.faixas h2{flex:none}.faixas ul,.faixas li{width:100%}.faixas ul{flex:none}.faixas li{justify-content:space-between;padding:6px 10px}.faixas li b{flex:1 1 100%}}
 `;
@@ -423,7 +424,6 @@ export function renderizarProposta(s, aceitacao = {}, { paraImagem = false } = {
     </div>
     ${blocoFaixas(P.faixas)}
     <div class="cols">${secaoCoparticipacao(P)}${secaoCarencias(P)}</div>
-    ${P.observacao ? `<section class="observacao"><h2>Observação</h2><p>${esc(P.observacao)}</p></section>` : ""}
     ${P.fidelidade ? `<p class="fidelidade">Planos CNPJ geram fidelidade de 1 ano.</p>` : ""}
     ${P.rodape.length ? `<p class="note">${P.rodape.map(esc).join(" ")}</p>` : ""}
   </main>
