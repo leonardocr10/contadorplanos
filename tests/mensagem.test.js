@@ -76,6 +76,14 @@ test("teste 5: dois planos", () => {
   assert.ok(msg.includes("seguem nas imagens."));
 });
 
+test("cada plano mostra a sua coparticipação, e texto igual aparece uma vez", () => {
+  const dois = montar(["plam-saude-pf", "amil-ouro-total"], "35");
+  assert.ok(dois.includes(`*PLAM SAÚDE*\n${plano("plam-saude-pf").copartTexto}`));
+  assert.ok(dois.includes(`*AMIL OURO*\n${plano("amil-ouro-total").copartTexto}`));
+  const iguais = montar(["amil-prata-mg1-total", "amil-ouro-total"], "35");
+  assert.equal(iguais.split(plano("amil-ouro-total").copartTexto).length, 2);
+});
+
 test("teste 6: sem nome e sem Meus dados", () => {
   const msg = montar(["plam-saude-pf"], "35", { nome: "", corretor: {} });
   assert.ok(msg.startsWith("Olá! Tudo bem? 😊\n"));

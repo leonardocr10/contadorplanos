@@ -146,6 +146,35 @@ test("a janela fica fora das telas, para abrir também na Nova cotação", () =>
   assert.ok(pagina.indexOf('id="modal"') > pagina.lastIndexOf("</section>"));
 });
 
+test("o texto de coparticipação segue o modelo e só cita valores da tabela do plano", () => {
+  for (const p of planos) {
+    assert.ok(p.copartTexto.startsWith("Você paga a mensalidade normalmente e, quando usar, "), p.id);
+    assert.ok(p.copartTexto.endsWith("Os valores vêm no boleto do mês seguinte."), p.id);
+    for (const [valor] of p.copartTexto.matchAll(/\d[\d.]*,\d\d/g)) assert.ok(p.copartTabela.includes(valor), `${p.id}: ${valor}`);
+    for (const [pct] of p.copartTexto.matchAll(/\d+%/g)) assert.ok(p.copartTabela.includes(pct), `${p.id}: ${pct}`);
+  }
+});
+
+test("ao atualizar, troca o texto da coparticipação sem mexer em tabela editada", (t) => {
+  const pasta = mkdtempSync(join(tmpdir(), "cotador-txt-"));
+  t.after(() => rmSync(pasta, { recursive: true, force: true }));
+  const caminho = join(pasta, "c.db");
+  const antigo = new Banco(caminho, seed);
+  antigo.db.exec("UPDATE planos SET copart_texto = 'texto antigo'");
+  antigo.db.exec("UPDATE planos SET copart_tabela = 'Procedimento | Valor\nConsulta | R$ 99,00' WHERE id = 'plamedh-pf'");
+  antigo.db.exec("PRAGMA user_version = 10");
+  antigo.fechar();
+  const novo = new Banco(caminho, seed);
+  assert.equal(novo.obterPlano("plam-saude-pf").copartTexto, plano("plam-saude-pf").copartTexto);
+  assert.equal(novo.obterPlano("plamedh-pf").copartTexto, "texto antigo");
+  // Roda uma vez só: um texto editado depois da atualização não é sobrescrito.
+  novo.db.exec("UPDATE planos SET copart_texto = 'meu texto' WHERE id = 'plam-saude-pf'");
+  novo.fechar();
+  const depois = new Banco(caminho, seed);
+  assert.equal(depois.obterPlano("plam-saude-pf").copartTexto, "meu texto");
+  depois.fechar();
+});
+
 test("rota do comparativo aceita de 2 a 4 planos e não salva nada", async (t) => {
   const pasta = mkdtempSync(join(tmpdir(), "cotador-cmp-"));
   const banco = new Banco(join(pasta, "c.db"), seed);

@@ -47,8 +47,13 @@ export function buildMsg({ items, vidas, over, nome, corretor, opts }) {
     if (p.fidelidade) L.push("", "⚠️ *Prazo de fidelidade de 12 meses para contratação via CNPJ*");
   }
   L.push(SEPARADOR);
-  const copart = opts.copart && items.map((p) => (p.copartTexto || "").trim()).find(Boolean);
-  if (copart) L.push("", "❓ *Como funciona a coparticipação?*", copart);
+  // O texto traz os valores da tabela: com textos diferentes, cada plano mostra o seu.
+  const copart = opts.copart ? items.map((p) => ({ nome: p.nome, texto: (p.copartTexto || "").trim() })).filter((c) => c.texto) : [];
+  if (copart.length) {
+    L.push("", "❓ *Como funciona a coparticipação?*");
+    if (new Set(copart.map((c) => c.texto)).size === 1) L.push(copart[0].texto);
+    else copart.forEach((c, i) => L.push(...(i ? [""] : []), `*${c.nome}*`, c.texto));
+  }
   if (opts.acom) L.push("", "_*Enfermaria: acomodação compartilhada._", "_*Apartamento: acomodação individual._");
   L.push("", `📎 As tabelas de coparticipação e carência seguem na${items.length > 1 ? "s imagens" : " imagem"}.`);
   const sig = assinatura(corretor);

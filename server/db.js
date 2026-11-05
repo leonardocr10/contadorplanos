@@ -106,7 +106,11 @@ const MIGRACOES = [
     const colunas = db.prepare("PRAGMA table_info(planos)").all().map((c) => c.name);
     for (const c of ["faixas_enf_familia", "faixas_apto_familia"]) if (!colunas.includes(c)) db.exec(`ALTER TABLE planos ADD COLUMN ${c} TEXT`);
   },
+  // Sem mudança na estrutura: marca os novos textos de coparticipação (ver atualizarTextosCoparticipacao).
+  () => {},
 ];
+
+const VERSAO_TEXTOS_COPARTICIPACAO = 11;
 
 // Planos lançados depois que o banco já existia: entram uma única vez, ao atualizar.
 const PLANOS_NOVOS = [{ id: "plamedh-basic-pme", versao: 6 }, { id: "plam-total-cnpj", versao: 7 }, ...["sulamerica-direto-nacional", "sulamerica-especial-100-rc", "sulamerica-especial-100-r1", "sulamerica-executivo-pleno"].map((id) => ({ id, versao: 10 }))];
@@ -188,6 +192,7 @@ export class Banco {
     migrar(this.db);
     this.semear();
     this.incluirPlanosNovos(versaoAntes);
+    this.atualizarTextosCoparticipacao(versaoAntes);
   }
 
   fechar() {
@@ -201,6 +206,16 @@ export class Banco {
     for (const { id } of novos) {
       const p = planos.find((x) => x.id === id);
       if (p && !this.obterPlano(id)) this.gravarPlano(id, p);
+    }
+  }
+
+  // O texto cita os valores da tabela: plano com a tabela editada fica como está, para não mostrar valor antigo.
+  atualizarTextosCoparticipacao(versaoAntes) {
+    if (versaoAntes === 0 || versaoAntes >= VERSAO_TEXTOS_COPARTICIPACAO) return;
+    if (!this.caminhoSeed || !existsSync(this.caminhoSeed)) return;
+    const atualizar = this.db.prepare("UPDATE planos SET copart_texto = ? WHERE id = ? AND TRIM(copart_tabela) = ?");
+    for (const p of JSON.parse(readFileSync(this.caminhoSeed, "utf8"))) {
+      atualizar.run(p.copartTexto ?? "", p.id, (p.copartTabela ?? "").trim());
     }
   }
 
