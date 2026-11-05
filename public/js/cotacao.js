@@ -1,5 +1,5 @@
 // Tela "Nova cotação": formulário, cartões de planos, prévia do WhatsApp e imagens da proposta.
-import { FAIXAS, brl, hasFaixas, lerArea, locaisDosPlanos, normFone, parseBRL, planPrices, totalVidas, vendidoEm } from "./calculo.js";
+import { FAIXAS, brl, hasFaixas, lerArea, locaisDosPlanos, normFone, parseBRL, planPrices, redeDaCidade, totalVidas, vendidoEm } from "./calculo.js";
 import { $, S, api, esc, render, toast } from "./estado.js";
 import { buildMsg, linkConversaDireta, textoDosLinks, waHtml } from "./mensagem.js";
 import { paginaParaPng } from "./imagem-proposta.js";
@@ -80,7 +80,11 @@ function renderSel() {
   const tv = totalVidas(S.vidas);
   // Com os dois tipos marcados, cada plano diz o seu.
   const misturados = new Set(items.map((p) => p.categoria)).size > 1;
-  const tipoDe = (p) => (misturados ? `${p.categoria === "CNPJ" ? "CNPJ" : "Pessoa física"} · ` : "");
+  const tipoDe = (p) => {
+    // O aviso é só para o corretor: sem rede na cidade, a proposta sai sem essa seção.
+    const semRede = S.municipio && opcoes().rede && !redeDaCidade(p, S.municipio).length ? `Sem rede cadastrada em ${esc(S.municipio)} · ` : "";
+    return `${misturados ? `${p.categoria === "CNPJ" ? "CNPJ" : "Pessoa física"} · ` : ""}${semRede}`;
+  };
   box.innerHTML = `<div class="note">Valores desta cotação:</div>` + items.map((p) => {
     const v = prices(p);
     const remover = `<button class="iconbtn" title="Tirar da proposta" aria-label="Tirar ${esc(p.nome)} da proposta" data-rm="1">×</button>`;
@@ -152,7 +156,7 @@ async function renderCards() {
   try {
     const { paginas } = await api("/api/propostas/previa", {
       metodo: "POST",
-      json: { planos: items.map((p) => p.id), vidas: S.vidas, over: S.over, cliente: nomeCliente(), opts: opcoes() },
+      json: { planos: items.map((p) => p.id), vidas: S.vidas, over: S.over, cliente: nomeCliente(), opts: opcoes(), municipio: S.municipio },
     });
     for (const [i, p] of items.entries()) {
       if (seq !== cardSeq) break;
@@ -268,7 +272,7 @@ async function copiarLink() {
   try {
     const { links } = await api("/api/propostas", {
       metodo: "POST",
-      json: { planos: [...S.selected], vidas: S.vidas, over: S.over, cliente: nomeCliente(), fone: normFone($("#fone").value), opts: opcoes() },
+      json: { planos: [...S.selected], vidas: S.vidas, over: S.over, cliente: nomeCliente(), fone: normFone($("#fone").value), opts: opcoes(), municipio: S.municipio },
     });
     texto = textoDosLinks(links);
   } catch (e) {
@@ -291,7 +295,7 @@ export function renderCotacao() {
   const nome = nomeCliente();
   $("#pv-nome").textContent = nome || "Cliente";
   $("#av").textContent = (nome[0] || "?").toUpperCase();
-  lastAuto = buildMsg({ items: planosEscolhidos(), vidas: S.vidas, over: S.over, nome, corretor: corretor(), opts: opcoes() });
+  lastAuto = buildMsg({ items: planosEscolhidos(), vidas: S.vidas, over: S.over, nome, corretor: corretor(), opts: opcoes(), cidade: S.municipio });
   $("#nota-envio").textContent = "Abrir no WhatsApp leva o texto e copia a imagem: na conversa, aperte Ctrl+V para colar a imagem. Com vários planos, copie as outras imagens nos botões acima. Ao copiar, a cotação fica salva no histórico do número.";
   $("#links-gerados").hidden = true;
   $("#comparar").hidden = planosEscolhidos().length < 2;
@@ -339,7 +343,7 @@ export function iniciarCotacao() {
   $("#copiar-link").onclick = copiarLink;
   $("#comparar").onclick = () => abrirComparativo(
     planosEscolhidos(),
-    { vidas: S.vidas, over: S.over, cliente: nomeCliente(), opts: opcoes() },
+    { vidas: S.vidas, over: S.over, cliente: nomeCliente(), opts: opcoes(), municipio: S.municipio },
     { copiar: copyCard, baixarPdf: savePdf },
   );
   $("#wa").addEventListener("click", (e) => { e.preventDefault(); abrirWhatsApp(); });

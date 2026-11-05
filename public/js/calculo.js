@@ -99,6 +99,26 @@ export function vendidoEm(plano, uf, cidade) {
   return !cidade || estado.cidades.some((c) => semAcento(c) === semAcento(cidade));
 }
 
+// A rede que vale na cidade. "Hospital – Araxá" é de Araxá; a linha sem cidade é da cidade do plano.
+// O traço só indica cidade quando ela está na área: "LABAC – Laboratório" é parte do nome.
+export function redeDaCidade(plano, cidade) {
+  const linhas = lines(plano.rede);
+  if (!cidade) return linhas;
+  const naArea = new Set(lerArea(plano.areaComercializacao).estados.flatMap((e) => e.cidades).map(semAcento));
+  const alvo = semAcento(cidade), cidadeDoPlano = semAcento(plano.cidade);
+  const rede = [];
+  for (const linha of linhas) {
+    const m = linha.match(/^(.*\S)\s+[–-]\s+(\S.*)$/);
+    if (m && naArea.has(semAcento(m[2]))) {
+      if (semAcento(m[2]) === alvo) rede.push(m[1]);
+    } else if (!naArea.has(cidadeDoPlano) || cidadeDoPlano === alvo) {
+      // Plano sem área ou com região no lugar da cidade ("Triângulo Mineiro"): não dá para separar.
+      rede.push(linha);
+    }
+  }
+  return rede;
+}
+
 // Estados e cidades que têm algum plano, em ordem alfabética.
 export function locaisDosPlanos(planos) {
   const porUf = new Map();

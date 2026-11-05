@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { lerArea, locaisDosPlanos, vendidoEm } from "../public/js/calculo.js";
+import { lerArea, locaisDosPlanos, redeDaCidade, vendidoEm } from "../public/js/calculo.js";
+import { buildMsg } from "../public/js/mensagem.js";
+import { montarSnapshot, renderizarProposta } from "../server/proposta-html.js";
+import { renderizarComparativo } from "../server/comparativo-html.js";
 import { Banco } from "../server/db.js";
 import { criarApp } from "../server/app.js";
 
@@ -25,6 +28,49 @@ test("filtra por estado e cidade, sem diferenciar acento", () => {
   assert.ok(vendidoEm(p, "MG", "uberlandia"));
   assert.ok(!vendidoEm(p, "MG", "Catalão"));
   assert.ok(!vendidoEm(p, "SP", ""));
+});
+
+test("a rede mostra só a cidade escolhida", () => {
+  const plamedh = planos.find((p) => p.id === "plamedh-pf");
+  assert.deepEqual(redeDaCidade(plamedh, "Uberlândia"), ["Hospital UMC", "Hospital do Triângulo"]);
+  assert.deepEqual(redeDaCidade(plamedh, "araxa"), ["Melhoramentos Dom Bosco"]);
+  assert.deepEqual(redeDaCidade(plamedh, "Prata"), []);
+  // Sem cidade escolhida, a rede fica completa.
+  assert.equal(redeDaCidade(plamedh, "").length, 6);
+});
+
+test("linha sem cidade é da cidade do plano, e traço no nome não é cidade", () => {
+  const basic = planos.find((p) => p.id === "plamedh-basic-pme");
+  assert.ok(redeDaCidade(basic, "Uberlândia").includes("LABAC – Laboratório de Análises Clínicas"));
+  assert.deepEqual(redeDaCidade(basic, "Uberaba"), []);
+  const plam = planos.find((p) => p.id === "plam-saude-pf");
+  assert.ok(redeDaCidade(plam, "Uberlândia").includes("Laboratório Exame – Unidade Hospital do Triângulo"));
+});
+
+test("plano sem área ou com região no lugar da cidade não perde a rede", () => {
+  assert.deepEqual(redeDaCidade({ rede: "Hospital A\nHospital B – Araxá", cidade: "Uberlândia", areaComercializacao: "" }, "Uberaba"), ["Hospital A", "Hospital B – Araxá"]);
+  assert.deepEqual(redeDaCidade({ rede: "Hospital A\nHospital B – Araxá", cidade: "Triângulo Mineiro", areaComercializacao: "MG: Araxá, Prata" }, "Prata"), ["Hospital A"]);
+});
+
+test("mensagem, imagem e comparativo usam a rede da cidade", () => {
+  const plamedh = planos.find((p) => p.id === "plamedh-pf"), amil = planos.find((p) => p.id === "amil-ouro-total");
+  const corretor = { nome: "C", fone: "34999990000", empresa: "E" }, opts = { copart: true, rede: true, acom: true };
+  const pedido = { vidas: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0], over: {}, cliente: "", opts, municipio: "Ituiutaba" };
+  const msg = buildMsg({ items: [plamedh], vidas: pedido.vidas, over: {}, nome: "", corretor, opts, cidade: "Ituiutaba" });
+  assert.ok(msg.includes("🏨 *Rede Credenciada em Ituiutaba*\n• Hospital Nossa Senhora da Abadia\n"));
+  assert.ok(!msg.includes("Hospital UMC"));
+  const snap = montarSnapshot(plamedh, pedido, corretor);
+  assert.deepEqual(snap.plano.rede, ["Hospital Nossa Senhora da Abadia"]);
+  const pagina = renderizarProposta(snap, {}, { paraImagem: true });
+  assert.ok(pagina.includes("Rede Credenciada em Ituiutaba") && pagina.includes("Hospital Nossa Senhora da Abadia") && !pagina.includes("Hospital UMC"));
+  const comparativo = renderizarComparativo([plamedh, plamedh].map((p) => montarSnapshot(p, pedido, corretor)));
+  assert.ok(comparativo.includes("Rede credenciada em Ituiutaba") && !comparativo.includes("Hospital UMC"));
+  // Sem rede na cidade, a seção some em vez de mostrar outra cidade.
+  const semRede = buildMsg({ items: [amil], vidas: pedido.vidas, over: {}, nome: "", corretor, opts, cidade: "Uberaba" });
+  assert.ok(!semRede.includes("Rede Credenciada") && !semRede.includes("Madrecor"));
+  // Sem cidade, nada muda.
+  const completa = buildMsg({ items: [plamedh], vidas: pedido.vidas, over: {}, nome: "", corretor, opts });
+  assert.ok(completa.includes("🏨 *Rede Credenciada*\n• Hospital UMC – Uberlândia\n"));
 });
 
 test("plano sem área cadastrada continua aparecendo", () => {

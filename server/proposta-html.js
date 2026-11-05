@@ -1,5 +1,5 @@
 // Página HTML da proposta, aberta pelo cliente: layout com painel lateral, sem rolagem no computador.
-import { brl, lines, normFone, parseBRL, planPrices, r2, totalVidas } from "../public/js/calculo.js";
+import { brl, lines, normFone, parseBRL, planPrices, r2, redeDaCidade, totalVidas } from "../public/js/calculo.js";
 import { linkConversaDireta } from "../public/js/mensagem.js";
 import { hex2rgb, lumRGB, mixRGB, toHex } from "../public/js/cores.js";
 
@@ -8,7 +8,7 @@ export const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&a
 const temTabela = (t) => String(t || "").includes("|");
 export const moeda = (v) => `R$ ${brl(v)}`;
 
-export function montarSnapshot(p, { vidas, over, cliente, opts }, corretor, agora = new Date()) {
+export function montarSnapshot(p, { vidas, over, cliente, opts, municipio = "" }, corretor, agora = new Date()) {
   const v = planPrices(p, vidas, over);
   return {
     cliente,
@@ -33,7 +33,8 @@ export function montarSnapshot(p, { vidas, over, cliente, opts }, corretor, agor
       carenciaTabela: temTabela(p.carenciaTabela) ? p.carenciaTabela : "", carenciaNota: p.carenciaNota,
       imgCopart: temTabela(p.copartTabela) ? "" : p.imgCopart,
       imgCarencia: temTabela(p.carenciaTabela) ? "" : p.imgCarencia,
-      rede: opts.rede ? lines(p.rede) : [],
+      rede: opts.rede ? redeDaCidade(p, municipio) : [],
+      redeCidade: municipio,
     },
     legendaAcomodacao: !!opts.acom,
   };
@@ -131,7 +132,7 @@ export function paraProposta(s) {
     cotacao: s.data,
     precos: opcoes.map((o, i) => ({ label: o.nome, valor: o.valor, destaque: i === opcoes.length - 1 })),
     beneficios,
-    rede: { cidade: p.cidade || "Uberlândia", hospitais: p.rede },
+    rede: { cidade: p.cidade || "Uberlândia", hospitais: p.rede, titulo: `Rede Credenciada${p.redeCidade ? ` em ${p.redeCidade}` : ""}` },
     consultor: { nome: c.nome, corretora: c.empresa, telefone: c.fone },
     copartTexto: p.copartTexto,
     coparticipacao: tabelaCop.slice(1).map(linhaCoparticipacao),
@@ -240,7 +241,7 @@ function barraLateral(P) {
     </div>
     ${P.beneficios.length ? `<div class="stack" style="gap:12px"><span class="eyebrow">Incluso no plano</span><div class="stack" style="gap:12px">${P.beneficios.map((b) =>
       `<div class="item">${svg(b.icone)}<span>${esc(b.texto)}${b.detalhe ? ` <span class="small">${esc(b.detalhe)}</span>` : ""}</span></div>`).join("")}</div></div>` : ""}
-    ${P.rede.hospitais.length ? `<div class="stack" style="gap:8px"><span class="eyebrow">Rede Credenciada</span><div class="stack" style="gap:8px">${P.rede.hospitais.map((h) =>
+    ${P.rede.hospitais.length ? `<div class="stack" style="gap:8px"><span class="eyebrow">${esc(P.rede.titulo)}</span><div class="stack" style="gap:8px">${P.rede.hospitais.map((h) =>
       `<div class="item">${svg("pin", 16)}<span>${esc(h)}</span></div>`).join("")}</div></div>` : ""}
     ${P.observacao ? `<div class="stack observacao" style="gap:8px"><span class="eyebrow">Observação</span><p>${esc(P.observacao)}</p></div>` : ""}
     ${P.consultor.nome || fone ? `<div class="consultant">

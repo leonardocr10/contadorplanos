@@ -139,7 +139,7 @@ const MARCA = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" strok
 function blocoRede(propostas) {
   const rede = montarRede(propostas);
   if (!rede.length) return "";
-  return secao("Rede credenciada", propostas.length) + rede.map((item) => `<tr class="rede"><th scope="row">${esc(item.nome)}</th>${propostas.map((P, i) => `<td>${
+  return secao(propostas[0].rede.titulo.replace("Rede Credenciada", "Rede credenciada"), propostas.length) + rede.map((item) => `<tr class="rede"><th scope="row">${esc(item.nome)}</th>${propostas.map((P, i) => `<td>${
     !P.rede.hospitais.length ? "Não informada" : item.planos.has(i) ? `<span class="sim">${MARCA}</span>` : VAZIO
   }</td>`).join("")}</tr>`).join("");
 }

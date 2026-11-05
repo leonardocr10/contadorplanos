@@ -147,6 +147,7 @@ function validarPedidoDeLinks(b) {
   return {
     planos: b.planos, vidas: b.vidas, over, cliente: textoOpc(b.cliente, "cliente", 200), fone: normFone(b.fone),
     opts: { copart: o.copart !== false, rede: o.rede !== false, acom: o.acom !== false },
+    municipio: textoOpc(b.municipio, "cidade", 200),
   };
 }
 

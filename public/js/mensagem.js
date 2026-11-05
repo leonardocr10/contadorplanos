@@ -1,5 +1,5 @@
 // Mensagem do WhatsApp no Modelo A e demais textos (funções puras).
-import { brl, lines, planPrices, totalVidas } from "./calculo.js";
+import { brl, lines, planPrices, redeDaCidade, totalVidas } from "./calculo.js";
 
 function assinatura(c) {
   const contato = [c.empresa, c.fone].filter(Boolean).join(" · ");
@@ -27,7 +27,7 @@ function blocoValores(L, v, vidas) {
   if (v.apto != null) L.push(`✅ *Apartamento: R$ ${brl(v.apto)}*`);
 }
 
-export function buildMsg({ items, vidas, over, nome, corretor, opts }) {
+export function buildMsg({ items, vidas, over, nome, corretor, opts, cidade = "" }) {
   if (!items.length) return "";
   const nomes = items.map((p) => `*${p.nome}*`);
   const L = [
@@ -41,8 +41,8 @@ export function buildMsg({ items, vidas, over, nome, corretor, opts }) {
     if (p.taxa) L.push(`➕ R$ ${brl(p.taxa)} de taxa associativa`);
     if (p.odonto) L.push("🦷 12 meses de plano odontológico incluso");
     if (p.mostrarExtras && lines(p.extras).length) L.push("", "🎁 *Benefícios do plano*", ...lines(p.extras));
-    const rede = lines(p.rede);
-    if (opts.rede && rede.length) L.push("", "🏨 *Rede Credenciada*", ...rede.map((h) => `• ${h}`));
+    const rede = redeDaCidade(p, cidade);
+    if (opts.rede && rede.length) L.push("", `🏨 *Rede Credenciada${cidade ? ` em ${cidade}` : ""}*`, ...rede.map((h) => `• ${h}`));
     if (p.mostrarObservacao && p.descricao) L.push("", "📝 *Observação*", p.descricao);
     if (p.fidelidade) L.push("", "⚠️ *Prazo de fidelidade de 12 meses para contratação via CNPJ*");
   }
