@@ -69,9 +69,10 @@ function renderPlans() {
     const pr = v.porFaixa ? `Enf. R$ ${brl(v.enf) || "—"} · Apto R$ ${brl(v.apto) || "—"}`
       : hasFaixas(p) && !totalVidas(S.vidas) ? "Tabela por faixa etária: informe os beneficiários"
       : v.enf || v.apto ? `Enf. R$ ${brl(v.enf) || "—"} · Apto R$ ${brl(v.apto) || "—"}` : "Valores sob consulta";
-    return `<button class="plan" aria-pressed="${S.selected.includes(p.id)}" data-id="${esc(p.id)}"><b>${esc(p.nome)}</b><span>${pr}</span>${semArea}</button>`;
+    return `<button class="plan" aria-pressed="${S.selected.includes(p.id)}" aria-disabled="${!totalVidas(S.vidas)}" data-id="${esc(p.id)}"><b>${esc(p.nome)}</b><span>${pr}</span>${semArea}</button>`;
   }).join("");
   box.querySelectorAll(".plan").forEach((b) => (b.onclick = () => {
+    if (!totalVidas(S.vidas)) { toast("Informe a faixa etária dos beneficiários antes de marcar o plano"); return; }
     const id = b.dataset.id;
     S.selected = S.selected.includes(id) ? S.selected.filter((x) => x !== id) : [...S.selected, id];
     render();
@@ -329,6 +330,11 @@ async function copiarLink() {
 /* ---------- render ---------- */
 let cardTimer;
 export function renderCotacao() {
+  // Sem beneficiários não há o que cotar: zerar as faixas também desmarca os planos.
+  if (S.selected.length && !totalVidas(S.vidas)) {
+    S.selected = [];
+    toast("Planos desmarcados: informe a faixa etária dos beneficiários");
+  }
   renderLocal();
   renderFaixas();
   renderPlans();
