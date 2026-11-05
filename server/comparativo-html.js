@@ -26,7 +26,7 @@ const COPARTICIPACAO = [
 const CARENCIAS = [
   { titulo: "Urgência e emergência", tem: /urgencia|pronto.?socorro/ },
   { titulo: "Consulta", tem: /consulta/, exceto: /pronto/ },
-  { titulo: "Exames básicos", tem: /exames.*basicos|exames laboratoriais/ },
+  { titulo: "Exames básicos", tem: /exames.*basicos|exames laboratoriais|exames? simples/ },
   { titulo: "Terapias", tem: /\bterapias?\b|fisioterapia/, exceto: /exceto|quimio/ },
   { titulo: "Internação", tem: /interna|ambiente hospitalar/, exceto: /obstetr|psiqui/ },
   { titulo: "Parto", tem: /parto|obstetr/ },
@@ -54,7 +54,7 @@ function linhaDeCarencia(regra, P) {
 
 // O mesmo hospital aparece com nomes diferentes nas tabelas das operadoras.
 const APELIDOS = { "uberlandia medical center": "umc", "orthomed center": "orthomed", "clinicas do triangulo": "triangulo" };
-const semCidade = (nome) => nome.replace(/\s+[–-]\s+(Uberlândia|Ituiutaba|Araguari|Tupaciguara|Araxá)$/i, "").trim();
+const semCidade = (nome) => nome.replace(/\s+[–-]\s+(Uberlândia|Uberaba|Patos de Minas|Ituiutaba|Araguari|Tupaciguara|Araxá)$/i, "").trim();
 function chaveDaRede(nome) {
   const limpo = normalizar(semCidade(nome)).replace(/\bhospital\b/g, "").replace(/\s+/g, " ").trim().replace(/^(de|do|da) /, "");
   return APELIDOS[limpo] ?? limpo;

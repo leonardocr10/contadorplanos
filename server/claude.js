@@ -18,9 +18,11 @@ export class ErroLeitura extends Error {
 }
 
 export function montarPrompt(nome, sub) {
-  return `Você ajuda um corretor de planos de saúde de Uberlândia (MG). As imagens são páginas do material de vendas de uma operadora, na ordem (imagem 1, imagem 2, ...). O corretor está atualizando o plano "${nome}"${sub ? ` (${sub})` : ""} no cotador dele.
+  const objetivo = nome.trim() ? `está atualizando o plano "${nome}"${sub ? ` (${sub})` : ""}` : "está cadastrando um plano novo";
+  return `Você ajuda um corretor de planos de saúde de Uberlândia (MG). As imagens são páginas do material de vendas de uma operadora, na ordem (imagem 1, imagem 2, ...). O corretor ${objetivo} no cotador dele.
 Leia todo o material e responda SOMENTE com um JSON neste formato:
-{"colunas":[{"titulo":"plano + acomodação ou tipo + tipo de coparticipação, como aparece","valores":[10 números ou null]}],
+{"nomePlano":"nome em maiúsculas","subtituloPlano":"texto curto",
+"colunas":[{"titulo":"plano + acomodação ou tipo + tipo de coparticipação, como aparece","valores":[10 números ou null]}],
 "colunaEnfermaria":número,"colunaApartamento":número,
 "taxaAssociativa":número ou null,
 "cidade":"cidade ou região da rede",
@@ -34,13 +36,15 @@ Leia todo o material e responda SOMENTE com um JSON neste formato:
 "tabelaCoparticipacao":{"pagina":número,"retangulos":[{"x":0.0,"y":0.0,"w":0.0,"h":0.0}]} ou null,
 "tabelaCarencia":{"pagina":número,"retangulos":[{"x":0.0,"y":0.0,"w":0.0,"h":0.0}]} ou null}
 Instruções:
+- nomePlano: operadora e produto em maiúsculas, como "PLAMEDH BASIC". Quando a tabela reunir produtos diferentes para enfermaria e apartamento, use só o nome da operadora.
+- subtituloPlano: produtos, acomodações, tipo de contratação e administradora, como "Basic (Enfermaria) e Select (Apartamento) Adesão – com coparticipação".
 - colunas: TODAS as colunas de preço mensal por faixa etária. As 10 faixas da ANS, nesta ordem: 0-18, 19-23, 24-28, 29-33, 34-38, 39-43, 44-48, 49-53, 54-58, 59 ou mais. Números com ponto decimal ("R$ 1.168,14" vira 1168.14); null onde estiver vazio ou com traço.
 - colunaEnfermaria / colunaApartamento: índice (a partir de 0) da coluna que corresponde a este plano em enfermaria (ou coletivo) e em apartamento (ou individual); -1 se não existir.
 - taxaAssociativa: valor mensal da taxa associativa ou de filiação, se houver.
-- rede: hospitais da região de Uberlândia e Triângulo Mineiro que valem para este plano (com a cidade quando houver várias cidades); [] se o material não listar.
+- rede: todos os hospitais, laboratórios e clínicas da região de Uberlândia e Triângulo Mineiro que valem para este plano, um por item. Com várias cidades, escreva "Prestador – Cidade". [] se o material não listar.
 - extras: até 6 itens, como odontológico incluso, telemedicina, SOS ou remoção, laboratórios e clínicas de imagem, quem pode aderir.
 - descricao: 2 a 4 frases simples para o cliente: tipo de contratação e segmentação, condições de carência ou redução de carência, mês de reajuste e regras importantes de idade ou dependentes.
-- coparticipacaoTexto: 1 a 2 frases explicando a coparticipação deste plano com os principais valores, terminando com "Os valores vêm no boleto do mês seguinte." quando for o caso.
+- coparticipacaoTexto: siga este modelo, trocando os itens e valores pelos da tabela deste plano: "Você paga a mensalidade normalmente e, quando usar, paga uma parte com teto por item: consultas eletivas 30% (até R$ 30,00), pronto-socorro 40% (até R$ 90,00), exames básicos e especiais 30%, terapias 40% (até R$ 60,00) e internação R$ 220,00. Os valores vêm no boleto do mês seguinte." Escreva "um valor fixo por item" quando todos os valores forem fixos e "uma parte por item" quando houver valores fixos e percentuais. Os valores do modelo são só exemplo: use apenas os do material.
 - tabelaCoparticipacaoTexto: a tabela de coparticipação DESTE plano reescrita de forma limpa para o cliente. Primeira linha com os títulos das colunas, depois uma linha por procedimento, colunas separadas por " | " e linhas separadas por quebra de linha. Só as colunas deste plano. Copie fielmente todas as linhas, nomes e valores exatamente como estão no material, sem resumir, juntar ou omitir nada.
 - tabelaCarenciaTexto: a tabela de carências no mesmo formato, copiando fielmente todas as linhas, colunas e prazos exatamente como estão no material, sem resumir, juntar ou omitir nada.
 - corPrimaria / corEscura: as cores da identidade visual da operadora usadas nas tabelas do material (a principal e uma versão mais escura para fundo de cabeçalho), em hexadecimal.
@@ -94,6 +98,8 @@ export function normalizarLeitura(r, totalPaginas) {
   // Colunas vazias saem da lista, então os índices escolhidos pelo modelo precisam acompanhar.
   const indice = (v) => (Number.isInteger(v) && novoIndice.has(v) ? novoIndice.get(v) : -1);
   return {
+    nomePlano: texto(r?.nomePlano).slice(0, 120),
+    subtituloPlano: texto(r?.subtituloPlano).slice(0, 200),
     colunas,
     colunaEnfermaria: indice(r?.colunaEnfermaria),
     colunaApartamento: indice(r?.colunaApartamento),

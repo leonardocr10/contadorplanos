@@ -68,6 +68,19 @@ test("plano sem a acomodação não concorre ao menor valor da faixa", () => {
   assert.deepEqual(destaquesDaLinha(html, "0 a 18 anos · 2 vidas"), [[], ["Apto"]]);
 });
 
+test("plano da Aurora entra no comparativo com logo, exames simples e rede sem a cidade", () => {
+  const aurora = {
+    ...plano("plamedh-pf"), id: "aurora", nome: "AURORA SAÚDE",
+    carenciaTabela: "Coberturas | Carência contratual\nExame Simples | 24 horas\nCobertura Parcial Temporaria | 720 dias",
+    rede: "Hospital Santa Lúcia – Uberaba\nHospital Vera Cruz – Patos de Minas",
+  };
+  const html = renderizarComparativo([aurora, plano("plam-saude-pf")].map((p) => montarSnapshot(p, pedido, corretor)));
+  assert.ok(html.includes("/img/logo-aurora.png"));
+  assert.equal(celulas(html, "Exames básicos")[0], "24 horas");
+  assert.equal(celulas(html, "Preexistência")[0], "24 meses");
+  assert.equal(celulas(html, "Hospital Vera Cruz").length, 2);
+});
+
 test("compara pessoa física com CNPJ e mostra o tipo de cada coluna", () => {
   const html = comparar("plam-saude-pf", "plam-total-cnpj");
   assert.deepEqual([...html.matchAll(/<span class="tipo">(.*?)<\/span>/g)].map((m) => m[1]), ["Pessoa física", "CNPJ"]);

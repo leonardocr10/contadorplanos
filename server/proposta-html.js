@@ -221,6 +221,7 @@ const LOGOS = [
   [/^AMIL/i, "amil", "Amil"],
   [/^UNIMED/i, "unimed", "Unimed Uberlândia"],
   [/^SUL\s?AM[ÉE]RICA/i, "sulamerica", "SulAmérica"],
+  [/^AURORA/i, "aurora", "Aurora Saúde"],
 ];
 
 export function logoDoPlano(nome) {

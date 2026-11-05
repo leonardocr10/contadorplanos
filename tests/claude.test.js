@@ -13,6 +13,17 @@ test("prompt cita o plano e exige copiar fielmente", () => {
   assert.ok(!montarPrompt("X", "").includes("()"));
 });
 
+test("plano novo: o prompt não cita plano vazio e pede nome, subtítulo e o texto no modelo", () => {
+  const p = montarPrompt("", "Plano com coparticipação");
+  assert.ok(p.includes("está cadastrando um plano novo"));
+  assert.ok(!p.includes('plano ""'));
+  assert.match(p, /"nomePlano"/);
+  assert.match(p, /Você paga a mensalidade normalmente e, quando usar,/);
+  const r = normalizarLeitura({ nomePlano: " AURORA SAÚDE ", subtituloPlano: " A300 e A500 " }, 1);
+  assert.equal(r.nomePlano, "AURORA SAÚDE");
+  assert.equal(r.subtituloPlano, "A300 e A500");
+});
+
 test("extrai JSON mesmo com cercas de código", () => {
   assert.deepEqual(extrairJson('```json\n{"a":1}\n```'), { a: 1 });
   assert.throws(() => extrairJson("não sei"), ErroLeitura);

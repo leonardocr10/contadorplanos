@@ -159,6 +159,7 @@ async function lerTudo() {
     const imagens = await Promise.all(pagesSent.map((i) => paginaParaBase64(U.pages[i].blob)));
     const r = await api("/api/ler-tabela", { metodo: "POST", json: { nome: $("#e-nome")?.value || "", subtitulo: $("#e-sub")?.value || "", imagens } });
     U.res = {
+      nome: r.nomePlano, sub: r.subtituloPlano,
       cols: r.colunas, ie: r.colunaEnfermaria, ia: r.colunaApartamento,
       taxa: r.taxaAssociativa, cidade: r.cidade, rede: r.rede, extras: r.extras, odonto: r.odontoIncluso, descricao: r.descricao,
       copart: r.coparticipacaoTexto, tcop: r.tabelaCoparticipacaoTexto, tcar: r.tabelaCarenciaTexto, cor1: r.corPrimaria, cor2: r.corEscura,
@@ -180,8 +181,14 @@ function renderReview(box) {
   const R = U.res;
   const opts = (sel) => `<option value="-1">Não alterar</option>` + R.cols.map((c, i) => `<option value="${i}" ${i === sel ? "selected" : ""}>${esc(c.titulo || "Coluna " + (i + 1))}</option>`).join("");
   const pageOpts = (sel) => U.pages.map((_, i) => `<option value="${i}" ${i === sel ? "selected" : ""}>Página ${i + 1}</option>`).join("");
+  // Em plano novo o nome ainda está vazio; em plano existente, ele só muda se a pessoa marcar.
+  const planoNovo = !$("#e-nome").value.trim();
   box.innerHTML = `
   <div class="urev">
+    <div class="row">
+      <div class="field">${chk("uc-nome", "Usar este nome", planoNovo && !!R.nome)}<input id="uv-nome" type="text" value="${esc(R.nome)}"></div>
+      <div class="field">${chk("uc-sub", "Usar este subtítulo", planoNovo && !!R.sub)}<input id="uv-sub" type="text" value="${esc(R.sub)}"></div>
+    </div>
     <h3>1. Valores por faixa etária</h3>
     ${R.cols.length ? `<div class="row"><div class="field"><label for="u-enf">Enfermaria recebe</label><select id="u-enf">${opts(R.ie)}</select></div><div class="field"><label for="u-apto">Apartamento recebe</label><select id="u-apto">${opts(R.ia)}</select></div></div>
     <div style="overflow-x:auto"><table class="ftab"><thead><tr><th>Faixa</th>${R.cols.map((c) => `<th>${esc(c.titulo || "")}</th>`).join("")}</tr></thead><tbody>${FAIXAS.map((f, i) => `<tr><td>${f}</td>${R.cols.map((c) => `<td class="money">${c.valores[i] != null ? brl(c.valores[i]) : "—"}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`
@@ -223,6 +230,8 @@ function renderReview(box) {
         });
       }
       const on = (id) => $("#" + id).checked;
+      if (on("uc-nome")) $("#e-nome").value = $("#uv-nome").value;
+      if (on("uc-sub")) $("#e-sub").value = $("#uv-sub").value;
       if (on("uc-taxa")) $("#e-taxa").value = $("#uv-taxa").value;
       if (on("uc-cidade")) $("#e-cidade").value = $("#uv-cidade").value;
       if (on("uc-rede")) $("#e-rede").value = $("#uv-rede").value;
