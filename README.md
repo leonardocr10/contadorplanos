@@ -91,10 +91,8 @@ Sem a chave, todo o resto funciona normalmente, inclusive sem internet. Para atu
 
 Seus planos e seu histórico ficam em `dados\cotador.db`, e as imagens enviadas ficam em `dados\uploads`.
 
-- **`backup.bat`**: copia o banco para a pasta `backups`, com data e hora no nome.
-- **Aba Meus dados**: **Fazer backup** baixa uma cópia do banco, e **Restaurar backup** troca os dados atuais pelos de um arquivo. Antes de trocar, o cotador guarda uma cópia dos dados atuais em `backups`.
-
-O backup do banco não inclui as imagens de `dados\uploads`. Copie essa pasta também se quiser guardá-las.
+- **Configurações > Backup**: **Fazer backup** baixa um único arquivo com o banco e as imagens de `dados\uploads`, inclusive as fotos dos usuários. **Restaurar backup** troca os dados atuais pelos do arquivo e devolve as imagens dele. Antes de trocar, o cotador guarda uma cópia dos dados atuais em `backups`. Backups antigos, feitos sem as imagens, continuam funcionando e deixam as imagens atuais como estão.
+- **`backup.bat`**: copia o banco e a pasta de imagens para `backups`, com data e hora no nome. Para voltar essa cópia, devolva os dois para a pasta `dados` com o cotador fechado.
 
 ## Para quem for mexer no código
 

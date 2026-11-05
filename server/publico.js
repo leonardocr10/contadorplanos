@@ -18,7 +18,7 @@ export function enderecoDosLinks(publicUrl, portaPublica) {
 export function criarAppExterna({ publica, cotador }) {
   const app = express();
   app.disable("x-powered-by");
-  const daProposta = /^\/(p\/|proposta-pagina\.js$|filtro-select\.js$|fonts\/|img\/|uploads\/)/;
+  const daProposta = /^\/(p\/|proposta-pagina\.js$|filtro-select\.js$|fonts\/|img\/|uploads\/(?!foto-))/;
   app.use((req, res, next) => {
     if (daProposta.test(req.path)) return publica(req, res, next);
     res.setHeader("X-Robots-Tag", "noindex, nofollow");
@@ -69,7 +69,15 @@ export function criarAppPublica({ banco, pastaPublica, pastaUploads }) {
   const estaticos = { index: false, dotfiles: "deny" };
   app.use("/fonts", express.static(join(pastaPublica, "fonts"), estaticos));
   app.use("/img", express.static(join(pastaPublica, "img"), estaticos));
-  app.use("/uploads", express.static(pastaUploads, estaticos));
+  // As fotos dos usuários são do sistema: só as imagens dos planos abrem sem login.
+  const eFoto = (caminho) => {
+    try {
+      return /^\/foto-/i.test(decodeURIComponent(caminho));
+    } catch {
+      return false;
+    }
+  };
+  app.use("/uploads", (req, res, next) => (eFoto(req.path) ? res.status(404).end() : next()), express.static(pastaUploads, estaticos));
 
   app.use((_req, res) => res.status(404).type("html").send(paginaErro));
   // eslint-disable-next-line no-unused-vars

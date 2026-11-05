@@ -18,5 +18,16 @@ if errorlevel 1 (
   exit /b 1
 )
 
+rem O robocopy usa códigos abaixo de 8 para indicar que deu certo.
+if exist dados\uploads (
+  robocopy dados\uploads "backups\uploads-%CARIMBO%" /E /NFL /NDL /NJH /NJS /NP >nul
+  if errorlevel 8 (
+    echo O banco foi copiado, mas não consegui copiar as imagens.
+    pause
+    exit /b 1
+  )
+  echo Imagens salvas em backups\uploads-%CARIMBO%
+)
+
 echo Backup salvo em backups\cotador-%CARIMBO%.db
 pause

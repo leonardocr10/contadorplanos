@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import http from "node:http";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Banco } from "../server/db.js";
@@ -10,10 +10,12 @@ import { criarAppExterna, criarAppPublica } from "../server/publico.js";
 
 const raiz = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
 
+let uploadsDoTeste;
 function subir(t) {
   const pasta = mkdtempSync(join(tmpdir(), "cotador-externo-"));
   const banco = new Banco(join(pasta, "cotador.db"), join(raiz, "dados", "planos.json"));
   const pastaPublica = join(raiz, "public"), pastaUploads = join(pasta, "uploads");
+  uploadsDoTeste = pastaUploads;
   const env = { LOGIN_USUARIO: "fulano", LOGIN_SENHA: "1234" };
   const cotador = criarApp({ banco, pastaPublica, pastaUploads, pastaBackups: join(pasta, "b"), env, exigirLogin: true, aceitarQualquerHost: true });
   const app = criarAppExterna({ publica: criarAppPublica({ banco, pastaPublica, pastaUploads }), cotador });
@@ -30,6 +32,18 @@ const pedir = (port, path, { method = "GET", headers = {}, corpo } = {}) => new 
     let texto = ""; res.on("data", (d) => (texto += d)); res.on("end", () => ok({ status: res.statusCode, headers: res.headers, texto }));
   });
   r.on("error", erro); r.end(corpo);
+});
+
+test("a foto do usuário exige login, e a imagem do plano continua aberta", async (t) => {
+  const p = await subir(t);
+  writeFileSync(join(uploadsDoTeste, "foto-teste.jpg"), "foto");
+  writeFileSync(join(uploadsDoTeste, "plano-teste.jpg"), "plano");
+  assert.equal((await pedir(p, "/uploads/plano-teste.jpg")).status, 200);
+  const foto = await pedir(p, "/uploads/foto-teste.jpg");
+  assert.notEqual(foto.status, 200);
+  assert.ok(!foto.texto.includes("foto"));
+  assert.notEqual((await pedir(p, "/uploads/FOTO-teste.jpg")).status, 200);
+  assert.notEqual((await pedir(p, "/uploads/%66oto-teste.jpg")).status, 200);
 });
 
 test("pelo IP público o cotador exige login e nada vaza sem ele", async (t) => {

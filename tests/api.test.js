@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { DatabaseSync } from "node:sqlite";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Banco } from "../server/db.js";
@@ -189,6 +190,42 @@ test("backup baixa o banco e restaurar volta ao estado anterior", async (t) => {
   assert.equal((await (await fetch(base + "/api/cotacoes")).json()).length, 1);
   assert.equal(readdirSync(join(pasta, "backups")).length, 1);
   assert.ok(existsSync(join(pasta, "cotador.db")));
+});
+
+test("o backup leva as imagens junto e a restauração devolve", async (t) => {
+  const { base, pasta, banco } = await contexto(t);
+  const uploads = join(pasta, "uploads");
+  const { caminho } = await (await fetch(base + "/api/uploads", { method: "POST", headers: { "Content-Type": "image/png" }, body: PNG })).json();
+  const nome = caminho.split("/")[1];
+  writeFileSync(join(uploads, "nao-e-imagem.html"), "<script>alert(1)</script>");
+  const copia = Buffer.from(await (await fetch(base + "/api/backup")).arrayBuffer());
+  const restaura = (corpo) => fetch(base + "/api/restaurar", { method: "POST", headers: { "Content-Type": "application/octet-stream" }, body: corpo });
+
+  // Em outro servidor, ou depois de perder a pasta: a imagem volta com o backup.
+  rmSync(uploads, { recursive: true, force: true });
+  assert.equal((await restaura(copia)).status, 200);
+  assert.deepEqual(readdirSync(uploads), [nome]);
+  assert.deepEqual(readFileSync(join(uploads, nome)), PNG);
+  assert.equal((await fetch(`${base}/${caminho}`)).status, 200);
+  // As imagens saem do banco em uso depois de restaurar.
+  assert.equal(banco.db.prepare("SELECT name FROM sqlite_master WHERE name = 'backup_imagens'").get(), undefined);
+
+  // Backup antigo, sem imagens, continua valendo e não apaga as atuais.
+  const antigo = banco.gerarBackup();
+  assert.equal((await restaura(antigo)).status, 200);
+  assert.deepEqual(readdirSync(uploads), [nome]);
+
+  // Um arquivo adulterado não escreve fora da pasta nem grava outro tipo de arquivo.
+  for (const [falso, conteudo] of [["../fora.png", PNG], ["pagina.html", PNG], ["falsa.png", Buffer.from("<script>alert(1)</script>")]]) {
+    const arq = join(pasta, "adulterado.db");
+    writeFileSync(arq, copia);
+    const db = new DatabaseSync(arq);
+    db.prepare("INSERT INTO backup_imagens (nome, dados) VALUES (?, ?)").run(falso, conteudo);
+    db.close();
+    assert.equal((await restaura(readFileSync(arq))).status, 400, falso);
+  }
+  assert.deepEqual(readdirSync(uploads), [nome]);
+  assert.equal(existsSync(join(pasta, "fora.png")), false);
 });
 
 test("sem chave a leitura avisa como configurar", async (t) => {

@@ -1,6 +1,6 @@
 // Banco local em node:sqlite: migrações versionadas, seed e acesso a planos, cotações e configuração.
 import { DatabaseSync } from "node:sqlite";
-import { copyFileSync, existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -594,22 +594,27 @@ export class Banco {
 
   /* ---------- backup ---------- */
   // VACUUM INTO gera uma cópia consistente do banco, mesmo com o servidor em uso.
-  gerarBackup() {
+  // Com a pasta das imagens, elas entram na própria cópia, e o backup continua sendo um arquivo só.
+  gerarBackup(pastaImagens) {
     const destino = join(tmpdir(), `cotador-backup-${randomUUID()}.db`);
-    this.db.prepare("VACUUM INTO ?").run(destino);
-    const dados = readFileSync(destino);
-    rmSync(destino, { force: true });
-    return dados;
+    try {
+      this.db.prepare("VACUUM INTO ?").run(destino);
+      if (pastaImagens && existsSync(pastaImagens)) guardarImagensNoBackup(destino, pastaImagens);
+      return readFileSync(destino);
+    } finally {
+      rmSync(destino, { force: true });
+    }
   }
 
   // Valida o arquivo numa cópia temporária antes de trocar o banco em uso.
-  restaurar(dados, caminhoCopiaSeguranca) {
+  restaurar(dados, caminhoCopiaSeguranca, pastaImagens) {
     if (dados.subarray(0, 16).toString("latin1") !== "SQLite format 3\0") {
       throw new ErroBackup("Este arquivo não é um backup do cotador.");
     }
     const temporario = join(tmpdir(), `cotador-restaurar-${randomUUID()}.db`);
     writeFileSync(temporario, dados);
     try {
+      let imagens = [];
       const teste = new DatabaseSync(temporario);
       try {
         const nomes = teste.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map((t) => t.name);
@@ -617,12 +622,25 @@ export class Banco {
           throw new ErroBackup("Este arquivo não é um backup do cotador.");
         }
         migrar(teste);
+        // Backups antigos não têm imagens. As imagens saem do banco, que não precisa carregá-las.
+        if (nomes.includes(TABELA_IMAGENS)) {
+          imagens = teste.prepare(`SELECT nome, dados FROM ${TABELA_IMAGENS}`).all();
+          if (!imagens.every((i) => imagemValida(i.nome, Buffer.from(i.dados)))) {
+            throw new ErroBackup("Este backup traz um arquivo que não é uma imagem válida.");
+          }
+          teste.exec(`DROP TABLE ${TABELA_IMAGENS}; VACUUM`);
+        }
       } catch (e) {
         throw e instanceof ErroBackup ? e : new ErroBackup("Não consegui ler este backup: " + e.message);
       } finally {
         teste.close();
       }
-      if (caminhoCopiaSeguranca) writeFileSync(caminhoCopiaSeguranca, this.gerarBackup());
+      if (caminhoCopiaSeguranca) writeFileSync(caminhoCopiaSeguranca, this.gerarBackup(pastaImagens));
+      // Nenhuma imagem atual é apagada: um backup antigo ainda pode depender dela.
+      if (pastaImagens && imagens.length) {
+        mkdirSync(pastaImagens, { recursive: true });
+        for (const i of imagens) writeFileSync(join(pastaImagens, i.nome), i.dados);
+      }
       this.fechar();
       try {
         copyFileSync(temporario, this.caminho);
@@ -636,3 +654,33 @@ export class Banco {
 }
 
 export class ErroBackup extends Error {}
+
+const TABELA_IMAGENS = "backup_imagens";
+
+export function tipoImagem(b) {
+  if (b.length > 8 && b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return "png";
+  if (b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "jpg";
+  if (b.length > 12 && b.toString("latin1", 0, 4) === "RIFF" && b.toString("latin1", 8, 12) === "WEBP") return "webp";
+  return null;
+}
+
+// O nome vem de um arquivo enviado: sem caminho, e com a extensão de acordo com o conteúdo.
+function imagemValida(nome, dados) {
+  const m = /^[\w-]+\.(png|jpg|webp)$/.exec(String(nome));
+  return !!m && tipoImagem(dados) === m[1];
+}
+
+function guardarImagensNoBackup(caminhoBanco, pasta) {
+  const copia = new DatabaseSync(caminhoBanco);
+  try {
+    copia.exec(`CREATE TABLE ${TABELA_IMAGENS} (nome TEXT PRIMARY KEY, dados BLOB NOT NULL)`);
+    const inserir = copia.prepare(`INSERT INTO ${TABELA_IMAGENS} (nome, dados) VALUES (?, ?)`);
+    for (const item of readdirSync(pasta, { withFileTypes: true })) {
+      if (!item.isFile()) continue;
+      const dados = readFileSync(join(pasta, item.name));
+      if (imagemValida(item.name, dados)) inserir.run(item.name, dados);
+    }
+  } finally {
+    copia.close();
+  }
+}

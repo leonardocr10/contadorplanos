@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { completarCarencias, lerArea, normFone } from "../public/js/calculo.js";
-import { ErroBackup, STATUS } from "./db.js";
+import { ErroBackup, STATUS, tipoImagem } from "./db.js";
 import { ErroLeitura, MODELO_PADRAO, lerTabela } from "./claude.js";
 import { criarLogin } from "./login.js";
 import { conferirSenha, gerarHash } from "./senhas.js";
@@ -158,13 +158,6 @@ function validarPerfil(v) {
   return v;
 }
 
-function tipoImagem(b) {
-  if (b.length > 8 && b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return "png";
-  if (b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "jpg";
-  if (b.length > 12 && b.toString("latin1", 0, 4) === "RIFF" && b.toString("latin1", 8, 12) === "WEBP") return "webp";
-  return null;
-}
-
 const carimbo = (d = new Date()) => {
   const p = (n) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
@@ -252,10 +245,10 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     res.status(201).json({ caminho: `uploads/${nome}` });
   });
 
-  app.post("/api/restaurar", soAdmin, express.raw({ type: "application/octet-stream", limit: "500mb" }), (req, res) => {
+  app.post("/api/restaurar", soAdmin, express.raw({ type: "application/octet-stream", limit: "2gb" }), (req, res) => {
     if (!Buffer.isBuffer(req.body) || !req.body.length) throw new ErroEntrada("Escolha um arquivo de backup.");
     mkdirSync(pastaBackups, { recursive: true });
-    banco.restaurar(req.body, join(pastaBackups, `cotador-antes-de-restaurar-${carimbo()}.db`));
+    banco.restaurar(req.body, join(pastaBackups, `cotador-antes-de-restaurar-${carimbo()}.db`), pastaUploads);
     res.json({ ok: true });
   });
 
@@ -551,7 +544,7 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
   app.get("/api/backup", soAdmin, (_req, res) => {
     res.setHeader("Content-Type", "application/octet-stream");
     res.setHeader("Content-Disposition", `attachment; filename="cotador-${carimbo()}.db"`);
-    res.send(banco.gerarBackup());
+    res.send(banco.gerarBackup(pastaUploads));
   });
 
   app.use("/api", (_req, res) => res.status(404).json({ erro: "Rota não encontrada." }));
