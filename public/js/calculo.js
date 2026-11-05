@@ -64,6 +64,25 @@ export function planPrices(p, vidas, over = {}) {
   return { porFaixa: false, linhas: [], enf: o.enf !== undefined ? o.enf : p.enfermaria, apto: o.apto !== undefined ? o.apto : p.apartamento };
 }
 
+/* ---------- carências ---------- */
+// Toda tabela de carências traz terapias e preexistência; as linhas que já existem não mudam.
+export function completarCarencias(tabela) {
+  const linhas = lines(tabela);
+  if (linhas.length < 2) return String(tabela ?? "").trim();
+  const colunas = linhas[0].split("|").length - 1;
+  const novaLinha = (nome, prazo) => [nome, ...Array(colunas).fill(prazo)].join(" | ");
+  const nomes = linhas.slice(1).map((l) => l.split("|")[0].normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase());
+  const temPreexistencia = nomes.some((n) => /preexist|cobertura parcial|\bcpt\b/.test(n) && !/nao relacionad/.test(n));
+  const temTerapias = nomes.some((n) => /\bterapias?\b|fisioterapia/.test(n) && !/exceto/.test(n));
+  if (!temTerapias) {
+    // Fica antes da preexistência, que costuma ser a última linha da tabela.
+    const posicao = temPreexistencia ? linhas.length - 1 : linhas.length;
+    linhas.splice(posicao, 0, novaLinha("Terapias", "180 dias"));
+  }
+  if (!temPreexistencia) linhas.push(novaLinha("Doenças e lesões preexistentes", "24 meses"));
+  return linhas.join("\n");
+}
+
 /* ---------- área de comercialização ---------- */
 const semAcento = (s) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 

@@ -126,8 +126,8 @@ test("carências usam a primeira situação de cada plano", () => {
   const html = comparar("plam-saude-pf", "amil-ouro-total", "plamedh-basic-pme");
   assert.deepEqual(celulas(html, "Situação considerada")[2], "Padrão");
   assert.deepEqual(celulas(html, "Consulta").length, 3);
-  // Na Amil, "não relacionada a doenças preexistentes" não é a linha de preexistência.
-  assert.equal(celulas(html, "Preexistência")[1], "—");
+  // Na Amil, "não relacionada a doenças preexistentes" não é a linha de preexistência: ela é a própria.
+  assert.equal(celulas(html, "Preexistência")[1], "24 meses");
   assert.equal(celulas(html, "Parto")[1], "300 dias");
   assert.equal(celulas(html, "Terapias").at(-1) !== undefined, true);
 });

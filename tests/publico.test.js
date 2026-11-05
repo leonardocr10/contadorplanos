@@ -149,7 +149,7 @@ test("seletor traz as situações reais e uma lista por situação", () => {
   const P = paraProposta(s);
   assert.equal(P.situacoes.length, 3);
   assert.equal(P.situacoes[0], "Sem plano anterior · PRC 607");
-  assert.equal(P.carencias.length, 20);
+  assert.equal(P.carencias.length, 21);
   assert.equal(P.carencias[1].prazos[0].texto, "1 dia");
   assert.equal(P.carencias[1].prazos[2].texto, "0 dia");
   assert.equal(P.precos.at(-1).destaque, true);

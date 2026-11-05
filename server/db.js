@@ -4,7 +4,7 @@ import { copyFileSync, existsSync, readFileSync, rmSync, writeFileSync } from "n
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { redeDaCidade } from "../public/js/calculo.js";
+import { completarCarencias, redeDaCidade } from "../public/js/calculo.js";
 
 export const STATUS = ["Enviada", "Em Negociação", "Vendida", "Negativa"];
 
@@ -120,6 +120,13 @@ const MIGRACOES = [
   (db) => {
     const colunas = db.prepare("PRAGMA table_info(cotacoes)").all().map((c) => c.name);
     for (const c of ["uf", "municipio"]) if (!colunas.includes(c)) db.exec(`ALTER TABLE cotacoes ADD COLUMN ${c} TEXT NOT NULL DEFAULT ''`);
+  },
+  (db) => {
+    const atualizar = db.prepare("UPDATE planos SET carencia_tabela = ? WHERE id = ?");
+    for (const p of db.prepare("SELECT id, carencia_tabela FROM planos").all()) {
+      const completa = completarCarencias(p.carencia_tabela);
+      if (completa !== p.carencia_tabela.trim()) atualizar.run(completa, p.id);
+    }
   },
 ];
 

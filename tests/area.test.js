@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { lerArea, locaisDosPlanos, redeDaCidade, resumoDaRede, vendidoEm } from "../public/js/calculo.js";
+import { completarCarencias, lerArea, locaisDosPlanos, redeDaCidade, resumoDaRede, vendidoEm } from "../public/js/calculo.js";
 import { buildMsg } from "../public/js/mensagem.js";
 import { montarSnapshot, renderizarProposta } from "../server/proposta-html.js";
 import { renderizarComparativo } from "../server/comparativo-html.js";
@@ -195,6 +195,52 @@ test("a cotação guarda a cidade, e a cotação antiga continua abrindo", (t) =
   const depois = new Banco(caminho, seed);
   assert.equal(depois.obterCotacao(cotacao.id).municipio, "Uberaba");
   depois.fechar();
+});
+
+test("toda tabela de carências traz terapias e preexistência", () => {
+  assert.equal(completarCarencias("Item | A | B\nParto | 300 dias | 300 dias"), "Item | A | B\nParto | 300 dias | 300 dias\nTerapias | 180 dias | 180 dias\nDoenças e lesões preexistentes | 24 meses | 24 meses");
+  // Fica antes da preexistência que já existe.
+  assert.equal(completarCarencias("Item | A\nParto | 300 dias\nCPT | 720 dias"), "Item | A\nParto | 300 dias\nTerapias | 180 dias\nCPT | 720 dias");
+  // O que já existe não muda, inclusive prazos reduzidos.
+  const pronta = "Item | A | B\nTerapias Simples | 180 dias | 60 dias\nCobertura Parcial Temporária | 720 dias | 720 dias";
+  assert.equal(completarCarencias(pronta), pronta);
+  // Citações que não são a linha do assunto não contam.
+  const citacoes = completarCarencias("Item | A\nExames, Exceto em Terapias | 1 dia\nInternação (Não Relacionada a Doenças Preexistentes) | 180 dias");
+  assert.ok(citacoes.includes("Terapias | 180 dias") && citacoes.includes("Doenças e lesões preexistentes | 24 meses"));
+  assert.equal(completarCarencias(""), "");
+  for (const p of planos) assert.equal(completarCarencias(p.carenciaTabela), p.carenciaTabela, p.id);
+});
+
+test("o comparativo mostra terapias e preexistência em todos os planos", () => {
+  const corretor = { nome: "C", fone: "34999990000", empresa: "E" };
+  const pedido = { vidas: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0], over: {}, cliente: "", opts: { copart: true, rede: true, acom: true } };
+  for (let i = 0; i < planos.length; i += 6) {
+    const grupo = planos.slice(i, i + 6);
+    const html = renderizarComparativo((grupo.length > 1 ? grupo : [grupo[0], planos[0]]).map((p) => montarSnapshot(p, pedido, corretor)));
+    const secao = html.slice(html.indexOf(">Carências<"));
+    for (const titulo of ["Terapias", "Preexistência"]) {
+      const linha = secao.match(new RegExp(`<th scope="row">${titulo}</th>(.*?)</tr>`))[1];
+      const valores = [...linha.matchAll(/<td[^>]*>(.*?)<\/td>/g)].map((m) => m[1]);
+      assert.deepEqual([...new Set(valores)], [titulo === "Terapias" ? "180 dias" : "24 meses"], `${titulo}: ${grupo.map((p) => p.id)}`);
+    }
+  }
+});
+
+test("ao atualizar e ao salvar, a tabela recebe as duas linhas", async (t) => {
+  const pasta = mkdtempSync(join(tmpdir(), "cotador-car-"));
+  const caminho = join(pasta, "c.db");
+  const antigo = new Banco(caminho, seed);
+  antigo.gravarPlano("meu-plano", { ...planos[0], id: "meu-plano", nome: "MEU", carenciaTabela: "Item | Prazo\nParto | 300 dias" });
+  antigo.db.exec("PRAGMA user_version = 15");
+  antigo.fechar();
+  const banco = new Banco(caminho, seed);
+  assert.equal(banco.obterPlano("meu-plano").carenciaTabela, "Item | Prazo\nParto | 300 dias\nTerapias | 180 dias\nDoenças e lesões preexistentes | 24 meses");
+  const app = criarApp({ banco, pastaPublica: join(raiz, "public"), pastaUploads: join(pasta, "u"), pastaBackups: join(pasta, "b"), env: {} });
+  const servidor = await new Promise((ok) => { const s = app.listen(0, "127.0.0.1", () => ok(s)); });
+  t.after(() => new Promise((fim) => { servidor.closeAllConnections(); servidor.close(() => { banco.fechar(); rmSync(pasta, { recursive: true, force: true }); fim(); }); }));
+  const r = await fetch(`http://127.0.0.1:${servidor.address().port}/api/planos`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nome: "NOVO CAR", categoria: "PF", carenciaTabela: "Item | Prazo\nParto | 300 dias" }) });
+  assert.ok(r.ok);
+  assert.ok(banco.listarPlanos().find((p) => p.nome === "NOVO CAR").carenciaTabela.includes("Terapias | 180 dias"));
 });
 
 test("plano sem área cadastrada continua aparecendo", () => {

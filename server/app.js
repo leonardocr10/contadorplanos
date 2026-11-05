@@ -3,7 +3,7 @@ import express from "express";
 import { randomUUID } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { lerArea, normFone } from "../public/js/calculo.js";
+import { completarCarencias, lerArea, normFone } from "../public/js/calculo.js";
 import { ErroBackup, STATUS } from "./db.js";
 import { ErroLeitura, MODELO_PADRAO, lerTabela } from "./claude.js";
 import { criarLogin } from "./login.js";
@@ -86,7 +86,7 @@ function validarPlano(b) {
     copartTexto: textoOpc(b.copartTexto, "coparticipação"),
     copartTabela: textoOpc(b.copartTabela, "tabela de coparticipação"),
     copartNota: textoOpc(b.copartNota, "observação da coparticipação"),
-    carenciaTabela: textoOpc(b.carenciaTabela, "tabela de carências"),
+    carenciaTabela: completarCarencias(textoOpc(b.carenciaTabela, "tabela de carências")),
     carenciaNota: textoOpc(b.carenciaNota, "observação das carências"),
     imgCopart: imagemOpc(b.imgCopart, "coparticipação"),
     imgCarencia: imagemOpc(b.imgCarencia, "carências"),
