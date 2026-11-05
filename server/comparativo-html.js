@@ -3,7 +3,7 @@
 import { r2 } from "../public/js/calculo.js";
 import { FONTE, esc, logoDoPlano, moeda, paletaProposta, paraProposta } from "./proposta-html.js";
 
-export const MAX_PLANOS_COMPARATIVO = 4;
+export const MAX_PLANOS_COMPARATIVO = 6;
 const VAZIO = "—";
 
 const normalizar = (s) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
@@ -177,6 +177,18 @@ tbody tr:not(.secao):nth-child(even){background:var(--zebra)}
 .total td{font-size:15px;font-weight:800}
 .sim{display:inline-flex;color:var(--verde);vertical-align:middle}
 footer{font-size:12px;line-height:1.5;color:var(--muted)}
+/* Com 5 ou 6 planos, cada coluna precisa caber em menos espaço. */
+.muitos table{font-size:12.5px}
+.muitos col.rotulos{width:16%}
+.muitos thead th{padding:12px 6px}
+.muitos .logo-plano{height:34px;max-width:120px}
+.muitos .nome{font-size:13.5px}
+.muitos .sub{font-size:11px}
+.muitos tbody th{padding:6px 8px}
+.muitos tbody td{padding:6px 4px}
+.muitos .acomodacoes td{font-size:10.5px}
+.muitos .par span{padding:1px 2px}
+.muitos .total td{font-size:12.5px}
 `;
 
 export function renderizarComparativo(snapshots) {
@@ -221,7 +233,7 @@ export function renderizarComparativo(snapshots) {
 <style>${CSS}</style>
 </head>
 <body>
-<div class="page">
+<div class="page${n >= 5 ? " muitos" : ""}">
   <header>
     <div>
       <h1>Comparativo de planos</h1>

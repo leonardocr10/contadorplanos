@@ -3,7 +3,7 @@ import { $, api, esc, toast } from "./estado.js";
 import { paginaParaPng } from "./imagem-proposta.js";
 import { closeModal, openModal } from "./planos.js";
 
-const MAXIMO = 4;
+const MAXIMO = 6;
 let atual = null, sequencia = 0;
 
 function limparAtual() {

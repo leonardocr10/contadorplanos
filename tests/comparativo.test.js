@@ -202,7 +202,10 @@ test("rota do comparativo aceita de 2 a 4 planos e não salva nada", async (t) =
   assert.match((await certo.json()).html, /Comparativo de planos/);
   assert.equal((await enviar(["plam-saude-pf", "plam-total-cnpj"])).status, 200);
   assert.equal((await enviar(["plam-saude-pf"])).status, 400);
-  assert.equal((await enviar(planos.slice(0, 5).map((p) => p.id))).status, 400);
+  const seis = await enviar(planos.slice(0, 6).map((p) => p.id));
+  assert.equal(seis.status, 200);
+  assert.match((await seis.json()).html, /class="page muitos"/);
+  assert.equal((await enviar(planos.slice(0, 7).map((p) => p.id))).status, 400);
   assert.equal((await enviar(["plam-saude-pf", "nao-existe"])).status, 400);
   assert.equal(banco.listarCotacoes({ fone: "", q: "", status: "" }).length, 0);
 });
