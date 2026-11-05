@@ -56,13 +56,11 @@ export function abrirComparativo(planos, pedido, acoes) {
     ${seletorDePlanos(planos)}
     <div class="cmp-previa" id="cmp-previa"></div>
     <div class="actions modal-acoes" id="cmp-acoes" hidden>
-      <button class="btn primary" id="cmp-copiar">Copiar imagem</button>
-      <button class="btn" id="cmp-baixar">Baixar imagem</button>
+      <button class="btn primary" id="cmp-copiar">Copiar e baixar imagem</button>
       <button class="btn" id="cmp-pdf">Baixar PDF</button>
     </div>`;
   $("#cmp-x").onclick = closeModal;
   $("#cmp-copiar").onclick = () => atual && acoes.copiar(atual);
-  $("#cmp-baixar").onclick = () => atual && acoes.baixar(atual);
   $("#cmp-pdf").onclick = (e) => atual && acoes.baixarPdf(atual, e.currentTarget);
   ajustarSeletor();
   for (const c of document.querySelectorAll("#cmp-planos input")) {

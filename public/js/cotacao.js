@@ -135,8 +135,7 @@ async function renderCards() {
   cards = made;
   cardsProntos = true;
   cardUrls = made.map((m) => m.url);
-  box.innerHTML = made.map((m, i) => `<figure><img src="${m.url}" alt="Proposta ${esc(m.p.nome)}"><figcaption>${esc(m.p.nome)}</figcaption><button class="btn primary" data-cp="${i}">Copiar imagem</button><button class="btn" data-dl="${i}">Baixar imagem</button><button class="btn" data-pdf="${i}">Baixar PDF</button></figure>`).join("");
-  box.querySelectorAll("[data-dl]").forEach((b) => (b.onclick = () => saveCard(cards[+b.dataset.dl])));
+  box.innerHTML = made.map((m, i) => `<figure><img src="${m.url}" alt="Proposta ${esc(m.p.nome)}"><figcaption>${esc(m.p.nome)}</figcaption><button class="btn primary" data-cp="${i}">Copiar e baixar imagem</button><button class="btn" data-pdf="${i}">Baixar PDF</button></figure>`).join("");
   box.querySelectorAll("[data-pdf]").forEach((b) => (b.onclick = () => savePdf(cards[+b.dataset.pdf], b)));
   box.querySelectorAll("[data-cp]").forEach((b) => (b.onclick = () => copyCard(cards[+b.dataset.cp])));
   paintChat(currentMsg());
@@ -151,11 +150,11 @@ function baixarArquivo(url, nome) {
   document.body.appendChild(a);
   a.click();
   a.remove();
-  salvar(true);
+  return salvar(true);
 }
 
 function saveCard(m) {
-  baixarArquivo(m.url, fileName(m));
+  return baixarArquivo(m.url, fileName(m));
 }
 
 async function savePdf(m, botao) {
@@ -172,7 +171,7 @@ async function savePdf(m, botao) {
   }
 }
 
-const AVISO_SEM_COPIA = "O navegador não copia imagem neste endereço: ela foi baixada. Arraste o arquivo para a conversa";
+const AVISO_SEM_COPIA = "O navegador só copia imagem em endereço com HTTPS: ela foi baixada. Arraste o arquivo para a conversa";
 
 async function copiarImagem(m) {
   try {
@@ -185,14 +184,11 @@ async function copiarImagem(m) {
 }
 
 async function copyCard(m) {
-  if (!(await copiarImagem(m))) {
-    // Em endereço sem HTTPS o navegador não deixa copiar imagem: o arquivo é baixado no lugar.
-    saveCard(m);
-    toast(AVISO_SEM_COPIA);
-    return;
-  }
-  const ok = await salvar(true);
-  toast(ok ? "Imagem copiada e salva no histórico: cole no WhatsApp" : "Imagem copiada: cole no WhatsApp");
+  // A cópia vem antes, enquanto o clique ainda vale para o navegador. Em endereço sem HTTPS ela é recusada.
+  const copiou = await copiarImagem(m);
+  const salvou = await saveCard(m);
+  if (!copiou) toast(AVISO_SEM_COPIA);
+  else toast(salvou ? "Imagem copiada, baixada e salva no histórico: cole no WhatsApp" : "Imagem copiada e baixada: cole no WhatsApp");
 }
 
 // O link do WhatsApp só leva texto. A imagem vai para a área de transferência antes de abrir a conversa,
@@ -207,7 +203,7 @@ async function abrirWhatsApp() {
     saveCard(cards[0]);
     toast(AVISO_SEM_COPIA);
   }
-  else if (cards.length > 1) toast(`Imagem de ${cards[0].p.nome} copiada: aperte Ctrl+V na conversa. Copie as outras nos botões Copiar imagem`);
+  else if (cards.length > 1) toast(`Imagem de ${cards[0].p.nome} copiada: aperte Ctrl+V na conversa. Copie as outras nos botões Copiar e baixar imagem`);
   else toast("Imagem copiada: aperte Ctrl+V na conversa do WhatsApp");
 }
 
@@ -305,7 +301,7 @@ export function iniciarCotacao() {
   $("#comparar").onclick = () => abrirComparativo(
     planosEscolhidos(),
     { vidas: S.vidas, over: S.over, cliente: nomeCliente(), opts: opcoes() },
-    { copiar: copyCard, baixar: saveCard, baixarPdf: savePdf },
+    { copiar: copyCard, baixarPdf: savePdf },
   );
   $("#wa").addEventListener("click", (e) => { e.preventDefault(); abrirWhatsApp(); });
   $("#salvar-hist").onclick = async () => {
