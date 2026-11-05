@@ -39,6 +39,7 @@ function renderLocal() {
   if (!estado?.cidades.includes(S.municipio)) S.municipio = "";
   trocarOpcoes($("#uf"), [["", "Todos os estados"], ...locais.map((l) => [l.uf, l.nome])], S.uf);
   trocarOpcoes($("#municipio"), estado ? [["", "Todas as cidades"], ...estado.cidades.map((c) => [c, c])] : [["", "Escolha o estado"]], S.municipio);
+  $("#limpar-local").disabled = !S.uf;
 }
 
 // Plano fora da área sai da cotação junto com o cartão, para não ir na proposta por engano.
@@ -313,6 +314,7 @@ export function iniciarCotacao() {
   };
   $("#uf").addEventListener("change", () => { S.uf = $("#uf").value; S.municipio = ""; aplicarLocal(); });
   $("#municipio").addEventListener("change", () => { S.municipio = $("#municipio").value; aplicarLocal(); });
+  $("#limpar-local").onclick = () => { S.uf = ""; S.municipio = ""; render(); };
   for (const id of ["cliente", "fone", "o-copart", "o-rede", "o-acom"]) $("#" + id).addEventListener("input", render);
   $("#limpar-vidas").onclick = () => { S.vidas = Array(10).fill(0); render(); };
   $("#rawtxt").addEventListener("input", () => { manual = true; paintChat($("#rawtxt").value); });
