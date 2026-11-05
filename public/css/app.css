@@ -51,6 +51,10 @@ textarea{resize:vertical;min-height:72px;line-height:1.45}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;align-self:flex-start}
 .seg button{border:0;background:var(--surface);color:var(--muted);font:600 14px var(--body);padding:9px 18px;cursor:pointer}
 .seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.contratacao{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.contratacao .seg{display:flex;align-self:stretch;height:40px;box-sizing:border-box}
+.contratacao .seg button{flex:1;padding:0 8px;white-space:nowrap}
+.contratacao .fs-botao{height:40px;min-height:0;padding-block:0;box-sizing:border-box}
 
 .plans{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px}
 .plan{position:relative;display:flex;flex-direction:column;gap:4px;text-align:left;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;padding:12px 14px 12px 40px;cursor:pointer;font:inherit}
