@@ -20,10 +20,6 @@ definirRender(() => {
 document.querySelectorAll(".tabs button[data-view]").forEach((b) => (b.onclick = () => show(b.dataset.view)));
 // Nova cotação recomeça do zero: a página recarrega, sem perder o que ainda estava para salvar.
 $("#tab-cot").onclick = async () => {
-  if (salvarTimer) {
-    clearTimeout(salvarTimer);
-    await salvarDados();
-  }
   await salvarCotacaoPendente();
   history.replaceState(null, "", "#cotacao");
   location.reload();
@@ -33,31 +29,39 @@ addEventListener("hashchange", () => show(viewDoHash()));
 show(viewDoHash());
 
 /* ---------- meus dados ---------- */
-let salvarTimer = null;
-const salvarDados = () => {
-  salvarTimer = null;
-  // O e-mail só vai quando está completo, para não dar erro enquanto é digitado.
-  const email = $("#c-email").value.trim();
-  const json = { ...S.cor, ...(!email || EMAIL_VALIDO.test(email) ? { email } : {}) };
-  return api("/api/config", { metodo: "PUT", json }).then(() => ($("#c-email-msg").textContent = "")).catch((e) => toast(`Não deu para salvar os seus dados: ${e.message}`));
-};
 const EMAIL_VALIDO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-$("#c-email").oninput = () => {
-  const email = $("#c-email").value.trim();
-  $("#c-email-msg").textContent = email && !EMAIL_VALIDO.test(email) ? "Complete o e-mail para salvar." : "";
-  clearTimeout(salvarTimer);
-  salvarTimer = setTimeout(salvarDados, 400);
-};
 const CAMPOS_CONFIG = ["nome", "fone", "empresa"];
-for (const k of CAMPOS_CONFIG) {
-  const el = $("#c-" + k);
-  el.oninput = () => {
-    S.cor[k] = el.value;
+const lerDados = () => ({
+  ...Object.fromEntries(CAMPOS_CONFIG.map((k) => [k, $("#c-" + k).value])),
+  email: $("#c-email").value.trim().toLowerCase(),
+});
+const dadosAlterados = () => {
+  const d = lerDados();
+  return CAMPOS_CONFIG.some((k) => d[k] !== (S.cor?.[k] ?? "")) || d.email !== (S.eu?.email ?? "");
+};
+const atualizarBotaoDados = () => ($("#dados-salvar").disabled = !dadosAlterados());
+for (const k of [...CAMPOS_CONFIG, "email"]) $("#c-" + k).addEventListener("input", atualizarBotaoDados);
+// Nova cotação recarrega a página: avisa antes de perder o que não foi salvo.
+addEventListener("beforeunload", (e) => { if (S.eu && dadosAlterados()) e.preventDefault(); });
+$("#dados-form").onsubmit = async (e) => {
+  e.preventDefault();
+  const dados = lerDados(), msg = $("#dados-msg");
+  msg.textContent = "";
+  if (dados.email && !EMAIL_VALIDO.test(dados.email)) { msg.textContent = "Confira o e-mail: ele parece incompleto."; return; }
+  $("#dados-salvar").disabled = true;
+  try {
+    await api("/api/config", { metodo: "PUT", json: dados });
+    const { email, ...cor } = dados;
+    S.cor = cor;
+    S.eu.email = email;
+    $("#c-email").value = email;
     render();
-    clearTimeout(salvarTimer);
-    salvarTimer = setTimeout(salvarDados, 400);
-  };
-}
+    toast("Dados salvos");
+  } catch (erro) {
+    msg.textContent = `Não deu para salvar: ${erro.message}`;
+  }
+  atualizarBotaoDados();
+};
 
 /* ---------- restaurar backup ---------- */
 let arquivoBackup = null;
@@ -123,6 +127,7 @@ async function carregar() {
     S.cor = { nome: eu.nome ?? "", fone: eu.fone ?? "", empresa: eu.empresa ?? "" };
     for (const k of CAMPOS_CONFIG) $("#c-" + k).value = S.cor[k];
     $("#c-email").value = eu.email ?? "";
+    atualizarBotaoDados();
   } catch (e) {
     S.dbErr = e.message;
   }

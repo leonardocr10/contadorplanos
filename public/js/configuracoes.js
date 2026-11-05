@@ -145,7 +145,7 @@ async function salvarGaveta(e) {
         ...(email !== editando.email ? { email } : {}),
         ...(senha ? { senha } : {}),
       } });
-      if (editando.id === eu?.id) $("#c-email").value = email;
+      if (editando.id === eu?.id) { eu.email = email.toLowerCase(); $("#c-email").value = eu.email; }
     } else {
       await api("/api/usuarios", { metodo: "POST", json: { login: $("#usr-login").value, email, senha, perfil, ...permissoes } });
     }

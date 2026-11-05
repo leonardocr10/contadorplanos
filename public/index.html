@@ -139,7 +139,7 @@
       <button type="button" class="cfg-item" data-abre="atualizar" data-admin hidden>Atualizar sistema</button>
     </nav>
     <div class="cfg-conteudo">
-    <div class="panel cfg-painel" data-cfg="dados" hidden>
+    <form class="panel cfg-painel" id="dados-form" data-cfg="dados" novalidate hidden>
       <h2>Meus dados</h2>
       <p class="note" style="margin:0">Estes dados aparecem no rodapé da imagem e na assinatura da mensagem das cotações feitas com o seu login.</p>
       <div class="row">
@@ -147,8 +147,10 @@
         <div class="field"><label for="c-fone">Seu telefone</label><input id="c-fone" type="tel" placeholder="(34) 99999-0000"></div>
       </div>
       <div class="field"><label for="c-empresa">Corretora (opcional)</label><input id="c-empresa" type="text"></div>
-      <div class="field"><label for="c-email">E-mail (para recuperar a senha)</label><input id="c-email" type="email" autocapitalize="none" placeholder="voce@exemplo.com"><span class="note" id="c-email-msg" role="status"></span></div>
-    </div>
+      <div class="field"><label for="c-email">E-mail (para recuperar a senha)</label><input id="c-email" type="email" autocapitalize="none" placeholder="voce@exemplo.com"></div>
+      <div class="actions"><button class="btn primary" type="submit" id="dados-salvar" disabled>Salvar alterações</button></div>
+      <p class="note usr-msg" id="dados-msg" role="alert"></p>
+    </form>
     <form class="panel cfg-painel" id="senha-form" data-cfg="senha" autocomplete="off" hidden>
       <h2>Alterar senha</h2>
       <div class="row">
