@@ -1,6 +1,6 @@
 // Tela "Aceites": clientes que aceitaram a proposta pelo link e o envio da lista de documentos.
 import { brl, fmtFone } from "./calculo.js";
-import { $, S, api, esc, toast } from "./estado.js";
+import { $, S, api, eAdmin, esc, toast } from "./estado.js";
 import { linkConversaDireta, mensagemDocumentos } from "./mensagem.js";
 
 let aceites = [], assinatura = null;
@@ -40,7 +40,7 @@ export function renderAceites() {
 
 async function enviarDocumentos(a) {
   if (!a.documentos.length) {
-    toast(`Nenhum documento ativo para ${a.plano}: ative na aba Documentos`);
+    toast(eAdmin() ? `Nenhum documento ativo para ${a.plano}: ative na aba Documentos` : `Nenhum documento ativo para ${a.plano}: peça ao administrador para ativar`);
     return;
   }
   if (!a.fone) {

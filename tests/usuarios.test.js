@@ -235,6 +235,30 @@ test("a proposta guarda o corretor que a criou e entra só nos aceites dele", as
   assert.equal(await quantos(admin), 1);
 });
 
+test("planos e documentos: todos consultam, só o administrador altera", async (t) => {
+  const { banco, pedir, admin, um } = await doisCorretores(t);
+  const plano = { nome: "PLANO NOVO", categoria: "PF" };
+  const doc = (await (await pedir(admin, "/api/documentos", "POST", { nome: "RG", planoId: "plam-saude-pf" })).json());
+  const docId = doc.id ?? banco.listarDocumentos()[0].id;
+  const proibidos = [
+    ["/api/planos", "POST", plano], ["/api/planos/plam-saude-pf", "PUT", plano], ["/api/planos/plam-saude-pf", "DELETE"],
+    ["/api/documentos", "POST", { nome: "CPF" }], [`/api/documentos/${docId}`, "PUT", { nome: "Outro" }], [`/api/documentos/${docId}`, "DELETE"],
+    [`/api/documentos/${docId}/planos`, "PUT", { ativo: false }], [`/api/documentos/${docId}/planos/plam-saude-pf`, "PUT", { ativo: false }],
+    ["/api/ler-tabela", "POST", {}], ["/api/uploads", "POST", {}],
+  ];
+  for (const [rota, metodo, json] of proibidos) assert.equal((await pedir(um, rota, metodo, json)).status, 403, `${metodo} ${rota}`);
+  // Nada mudou, e a consulta segue aberta.
+  assert.ok(banco.obterPlano("plam-saude-pf"));
+  assert.equal(banco.listarDocumentos().length, 1);
+  assert.equal((await pedir(um, "/api/planos")).status, 200);
+  assert.equal((await (await pedir(um, "/api/documentos")).json())[0].nome, "RG");
+  // O administrador continua alterando.
+  assert.equal((await pedir(admin, "/api/planos", "POST", plano)).status, 201);
+  assert.equal((await pedir(admin, `/api/documentos/${docId}`, "DELETE")).status, 204);
+  // A cotação do usuário continua usando os planos.
+  assert.equal((await pedir(um, "/api/propostas/previa", "POST", pedido)).status, 200);
+});
+
 test("LOGIN_REDEFINIR_SENHA recupera o acesso do administrador", async (t) => {
   const pasta = mkdtempSync(join(tmpdir(), "cotador-usr-"));
   t.after(() => rmSync(pasta, { recursive: true, force: true }));
@@ -252,6 +276,8 @@ test("LOGIN_REDEFINIR_SENHA recupera o acesso do administrador", async (t) => {
 test("a tela só mostra ao administrador o que é dele", () => {
   const html = readFileSync(join(raiz, "public", "index.html"), "utf8");
   assert.ok(!html.includes('data-view="corretor"'));
+  assert.match(html, /id="novo" data-admin hidden/);
+  assert.match(html, /<form id="doc-form"[^>]*data-admin hidden/);
   for (const id of ["cfg-atualizar", "b-file", "usr-form"]) {
     const antes = html.slice(0, html.indexOf(`id="${id}"`));
     assert.match(antes.slice(antes.lastIndexOf('class="panel')), /^class="panel cfg-painel" data-admin hidden/, id);

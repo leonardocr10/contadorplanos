@@ -210,7 +210,7 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     res.json({ app: "cotador", leituraDisponivel: !!chave() || !!clienteClaude, modelo: modelo(), linkPublico: linkPublico() });
   });
 
-  app.post("/api/ler-tabela", express.json({ limit: "160mb" }), async (req, res) => {
+  app.post("/api/ler-tabela", soAdmin, express.json({ limit: "160mb" }), async (req, res) => {
     const b = req.body ?? {};
     const resultado = await lerTabela(
       { nome: b.nome, subtitulo: b.subtitulo, imagens: b.imagens },
@@ -219,7 +219,7 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     res.json(resultado);
   });
 
-  app.post("/api/uploads", express.raw({ type: ["image/png", "image/jpeg", "image/webp"], limit: MAX_UPLOAD }), (req, res) => {
+  app.post("/api/uploads", soAdmin, express.raw({ type: ["image/png", "image/jpeg", "image/webp"], limit: MAX_UPLOAD }), (req, res) => {
     const dados = req.body;
     const ext = Buffer.isBuffer(dados) ? tipoImagem(dados) : null;
     if (!ext) throw new ErroEntrada("Envie uma imagem PNG, JPG ou WebP.");
@@ -240,14 +240,14 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
   /* ---------- planos ---------- */
   app.get("/api/planos", (_req, res) => res.json(banco.listarPlanos()));
 
-  app.post("/api/planos", (req, res) => res.status(201).json(banco.criarPlano(validarPlano(req.body))));
+  app.post("/api/planos", soAdmin, (req, res) => res.status(201).json(banco.criarPlano(validarPlano(req.body))));
 
-  app.put("/api/planos/:id", (req, res) => {
+  app.put("/api/planos/:id", soAdmin, (req, res) => {
     if (!banco.obterPlano(req.params.id)) return res.status(404).json({ erro: "Plano não encontrado." });
     res.json(banco.gravarPlano(req.params.id, validarPlano(req.body)));
   });
 
-  app.delete("/api/planos/:id", (req, res) => {
+  app.delete("/api/planos/:id", soAdmin, (req, res) => {
     if (!banco.excluirPlano(req.params.id)) return res.status(404).json({ erro: "Plano não encontrado." });
     res.status(204).end();
   });
@@ -387,28 +387,28 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
 
   app.get("/api/documentos", (_req, res) => res.json(banco.listarDocumentos()));
 
-  app.post("/api/documentos", (req, res) => {
+  app.post("/api/documentos", soAdmin, (req, res) => {
     const nome = nomeDeDocumento(req.body);
     const planoId = req.body?.planoId ? String(req.body.planoId) : null;
     if (planoId && !banco.obterPlano(planoId)) throw new ErroNaoEncontrado("Plano não encontrado.");
     res.status(201).json(banco.criarDocumento(nome, planoId));
   });
 
-  app.put("/api/documentos/:id", (req, res) => {
+  app.put("/api/documentos/:id", soAdmin, (req, res) => {
     const d = documentoDaRota(req);
     res.json(banco.renomearDocumento(d.id, nomeDeDocumento(req.body, d.id)));
   });
 
-  app.delete("/api/documentos/:id", (req, res) => {
+  app.delete("/api/documentos/:id", soAdmin, (req, res) => {
     banco.excluirDocumento(documentoDaRota(req).id);
     res.status(204).end();
   });
 
-  app.put("/api/documentos/:id/planos", (req, res) => {
+  app.put("/api/documentos/:id/planos", soAdmin, (req, res) => {
     res.json(banco.definirDocumentoEmTodos(documentoDaRota(req).id, ativoDoPedido(req.body)));
   });
 
-  app.put("/api/documentos/:id/planos/:planoId", (req, res) => {
+  app.put("/api/documentos/:id/planos/:planoId", soAdmin, (req, res) => {
     const d = documentoDaRota(req);
     if (!banco.obterPlano(req.params.planoId)) throw new ErroNaoEncontrado("Plano não encontrado.");
     res.json(banco.definirDocumentoNoPlano(d.id, req.params.planoId, ativoDoPedido(req.body)));

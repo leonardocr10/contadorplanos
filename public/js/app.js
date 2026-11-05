@@ -104,6 +104,7 @@ async function carregar() {
     S.leituraDisponivel = status.leituraDisponivel;
     S.linkAtivo = status.linkPublico.estado === "ativo";
     S.linkLocal = status.linkPublico.local;
+    S.eu = eu;
     S.cor = { nome: eu.nome ?? "", fone: eu.fone ?? "", empresa: eu.empresa ?? "" };
     for (const k of CAMPOS_CONFIG) $("#c-" + k).value = S.cor[k];
     aplicarPerfil(eu);

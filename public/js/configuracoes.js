@@ -102,6 +102,7 @@ export function aplicarPerfil(usuario) {
   eu = usuario;
   const admin = usuario.perfil === "admin";
   document.querySelectorAll("[data-admin]").forEach((p) => (p.hidden = !admin));
+  document.querySelectorAll("[data-nao-admin]").forEach((p) => (p.hidden = admin));
   $("#cfg-entrou").textContent = usuario.login ? `Você entrou como ${usuario.login} (${PERFIS[usuario.perfil]}).` : "";
   $("#senha-form").hidden = !usuario.id;
   if (!admin) return;

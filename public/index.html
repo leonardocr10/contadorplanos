@@ -73,9 +73,10 @@
     <div class="panel">
       <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center">
         <h2>Planos e valores</h2>
-        <button class="btn primary" id="novo">Novo plano</button>
+        <button class="btn primary" id="novo" data-admin hidden>Novo plano</button>
       </div>
-      <p class="note" style="margin:0" id="cat-hint">Os valores ficam salvos para todas as próximas cotações.</p>
+      <p class="note" style="margin:0" id="cat-hint" data-admin hidden>Os valores ficam salvos para todas as próximas cotações.</p>
+      <p class="note" style="margin:0" data-nao-admin hidden>Consulte aqui as informações dos planos. Só o administrador altera planos e valores.</p>
       <input id="cat-busca" type="text" placeholder="Buscar plano pelo nome ou pela descrição" aria-label="Buscar plano" autocomplete="off">
       <div id="cat" class="cat"></div>
     </div>
@@ -99,9 +100,10 @@
   <section id="v-documentos" hidden>
     <div class="panel">
       <h2>Documentos necessários</h2>
-      <p class="note" style="margin:0">Cadastre os documentos e escolha quais ficam ativos em cada plano. Os ativos aparecem para o cliente depois do aceite e na mensagem da aba Aceites.</p>
+      <p class="note" style="margin:0" data-admin hidden>Cadastre os documentos e escolha quais ficam ativos em cada plano. Os ativos aparecem para o cliente depois do aceite e na mensagem da aba Aceites.</p>
+      <p class="note" style="margin:0" data-nao-admin hidden>Escolha o plano para ver os documentos pedidos ao cliente. Só o administrador altera esta lista.</p>
       <div class="field"><label for="doc-plano">Plano</label><select id="doc-plano"></select></div>
-      <form id="doc-form" class="row" style="grid-template-columns:minmax(0,1fr) auto;align-items:end">
+      <form id="doc-form" class="row" style="grid-template-columns:minmax(0,1fr) auto;align-items:end" data-admin hidden>
         <div class="field"><label for="doc-nome">Novo documento (já entra ativo no plano escolhido)</label><input id="doc-nome" type="text" placeholder="Ex.: Comprovante de residência" autocomplete="off"></div>
         <button class="btn primary" type="submit">Adicionar</button>
       </form>

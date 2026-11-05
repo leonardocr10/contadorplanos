@@ -4,7 +4,7 @@ export const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&am
 
 export const S = {
   plans: [], loaded: false, dbErr: null,
-  tipo: "PF", uf: "MG", municipio: "Uberlândia", recomecarHistorico: false, selected: [], over: {}, vidas: Array(10).fill(0),
+  eu: null, tipo: "PF", uf: "MG", municipio: "Uberlândia", recomecarHistorico: false, selected: [], over: {}, vidas: Array(10).fill(0),
   hist: [], histLoaded: false, histErr: null,
   cor: { nome: "", fone: "", empresa: "" },
   leituraDisponivel: false,
@@ -24,7 +24,9 @@ export function toast(t) {
   toast.t = setTimeout(() => (el.hidden = true), 2200);
 }
 
-export const VIEWS = ["cotacao", "planos", "documentos", "historico", "aceites", "configuracoes"];
+// Só para decidir o que aparece na tela: a permissão de verdade é conferida no servidor.
+export const eAdmin = () => S.eu?.perfil === "admin";
+export const VIEWS =["cotacao", "planos", "documentos", "historico", "aceites", "configuracoes"];
 export function show(v) {
   for (const b of document.querySelectorAll(".tabs button")) b.setAttribute("aria-selected", b.dataset.view === v);
   for (const id of VIEWS) $("#v-" + id).hidden = id !== v;

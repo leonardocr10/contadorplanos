@@ -1,6 +1,6 @@
 // Tela "Planos e valores" e o editor do plano em janela modal.
 import { ESTADOS, FAIXAS, brl, colarPlanilha, hasFaixas, lerArea, lines, parseBRL, redeDaCidade, resumoDaRede } from "./calculo.js";
-import { $, S, api, carregarPlanos, esc, render, toast } from "./estado.js";
+import { $, S, api, carregarPlanos, eAdmin, esc, render, toast } from "./estado.js";
 import { wireUpdater } from "./atualizar.js";
 import { filtrarOpcoes } from "./filtro-select.js";
 
@@ -21,14 +21,14 @@ const IMAGES = {
 export function renderCat() {
   const box = $("#cat");
   if (!S.loaded) { box.innerHTML = `<div class="status">${S.dbErr ? esc(S.dbErr) : "Carregando planos…"}</div>`; return; }
-  if (!S.plans.length) { box.innerHTML = `<div class="status">Nenhum plano cadastrado ainda. Clique em <b>Novo plano</b> para adicionar o primeiro.</div>`; return; }
+  if (!S.plans.length) { box.innerHTML = `<div class="status">Nenhum plano cadastrado ainda.${eAdmin() ? " Clique em <b>Novo plano</b> para adicionar o primeiro." : ""}</div>`; return; }
   const encontrados = filtrarOpcoes(S.plans.map((p) => ({ plano: p, texto: `${p.nome} ${p.subtitulo || ""}` })), $("#cat-busca").value).map((o) => o.plano);
   if (!encontrados.length) { box.innerHTML = `<div class="status">Nenhum plano encontrado.</div>`; return; }
   if (!encontrados.some((p) => p.id === planoVisto)) planoVisto = null;
   const lista = ["PF", "CNPJ"].map((cat) => {
     const l = encontrados.filter((p) => p.categoria === cat);
     if (!l.length) return "";
-    return `<div class="label" style="margin-top:6px">${cat === "PF" ? "Pessoa física" : "CNPJ"}</div>` + l.map((p) => `<div class="catrow" data-ver="${esc(p.id)}"><button type="button" class="cat-nome">${p.ativo === false ? '<span class="pill off">OCULTO</span>' : ""}${esc(p.nome)}</button><button class="btn" data-ed="${esc(p.id)}">Editar</button></div>`).join("");
+    return `<div class="label" style="margin-top:6px">${cat === "PF" ? "Pessoa física" : "CNPJ"}</div>` + l.map((p) => `<div class="catrow" data-ver="${esc(p.id)}"><button type="button" class="cat-nome">${p.ativo === false ? '<span class="pill off">OCULTO</span>' : ""}${esc(p.nome)}</button>${eAdmin() ? `<button class="btn" data-ed="${esc(p.id)}">Editar</button>` : ""}</div>`).join("");
   }).join("");
   box.innerHTML = `<div class="cat-mestre"><div class="cat cat-lista">${lista}</div><aside class="cat-detalhe" id="cat-detalhe" aria-live="polite"></aside></div>`;
   box.querySelectorAll("[data-ed]").forEach((b) => (b.onclick = () => openEditor(S.plans.find((p) => p.id === b.dataset.ed))));
