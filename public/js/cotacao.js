@@ -17,7 +17,7 @@ const prices = (p) => planPrices(p, S.vidas, S.over);
 function renderFaixas() {
   const tv = totalVidas(S.vidas);
   $("#vidas-total").textContent = `${tv} ${tv === 1 ? "vida" : "vidas"}`;
-  $("#faixas").innerHTML = FAIXAS.map((f, i) => `<div class="fx" data-on="${S.vidas[i] ? 1 : 0}"><span>${f} anos</span><div class="ctr"><button class="iconbtn" data-m="${i}" aria-label="Menos uma pessoa de ${f} anos">−</button><b>${S.vidas[i]}</b><button class="iconbtn" data-p="${i}" aria-label="Mais uma pessoa de ${f} anos">+</button></div></div>`).join("");
+  $("#faixas").innerHTML = FAIXAS.map((f, i) => `<div class="fx" data-on="${S.vidas[i] ? 1 : 0}"><span>${f}</span><div class="ctr"><button class="iconbtn" data-m="${i}" aria-label="Menos uma pessoa de ${f} anos">−</button><b>${S.vidas[i]}</b><button class="iconbtn" data-p="${i}" aria-label="Mais uma pessoa de ${f} anos">+</button></div></div>`).join("");
   $("#faixas").querySelectorAll("[data-m]").forEach((b) => (b.onclick = () => { const i = +b.dataset.m; S.vidas[i] = Math.max(0, S.vidas[i] - 1); render(); }));
   $("#faixas").querySelectorAll("[data-p]").forEach((b) => (b.onclick = () => { const i = +b.dataset.p; S.vidas[i]++; render(); }));
 }
@@ -63,7 +63,7 @@ function renderPlans() {
   box.innerHTML = list.map((p) => {
     const v = prices(p);
     const semArea = S.uf && !lerArea(p.areaComercializacao).estados.length ? `<span>Área de comercialização não informada</span>` : "";
-    const pr = v.porFaixa ? `Total: Enf. R$ ${brl(v.enf) || "—"} · Apto R$ ${brl(v.apto) || "—"}`
+    const pr = v.porFaixa ? `Enf. R$ ${brl(v.enf) || "—"} · Apto R$ ${brl(v.apto) || "—"}`
       : hasFaixas(p) && !totalVidas(S.vidas) ? "Tabela por faixa etária: informe os beneficiários"
       : v.enf || v.apto ? `Enf. R$ ${brl(v.enf) || "—"} · Apto R$ ${brl(v.apto) || "—"}` : "Valores sob consulta";
     return `<button class="plan" aria-pressed="${S.selected.includes(p.id)}" data-id="${esc(p.id)}"><b>${esc(p.nome)}</b><span>${pr}</span>${semArea}</button>`;

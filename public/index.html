@@ -26,22 +26,19 @@
   <section id="v-cotacao" class="grid">
     <div class="stack">
       <div class="panel">
-        <div class="label">Cliente</div>
-        <div class="row">
+        <div class="contratacao">
           <div class="field"><label for="cliente">Nome do cliente</label><input id="cliente" type="text" placeholder="Ex.: Maria" autocomplete="off"></div>
           <div class="field"><label for="fone">WhatsApp do cliente</label><input id="fone" type="tel" placeholder="(34) 99999-0000" autocomplete="off"></div>
-        </div>
-        <div id="hist-cli"></div>
-        <div class="contratacao">
           <div class="field"><label>Tipo de contratação</label>
             <div class="seg" id="tipo"><button id="t-pf" aria-pressed="true" data-t="PF">Pessoa física</button><button id="t-cnpj" aria-pressed="false" data-t="CNPJ">CNPJ</button></div>
           </div>
           <div class="field"><div class="rotulo-acao"><label for="municipio">Cidade</label><button type="button" class="limpar-filtros" id="limpar-local" disabled>Limpar filtro</button></div><select id="municipio"></select></div>
         </div>
+        <div id="hist-cli"></div>
       </div>
 
       <div class="panel">
-        <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center"><div class="label">Beneficiários por faixa etária</div><div style="display:flex;gap:12px;align-items:center"><span class="note" id="vidas-total">0 vidas</span><button class="btn" id="limpar-vidas">Limpar</button></div></div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center"><div class="label">Beneficiários por faixa etária (anos)</div><div style="display:flex;gap:12px;align-items:center"><span class="note" id="vidas-total">0 vidas</span><button class="btn" id="limpar-vidas">Limpar</button></div></div>
         <div class="faixas" id="faixas"></div>
       </div>
 
