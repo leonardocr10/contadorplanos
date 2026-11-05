@@ -7,6 +7,7 @@ import { completarCarencias, lerArea, normFone } from "../public/js/calculo.js";
 import { ErroBackup, STATUS } from "./db.js";
 import { ErroLeitura, MODELO_PADRAO, lerTabela } from "./claude.js";
 import { criarLogin } from "./login.js";
+import { conferirSenha, gerarHash } from "./senhas.js";
 import { montarSnapshot, renderizarProposta } from "./proposta-html.js";
 import { MAX_PLANOS_COMPARATIVO, renderizarComparativo } from "./comparativo-html.js";
 
@@ -122,6 +123,22 @@ function validarCotacao(b) {
   };
 }
 
+function validarLogin(v) {
+  const login = String(v ?? "").trim();
+  if (!/^[\w.@-]{3,40}$/.test(login)) throw new ErroEntrada("O login precisa ter de 3 a 40 caracteres, sem espaços: letras, números, ponto, hífen ou arroba.");
+  return login;
+}
+
+function validarSenha(v) {
+  if (typeof v !== "string" || v.length < 8 || v.length > 200) throw new ErroEntrada("A senha precisa ter pelo menos 8 caracteres.");
+  return v;
+}
+
+function validarPerfil(v) {
+  if (v !== "admin" && v !== "usuario") throw new ErroEntrada("O perfil precisa ser administrador ou usuário.");
+  return v;
+}
+
 function tipoImagem(b) {
   if (b.length > 8 && b.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]))) return "png";
   if (b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "jpg";
@@ -165,7 +182,15 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     res.status(403).json({ erro: "Acesso permitido só neste computador." });
   });
 
-  if (exigirLogin) app.use(criarLogin(env));
+  const login = exigirLogin ? criarLogin(env, banco) : null;
+  if (login) app.use(login);
+
+  // Sem exigir login (só nos testes), a tela age como administrador com os dados gerais.
+  const eAdmin = (req) => !req.usuario || req.usuario.perfil === "admin";
+  const soAdmin = (req, res, next) => (eAdmin(req) ? next() : res.status(403).json({ erro: "Só o administrador pode fazer isso." }));
+  const corretorDe = (req) => (req.usuario ? { nome: req.usuario.nome, fone: req.usuario.fone, empresa: req.usuario.empresa } : banco.lerConfig());
+  // A proposta guarda de quem é, para o link do cliente chamar o WhatsApp do corretor certo.
+  const corretorDaProposta = (req) => ({ ...corretorDe(req), usuarioId: req.usuario?.id });
 
   const chave = () => (env.ANTHROPIC_API_KEY || "").trim();
   const modelo = () => (env.ANTHROPIC_MODEL || "").trim() || MODELO_PADRAO;
@@ -192,7 +217,7 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     res.status(201).json({ caminho: `uploads/${nome}` });
   });
 
-  app.post("/api/restaurar", express.raw({ type: "application/octet-stream", limit: "500mb" }), (req, res) => {
+  app.post("/api/restaurar", soAdmin, express.raw({ type: "application/octet-stream", limit: "500mb" }), (req, res) => {
     if (!Buffer.isBuffer(req.body) || !req.body.length) throw new ErroEntrada("Escolha um arquivo de backup.");
     mkdirSync(pastaBackups, { recursive: true });
     banco.restaurar(req.body, join(pastaBackups, `cotador-antes-de-restaurar-${carimbo()}.db`));
@@ -254,7 +279,7 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     const pedido = validarPedidoDeLinks(req.body);
     const { estado, url } = linkPublico();
     if (estado !== "ativo") return res.status(503).json({ erro: "Os links das propostas não estão disponíveis agora. Tente de novo em instantes.", codigo: "sem_link" });
-    const corretor = banco.lerConfig();
+    const corretor = corretorDaProposta(req);
     const links = pedido.planos.map((id) => {
       const plano = banco.obterPlano(String(id));
       if (!plano) throw new ErroEntrada("Um dos planos escolhidos não existe mais.");
@@ -267,7 +292,7 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
   // Página de cada plano para virar imagem: nada fica salvo.
   app.post("/api/propostas/previa", (req, res) => {
     const pedido = validarPedidoDeLinks(req.body);
-    const corretor = banco.lerConfig();
+    const corretor = corretorDe(req);
     res.json({
       paginas: pedido.planos.map((id) => {
         const plano = banco.obterPlano(String(id));
@@ -283,7 +308,7 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     if (pedido.planos.length < 2 || pedido.planos.length > MAX_PLANOS_COMPARATIVO) {
       throw new ErroEntrada(`Escolha de 2 a ${MAX_PLANOS_COMPARATIVO} planos para comparar.`);
     }
-    const corretor = banco.lerConfig();
+    const corretor = corretorDe(req);
     const snapshots = pedido.planos.map((id) => {
       const plano = banco.obterPlano(String(id));
       if (!plano) throw new ErroEntrada("Um dos planos escolhidos não existe mais.");
@@ -294,8 +319,8 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
 
   /* ---------- atualização do sistema ---------- */
   if (sistema) {
-    app.get("/api/sistema/versao", async (_req, res) => res.json(await sistema.versao()));
-    app.post("/api/sistema/atualizar", async (_req, res) => {
+    app.get("/api/sistema/versao", soAdmin, async (_req, res) => res.json(await sistema.versao()));
+    app.post("/api/sistema/atualizar", soAdmin, async (_req, res) => {
       try {
         res.json(await sistema.atualizar());
       } catch (e) {
@@ -369,18 +394,74 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
   });
 
   /* ---------- configuração e backup ---------- */
-  app.get("/api/config", (_req, res) => res.json(banco.lerConfig()));
+  // Nome, telefone e corretora são de cada login e vão nas propostas que ele gera.
+  app.get("/api/config", (req, res) => res.json(corretorDe(req)));
 
   app.put("/api/config", (req, res) => {
     const b = req.body ?? {};
-    res.json(banco.gravarConfig({
+    const dados = {
       nome: b.nome === undefined ? undefined : textoOpc(b.nome, "nome", 200),
       fone: b.fone === undefined ? undefined : textoOpc(b.fone, "telefone", 50),
       empresa: b.empresa === undefined ? undefined : textoOpc(b.empresa, "corretora", 200),
-    }));
+    };
+    if (!req.usuario) return res.json(banco.gravarConfig(dados));
+    const { nome, fone, empresa } = banco.atualizarDadosDoUsuario(req.usuario.id, dados);
+    res.json({ nome, fone, empresa });
   });
 
-  app.get("/api/backup", (_req, res) => {
+  /* ---------- usuários ---------- */
+  app.get("/api/eu", (req, res) => {
+    if (!req.usuario) return res.json({ id: null, login: "", perfil: "admin", ...banco.lerConfig() });
+    res.json(req.usuario);
+  });
+
+  app.put("/api/eu/senha", (req, res) => {
+    if (!req.usuario) throw new ErroEntrada("Entre com o seu login para alterar a senha.");
+    const hashAtual = banco.lerHashDaSenha(req.usuario.id);
+    if (!conferirSenha(req.body?.atual ?? "", hashAtual)) throw new ErroEntrada("A senha atual está incorreta.");
+    const hash = gerarHash(validarSenha(req.body?.nova));
+    banco.alterarSenhaDoUsuario(req.usuario.id, hash);
+    login.manterSessao(req.tokenDaSessao, hash);
+    res.json({ ok: true });
+  });
+
+  app.get("/api/usuarios", soAdmin, (_req, res) => res.json(banco.listarUsuarios()));
+
+  app.post("/api/usuarios", soAdmin, (req, res) => {
+    const b = req.body ?? {};
+    const novoLogin = validarLogin(b.login);
+    if (banco.obterUsuarioPorLogin(novoLogin)) throw new ErroEntrada("Já existe um usuário com este login.");
+    const perfil = b.perfil === undefined ? "usuario" : validarPerfil(b.perfil);
+    res.status(201).json(banco.criarUsuario({ login: novoLogin, senhaHash: gerarHash(validarSenha(b.senha)), perfil }));
+  });
+
+  app.put("/api/usuarios/:id", soAdmin, (req, res) => {
+    const alvo = banco.obterUsuario(req.params.id);
+    if (!alvo) throw new ErroNaoEncontrado("Usuário não encontrado.");
+    const b = req.body ?? {};
+    const perfil = b.perfil === undefined ? undefined : validarPerfil(b.perfil);
+    const ativo = b.ativo === undefined ? undefined : !!b.ativo;
+    const perdeAdmin = alvo.perfil === "admin" && alvo.ativo && ((perfil && perfil !== "admin") || ativo === false);
+    if (perdeAdmin && req.usuario?.id === alvo.id) throw new ErroEntrada("Você não pode tirar o seu próprio acesso de administrador.");
+    if (perdeAdmin && banco.contarAdminsAtivos() <= 1) throw new ErroEntrada("O sistema precisa de pelo menos um administrador ativo.");
+    if (b.senha !== undefined) {
+      const hash = gerarHash(validarSenha(b.senha));
+      banco.alterarSenhaDoUsuario(alvo.id, hash);
+      if (req.usuario?.id === alvo.id) login.manterSessao(req.tokenDaSessao, hash);
+    }
+    res.json(banco.alterarAcessoDoUsuario(alvo.id, { perfil, ativo }));
+  });
+
+  app.delete("/api/usuarios/:id", soAdmin, (req, res) => {
+    const alvo = banco.obterUsuario(req.params.id);
+    if (!alvo) throw new ErroNaoEncontrado("Usuário não encontrado.");
+    if (req.usuario?.id === alvo.id) throw new ErroEntrada("Você não pode excluir o seu próprio usuário.");
+    if (alvo.perfil === "admin" && alvo.ativo && banco.contarAdminsAtivos() <= 1) throw new ErroEntrada("O sistema precisa de pelo menos um administrador ativo.");
+    banco.excluirUsuario(alvo.id);
+    res.status(204).end();
+  });
+
+  app.get("/api/backup", soAdmin, (_req, res) => {
     res.setHeader("Content-Type", "application/octet-stream");
     res.setHeader("Content-Disposition", `attachment; filename="cotador-${carimbo()}.db"`);
     res.send(banco.gerarBackup());

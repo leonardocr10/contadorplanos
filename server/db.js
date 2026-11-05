@@ -128,6 +128,17 @@ const MIGRACOES = [
       if (completa !== p.carencia_tabela.trim()) atualizar.run(completa, p.id);
     }
   },
+  `CREATE TABLE IF NOT EXISTS usuarios (
+     id TEXT PRIMARY KEY,
+     login TEXT NOT NULL UNIQUE COLLATE NOCASE,
+     senha_hash TEXT NOT NULL,
+     perfil TEXT NOT NULL CHECK (perfil IN ('admin','usuario')),
+     nome TEXT NOT NULL DEFAULT '',
+     fone TEXT NOT NULL DEFAULT '',
+     empresa TEXT NOT NULL DEFAULT '',
+     ativo INTEGER NOT NULL DEFAULT 1,
+     criado_em TEXT NOT NULL
+   );`,
 ];
 
 const VERSAO_TEXTOS_COPARTICIPACAO = 11;
@@ -189,6 +200,10 @@ function linhaParaCotacao(l) {
     id: l.id, fone: l.fone, cliente: l.cliente, criadoEm: l.criado_em, tipo: l.tipo, uf: l.uf, municipio: l.municipio, idades: l.idades,
     vidas: JSON.parse(l.vidas), over: JSON.parse(l.overrides), planos: JSON.parse(l.planos), mensagem: l.mensagem, status: l.status,
   };
+}
+
+function linhaParaUsuario(l) {
+  return { id: l.id, login: l.login, perfil: l.perfil, nome: l.nome, fone: l.fone, empresa: l.empresa, ativo: !!l.ativo, criadoEm: l.criado_em };
 }
 
 function linhaParaProposta(l) {
@@ -468,6 +483,64 @@ export class Banco {
     const st = this.db.prepare("INSERT INTO config (chave, valor) VALUES (?, ?) ON CONFLICT (chave) DO UPDATE SET valor = excluded.valor");
     for (const k of ["nome", "fone", "empresa"]) if (cfg[k] !== undefined) st.run(k, cfg[k]);
     return this.lerConfig();
+  }
+
+  /* ---------- usuários ---------- */
+  // Fora deste bloco, o hash da senha nunca acompanha os dados do usuário.
+  contarUsuarios() {
+    return this.db.prepare("SELECT COUNT(*) AS n FROM usuarios").get().n;
+  }
+
+  contarAdminsAtivos() {
+    return this.db.prepare("SELECT COUNT(*) AS n FROM usuarios WHERE perfil = 'admin' AND ativo = 1").get().n;
+  }
+
+  listarUsuarios() {
+    return this.db.prepare("SELECT * FROM usuarios ORDER BY login COLLATE NOCASE").all().map(linhaParaUsuario);
+  }
+
+  obterUsuario(id) {
+    const l = this.db.prepare("SELECT * FROM usuarios WHERE id = ?").get(id);
+    return l ? linhaParaUsuario(l) : null;
+  }
+
+  obterUsuarioPorLogin(login) {
+    const l = this.db.prepare("SELECT * FROM usuarios WHERE login = ?").get(String(login).trim());
+    return l ? linhaParaUsuario(l) : null;
+  }
+
+  lerHashDaSenha(id) {
+    return this.db.prepare("SELECT senha_hash FROM usuarios WHERE id = ?").get(id)?.senha_hash ?? null;
+  }
+
+  criarUsuario({ login, senhaHash, perfil = "usuario", nome = "", fone = "", empresa = "" }) {
+    const id = "u" + randomUUID();
+    this.db
+      .prepare("INSERT INTO usuarios (id, login, senha_hash, perfil, nome, fone, empresa, ativo, criado_em) VALUES (?,?,?,?,?,?,?,1,?)")
+      .run(id, login, senhaHash, perfil, nome, fone, empresa, new Date().toISOString());
+    return this.obterUsuario(id);
+  }
+
+  atualizarDadosDoUsuario(id, { nome, fone, empresa }) {
+    const st = (coluna, valor) => { if (valor !== undefined) this.db.prepare(`UPDATE usuarios SET ${coluna} = ? WHERE id = ?`).run(valor, id); };
+    st("nome", nome);
+    st("fone", fone);
+    st("empresa", empresa);
+    return this.obterUsuario(id);
+  }
+
+  alterarSenhaDoUsuario(id, senhaHash) {
+    this.db.prepare("UPDATE usuarios SET senha_hash = ? WHERE id = ?").run(senhaHash, id);
+  }
+
+  alterarAcessoDoUsuario(id, { perfil, ativo }) {
+    if (perfil !== undefined) this.db.prepare("UPDATE usuarios SET perfil = ? WHERE id = ?").run(perfil, id);
+    if (ativo !== undefined) this.db.prepare("UPDATE usuarios SET ativo = ? WHERE id = ?").run(ativo ? 1 : 0, id);
+    return this.obterUsuario(id);
+  }
+
+  excluirUsuario(id) {
+    return this.db.prepare("DELETE FROM usuarios WHERE id = ?").run(id).changes > 0;
   }
 
   /* ---------- backup ---------- */

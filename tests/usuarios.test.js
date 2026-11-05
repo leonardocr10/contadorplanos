@@ -1,0 +1,170 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { Banco } from "../server/db.js";
+import { criarApp } from "../server/app.js";
+import { conferirSenha, gerarHash } from "../server/senhas.js";
+
+const raiz = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
+const seed = join(raiz, "dados", "planos.json");
+const SENHA_ADMIN = "senha-do-admin-1";
+
+async function subir(t, env = { LOGIN_USUARIO: "chefe", LOGIN_SENHA: SENHA_ADMIN }, preparar) {
+  const pasta = mkdtempSync(join(tmpdir(), "cotador-usr-"));
+  const banco = new Banco(join(pasta, "c.db"), seed);
+  preparar?.(banco);
+  const sistema = { versao: async () => ({ commit: "abc", data: "2026-01-01" }), atualizar: async () => ({ atualizado: false }) };
+  const app = criarApp({ banco, pastaPublica: join(raiz, "public"), pastaUploads: join(pasta, "u"), pastaBackups: join(pasta, "b"), env, exigirLogin: true, sistema });
+  const servidor = await new Promise((ok) => { const s = app.listen(0, "127.0.0.1", () => ok(s)); });
+  t.after(() => new Promise((fim) => { servidor.closeAllConnections(); servidor.close(() => { banco.fechar(); rmSync(pasta, { recursive: true, force: true }); fim(); }); }));
+  const base = `http://127.0.0.1:${servidor.address().port}`;
+  const entrar = async (usuario, senha) => {
+    const r = await fetch(base + "/login", { method: "POST", redirect: "manual", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ usuario, senha }) });
+    return { status: r.status, cookie: r.headers.get("set-cookie")?.split(";")[0] };
+  };
+  const pedir = (cookie, rota, metodo = "GET", json) => fetch(base + rota, { method: metodo, redirect: "manual", headers: { cookie, ...(json ? { "Content-Type": "application/json" } : {}) }, body: json ? JSON.stringify(json) : undefined });
+  return { banco, base, entrar, pedir };
+}
+
+const pedido = { planos: ["plam-saude-pf"], vidas: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0], over: {}, cliente: "Maria", opts: {} };
+
+test("a senha guardada não é a senha e só confere com a certa", () => {
+  const hash = gerarHash("minha-senha");
+  assert.ok(!hash.includes("minha-senha"));
+  assert.ok(conferirSenha("minha-senha", hash));
+  assert.ok(!conferirSenha("outra", hash));
+  assert.ok(!conferirSenha("minha-senha", "lixo"));
+  assert.notEqual(gerarHash("minha-senha"), hash);
+});
+
+test("o .env cria só o primeiro administrador, com os dados que já existiam", async (t) => {
+  const { banco, entrar, pedir } = await subir(t, undefined, (b) => b.gravarConfig({ nome: "Ruggieria", fone: "34988880000", empresa: "Consult" }));
+  const { status, cookie } = await entrar("chefe", SENHA_ADMIN);
+  assert.equal(status, 303);
+  const eu = await (await pedir(cookie, "/api/eu")).json();
+  assert.equal(eu.perfil, "admin");
+  assert.equal(eu.nome, "Ruggieria");
+  assert.equal(eu.empresa, "Consult");
+  assert.equal(JSON.stringify(eu).includes("hash"), false);
+  // O hash fica no banco, e a senha do .env não aparece em lugar nenhum dele.
+  const guardado = banco.lerHashDaSenha(eu.id);
+  assert.ok(!guardado.includes(SENHA_ADMIN));
+  assert.ok(conferirSenha(SENHA_ADMIN, guardado));
+  assert.equal(banco.contarUsuarios(), 1);
+});
+
+test("sem usuário nem .env, ninguém entra", async (t) => {
+  const { base, entrar } = await subir(t, {});
+  assert.equal((await entrar("x", "y")).status, 503);
+  assert.match(await (await fetch(base + "/login")).text(), /LOGIN_USUARIO/);
+});
+
+test("login e senha errados são recusados, com o mesmo aviso", async (t) => {
+  const { entrar } = await subir(t);
+  assert.equal((await entrar("chefe", "errada")).status, 401);
+  assert.equal((await entrar("ninguem", SENHA_ADMIN)).status, 401);
+  // O login não diferencia maiúsculas.
+  assert.equal((await entrar("CHEFE", SENHA_ADMIN)).status, 303);
+});
+
+test("usuário comum não acessa o que é do administrador", async (t) => {
+  const { entrar, pedir } = await subir(t);
+  const admin = (await entrar("chefe", SENHA_ADMIN)).cookie;
+  const criado = await pedir(admin, "/api/usuarios", "POST", { login: "corretor1", senha: "senha-do-corretor", perfil: "usuario" });
+  assert.equal(criado.status, 201);
+  assert.equal(JSON.stringify(await criado.json()).includes("hash"), false);
+  const comum = (await entrar("corretor1", "senha-do-corretor")).cookie;
+  for (const [rota, metodo] of [["/api/usuarios", "GET"], ["/api/usuarios", "POST"], ["/api/backup", "GET"], ["/api/restaurar", "POST"], ["/api/sistema/versao", "GET"], ["/api/sistema/atualizar", "POST"], ["/api/usuarios/x", "DELETE"], ["/api/usuarios/x", "PUT"]]) {
+    assert.equal((await pedir(comum, rota, metodo, metodo === "GET" ? undefined : {})).status, 403, `${metodo} ${rota}`);
+    assert.notEqual((await pedir(admin, rota, metodo === "POST" && rota === "/api/sistema/atualizar" ? "POST" : "GET")).status, 401);
+  }
+  assert.equal((await pedir(admin, "/api/backup")).status, 200);
+  assert.equal((await pedir(admin, "/api/sistema/versao")).status, 200);
+  assert.equal((await pedir(comum, "/api/planos")).status, 200);
+});
+
+test("nome, telefone e corretora são de cada login e vão na proposta dele", async (t) => {
+  const { entrar, pedir } = await subir(t);
+  const admin = (await entrar("chefe", SENHA_ADMIN)).cookie;
+  await pedir(admin, "/api/config", "PUT", { nome: "Dono", fone: "3411", empresa: "Matriz" });
+  await pedir(admin, "/api/usuarios", "POST", { login: "corretor1", senha: "senha-do-corretor" });
+  const comum = (await entrar("corretor1", "senha-do-corretor")).cookie;
+  assert.deepEqual(await (await pedir(comum, "/api/config")).json(), { nome: "", fone: "", empresa: "" });
+  await pedir(comum, "/api/config", "PUT", { nome: "Corretor Um", fone: "3422", empresa: "Filial" });
+  assert.equal((await (await pedir(admin, "/api/config")).json()).nome, "Dono");
+  const pagina = async (c) => (await (await pedir(c, "/api/propostas/previa", "POST", pedido)).json()).paginas[0].html;
+  const doComum = await pagina(comum), doAdmin = await pagina(admin);
+  assert.ok(doComum.includes("Corretor Um") && doComum.includes("Filial") && !doComum.includes("Dono"));
+  assert.ok(doAdmin.includes("Dono") && !doAdmin.includes("Corretor Um"));
+});
+
+test("troca a própria senha conferindo a atual, e as outras sessões caem", async (t) => {
+  const { entrar, pedir } = await subir(t);
+  const a = (await entrar("chefe", SENHA_ADMIN)).cookie, outra = (await entrar("chefe", SENHA_ADMIN)).cookie;
+  const trocar = (atual, nova) => pedir(a, "/api/eu/senha", "PUT", { atual, nova });
+  assert.equal((await trocar("errada", "nova-senha-longa")).status, 400);
+  assert.equal((await trocar(SENHA_ADMIN, "curta")).status, 400);
+  assert.equal((await trocar(SENHA_ADMIN, "nova-senha-longa")).status, 200);
+  assert.equal((await pedir(a, "/api/eu")).status, 200);
+  assert.equal((await pedir(outra, "/api/eu")).status, 401);
+  assert.equal((await entrar("chefe", SENHA_ADMIN)).status, 401);
+  assert.equal((await entrar("chefe", "nova-senha-longa")).status, 303);
+});
+
+test("o administrador redefine, desativa e exclui, e o acesso cai na hora", async (t) => {
+  const { entrar, pedir } = await subir(t);
+  const admin = (await entrar("chefe", SENHA_ADMIN)).cookie;
+  const u = await (await pedir(admin, "/api/usuarios", "POST", { login: "corretor1", senha: "senha-do-corretor" })).json();
+  let comum = (await entrar("corretor1", "senha-do-corretor")).cookie;
+  assert.equal((await pedir(admin, "/api/usuarios", "POST", { login: "CORRETOR1", senha: "outra-senha-boa" })).status, 400);
+  assert.equal((await pedir(admin, "/api/usuarios", "POST", { login: "a b", senha: "outra-senha-boa" })).status, 400);
+  assert.equal((await pedir(admin, "/api/usuarios", "POST", { login: "novo", senha: "curta" })).status, 400);
+
+  await pedir(admin, `/api/usuarios/${u.id}`, "PUT", { senha: "senha-redefinida" });
+  assert.equal((await pedir(comum, "/api/eu")).status, 401);
+  assert.equal((await entrar("corretor1", "senha-do-corretor")).status, 401);
+  comum = (await entrar("corretor1", "senha-redefinida")).cookie;
+
+  await pedir(admin, `/api/usuarios/${u.id}`, "PUT", { ativo: false });
+  assert.equal((await pedir(comum, "/api/eu")).status, 401);
+  assert.equal((await entrar("corretor1", "senha-redefinida")).status, 401);
+
+  await pedir(admin, `/api/usuarios/${u.id}`, "PUT", { ativo: true });
+  comum = (await entrar("corretor1", "senha-redefinida")).cookie;
+  assert.equal((await pedir(admin, `/api/usuarios/${u.id}`, "DELETE")).status, 204);
+  assert.equal((await pedir(comum, "/api/eu")).status, 401);
+});
+
+test("o sistema nunca fica sem administrador", async (t) => {
+  const { entrar, pedir } = await subir(t);
+  const admin = (await entrar("chefe", SENHA_ADMIN)).cookie;
+  const eu = await (await pedir(admin, "/api/eu")).json();
+  assert.equal((await pedir(admin, `/api/usuarios/${eu.id}`, "DELETE")).status, 400);
+  assert.equal((await pedir(admin, `/api/usuarios/${eu.id}`, "PUT", { ativo: false })).status, 400);
+  assert.equal((await pedir(admin, `/api/usuarios/${eu.id}`, "PUT", { perfil: "usuario" })).status, 400);
+});
+
+test("LOGIN_REDEFINIR_SENHA recupera o acesso do administrador", async (t) => {
+  const pasta = mkdtempSync(join(tmpdir(), "cotador-usr-"));
+  t.after(() => rmSync(pasta, { recursive: true, force: true }));
+  const banco = new Banco(join(pasta, "c.db"), seed);
+  const admin = banco.criarUsuario({ login: "chefe", senhaHash: gerarHash("senha-esquecida"), perfil: "admin" });
+  const abrir = (env) => criarApp({ banco, pastaPublica: join(raiz, "public"), pastaUploads: join(pasta, "u"), pastaBackups: join(pasta, "b"), env, exigirLogin: true });
+  // Sem o pedido, o .env não muda a senha que já existe.
+  abrir({ LOGIN_USUARIO: "chefe", LOGIN_SENHA: "senha-do-env" });
+  assert.ok(conferirSenha("senha-esquecida", banco.lerHashDaSenha(admin.id)));
+  abrir({ LOGIN_USUARIO: "chefe", LOGIN_SENHA: "senha-do-env", LOGIN_REDEFINIR_SENHA: "1" });
+  assert.ok(conferirSenha("senha-do-env", banco.lerHashDaSenha(admin.id)));
+  banco.fechar();
+});
+
+test("a tela só mostra ao administrador o que é dele", () => {
+  const html = readFileSync(join(raiz, "public", "index.html"), "utf8");
+  assert.ok(!html.includes('data-view="corretor"'));
+  for (const id of ["cfg-atualizar", "b-file", "usr-form"]) {
+    const antes = html.slice(0, html.indexOf(`id="${id}"`));
+    assert.match(antes.slice(antes.lastIndexOf('class="panel')), /^class="panel cfg-painel" data-admin hidden/, id);
+  }
+});

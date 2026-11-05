@@ -12,7 +12,7 @@ export function montarSnapshot(p, { vidas, over, cliente, opts, municipio = "" }
   const v = planPrices(p, vidas, over);
   return {
     cliente,
-    corretor: { nome: corretor.nome, fone: corretor.fone, empresa: corretor.empresa },
+    corretor: { nome: corretor.nome, fone: corretor.fone, empresa: corretor.empresa, usuarioId: corretor.usuarioId },
     data: agora.toLocaleDateString("pt-BR"),
     vidas: totalVidas(vidas),
     precos: {

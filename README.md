@@ -13,18 +13,22 @@ Na aba **Meus dados**, preencha seu nome, telefone e corretora. Eles aparecem na
 
 ## Atualizar o sistema
 
-Na aba **Configurações**, clique em **Atualizar agora**. O cotador baixa a versão nova do GitHub e reinicia sozinho, desde que tenha sido aberto pelo `iniciar.bat`.
+Com o login de administrador, na aba **Configurações**, clique em **Atualizar agora**. O cotador baixa a versão nova do GitHub e reinicia sozinho, desde que tenha sido aberto pelo `iniciar.bat`.
 
 ## Login
 
-A tela do cotador pede login e senha, definidos no arquivo `.env`, que não vai para o GitHub:
+Cada pessoa entra com o próprio login e, em **Configurações**, preenche os próprios dados e altera a própria senha. O administrador também vê usuários, backup e a atualização do sistema. As senhas ficam no banco só como hash. As páginas das propostas continuam abrindo sem login para o cliente.
+
+O primeiro administrador é criado a partir do arquivo `.env`, que não vai para o GitHub:
 
 ```
 LOGIN_USUARIO=seu_login
 LOGIN_SENHA=sua_senha
 ```
 
-Depois de alterar, reinicie o cotador. As páginas das propostas continuam abrindo sem login para o cliente.
+Depois disso, a senha é alterada em **Configurações**, e mudar o `.env` não muda mais a senha.
+
+Se o administrador esquecer a senha, coloque a nova senha em `LOGIN_SENHA`, acrescente `LOGIN_REDEFINIR_SENHA=1` ao `.env` e reinicie o cotador. Depois de entrar, apague a linha `LOGIN_REDEFINIR_SENHA`, senão a senha volta para a do `.env` a cada reinício.
 
 ## Links das propostas
 

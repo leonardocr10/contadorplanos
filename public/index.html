@@ -16,7 +16,6 @@
       <button id="tab-doc" role="tab" aria-selected="false" data-view="documentos">Documentos</button>
       <button id="tab-his" role="tab" aria-selected="false" data-view="historico">Histórico</button>
       <button id="tab-ace" role="tab" aria-selected="false" data-view="aceites">Aceites <span class="pill" id="ace-selo" hidden style="margin:0 0 0 4px"></span></button>
-      <button id="tab-cor" role="tab" aria-selected="false" data-view="corretor">Meus dados</button>
       <button id="tab-cfg" role="tab" aria-selected="false" data-view="configuracoes">Configurações</button>
       <form method="post" action="/sair" style="display:contents"><button type="submit">Sair</button></form>
     </nav>
@@ -92,7 +91,7 @@
       <div class="field"><label for="hist-busca">Buscar por número ou nome</label><input id="hist-busca" type="text" placeholder="(34) 99999-0000 ou Maria" autocomplete="off"></div>
       <div class="checks" id="hist-filtro"></div>
       <div id="hist-list" class="cat"></div>
-      <p class="note" style="margin:0">O histórico fica salvo só neste computador. Faça backup na aba Meus dados.</p>
+      <p class="note" style="margin:0">O histórico fica salvo só neste sistema. O administrador faz o backup em Configurações.</p>
     </div>
   </section>
 
@@ -123,30 +122,45 @@
     </div>
   </section>
 
-  <!-- CORRETOR -->
+  <!-- CONFIGURAÇÕES -->
   <section id="v-configuracoes" class="stack" hidden>
-    <div class="panel">
-      <h2>Atualizar sistema</h2>
-      <p class="note">Baixa a versão mais recente do GitHub e reinicia o cotador. Os seus dados não são alterados, e os clientes ficam sem acesso aos links por alguns instantes.</p>
-      <p class="note" id="cfg-versao"></p>
-      <div class="actions"><button class="btn primary" id="cfg-atualizar">Atualizar agora</button></div>
-      <p class="note" id="cfg-msg" role="status"></p>
-    </div>
-  </section>
-
-  <section id="v-corretor" class="stack" hidden>
-    <div class="panel" style="max-width:720px;width:100%">
+    <div class="panel cfg-painel">
       <h2>Meus dados</h2>
-      <p class="note" style="margin:0">Aparecem no rodapé da imagem e na assinatura da legenda. Ficam salvos neste computador.</p>
+      <p class="note" style="margin:0"><span id="cfg-entrou"></span> Estes dados aparecem no rodapé da imagem e na assinatura da mensagem das cotações feitas com o seu login.</p>
       <div class="row">
         <div class="field"><label for="c-nome">Seu nome</label><input id="c-nome" type="text" placeholder="Ex.: Diego Araújo"></div>
         <div class="field"><label for="c-fone">Seu telefone</label><input id="c-fone" type="tel" placeholder="(34) 99999-0000"></div>
       </div>
       <div class="field"><label for="c-empresa">Corretora (opcional)</label><input id="c-empresa" type="text"></div>
     </div>
-    <div class="panel" style="max-width:720px;width:100%">
+    <form class="panel cfg-painel" id="senha-form" autocomplete="off">
+      <h2>Alterar senha</h2>
+      <div class="row">
+        <div class="field"><label for="senha-atual">Senha atual</label><input id="senha-atual" class="campo-senha" type="password" autocomplete="current-password" required></div>
+        <div class="field"><label for="senha-nova">Nova senha (mínimo de 8 caracteres)</label><input id="senha-nova" class="campo-senha" type="password" autocomplete="new-password" minlength="8" required></div>
+        <div class="field"><label for="senha-repete">Repita a nova senha</label><input id="senha-repete" class="campo-senha" type="password" autocomplete="new-password" minlength="8" required></div>
+      </div>
+      <div class="actions"><button class="btn primary" type="submit">Alterar senha</button></div>
+      <p class="note" id="senha-msg" role="status" style="margin:0"></p>
+    </form>
+    <div class="panel cfg-painel" data-admin hidden>
+      <h2>Usuários</h2>
+      <p class="note" style="margin:0">Cada usuário entra com o próprio login e preenche os próprios dados em Configurações. Só o administrador vê usuários, backup e atualização do sistema.</p>
+      <div id="usr-lista" class="cat"></div>
+      <form id="usr-form" class="stack" style="gap:10px" autocomplete="off">
+        <div class="label">Novo usuário</div>
+        <div class="row">
+          <div class="field"><label for="usr-login">Login</label><input id="usr-login" type="text" autocomplete="off" autocapitalize="none" required></div>
+          <div class="field"><label for="usr-senha">Senha inicial (mínimo de 8 caracteres)</label><input id="usr-senha" class="campo-senha" type="password" autocomplete="new-password" minlength="8" required></div>
+          <div class="field"><label for="usr-perfil">Perfil</label><select id="usr-perfil"><option value="usuario">Usuário</option><option value="admin">Administrador</option></select></div>
+        </div>
+        <div class="actions"><button class="btn primary" type="submit">Criar usuário</button></div>
+      </form>
+      <p class="note" id="usr-msg" role="status" style="margin:0"></p>
+    </div>
+    <div class="panel cfg-painel" data-admin hidden>
       <h2>Backup</h2>
-      <p class="note" style="margin:0">Guarda uma cópia dos seus planos, dados e histórico de cotações. As imagens enviadas ficam na pasta dados\uploads e não entram nessa cópia.</p>
+      <p class="note" style="margin:0">Guarda uma cópia de planos, usuários e histórico de cotações. Guarde o arquivo em local seguro. As imagens enviadas ficam na pasta dados\uploads e não entram nessa cópia.</p>
       <div class="actions">
         <a class="btn primary" href="/api/backup" download>Fazer backup</a>
         <label class="btn" for="b-file" tabindex="0">Restaurar backup</label>
@@ -154,6 +168,13 @@
       </div>
       <div id="b-confirm" class="status" hidden>Trocar todos os dados atuais pelos de <b id="b-nome"></b>? Uma cópia dos dados atuais fica na pasta backups. <div class="actions" style="margin-top:8px"><button class="btn danger" id="b-sim">Sim, restaurar</button><button class="btn" id="b-nao">Cancelar</button></div></div>
       <div id="b-msg" class="note" role="status"></div>
+    </div>
+    <div class="panel cfg-painel" data-admin hidden>
+      <h2>Atualizar sistema</h2>
+      <p class="note">Baixa a versão mais recente do GitHub e reinicia o cotador. Os seus dados não são alterados, e os clientes ficam sem acesso aos links por alguns instantes.</p>
+      <p class="note" id="cfg-versao"></p>
+      <div class="actions"><button class="btn primary" id="cfg-atualizar">Atualizar agora</button></div>
+      <p class="note" id="cfg-msg" role="status"></p>
     </div>
   </section>
 </div>

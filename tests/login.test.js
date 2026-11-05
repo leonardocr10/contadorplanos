@@ -1,11 +1,20 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import express from "express";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { Banco } from "../server/db.js";
 import { criarLogin } from "../server/login.js";
+import { gerarHash } from "../server/senhas.js";
 
-function subir(t, env) {
+function subir(t, env, preparar) {
+  const pasta = mkdtempSync(join(tmpdir(), "cotador-login-"));
+  const banco = new Banco(join(pasta, "c.db"));
+  preparar?.(banco);
+  t.after(() => { banco.fechar(); rmSync(pasta, { recursive: true, force: true }); });
   const app = express();
-  app.use(criarLogin(env));
+  app.use(criarLogin(env, banco));
   app.get("/api/segredo", (_req, res) => res.json({ ok: true }));
   app.get("/", (_req, res) => res.send("cotador"));
   return new Promise((ok) => {
@@ -43,6 +52,13 @@ test("senha errada não entra e 5 erros bloqueiam até a senha certa", async (t)
   const base = await subir(t, ENV);
   for (let i = 0; i < 5; i++) assert.equal((await entrar(base, "fulano", "errada")).status, 401);
   assert.equal((await entrar(base, "fulano", "1234")).status, 429);
+});
+
+test("errar a própria senha não bloqueia os outros usuários", async (t) => {
+  const base = await subir(t, ENV, (b) => b.criarUsuario({ login: "beltrano", senhaHash: gerarHash("senha-do-beltrano") }));
+  for (let i = 0; i < 5; i++) await entrar(base, "beltrano", "errada");
+  assert.equal((await entrar(base, "beltrano", "senha-do-beltrano")).status, 429);
+  assert.equal((await entrar(base, "fulano", "1234")).status, 401);
 });
 
 test("sem usuário e senha no .env ninguém entra", async (t) => {

@@ -48,7 +48,10 @@ export function criarAppPublica({ banco, pastaPublica, pastaUploads }) {
     if (!proposta) return res.status(404).type("html").send(paginaErro);
     const documentos = banco.documentosDaProposta(proposta.dados);
     res.setHeader("Cache-Control", "no-store");
-    res.type("html").send(renderizarProposta(proposta.dados, { token: proposta.token, aceite: proposta, documentos, foneCorretor: banco.lerConfig().fone, agente: req.get("user-agent") }));
+    // Telefone atual do corretor que fez a proposta. As propostas de antes dos logins usam o telefone geral.
+    const c = proposta.dados.corretor, dono = c?.usuarioId ? banco.obterUsuario(c.usuarioId) : null;
+    const foneCorretor = dono?.fone || (c?.usuarioId ? c.fone : banco.lerConfig().fone);
+    res.type("html").send(renderizarProposta(proposta.dados, { token: proposta.token, aceite: proposta, documentos, foneCorretor, agente: req.get("user-agent") }));
   });
 
   // O aceite só acontece por POST: quem apenas abre o link, como a prévia do WhatsApp, não aceita nada.

@@ -45,7 +45,15 @@ h2{font-family:var(--display);font-weight:600;font-size:19px;margin:0}
 .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
 .field{display:flex;flex-direction:column;gap:6px;min-width:0}
 .field label{font-size:13px;font-weight:600;color:var(--muted)}
-input[type=text],input[type=tel],textarea,select{width:100%;font:500 15px var(--body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.cfg-painel{max-width:860px;width:100%}
+.usr-linha{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid var(--line);border-radius:10px}
+.usr-linha .usr-nome{min-width:0;font-weight:700;overflow-wrap:anywhere}
+.usr-linha small{display:block;font-weight:500;color:var(--muted)}
+.usr-linha .actions{margin:0}
+.usr-linha .btn{padding:5px 12px;min-height:0;font-size:13px}
+.usr-senha{display:flex;flex-wrap:wrap;gap:8px;width:100%}
+.usr-senha input{flex:1;min-width:180px}
+input[type=text],input[type=tel],input[type=password],textarea,select{width:100%;font:500 15px var(--body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
 textarea{resize:vertical;min-height:72px;line-height:1.45}
 .money{font-variant-numeric:tabular-nums}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;align-self:flex-start}

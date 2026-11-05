@@ -1,11 +1,11 @@
-// Ponto de entrada: navegação entre as abas, "Meus dados", backup e carga inicial.
+// Ponto de entrada: navegação entre as abas, dados do usuário, backup e carga inicial.
 import { $, S, VIEWS, api, carregarPlanos, definirRender, render, show, toast } from "./estado.js";
 import { iniciarCotacao, renderCotacao, salvarCotacaoPendente } from "./cotacao.js";
 import { iniciarPlanos, renderCat } from "./planos.js";
 import { carregarHistorico, iniciarHistorico, renderHist } from "./historico.js";
 import { carregarAceites, renderAceites } from "./aceites.js";
 import { carregarDocumentos, iniciarDocumentos, renderDocumentos } from "./documentos.js";
-import { iniciarConfiguracoes } from "./configuracoes.js";
+import { aplicarPerfil, iniciarConfiguracoes } from "./configuracoes.js";
 import { iniciarFiltroSelects } from "./filtro-select.js";
 
 iniciarFiltroSelects();
@@ -100,12 +100,13 @@ async function verificarLink() {
 /* ---------- carga inicial ---------- */
 async function carregar() {
   try {
-    const [status, cor] = await Promise.all([api("/api/status"), api("/api/config"), carregarPlanos()]);
+    const [status, eu] = await Promise.all([api("/api/status"), api("/api/eu"), carregarPlanos()]);
     S.leituraDisponivel = status.leituraDisponivel;
     S.linkAtivo = status.linkPublico.estado === "ativo";
     S.linkLocal = status.linkPublico.local;
-    S.cor = cor;
-    for (const k of CAMPOS_CONFIG) $("#c-" + k).value = cor[k] ?? "";
+    S.cor = { nome: eu.nome ?? "", fone: eu.fone ?? "", empresa: eu.empresa ?? "" };
+    for (const k of CAMPOS_CONFIG) $("#c-" + k).value = S.cor[k];
+    aplicarPerfil(eu);
   } catch (e) {
     S.dbErr = e.message;
   }
