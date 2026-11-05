@@ -48,7 +48,7 @@ function resumoPlanos(h) {
 function quoteRow(h, withDelete) {
   const nv = (h.vidas || []).reduce((a, b) => a + b, 0);
   return `<div class="hq" data-hid="${esc(h.id)}">
-    <div class="hq-top"><span class="hq-date">${fmtData(h.criadoEm)} · ${h.tipo === "CNPJ" ? "CNPJ" : "PF"}${h.municipio ? ` · ${esc(h.municipio)}` : ""}${nv ? ` · ${nv} ${nv === 1 ? "vida" : "vidas"}` : ""}${h.idades ? ` (${esc(h.idades)})` : ""}</span>
+    <div class="hq-top"><span class="hq-date">${fmtData(h.criadoEm)} · ${h.tipo === "CNPJ" ? "CNPJ" : "PF"}${h.municipio ? ` · ${esc(h.municipio)}` : ""}${nv ? ` · ${nv} ${nv === 1 ? "vida" : "vidas"}` : ""}${h.idades ? ` (${esc(h.idades)})` : ""}${h.responsavel ? ` · Corretor: ${esc(h.responsavel)}` : ""}</span>
       <select class="hq-st ${stClass(h.status)}" aria-label="Situação da cotação">${STATUS.map((s) => `<option ${s === h.status ? "selected" : ""}>${s}</option>`).join("")}</select></div>
     <div class="hq-plans">${resumoPlanos(h)}</div>
     <div class="actions"><button class="btn" data-reopen="1">Reabrir cotação</button>${withDelete ? `<button class="btn danger" data-del="1">Excluir</button>` : ""}</div>

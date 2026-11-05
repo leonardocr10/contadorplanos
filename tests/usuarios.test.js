@@ -11,12 +11,12 @@ const raiz = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "
 const seed = join(raiz, "dados", "planos.json");
 const SENHA_ADMIN = "senha-do-admin-1";
 
-async function subir(t, env = { LOGIN_USUARIO: "chefe", LOGIN_SENHA: SENHA_ADMIN }, preparar) {
+async function subir(t, env = { LOGIN_USUARIO: "chefe", LOGIN_SENHA: SENHA_ADMIN }, preparar, linkPublico) {
   const pasta = mkdtempSync(join(tmpdir(), "cotador-usr-"));
   const banco = new Banco(join(pasta, "c.db"), seed);
   preparar?.(banco);
   const sistema = { versao: async () => ({ commit: "abc", data: "2026-01-01" }), atualizar: async () => ({ atualizado: false }) };
-  const app = criarApp({ banco, pastaPublica: join(raiz, "public"), pastaUploads: join(pasta, "u"), pastaBackups: join(pasta, "b"), env, exigirLogin: true, sistema });
+  const app = criarApp({ banco, pastaPublica: join(raiz, "public"), pastaUploads: join(pasta, "u"), pastaBackups: join(pasta, "b"), env, exigirLogin: true, sistema, ...(linkPublico ? { linkPublico } : {}) });
   const servidor = await new Promise((ok) => { const s = app.listen(0, "127.0.0.1", () => ok(s)); });
   t.after(() => new Promise((fim) => { servidor.closeAllConnections(); servidor.close(() => { banco.fechar(); rmSync(pasta, { recursive: true, force: true }); fim(); }); }));
   const base = `http://127.0.0.1:${servidor.address().port}`;
@@ -144,6 +144,95 @@ test("o sistema nunca fica sem administrador", async (t) => {
   assert.equal((await pedir(admin, `/api/usuarios/${eu.id}`, "DELETE")).status, 400);
   assert.equal((await pedir(admin, `/api/usuarios/${eu.id}`, "PUT", { ativo: false })).status, 400);
   assert.equal((await pedir(admin, `/api/usuarios/${eu.id}`, "PUT", { perfil: "usuario" })).status, 400);
+});
+
+const cotacao = (extra = {}) => ({ fone: "34999990000", cliente: "Maria", tipo: "PF", idades: "", vidas: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0], over: {}, planos: [{ id: "plam-saude-pf", nome: "PLAM SAÚDE", enf: 1, apto: 2 }], mensagem: "Olá", ...extra });
+
+async function doisCorretores(t, preparar, linkPublico) {
+  const ctx = await subir(t, undefined, preparar, linkPublico);
+  const admin = (await ctx.entrar("chefe", SENHA_ADMIN)).cookie;
+  const criar = async (login) => {
+    await ctx.pedir(admin, "/api/usuarios", "POST", { login, senha: "senha-do-corretor" });
+    return (await ctx.entrar(login, "senha-do-corretor")).cookie;
+  };
+  return { ...ctx, admin, um: await criar("corretor1"), dois: await criar("corretor2") };
+}
+
+test("cada usuário só vê e altera as próprias cotações, e o administrador vê todas", async (t) => {
+  const { pedir, admin, um, dois } = await doisCorretores(t);
+  await pedir(admin, "/api/config", "PUT", { nome: "Dono" });
+  await pedir(um, "/api/config", "PUT", { nome: "Corretor Um" });
+  const c = await (await pedir(um, "/api/cotacoes", "POST", cotacao({ usuarioId: "tentativa-de-outro-dono" }))).json();
+  await pedir(dois, "/api/cotacoes", "POST", cotacao());
+  const lista = async (cookie) => (await pedir(cookie, "/api/cotacoes")).json();
+  assert.deepEqual((await lista(um)).map((x) => x.id), [c.id]);
+  assert.equal((await lista(um))[0].responsavel, undefined);
+  assert.equal((await lista(dois)).length, 1);
+  assert.notEqual((await lista(dois))[0].id, c.id);
+  const todas = await lista(admin);
+  assert.equal(todas.length, 2);
+  assert.equal(todas.find((x) => x.id === c.id).responsavel, "Corretor Um");
+  assert.notEqual(c.usuarioId, "tentativa-de-outro-dono");
+  // A busca por número também respeita o dono.
+  assert.equal((await (await pedir(um, "/api/cotacoes?fone=34999990000")).json()).length, 1);
+  // Outro usuário não altera, nem descobre que a cotação existe.
+  assert.equal((await pedir(dois, `/api/cotacoes/${c.id}`, "PUT", cotacao({ mensagem: "invadiu" }))).status, 404);
+  assert.equal((await pedir(dois, `/api/cotacoes/${c.id}`, "PATCH", { status: "Vendida" })).status, 404);
+  assert.equal((await pedir(dois, `/api/cotacoes/${c.id}`, "DELETE")).status, 404);
+  assert.equal((await lista(um))[0].mensagem, "Olá");
+  assert.equal((await pedir(um, `/api/cotacoes/${c.id}`, "PATCH", { status: "Vendida" })).status, 200);
+  assert.equal((await pedir(admin, `/api/cotacoes/${c.id}`, "PATCH", { status: "Negativa" })).status, 200);
+  // O administrador altera sem virar o dono.
+  assert.equal((await lista(um))[0].status, "Negativa");
+  assert.equal((await pedir(um, `/api/cotacoes/${c.id}`, "DELETE")).status, 204);
+});
+
+test("cotações de antes dos logins ficam só com o administrador", async (t) => {
+  const { pedir, admin, um } = await doisCorretores(t, (b) => { b.salvarCotacao({ ...cotacao(), cliente: "Antiga" }); });
+  const todas = await (await pedir(admin, "/api/cotacoes")).json();
+  assert.equal(todas.length, 1);
+  assert.equal(todas[0].cliente, "Antiga");
+  assert.equal(todas[0].responsavel, "");
+  assert.equal((await (await pedir(um, "/api/cotacoes")).json()).length, 0);
+  assert.equal((await pedir(um, `/api/cotacoes/${todas[0].id}`, "DELETE")).status, 404);
+});
+
+test("cada usuário só vê os próprios aceites, assinados pelo corretor da proposta", async (t) => {
+  const propostaDe = (banco, usuarioId, cliente) => {
+    const token = banco.salvarProposta({ cliente, corretor: { nome: "Na época", fone: "341", empresa: "", usuarioId }, precos: { linhas: [] }, plano: { id: "plam-saude-pf", nome: "PLAM SAÚDE", categoria: "PF" } }, "34999990000");
+    banco.aceitarProposta(token, "Enfermaria", 100);
+    return token;
+  };
+  const { banco, pedir, admin, um, dois } = await doisCorretores(t);
+  const idDe = async (c) => (await (await pedir(c, "/api/eu")).json()).id;
+  await pedir(um, "/api/config", "PUT", { nome: "Corretor Um", fone: "3499" });
+  const deUm = propostaDe(banco, await idDe(um), "Cliente do Um");
+  const antigo = propostaDe(banco, undefined, "Cliente antigo");
+  const clientes = async (c) => (await (await pedir(c, "/api/aceites")).json());
+  assert.deepEqual((await clientes(um)).map((a) => a.cliente), ["Cliente do Um"]);
+  assert.equal((await clientes(um))[0].corretor.nome, "Corretor Um");
+  assert.equal((await clientes(dois)).length, 0);
+  const todos = await clientes(admin);
+  assert.equal(todos.length, 2);
+  assert.equal(todos.find((a) => a.token === deUm).responsavel, "Corretor Um");
+  assert.equal(todos.find((a) => a.token === antigo).corretor, null);
+  assert.equal((await pedir(dois, `/api/aceites/${deUm}/documentos`, "POST", {})).status, 404);
+  assert.equal((await pedir(um, `/api/aceites/${antigo}/documentos`, "POST", {})).status, 404);
+  assert.equal((await pedir(um, `/api/aceites/${deUm}/documentos`, "POST", {})).status, 200);
+});
+
+test("a proposta guarda o corretor que a criou e entra só nos aceites dele", async (t) => {
+  const { banco, pedir, admin, um, dois } = await doisCorretores(t, undefined, () => ({ estado: "ativo", url: "http://exemplo", local: false }));
+  const eu = await (await pedir(um, "/api/eu")).json();
+  const r = await pedir(um, "/api/propostas", "POST", { ...pedido, fone: "34999990000" });
+  assert.equal(r.status, 201);
+  const token = (await r.json()).links[0].url.split("/p/")[1];
+  assert.equal(banco.obterProposta(token).dados.corretor.usuarioId, eu.id);
+  banco.aceitarProposta(token, "Enfermaria", 100);
+  const quantos = async (c) => (await (await pedir(c, "/api/aceites")).json()).length;
+  assert.equal(await quantos(um), 1);
+  assert.equal(await quantos(dois), 0);
+  assert.equal(await quantos(admin), 1);
 });
 
 test("LOGIN_REDEFINIR_SENHA recupera o acesso do administrador", async (t) => {

@@ -139,6 +139,11 @@ const MIGRACOES = [
      ativo INTEGER NOT NULL DEFAULT 1,
      criado_em TEXT NOT NULL
    );`,
+  // Sem dono ('') são as cotações de antes dos logins: só o administrador as vê.
+  (db) => {
+    const existe = db.prepare("PRAGMA table_info(cotacoes)").all().some((c) => c.name === "usuario_id");
+    if (!existe) db.exec("ALTER TABLE cotacoes ADD COLUMN usuario_id TEXT NOT NULL DEFAULT ''");
+  },
 ];
 
 const VERSAO_TEXTOS_COPARTICIPACAO = 11;
@@ -197,7 +202,7 @@ function linhaParaPlano(l) {
 
 function linhaParaCotacao(l) {
   return {
-    id: l.id, fone: l.fone, cliente: l.cliente, criadoEm: l.criado_em, tipo: l.tipo, uf: l.uf, municipio: l.municipio, idades: l.idades,
+    id: l.id, fone: l.fone, cliente: l.cliente, criadoEm: l.criado_em, usuarioId: l.usuario_id, tipo: l.tipo, uf: l.uf, municipio: l.municipio, idades: l.idades,
     vidas: JSON.parse(l.vidas), over: JSON.parse(l.overrides), planos: JSON.parse(l.planos), mensagem: l.mensagem, status: l.status,
   };
 }
@@ -383,8 +388,10 @@ export class Banco {
   }
 
   /* ---------- cotações ---------- */
-  listarCotacoes({ fone = "", q = "", status = "" } = {}) {
+  // Sem usuarioId, lista as cotações de todos.
+  listarCotacoes({ fone = "", q = "", status = "", usuarioId } = {}) {
     const where = [], args = [];
+    if (usuarioId !== undefined) { where.push("usuario_id = ?"); args.push(usuarioId); }
     if (fone) { where.push("fone = ?"); args.push(fone); }
     if (status) { where.push("status = ?"); args.push(status); }
     const sql = `SELECT * FROM cotacoes ${where.length ? "WHERE " + where.join(" AND ") : ""} ORDER BY criado_em DESC, id DESC`;
@@ -406,7 +413,7 @@ export class Banco {
   // Devolve a última cotação do número em vez de duplicar se nada mudou. Além da mensagem, compara vidas
   // e valores: a legenda padrão não cita valores, então cotações diferentes podem ter a mesma legenda.
   salvarCotacao(c) {
-    const ultima = this.listarCotacoes({ fone: c.fone })[0];
+    const ultima = this.listarCotacoes({ fone: c.fone, usuarioId: c.usuarioId ?? "" })[0];
     if (
       ultima && ultima.fone === c.fone && ultima.mensagem === c.mensagem && ultima.tipo === c.tipo && ultima.municipio === (c.municipio ?? "") &&
       JSON.stringify(ultima.vidas) === JSON.stringify(c.vidas) && JSON.stringify(ultima.planos) === JSON.stringify(c.planos)
@@ -415,8 +422,8 @@ export class Banco {
     }
     const id = "c" + randomUUID();
     this.db
-      .prepare("INSERT INTO cotacoes (id, fone, cliente, criado_em, tipo, uf, municipio, idades, vidas, overrides, planos, mensagem, status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)")
-      .run(id, c.fone, c.cliente, new Date().toISOString(), c.tipo, c.uf ?? "", c.municipio ?? "", c.idades, JSON.stringify(c.vidas), JSON.stringify(c.over), JSON.stringify(c.planos), c.mensagem, c.status ?? "Enviada");
+      .prepare("INSERT INTO cotacoes (id, usuario_id, fone, cliente, criado_em, tipo, uf, municipio, idades, vidas, overrides, planos, mensagem, status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)")
+      .run(id, c.usuarioId ?? "", c.fone, c.cliente, new Date().toISOString(), c.tipo, c.uf ?? "", c.municipio ?? "", c.idades, JSON.stringify(c.vidas), JSON.stringify(c.over), JSON.stringify(c.planos), c.mensagem, c.status ?? "Enviada");
     return { cotacao: this.obterCotacao(id), duplicada: false };
   }
 

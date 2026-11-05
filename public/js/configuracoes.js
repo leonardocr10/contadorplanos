@@ -59,7 +59,7 @@ function renderUsuarios() {
         <input class="campo-senha" type="password" minlength="8" required autocomplete="new-password" placeholder="Nova senha (mínimo de 8 caracteres)" aria-label="Nova senha de ${esc(u.login)}">
         <button class="btn primary" type="submit">Salvar senha</button>
       </form>
-      <div class="status" data-confirma hidden style="width:100%">Excluir o usuário <b>${esc(u.login)}</b>? As cotações e propostas já feitas continuam no sistema. <span class="actions" style="margin-top:8px"><button class="btn danger" type="button" data-sim>Sim, excluir</button><button class="btn" type="button" data-nao>Manter</button></span></div>
+      <div class="status" data-confirma hidden style="width:100%">Excluir o usuário <b>${esc(u.login)}</b>? As cotações e propostas dele continuam visíveis para o administrador. <span class="actions" style="margin-top:8px"><button class="btn danger" type="button" data-sim>Sim, excluir</button><button class="btn" type="button" data-nao>Manter</button></span></div>
     </div>`;
   }).join("");
   box.querySelectorAll(".usr-linha").forEach((linha) => {

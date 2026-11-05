@@ -191,6 +191,17 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
   const corretorDe = (req) => (req.usuario ? { nome: req.usuario.nome, fone: req.usuario.fone, empresa: req.usuario.empresa } : banco.lerConfig());
   // A proposta guarda de quem é, para o link do cliente chamar o WhatsApp do corretor certo.
   const corretorDaProposta = (req) => ({ ...corretorDe(req), usuarioId: req.usuario?.id });
+  // Cada usuário vê só o que é dele; o administrador vê tudo, inclusive o que é de antes dos logins.
+  const podeVer = (req, dono) => eAdmin(req) || dono === req.usuario.id;
+  const responsavel = (dono) => {
+    const u = dono ? banco.obterUsuario(dono) : null;
+    return u ? u.nome || u.login : "";
+  };
+  const cotacaoVisivel = (req) => {
+    const c = banco.obterCotacao(req.params.id);
+    return c && podeVer(req, c.usuarioId) ? c : null;
+  };
+  const NAO_ACHOU_COTACAO = { erro: "Cotação não encontrada." };
 
   const chave = () => (env.ANTHROPIC_API_KEY || "").trim();
   const modelo = () => (env.ANTHROPIC_MODEL || "").trim() || MODELO_PADRAO;
@@ -244,33 +255,34 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
   /* ---------- cotações ---------- */
   app.get("/api/cotacoes", (req, res) => {
     const { fone, q, status } = req.query;
-    res.json(banco.listarCotacoes({
+    const lista = banco.listarCotacoes({
       fone: typeof fone === "string" ? normFone(fone) : "",
       q: typeof q === "string" ? q : "",
       status: typeof status === "string" ? status : "",
-    }));
+      usuarioId: eAdmin(req) ? undefined : req.usuario.id,
+    });
+    res.json(eAdmin(req) ? lista.map((c) => ({ ...c, responsavel: responsavel(c.usuarioId) })) : lista);
   });
 
   app.post("/api/cotacoes", (req, res) => {
-    const { cotacao, duplicada } = banco.salvarCotacao(validarCotacao(req.body));
+    // O dono vem do login, nunca do que a tela envia.
+    const { cotacao, duplicada } = banco.salvarCotacao({ ...validarCotacao(req.body), usuarioId: req.usuario?.id ?? "" });
     res.status(duplicada ? 200 : 201).json(cotacao);
   });
 
   app.put("/api/cotacoes/:id", (req, res) => {
-    const c = banco.atualizarCotacao(req.params.id, validarCotacao(req.body));
-    if (!c) return res.status(404).json({ erro: "Cotação não encontrada." });
-    res.json(c);
+    if (!cotacaoVisivel(req)) return res.status(404).json(NAO_ACHOU_COTACAO);
+    res.json(banco.atualizarCotacao(req.params.id, validarCotacao(req.body)));
   });
 
   app.patch("/api/cotacoes/:id", (req, res) => {
     if (!STATUS.includes(req.body?.status)) throw new ErroEntrada("Situação inválida.");
-    const c = banco.mudarStatus(req.params.id, req.body.status);
-    if (!c) return res.status(404).json({ erro: "Cotação não encontrada." });
-    res.json(c);
+    if (!cotacaoVisivel(req)) return res.status(404).json(NAO_ACHOU_COTACAO);
+    res.json(banco.mudarStatus(req.params.id, req.body.status));
   });
 
   app.delete("/api/cotacoes/:id", (req, res) => {
-    if (!banco.excluirCotacao(req.params.id)) return res.status(404).json({ erro: "Cotação não encontrada." });
+    if (!cotacaoVisivel(req) || !banco.excluirCotacao(req.params.id)) return res.status(404).json(NAO_ACHOU_COTACAO);
     res.status(204).end();
   });
 
@@ -331,15 +343,24 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
   }
 
   /* ---------- aceites ---------- */
-  app.get("/api/aceites", (_req, res) => {
-    res.json(banco.listarAceites().map((a) => ({
-      token: a.token, fone: a.fone, cliente: a.dados.cliente, plano: a.dados.plano.nome, categoria: a.dados.plano.categoria,
-      acomodacao: a.acomodacao, valor: a.valor, aceitoEm: a.aceitoEm, docsEnviadosEm: a.docsEnviadosEm,
-      documentos: banco.documentosDaProposta(a.dados),
-    })));
+  const donoDaProposta = (p) => p.dados.corretor?.usuarioId ?? "";
+  app.get("/api/aceites", (req, res) => {
+    res.json(banco.listarAceites().filter((a) => podeVer(req, donoDaProposta(a))).map((a) => {
+      // A lista de documentos sai assinada pelo corretor da proposta, mesmo quando o administrador envia.
+      const dono = donoDaProposta(a) ? banco.obterUsuario(donoDaProposta(a)) : null;
+      return {
+        token: a.token, fone: a.fone, cliente: a.dados.cliente, plano: a.dados.plano.nome, categoria: a.dados.plano.categoria,
+        acomodacao: a.acomodacao, valor: a.valor, aceitoEm: a.aceitoEm, docsEnviadosEm: a.docsEnviadosEm,
+        documentos: banco.documentosDaProposta(a.dados),
+        corretor: dono ? { nome: dono.nome, fone: dono.fone, empresa: dono.empresa } : donoDaProposta(a) ? a.dados.corretor : null,
+        ...(eAdmin(req) ? { responsavel: responsavel(donoDaProposta(a)) } : {}),
+      };
+    }));
   });
 
   app.post("/api/aceites/:token/documentos", (req, res) => {
+    const proposta = banco.obterProposta(req.params.token);
+    if (!proposta || !podeVer(req, donoDaProposta(proposta))) return res.status(404).json({ erro: "Aceite não encontrado." });
     const a = banco.marcarDocumentosEnviados(req.params.token);
     if (!a) return res.status(404).json({ erro: "Aceite não encontrado." });
     res.json({ docsEnviadosEm: a.docsEnviadosEm });
