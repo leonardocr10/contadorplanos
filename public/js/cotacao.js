@@ -236,6 +236,7 @@ function pintarVisor() {
   $("#visor-img").alt = `Proposta ${m.p.nome}`;
   $("#visor-conta").textContent = cards.length > 1 ? `${visorIndice + 1} de ${cards.length}` : "";
   $("#visor-ant").hidden = $("#visor-prox").hidden = cards.length < 2;
+  $("#visor-corpo").scrollTo(0, 0);
 }
 function abrirVisor(i) {
   visorIndice = i;
@@ -249,8 +250,17 @@ function passarVisor(passo) {
   visorIndice = (visorIndice + passo + cards.length) % cards.length;
   pintarVisor();
 }
+function definirZoom(ligado) {
+  $("#visor-corpo").classList.toggle("zoom", ligado);
+  $("#visor-corpo").scrollTo(0, 0);
+  $("#visor-zoom").textContent = ligado ? "Ajustar à tela" : "Ampliar";
+  $("#visor-zoom").setAttribute("aria-pressed", ligado);
+}
 function iniciarVisor() {
   const visor = $("#visor");
+  const alternarZoom = () => definirZoom(!$("#visor-corpo").classList.contains("zoom"));
+  $("#visor-zoom").onclick = alternarZoom;
+  $("#visor-img").onclick = alternarZoom;
   $("#visor-fechar").onclick = () => visor.close();
   $("#visor-ant").onclick = () => passarVisor(-1);
   $("#visor-prox").onclick = () => passarVisor(1);
@@ -262,7 +272,10 @@ function iniciarVisor() {
     if (e.key === "ArrowLeft") passarVisor(-1);
     if (e.key === "ArrowRight") passarVisor(1);
   };
-  visor.onclose = () => document.body.append($("#toast"));
+  visor.onclose = () => {
+    definirZoom(false);
+    document.body.append($("#toast"));
+  };
 }
 
 const fileName = (m, extensao = "png") => `${m.titulo.replace(/[\\/:*?"<>|]/g, "")}${nomeCliente() ? " - " + nomeCliente().replace(/[\\/:*?"<>|]/g, "") : ""}.${extensao}`;
