@@ -71,6 +71,13 @@ test("a rede junta os nomes diferentes do mesmo hospital", () => {
   assert.equal(rede.filter((r) => /Madrecor/.test(r.nome)).length, 1);
 });
 
+test("Hospital de Clínicas do Triângulo e Hospital do Triângulo são o mesmo hospital", () => {
+  const propostas = ["plam-saude-pf", "amil-ouro-total"].map((id) => paraProposta(snapshot(id)));
+  const triangulo = montarRede(propostas).filter((r) => /Hospital.*Triângulo/.test(r.nome) && !/^Laboratório/.test(r.nome));
+  assert.equal(triangulo.length, 1);
+  assert.deepEqual([...triangulo[0].planos], [0, 1]);
+});
+
 test("plano sem rede cadastrada não aparece como se não tivesse o hospital", () => {
   const html = comparar("amil-ouro-total", "amil-platinum-r1-total");
   assert.equal(celulas(html, "Hospital Madrecor")[1], "Não informada");
