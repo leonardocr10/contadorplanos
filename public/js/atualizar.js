@@ -159,7 +159,7 @@ async function lerTudo() {
     const imagens = await Promise.all(pagesSent.map((i) => paginaParaBase64(U.pages[i].blob)));
     const r = await api("/api/ler-tabela", { metodo: "POST", json: { nome: $("#e-nome")?.value || "", subtitulo: $("#e-sub")?.value || "", imagens } });
     U.res = {
-      nome: r.nomePlano, sub: r.subtituloPlano,
+      nome: r.nomePlano, sub: r.subtituloPlano, area: r.areaComercializacao,
       cols: r.colunas, ie: r.colunaEnfermaria, ia: r.colunaApartamento,
       taxa: r.taxaAssociativa, cidade: r.cidade, rede: r.rede, extras: r.extras, odonto: r.odontoIncluso, descricao: r.descricao,
       copart: r.coparticipacaoTexto, tcop: r.tabelaCoparticipacaoTexto, tcar: r.tabelaCarenciaTexto, cor1: r.corPrimaria, cor2: r.corEscura,
@@ -200,6 +200,7 @@ function renderReview(box) {
       <div class="field">${chk("uc-taxa", "Atualizar taxa associativa", R.taxa != null)}<input id="uv-taxa" class="money" type="text" inputmode="decimal" value="${brl(R.taxa)}"></div>
       <div class="field">${chk("uc-cidade", "Atualizar cidade da rede", !!R.cidade)}<input id="uv-cidade" type="text" value="${esc(R.cidade)}"></div>
     </div>
+    <div class="field">${chk("uc-area", "Atualizar área de comercialização", !!R.area)}<textarea id="uv-area">${esc(R.area)}</textarea>${R.area ? "" : `<span class="note">O material não informa a área: a atual será mantida.</span>`}</div>
     <div class="field">${chk("uc-rede", "Atualizar rede hospitalar", R.rede.length > 0)}<textarea id="uv-rede">${esc(R.rede.join("\n"))}</textarea>${R.rede.length ? "" : `<span class="note">O material não lista hospitais: a rede atual será mantida.</span>`}</div>
     <div class="field">${chk("uc-extras", "Atualizar benefícios e linhas extras", R.extras.length > 0)}<textarea id="uv-extras">${esc(R.extras.join("\n"))}</textarea></div>
     <div class="field">${chk("uc-desc", "Atualizar observação do plano", !!R.descricao)}<textarea id="uv-desc">${esc(R.descricao)}</textarea></div>
@@ -234,6 +235,7 @@ function renderReview(box) {
       if (on("uc-sub")) $("#e-sub").value = $("#uv-sub").value;
       if (on("uc-taxa")) $("#e-taxa").value = $("#uv-taxa").value;
       if (on("uc-cidade")) $("#e-cidade").value = $("#uv-cidade").value;
+      if (on("uc-area")) $("#e-area").value = $("#uv-area").value;
       if (on("uc-rede")) $("#e-rede").value = $("#uv-rede").value;
       if (on("uc-extras")) $("#e-extras").value = $("#uv-extras").value;
       if (on("uc-desc")) $("#e-desc").value = $("#uv-desc").value;

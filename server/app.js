@@ -3,7 +3,7 @@ import express from "express";
 import { randomUUID } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { normFone } from "../public/js/calculo.js";
+import { lerArea, normFone } from "../public/js/calculo.js";
 import { ErroBackup, STATUS } from "./db.js";
 import { ErroLeitura, MODELO_PADRAO, lerTabela } from "./claude.js";
 import { criarLogin } from "./login.js";
@@ -46,6 +46,15 @@ const imagemOpc = (v, campo) => {
   return c;
 };
 
+function areaOpc(v) {
+  const area = textoOpc(v, "área de comercialização");
+  const { invalidas } = lerArea(area);
+  if (invalidas.length) {
+    throw new ErroEntrada(`Área de comercialização: use uma linha por estado, como "MG: Uberlândia, Araguari". Corrija: ${invalidas[0].slice(0, 60)}`);
+  }
+  return area;
+}
+
 function validarPlano(b) {
   if (!b || typeof b !== "object") throw new ErroEntrada("Dados do plano inválidos.");
   const nome = textoOpc(b.nome, "nome", 200);
@@ -70,6 +79,7 @@ function validarPlano(b) {
     mostrarObservacao: !!b.mostrarObservacao,
     faixasModelo: b.faixasModelo === "3" ? "3" : "",
     cidade: textoOpc(b.cidade, "cidade", 200),
+    areaComercializacao: areaOpc(b.areaComercializacao),
     rede: textoOpc(b.rede, "rede"),
     extras: textoOpc(b.extras, "benefícios"),
     descricao: textoOpc(b.descricao, "observação"),

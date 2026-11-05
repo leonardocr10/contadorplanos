@@ -64,6 +64,55 @@ export function planPrices(p, vidas, over = {}) {
   return { porFaixa: false, linhas: [], enf: o.enf !== undefined ? o.enf : p.enfermaria, apto: o.apto !== undefined ? o.apto : p.apartamento };
 }
 
+/* ---------- área de comercialização ---------- */
+const semAcento = (s) => String(s ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+
+export const ESTADOS = {
+  AC: "Acre", AL: "Alagoas", AM: "Amazonas", AP: "Amapá", BA: "Bahia", CE: "Ceará", DF: "Distrito Federal", ES: "Espírito Santo", GO: "Goiás",
+  MA: "Maranhão", MG: "Minas Gerais", MS: "Mato Grosso do Sul", MT: "Mato Grosso", PA: "Pará", PB: "Paraíba", PE: "Pernambuco", PI: "Piauí", PR: "Paraná",
+  RJ: "Rio de Janeiro", RN: "Rio Grande do Norte", RO: "Rondônia", RR: "Roraima", RS: "Rio Grande do Sul", SC: "Santa Catarina", SE: "Sergipe", SP: "São Paulo", TO: "Tocantins",
+};
+
+// "MG: Uberlândia, Araguari", com um estado por linha. Devolve também as linhas que não seguem o formato.
+export function lerArea(texto) {
+  const estados = [], invalidas = [];
+  for (const linha of lines(texto)) {
+    const m = linha.match(/^([A-Za-z]{2})\s*:\s*(.*)$/);
+    const uf = m?.[1].toUpperCase();
+    if (!m || !ESTADOS[uf]) { invalidas.push(linha); continue; }
+    const cidades = m[2].split(",").map((c) => c.trim().replace(/\.$/, "")).filter(Boolean);
+    if (!cidades.length) { invalidas.push(linha); continue; }
+    const existente = estados.find((e) => e.uf === uf);
+    if (existente) existente.cidades.push(...cidades);
+    else estados.push({ uf, cidades });
+  }
+  return { estados, invalidas };
+}
+
+// Plano sem área cadastrada continua aparecendo: não dá para afirmar que ele não é vendido na cidade.
+export function vendidoEm(plano, uf, cidade) {
+  if (!uf) return true;
+  const { estados } = lerArea(plano.areaComercializacao);
+  if (!estados.length) return true;
+  const estado = estados.find((e) => e.uf === uf);
+  if (!estado) return false;
+  return !cidade || estado.cidades.some((c) => semAcento(c) === semAcento(cidade));
+}
+
+// Estados e cidades que têm algum plano, em ordem alfabética.
+export function locaisDosPlanos(planos) {
+  const porUf = new Map();
+  for (const p of planos) {
+    for (const { uf, cidades } of lerArea(p.areaComercializacao).estados) {
+      if (!porUf.has(uf)) porUf.set(uf, new Map());
+      for (const c of cidades) if (!porUf.get(uf).has(semAcento(c))) porUf.get(uf).set(semAcento(c), c);
+    }
+  }
+  return [...porUf.entries()]
+    .map(([uf, cidades]) => ({ uf, nome: ESTADOS[uf], cidades: [...cidades.values()].sort((a, b) => a.localeCompare(b, "pt-BR")) }))
+    .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+}
+
 export function normFone(s) {
   let d = String(s || "").replace(/\D/g, "");
   if (d.length > 11 && d.startsWith("55")) d = d.slice(2);

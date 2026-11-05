@@ -4,7 +4,7 @@ export const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&am
 
 export const S = {
   plans: [], loaded: false, dbErr: null,
-  tipo: "PF", selected: [], over: {}, vidas: Array(10).fill(0),
+  tipo: "PF", uf: "", municipio: "", selected: [], over: {}, vidas: Array(10).fill(0),
   hist: [], histLoaded: false, histErr: null,
   cor: { nome: "", fone: "", empresa: "" },
   leituraDisponivel: false,

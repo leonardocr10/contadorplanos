@@ -108,9 +108,14 @@ const MIGRACOES = [
   },
   // Sem mudança na estrutura: marca os novos textos de coparticipação (ver atualizarTextosCoparticipacao).
   () => {},
+  (db) => {
+    const existe = db.prepare("PRAGMA table_info(planos)").all().some((c) => c.name === "area_comercializacao");
+    if (!existe) db.exec("ALTER TABLE planos ADD COLUMN area_comercializacao TEXT NOT NULL DEFAULT ''");
+  },
 ];
 
 const VERSAO_TEXTOS_COPARTICIPACAO = 11;
+const VERSAO_AREA_COMERCIALIZACAO = 12;
 
 // Planos lançados depois que o banco já existia: entram uma única vez, ao atualizar.
 const PLANOS_NOVOS = [{ id: "plamedh-basic-pme", versao: 6 }, { id: "plam-total-cnpj", versao: 7 }, ...["sulamerica-direto-nacional", "sulamerica-especial-100-rc", "sulamerica-especial-100-r1", "sulamerica-executivo-pleno"].map((id) => ({ id, versao: 10 }))];
@@ -139,7 +144,7 @@ const COLUNAS_PLANO = {
   enfermaria: "enfermaria", apartamento: "apartamento", taxa: "taxa", cidade: "cidade", rede: "rede", extras: "extras",
   descricao: "descricao", copartTexto: "copart_texto", copartTabela: "copart_tabela", copartNota: "copart_nota",
   carenciaTabela: "carencia_tabela", carenciaNota: "carencia_nota", imgCopart: "img_copart", imgCarencia: "img_carencia",
-  corPrimaria: "cor_primaria", corEscura: "cor_escura", faixasModelo: "faixas_modelo",
+  corPrimaria: "cor_primaria", corEscura: "cor_escura", faixasModelo: "faixas_modelo", areaComercializacao: "area_comercializacao",
 };
 const COLUNAS_BOOL = { ativo: "ativo", odonto: "odonto", fidelidade: "fidelidade", mostrarExtras: "mostrar_extras", mostrarObservacao: "mostrar_observacao" };
 const COLUNAS_JSON = { faixasEnf: "faixas_enf", faixasApto: "faixas_apto", faixasEnfFamilia: "faixas_enf_familia", faixasAptoFamilia: "faixas_apto_familia" };
@@ -193,6 +198,7 @@ export class Banco {
     this.semear();
     this.incluirPlanosNovos(versaoAntes);
     this.atualizarTextosCoparticipacao(versaoAntes);
+    this.preencherAreaComercializacao(versaoAntes);
   }
 
   fechar() {
@@ -217,6 +223,14 @@ export class Banco {
     for (const p of JSON.parse(readFileSync(this.caminhoSeed, "utf8"))) {
       atualizar.run(p.copartTexto ?? "", p.id, (p.copartTabela ?? "").trim());
     }
+  }
+
+  // Só preenche o que está vazio. Planos criados pela pessoa ficam sem área até ela informar.
+  preencherAreaComercializacao(versaoAntes) {
+    if (versaoAntes === 0 || versaoAntes >= VERSAO_AREA_COMERCIALIZACAO) return;
+    if (!this.caminhoSeed || !existsSync(this.caminhoSeed)) return;
+    const atualizar = this.db.prepare("UPDATE planos SET area_comercializacao = ? WHERE id = ? AND area_comercializacao = ''");
+    for (const p of JSON.parse(readFileSync(this.caminhoSeed, "utf8"))) atualizar.run(p.areaComercializacao ?? "", p.id);
   }
 
   semear() {

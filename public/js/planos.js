@@ -84,6 +84,7 @@ function openEditor(p) {
     <div class="field"><label for="e-cor2">Cor escura (cabeçalho e rodapé)</label><input id="e-cor2" type="color" value="${esc(p.corEscura || "#0b5a45")}"></div>
     <div class="field"><label for="e-ordem">Ordem na lista</label><input id="e-ordem" type="text" inputmode="numeric" value="${esc(p.ordem ?? "")}"></div>
   </div>
+  <div class="field"><label for="e-area">Área de comercialização (uma linha por estado, como MG: Uberlândia, Araguari). Define em quais cidades o plano aparece na cotação.</label><textarea id="e-area">${esc(p.areaComercializacao || "")}</textarea></div>
   <div class="field"><label for="e-rede">Rede hospitalar (um hospital por linha)</label><textarea id="e-rede">${esc(p.rede || "")}</textarea></div>
   <div class="field"><label for="e-desc">Observação do plano (opcional; aparece na imagem e no link se marcar "Mostrar observação")</label><textarea id="e-desc">${esc(p.descricao || "")}</textarea></div>
   <div class="field"><label for="e-extras">Benefícios do plano (um por linha; aparecem na proposta se marcar "Mostrar benefícios")</label><textarea id="e-extras">${esc(p.extras || "")}</textarea></div>
@@ -141,6 +142,7 @@ function openEditor(p) {
       enfermaria: p.enfermaria ?? null, apartamento: p.apartamento ?? null, taxa: parseBRL($("#e-taxa").value),
       odonto: !!p.odonto, fidelidade: $("#e-fid").checked, ativo: $("#e-ativo").checked, mostrarExtras: $("#e-showex").checked, mostrarObservacao: $("#e-showobs").checked,
       corPrimaria: $("#e-cor1").value, corEscura: $("#e-cor2").value, cidade: $("#e-cidade").value.trim(), ordem: parseBRL($("#e-ordem").value) ?? 0,
+      areaComercializacao: $("#e-area").value.trim(),
       rede: $("#e-rede").value.trim(), descricao: $("#e-desc").value.trim(), extras: $("#e-extras").value.trim(), copartTexto: $("#e-copart").value.trim(),
       copartTabela: $("#e-tcop").value.trim(), copartNota: $("#e-ncop").value.trim(), carenciaTabela: $("#e-tcar").value.trim(), carenciaNota: $("#e-ncar").value.trim(),
       imgCopart: $("#e-imgcop").value, imgCarencia: $("#e-imgcar").value,

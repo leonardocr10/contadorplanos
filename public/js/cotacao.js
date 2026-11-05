@@ -1,5 +1,5 @@
 // Tela "Nova cotação": formulário, cartões de planos, prévia do WhatsApp e imagens da proposta.
-import { FAIXAS, brl, hasFaixas, normFone, parseBRL, planPrices, totalVidas } from "./calculo.js";
+import { FAIXAS, brl, hasFaixas, lerArea, locaisDosPlanos, normFone, parseBRL, planPrices, totalVidas, vendidoEm } from "./calculo.js";
 import { $, S, api, esc, render, toast } from "./estado.js";
 import { buildMsg, linkConversaDireta, textoDosLinks, waHtml } from "./mensagem.js";
 import { paginaParaPng } from "./imagem-proposta.js";
@@ -22,18 +22,49 @@ function renderFaixas() {
   $("#faixas").querySelectorAll("[data-p]").forEach((b) => (b.onclick = () => { const i = +b.dataset.p; S.vidas[i]++; render(); }));
 }
 
+/* ---------- estado e cidade ---------- */
+// Só troca as opções quando elas mudam: a cotação redesenha a cada alteração e há centenas de cidades.
+const opcoesAtuais = new Map();
+const trocarOpcoes = (select, opcoes, valor) => {
+  const html = opcoes.map(([v, t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join("");
+  if (opcoesAtuais.get(select) !== html) { select.innerHTML = html; opcoesAtuais.set(select, html); }
+  select.value = valor;
+  select.disabled = opcoes.length < 2;
+};
+
+function renderLocal() {
+  const locais = locaisDosPlanos(S.plans.filter((p) => p.ativo !== false));
+  if (!locais.some((l) => l.uf === S.uf)) { S.uf = ""; S.municipio = ""; }
+  const estado = locais.find((l) => l.uf === S.uf);
+  if (!estado?.cidades.includes(S.municipio)) S.municipio = "";
+  trocarOpcoes($("#uf"), [["", "Todos os estados"], ...locais.map((l) => [l.uf, l.nome])], S.uf);
+  trocarOpcoes($("#municipio"), estado ? [["", "Todas as cidades"], ...estado.cidades.map((c) => [c, c])] : [["", "Escolha o estado"]], S.municipio);
+}
+
+// Plano fora da área sai da cotação junto com o cartão, para não ir na proposta por engano.
+function aplicarLocal() {
+  const fora = planosEscolhidos().filter((p) => !vendidoEm(p, S.uf, S.municipio));
+  S.selected = S.selected.filter((id) => !fora.some((p) => p.id === id));
+  render();
+  if (fora.length) toast(fora.length === 1 ? `${fora[0].nome} saiu da cotação: não é comercializado nesse local` : `${fora.length} planos saíram da cotação: não são comercializados nesse local`);
+}
+
 /* ---------- planos ---------- */
 function renderPlans() {
   const box = $("#plans");
   if (!S.loaded) { box.innerHTML = `<div class="status">${S.dbErr ? esc(S.dbErr) : "Carregando planos…"}</div>`; return; }
-  const list = S.plans.filter((p) => p.categoria === S.tipo && p.ativo !== false);
-  if (!list.length) { box.innerHTML = `<div class="status">Nenhum plano ${S.tipo === "PF" ? "para pessoa física" : "CNPJ"} cadastrado. Adicione na aba <b>Planos e valores</b>.</div>`; return; }
+  const doTipo = S.plans.filter((p) => p.categoria === S.tipo && p.ativo !== false);
+  const nomeTipo = S.tipo === "PF" ? "para pessoa física" : "CNPJ";
+  if (!doTipo.length) { box.innerHTML = `<div class="status">Nenhum plano ${nomeTipo} cadastrado. Adicione na aba <b>Planos e valores</b>.</div>`; return; }
+  const list = doTipo.filter((p) => vendidoEm(p, S.uf, S.municipio));
+  if (!list.length) { box.innerHTML = `<div class="status">Nenhum plano ${nomeTipo} comercializado em ${esc(S.municipio || $("#uf").selectedOptions[0]?.textContent || "")}.</div>`; return; }
   box.innerHTML = list.map((p) => {
     const v = prices(p);
+    const semArea = S.uf && !lerArea(p.areaComercializacao).estados.length ? `<span>Área de comercialização não informada</span>` : "";
     const pr = v.porFaixa ? `Total: Enf. R$ ${brl(v.enf) || "—"} · Apto R$ ${brl(v.apto) || "—"}`
       : hasFaixas(p) && !totalVidas(S.vidas) ? "Tabela por faixa etária: informe os beneficiários"
       : v.enf || v.apto ? `Enf. R$ ${brl(v.enf) || "—"} · Apto R$ ${brl(v.apto) || "—"}` : "Valores sob consulta";
-    return `<button class="plan" aria-pressed="${S.selected.includes(p.id)}" data-id="${esc(p.id)}"><b>${esc(p.nome)}</b><span>${pr}</span></button>`;
+    return `<button class="plan" aria-pressed="${S.selected.includes(p.id)}" data-id="${esc(p.id)}"><b>${esc(p.nome)}</b><span>${pr}</span>${semArea}</button>`;
   }).join("");
   box.querySelectorAll(".plan").forEach((b) => (b.onclick = () => {
     const id = b.dataset.id;
@@ -252,6 +283,7 @@ async function copiarLink() {
 /* ---------- render ---------- */
 let cardTimer;
 export function renderCotacao() {
+  renderLocal();
   renderFaixas();
   renderPlans();
   renderSel();
@@ -279,6 +311,8 @@ export function iniciarCotacao() {
     // Os planos marcados continuam ao trocar de tipo, para comparar pessoa física com CNPJ.
     render();
   };
+  $("#uf").addEventListener("change", () => { S.uf = $("#uf").value; S.municipio = ""; aplicarLocal(); });
+  $("#municipio").addEventListener("change", () => { S.municipio = $("#municipio").value; aplicarLocal(); });
   for (const id of ["cliente", "fone", "o-copart", "o-rede", "o-acom"]) $("#" + id).addEventListener("input", render);
   $("#limpar-vidas").onclick = () => { S.vidas = Array(10).fill(0); render(); };
   $("#rawtxt").addEventListener("input", () => { manual = true; paintChat($("#rawtxt").value); });

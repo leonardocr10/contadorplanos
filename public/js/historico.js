@@ -95,6 +95,9 @@ function reopen(h) {
   S.over = h.over && typeof h.over === "object" ? JSON.parse(JSON.stringify(h.over)) : {};
   const ids = (h.planos || []).map((x) => x.id);
   S.selected = ids.filter((id) => S.plans.some((p) => p.id === id));
+  // A cotação salva não guarda a cidade: reabre mostrando todos os planos.
+  S.uf = "";
+  S.municipio = "";
   show("cotacao");
   render();
   renderHistCli();

@@ -26,6 +26,7 @@ Leia todo o material e responda SOMENTE com um JSON neste formato:
 "colunaEnfermaria":número,"colunaApartamento":número,
 "taxaAssociativa":número ou null,
 "cidade":"cidade ou região da rede",
+"areaComercializacao":"cidades onde o plano pode ser vendido",
 "rede":["hospitais credenciados deste plano"],
 "extras":["benefícios e informações curtas, cada uma começando com um emoji"],
 "odontoIncluso":true ou false,
@@ -41,6 +42,7 @@ Instruções:
 - colunas: TODAS as colunas de preço mensal por faixa etária. As 10 faixas da ANS, nesta ordem: 0-18, 19-23, 24-28, 29-33, 34-38, 39-43, 44-48, 49-53, 54-58, 59 ou mais. Números com ponto decimal ("R$ 1.168,14" vira 1168.14); null onde estiver vazio ou com traço.
 - colunaEnfermaria / colunaApartamento: índice (a partir de 0) da coluna que corresponde a este plano em enfermaria (ou coletivo) e em apartamento (ou individual); -1 se não existir.
 - taxaAssociativa: valor mensal da taxa associativa ou de filiação, se houver.
+- areaComercializacao: todas as cidades listadas como área de comercialização, sem omitir nenhuma. Uma linha por estado, com a sigla, dois pontos e as cidades separadas por vírgula, como "MG: Uberlândia, Araguari". Não confunda com área de atendimento ou abrangência da cobertura, a menos que o material só traga essa informação. "" se o material não informar.
 - rede: todos os hospitais, laboratórios e clínicas da região de Uberlândia e Triângulo Mineiro que valem para este plano, um por item. Com várias cidades, escreva "Prestador – Cidade". [] se o material não listar.
 - extras: até 6 itens, como odontológico incluso, telemedicina, SOS ou remoção, laboratórios e clínicas de imagem, quem pode aderir.
 - descricao: 2 a 4 frases simples para o cliente: tipo de contratação e segmentação, condições de carência ou redução de carência, mês de reajuste e regras importantes de idade ou dependentes.
@@ -105,6 +107,7 @@ export function normalizarLeitura(r, totalPaginas) {
     colunaApartamento: indice(r?.colunaApartamento),
     taxaAssociativa: numeroPositivo(r?.taxaAssociativa),
     cidade: texto(r?.cidade),
+    areaComercializacao: texto(r?.areaComercializacao),
     rede: lista(r?.rede),
     extras: lista(r?.extras).slice(0, 8),
     odontoIncluso: r?.odontoIncluso === true,
