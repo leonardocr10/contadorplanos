@@ -235,7 +235,7 @@ export function renderizarComparativo(snapshots) {
     <thead><tr><th></th>${colunas}</tr></thead>
     <tbody>${corpo}</tbody>
   </table>
-  <footer>Em verde, o menor valor. ${VAZIO} não consta na tabela do plano. Resumo para comparação: os detalhes e as condições completas estão na proposta de cada plano.</footer>
+  <footer>Em verde, o menor valor. Resumo para comparação: os detalhes e as condições completas estão na proposta de cada plano.</footer>
 </div>
 </body>
 </html>`;

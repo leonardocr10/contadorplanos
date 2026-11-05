@@ -41,6 +41,7 @@ test("compara valores e destaca só o menor de cada acomodação", () => {
   assert.deepEqual(celulas(html, "Taxa associativa"), ["R$ 7,00", "—", "R$ 4,00"]);
   for (const logo of ["plam", "amil", "unimed"]) assert.ok(html.includes(`/img/logo-${logo}.png`));
   assert.ok(html.includes("Maria"));
+  assert.ok(!html.includes("não consta na tabela"));
 });
 
 test("mostra o valor por pessoa de cada faixa etária", () => {
