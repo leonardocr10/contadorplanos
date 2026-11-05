@@ -98,8 +98,8 @@ function validarPlano(b) {
 function validarCotacao(b) {
   if (!b || typeof b !== "object") throw new ErroEntrada("Dados da cotação inválidos.");
   const fone = normFone(b.fone);
-  // A cotação pode ir para o histórico sem WhatsApp, mas um número incompleto não serve para achar o cliente.
-  if (fone && fone.length < 10) throw new ErroEntrada("O WhatsApp do cliente está incompleto.");
+  if (!textoOpc(b.cliente, "cliente", 200)) throw new ErroEntrada("Informe o nome do cliente para salvar no histórico.");
+  if (fone.length < 10) throw new ErroEntrada("Informe o WhatsApp do cliente para salvar no histórico.");
   if (b.tipo !== "PF" && b.tipo !== "CNPJ") throw new ErroEntrada("O tipo da cotação precisa ser PF ou CNPJ.");
   if (!Array.isArray(b.vidas) || b.vidas.length !== 10 || !b.vidas.every((n) => Number.isInteger(n) && n >= 0)) {
     throw new ErroEntrada("As vidas da cotação são inválidas.");

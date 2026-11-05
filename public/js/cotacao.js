@@ -140,8 +140,9 @@ function dadosCotacao(mensagem) {
 // para cada plano marcado ou letra digitada não virar uma cotação nova.
 const auto = { id: null, fone: "", assinatura: "", timer: null, fila: Promise.resolve(false) };
 
-// Precisa de um plano com valor. O WhatsApp é opcional, mas pela metade é sinal de que ainda está sendo digitado.
-const podeSalvar = (d) => d.planos.some((p) => p.enf != null || p.apto != null) && (d.fone.length === 0 || d.fone.length >= 10);
+// Só vai para o histórico com nome, WhatsApp completo e um plano com valor.
+const podeSalvar = (d) => !!d.cliente && d.fone.length >= 10 && d.planos.some((p) => p.enf != null || p.apto != null);
+const AVISO_SEM_DADOS = "Preencha o nome e o WhatsApp do cliente para salvar no histórico";
 
 function salvar() {
   clearTimeout(auto.timer);
@@ -267,7 +268,7 @@ async function copyCard(m) {
   const copiou = await copiarImagem(m);
   const salvou = await saveCard(m);
   if (!copiou) toast(AVISO_SEM_COPIA);
-  else toast(salvou ? "Imagem copiada, baixada e salva no histórico: cole no WhatsApp" : "Imagem copiada e baixada: cole no WhatsApp");
+  else toast(salvou ? "Imagem copiada, baixada e salva no histórico: cole no WhatsApp" : `Imagem copiada e baixada. ${AVISO_SEM_DADOS}`);
 }
 
 // O link do WhatsApp só leva texto. A imagem vai para a área de transferência antes de abrir a conversa,
@@ -336,7 +337,7 @@ export function renderCotacao() {
   $("#pv-nome").textContent = nome || "Cliente";
   $("#av").textContent = (nome[0] || "?").toUpperCase();
   lastAuto = buildMsg({ items: planosEscolhidos(), vidas: S.vidas, over: S.over, nome, corretor: corretor(), opts: opcoes(), cidade: S.municipio });
-  $("#nota-envio").textContent = "Abrir no WhatsApp leva o texto e copia a imagem: na conversa, aperte Ctrl+V para colar a imagem. Com vários planos, copie as outras imagens nos botões acima. Toda cotação fica salva no histórico automaticamente.";
+  $("#nota-envio").textContent = "Abrir no WhatsApp leva o texto e copia a imagem: na conversa, aperte Ctrl+V para colar a imagem. Com vários planos, copie as outras imagens nos botões acima. A cotação fica salva no histórico automaticamente quando tem nome, WhatsApp e plano.";
   $("#links-gerados").hidden = true;
   $("#comparar").hidden = planosEscolhidos().length < 2;
   $("#limpar-planos").disabled = !S.selected.length;
@@ -388,7 +389,7 @@ export function iniciarCotacao() {
     try {
       await navigator.clipboard.writeText(t);
       const ok = await salvar();
-      toast(ok ? "Mensagem copiada e salva no histórico" : "Mensagem copiada");
+      toast(ok ? "Mensagem copiada e salva no histórico" : `Mensagem copiada. ${AVISO_SEM_DADOS}`);
     } catch {
       $("#raw").open = true;
       const ta = $("#rawtxt");

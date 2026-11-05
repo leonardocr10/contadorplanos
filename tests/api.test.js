@@ -101,27 +101,33 @@ test("histórico guarda só os dígitos e não duplica cotação idêntica", asy
   assert.equal((await busca("q=8888")).length, 1);
 });
 
-test("cotação com número incompleto é recusada, e sem número é aceita", async (t) => {
-  const { json } = await contexto(t);
-  const r = await json("/api/cotacoes", "POST", cotacao({ fone: "123" }));
-  assert.equal(r.status, 400);
-  assert.match((await r.json()).erro, /WhatsApp/);
-  const sem = await json("/api/cotacoes", "POST", cotacao({ fone: "", cliente: "Sem número" }));
-  assert.equal(sem.status, 201);
-  assert.equal((await sem.json()).fone, "");
+test("só salva a cotação com nome, número e plano", async (t) => {
+  const { base, json } = await contexto(t);
+  for (const faltando of [{ fone: "123" }, { fone: "" }]) {
+    const r = await json("/api/cotacoes", "POST", cotacao(faltando));
+    assert.equal(r.status, 400);
+    assert.match((await r.json()).erro, /WhatsApp/);
+  }
+  for (const faltando of [{ cliente: "" }, { cliente: "   " }]) {
+    const r = await json("/api/cotacoes", "POST", cotacao(faltando));
+    assert.equal(r.status, 400);
+    assert.match((await r.json()).erro, /nome/);
+  }
+  assert.equal((await json("/api/cotacoes", "POST", cotacao({ planos: [] }))).status, 400);
+  assert.equal((await (await fetch(base + "/api/cotacoes")).json()).length, 0);
 });
 
 test("cotação idêntica de outro cliente não é tratada como repetida", async (t) => {
   const { json } = await contexto(t);
   const a = await (await json("/api/cotacoes", "POST", cotacao())).json();
-  const b = await json("/api/cotacoes", "POST", cotacao({ fone: "" }));
+  const b = await json("/api/cotacoes", "POST", cotacao({ fone: "34988887777" }));
   assert.equal(b.status, 201);
   assert.notEqual((await b.json()).id, a.id);
 });
 
 test("a cotação em andamento é atualizada sem virar outra", async (t) => {
   const { base, json } = await contexto(t);
-  const c = await (await json("/api/cotacoes", "POST", cotacao({ fone: "" }))).json();
+  const c = await (await json("/api/cotacoes", "POST", cotacao({ fone: "34988887777" }))).json();
   await json(`/api/cotacoes/${c.id}`, "PATCH", { status: "Vendida" });
   const r = await json(`/api/cotacoes/${c.id}`, "PUT", cotacao({ cliente: "Agora com nome", mensagem: "outra mensagem" }));
   assert.equal(r.status, 200);

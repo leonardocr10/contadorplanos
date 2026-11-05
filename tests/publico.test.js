@@ -359,7 +359,7 @@ test("página guarda os valores da época mesmo se o plano mudar", async (t) => 
 
 test("servidor público não dá acesso à API, ao histórico nem aos arquivos do app", async (t) => {
   const { admin, publico } = await subir(t, ativo);
-  await fetch(admin + "/api/cotacoes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fone: "34999990000", tipo: "PF", vidas, planos: [{ id: "x", nome: "x" }], mensagem: "segredo" }) });
+  await fetch(admin + "/api/cotacoes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fone: "34999990000", cliente: "Maria", tipo: "PF", vidas, planos: [{ id: "x", nome: "x" }], mensagem: "segredo" }) });
   for (const caminho of ["/", "/index.html", "/js/app.js", "/api/status", "/api/cotacoes", "/api/planos", "/api/backup", "/api/config", "/p/curto", "/p/tokenquenaoexistedeverdade123", "/dados/cotador.db", "/uploads/../cotador.db", "/img/../js/app.js"]) {
     const r = await fetch(publico + caminho);
     assert.equal(r.status, 404, caminho);
