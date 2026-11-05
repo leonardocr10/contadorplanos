@@ -28,12 +28,15 @@ function celulas(html, titulo) {
 function destaquesDaLinha(html, titulo) {
   const linha = html.match(new RegExp(`<tr class="faixa[^"]*"><th scope="row">${titulo}</th>(.*?)</tr>`));
   assert.ok(linha, `linha ${titulo} não encontrada`);
-  return [...linha[1].matchAll(/<td>(.*?)<\/td>/g)].map((c) => [...c[1].matchAll(/<span class="menor"><small>(.*?)<\/small>/g)].map((m) => m[1]));
+  const rotulos = ["Enf.", "Apto"];
+  return [...linha[1].matchAll(/<td>(.*?)<\/td>/g)].map((c) => [...c[1].matchAll(/<span( class="menor")?>/g)].flatMap((m, i) => (m[1] ? [rotulos[i]] : [])));
 }
 
 test("compara valores e destaca só o menor de cada acomodação", () => {
   const html = comparar("plam-saude-pf", "amil-ouro-total", "unimed-udiplan-on-pf");
-  assert.deepEqual(celulas(html, "Total mensal"), ["Enf. R$ 346,06 Apto R$ 543,48", "Enf. R$ 725,30 Apto R$ 805,10", "Enf. R$ 526,36 Apto R$ 679,38"]);
+  assert.deepEqual(celulas(html, "Total mensal"), ["R$ 346,06 R$ 543,48", "R$ 725,30 R$ 805,10", "R$ 526,36 R$ 679,38"]);
+  // Os nomes das acomodações aparecem uma vez em cada plano, no alto da seção.
+  assert.equal(html.match(/<span>Enfermaria<\/span><span>Apartamento<\/span>/g).length, 3);
   assert.deepEqual(destaquesDaLinha(html, "Total mensal"), [["Enf.", "Apto"], [], []]);
   assert.deepEqual(celulas(html, "Taxa associativa"), ["R$ 7,00", "—", "R$ 4,00"]);
   for (const logo of ["plam", "amil", "unimed"]) assert.ok(html.includes(`/img/logo-${logo}.png`));
@@ -44,9 +47,9 @@ test("mostra o valor por pessoa de cada faixa etária", () => {
   const varias = { ...pedido, vidas: [2, 0, 1, 0, 0, 0, 0, 0, 0, 0] };
   const html = renderizarComparativo(["plam-saude-pf", "amil-platinum-r1-total"].map((id) => montarSnapshot(plano(id), varias, corretor)));
   const [plam, amil] = celulas(html, "0 a 18 anos · 2 vidas");
-  assert.equal(plam, "Enf. R$ 173,03 Apto R$ 271,74");
-  // Sem enfermaria no plano, a linha fica vazia em vez de sumir.
-  assert.match(amil, /^Enf\. — Apto R\$/);
+  assert.equal(plam, "R$ 173,03 R$ 271,74");
+  // Sem enfermaria no plano, a coluna fica vazia em vez de sumir.
+  assert.match(amil, /^— R\$/);
   assert.equal(celulas(html, "24 a 28 anos · 1 vida").length, 2);
   // O total é só mais uma linha, logo depois das faixas e sem seção própria.
   assert.ok(html.indexOf("24 a 28 anos · 1 vida") < html.indexOf("Total mensal"));
@@ -76,8 +79,8 @@ test("plano com faixas agrupadas mostra o valor nas faixas detalhadas dos outros
     const html = renderizarComparativo(ids.map((id) => montarSnapshot(plano(id), vidas, corretor)));
     const coluna = ids.indexOf("plamedh-basic-pme");
     // A tabela do Basic junta 19 a 58 anos em um só valor.
-    assert.equal(celulas(html, "24 a 28 anos · 1 vida")[coluna], "Enf. R$ 275,85 Apto —");
-    assert.equal(celulas(html, "34 a 38 anos · 1 vida")[coluna], "Enf. R$ 275,85 Apto —");
+    assert.equal(celulas(html, "24 a 28 anos · 1 vida")[coluna], "R$ 275,85 —");
+    assert.equal(celulas(html, "34 a 38 anos · 1 vida")[coluna], "R$ 275,85 —");
     assert.ok(html.includes("24 a 28 e 34 a 38 anos"));
   }
 });

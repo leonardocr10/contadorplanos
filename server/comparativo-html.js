@@ -109,14 +109,17 @@ function blocoValores(propostas) {
   const titulo = secao(linhas.length ? "Valor por pessoa, por faixa etária" : "Valor mensal", n);
   if (!temEnf && !temApto) return titulo;
 
-  const coluna = (rotulo, valores) => {
+  // Enfermaria e apartamento lado a lado em cada plano; os nomes aparecem uma vez só, no alto da seção.
+  const par = (a, b) => `<div class="par">${temEnf ? a : ""}${temApto ? b : ""}</div>`;
+  const coluna = (valores) => {
     const menores = menoresValores(valores);
-    return valores.map((v, i) => `<span${menores.includes(i) ? ' class="menor"' : ""}><small>${rotulo}</small> ${v != null ? moeda(v) : VAZIO}</span>`);
+    return valores.map((v, i) => `<span${menores.includes(i) ? ' class="menor"' : ""}>${v != null ? moeda(v) : VAZIO}</span>`);
   };
   const linha = (classe, rotulo, enf, apto) => {
-    const colunaEnf = temEnf ? coluna("Enf.", enf) : [], colunaApto = temApto ? coluna("Apto", apto) : [];
-    return `<tr class="${classe}"><th scope="row">${esc(rotulo)}</th>${propostas.map((_, i) => `<td>${colunaEnf[i] ?? ""}${colunaApto[i] ?? ""}</td>`).join("")}</tr>`;
+    const colunaEnf = coluna(enf), colunaApto = coluna(apto);
+    return `<tr class="${classe}"><th scope="row">${esc(rotulo)}</th>${propostas.map((_, i) => `<td>${par(colunaEnf[i], colunaApto[i])}</td>`).join("")}</tr>`;
   };
+  const nomes = `<tr class="acomodacoes"><th scope="row"></th>${propostas.map(() => `<td>${par("<span>Enfermaria</span>", "<span>Apartamento</span>")}</td>`).join("")}</tr>`;
   const porPessoa = (P, faixa, campo, tem) => {
     const idades = idadesDaFaixa(faixa);
     const l = P.faixas.linhas.find((x) => { const { de, ate } = idadesDaFaixa(x.faixa); return de <= idades.de && ate >= idades.ate; });
@@ -128,7 +131,7 @@ function blocoValores(propostas) {
     propostas.map((P) => porPessoa(P, l.faixa, "enf", P.faixas.temEnf)),
     propostas.map((P) => porPessoa(P, l.faixa, "apto", P.faixas.temApto)),
   ));
-  return titulo + faixas.join("") + linha("faixa total", "Total mensal", totaisEnf, totaisApto);
+  return titulo + nomes + faixas.join("") + linha("faixa total", "Total mensal", totaisEnf, totaisApto);
 }
 
 const MARCA = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Sim"><path d="M20 6 9 17l-5-5"/></svg>';
@@ -164,13 +167,14 @@ tbody th{padding:7px 12px;font-weight:600;text-align:left;border-bottom:1px soli
 tbody td{padding:7px 12px;text-align:center;border-bottom:1px solid var(--line);border-left:1px solid var(--line);overflow-wrap:anywhere}
 tbody tr:not(.secao):nth-child(even){background:var(--zebra)}
 .secao th{padding:16px 12px 6px;font-size:15px;font-weight:800;color:var(--navy);border-bottom:2px solid var(--navy)}
-.faixa td{font-weight:700;line-height:1.5}
-.faixa td span{display:block;width:fit-content;margin:0 auto;padding:0 8px;border-radius:6px}
-.faixa td small{font-size:12px;font-weight:600;color:var(--muted)}
-.faixa td span.menor{background:var(--verde-claro);color:var(--verde)}
-.faixa td span.menor small{color:inherit}
+.acomodacoes td,.faixa td{padding-left:4px;padding-right:4px}
+.par{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:2px;align-items:center;justify-items:center;white-space:nowrap}
+.par span{padding:1px 5px;border-radius:6px}
+.acomodacoes td{font-size:12px;font-weight:700;color:var(--muted)}
+.faixa td{font-weight:700}
+.faixa .menor{background:var(--verde-claro);color:var(--verde)}
 .total th{font-weight:800}
-.total td{font-size:16px;font-weight:800}
+.total td{font-size:15px;font-weight:800}
 .sim{display:inline-flex;color:var(--verde);vertical-align:middle}
 footer{font-size:12px;line-height:1.5;color:var(--muted)}
 `;
