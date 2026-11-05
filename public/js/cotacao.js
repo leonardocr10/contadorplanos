@@ -135,13 +135,49 @@ function dadosCotacao(mensagem) {
   };
 }
 
-async function salvar(silent) {
-  try {
-    return await saveQuote(dadosCotacao(currentMsg()), silent);
-  } catch (e) {
-    toast(e.message);
-    return false;
-  }
+/* ---------- histórico automático ---------- */
+// Toda cotação vai para o histórico sozinha. Enquanto ela é montada, o mesmo registro é atualizado,
+// para cada plano marcado ou letra digitada não virar uma cotação nova.
+const auto = { id: null, fone: "", assinatura: "", timer: null, fila: Promise.resolve(false) };
+
+// Precisa de um plano com valor. O WhatsApp é opcional, mas pela metade é sinal de que ainda está sendo digitado.
+const podeSalvar = (d) => d.planos.some((p) => p.enf != null || p.apto != null) && (d.fone.length === 0 || d.fone.length >= 10);
+
+function salvar() {
+  clearTimeout(auto.timer);
+  auto.timer = null;
+  const dados = dadosCotacao(currentMsg());
+  if (!podeSalvar(dados)) return Promise.resolve(false);
+  const assinatura = JSON.stringify(dados);
+  auto.fila = auto.fila.then(async () => {
+    if (assinatura === auto.assinatura) return true;
+    // Número trocado é outro cliente: a cotação anterior fica como está.
+    if (auto.fone && dados.fone !== auto.fone) auto.id = null;
+    const salva = await saveQuote(dados, auto.id);
+    if (!salva) return false;
+    auto.id = salva.id;
+    auto.fone = dados.fone;
+    auto.assinatura = assinatura;
+    return true;
+  });
+  return auto.fila;
+}
+
+function agendarSalvar() {
+  clearTimeout(auto.timer);
+  auto.timer = setTimeout(salvar, 800);
+}
+
+// Para quem vai recarregar a página não perder a última alteração.
+export const salvarCotacaoPendente = () => (auto.timer ? salvar() : auto.fila);
+
+// O que está na tela vira o ponto de partida: só uma alteração a partir daqui cria outra cotação.
+function recomecarHistorico() {
+  clearTimeout(auto.timer);
+  auto.timer = null;
+  auto.id = null;
+  auto.fone = "";
+  auto.assinatura = JSON.stringify(dadosCotacao(currentMsg()));
 }
 
 /* ---------- imagens ---------- */
@@ -193,7 +229,7 @@ function baixarArquivo(url, nome) {
   document.body.appendChild(a);
   a.click();
   a.remove();
-  return salvar(true);
+  return salvar();
 }
 
 function saveCard(m) {
@@ -241,7 +277,7 @@ async function abrirWhatsApp() {
   if (!cardsProntos) { toast("A imagem ainda está sendo gerada: tente de novo em um instante"); return; }
   const copiou = await copiarImagem(cards[0]);
   window.open(linkConversaDireta(normFone($("#fone").value), currentMsg(), navigator.userAgent), "_blank", "noopener");
-  salvar(true);
+  salvar();
   if (!copiou) {
     saveCard(cards[0]);
     toast(AVISO_SEM_COPIA);
@@ -300,13 +336,19 @@ export function renderCotacao() {
   $("#pv-nome").textContent = nome || "Cliente";
   $("#av").textContent = (nome[0] || "?").toUpperCase();
   lastAuto = buildMsg({ items: planosEscolhidos(), vidas: S.vidas, over: S.over, nome, corretor: corretor(), opts: opcoes(), cidade: S.municipio });
-  $("#nota-envio").textContent = "Abrir no WhatsApp leva o texto e copia a imagem: na conversa, aperte Ctrl+V para colar a imagem. Com vários planos, copie as outras imagens nos botões acima. Ao copiar, a cotação fica salva no histórico do número.";
+  $("#nota-envio").textContent = "Abrir no WhatsApp leva o texto e copia a imagem: na conversa, aperte Ctrl+V para colar a imagem. Com vários planos, copie as outras imagens nos botões acima. Toda cotação fica salva no histórico automaticamente.";
   $("#links-gerados").hidden = true;
   $("#comparar").hidden = planosEscolhidos().length < 2;
   $("#limpar-planos").disabled = !S.selected.length;
   manual = false;
   $("#rawtxt").value = lastAuto;
   paintChat(lastAuto);
+  if (S.recomecarHistorico) {
+    S.recomecarHistorico = false;
+    recomecarHistorico();
+  } else {
+    agendarSalvar();
+  }
   cardsProntos = false;
   clearTimeout(cardTimer);
   cardTimer = setTimeout(renderCards, 250);
@@ -330,20 +372,22 @@ export function iniciarCotacao() {
     S.municipio = "";
     $("#cliente").value = "";
     $("#fone").value = "";
+    // Dados apagados são o começo de outra cotação, e a anterior fica no histórico como estava.
+    S.recomecarHistorico = true;
     render();
     renderHistCli();
   };
   $("#limpar-planos").onclick = () => { S.selected = []; render(); };
   for (const id of ["cliente", "fone"]) $("#" + id).addEventListener("input", render);
   $("#limpar-vidas").onclick = () => { S.vidas = Array(10).fill(0); render(); };
-  $("#rawtxt").addEventListener("input", () => { manual = true; paintChat($("#rawtxt").value); });
+  $("#rawtxt").addEventListener("input", () => { manual = true; paintChat($("#rawtxt").value); agendarSalvar(); });
 
   $("#copy").onclick = async () => {
     if (!currentMsg()) { toast("Escolha um plano primeiro"); return; }
     const t = currentMsg();
     try {
       await navigator.clipboard.writeText(t);
-      const ok = await salvar(true);
+      const ok = await salvar();
       toast(ok ? "Mensagem copiada e salva no histórico" : "Mensagem copiada");
     } catch {
       $("#raw").open = true;
@@ -352,7 +396,7 @@ export function iniciarCotacao() {
       ta.focus();
       ta.select();
       toast("Selecionei o texto: use Ctrl+C");
-      salvar(true);
+      salvar();
     }
   };
   $("#copiar-link").onclick = copiarLink;
@@ -362,10 +406,6 @@ export function iniciarCotacao() {
     { copiar: copyCard, baixarPdf: savePdf },
   );
   $("#wa").addEventListener("click", (e) => { e.preventDefault(); abrirWhatsApp(); });
-  $("#salvar-hist").onclick = async () => {
-    if (!currentMsg()) { toast("Escolha um plano primeiro"); return; }
-    if (await salvar(false)) toast("Cotação salva no histórico");
-  };
   $("#fone").addEventListener("input", () => {
     const f = normFone($("#fone").value);
     if (f.length >= 10 && !nomeCliente()) {

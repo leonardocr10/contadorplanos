@@ -98,7 +98,8 @@ function validarPlano(b) {
 function validarCotacao(b) {
   if (!b || typeof b !== "object") throw new ErroEntrada("Dados da cotação inválidos.");
   const fone = normFone(b.fone);
-  if (fone.length < 10) throw new ErroEntrada("Informe o WhatsApp do cliente para salvar no histórico.");
+  // A cotação pode ir para o histórico sem WhatsApp, mas um número incompleto não serve para achar o cliente.
+  if (fone && fone.length < 10) throw new ErroEntrada("O WhatsApp do cliente está incompleto.");
   if (b.tipo !== "PF" && b.tipo !== "CNPJ") throw new ErroEntrada("O tipo da cotação precisa ser PF ou CNPJ.");
   if (!Array.isArray(b.vidas) || b.vidas.length !== 10 || !b.vidas.every((n) => Number.isInteger(n) && n >= 0)) {
     throw new ErroEntrada("As vidas da cotação são inválidas.");
@@ -228,6 +229,12 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
   app.post("/api/cotacoes", (req, res) => {
     const { cotacao, duplicada } = banco.salvarCotacao(validarCotacao(req.body));
     res.status(duplicada ? 200 : 201).json(cotacao);
+  });
+
+  app.put("/api/cotacoes/:id", (req, res) => {
+    const c = banco.atualizarCotacao(req.params.id, validarCotacao(req.body));
+    if (!c) return res.status(404).json({ erro: "Cotação não encontrada." });
+    res.json(c);
   });
 
   app.patch("/api/cotacoes/:id", (req, res) => {

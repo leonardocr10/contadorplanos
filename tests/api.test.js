@@ -101,11 +101,40 @@ test("histórico guarda só os dígitos e não duplica cotação idêntica", asy
   assert.equal((await busca("q=8888")).length, 1);
 });
 
-test("cotação sem número é recusada", async (t) => {
+test("cotação com número incompleto é recusada, e sem número é aceita", async (t) => {
   const { json } = await contexto(t);
   const r = await json("/api/cotacoes", "POST", cotacao({ fone: "123" }));
   assert.equal(r.status, 400);
   assert.match((await r.json()).erro, /WhatsApp/);
+  const sem = await json("/api/cotacoes", "POST", cotacao({ fone: "", cliente: "Sem número" }));
+  assert.equal(sem.status, 201);
+  assert.equal((await sem.json()).fone, "");
+});
+
+test("cotação idêntica de outro cliente não é tratada como repetida", async (t) => {
+  const { json } = await contexto(t);
+  const a = await (await json("/api/cotacoes", "POST", cotacao())).json();
+  const b = await json("/api/cotacoes", "POST", cotacao({ fone: "" }));
+  assert.equal(b.status, 201);
+  assert.notEqual((await b.json()).id, a.id);
+});
+
+test("a cotação em andamento é atualizada sem virar outra", async (t) => {
+  const { base, json } = await contexto(t);
+  const c = await (await json("/api/cotacoes", "POST", cotacao({ fone: "" }))).json();
+  await json(`/api/cotacoes/${c.id}`, "PATCH", { status: "Vendida" });
+  const r = await json(`/api/cotacoes/${c.id}`, "PUT", cotacao({ cliente: "Agora com nome", mensagem: "outra mensagem" }));
+  assert.equal(r.status, 200);
+  const nova = await r.json();
+  assert.equal(nova.id, c.id);
+  assert.equal(nova.cliente, "Agora com nome");
+  assert.equal(nova.fone, "34999990000");
+  assert.equal(nova.mensagem, "outra mensagem");
+  // A data e a situação não mudam.
+  assert.equal(nova.criadoEm, c.criadoEm);
+  assert.equal(nova.status, "Vendida");
+  assert.equal((await (await fetch(base + "/api/cotacoes")).json()).length, 1);
+  assert.equal((await json("/api/cotacoes/nao-existe", "PUT", cotacao())).status, 404);
 });
 
 test("muda a situação e exclui cotação", async (t) => {

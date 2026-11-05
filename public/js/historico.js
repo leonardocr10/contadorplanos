@@ -21,19 +21,23 @@ export async function carregarHistorico() {
   renderHistCli();
 }
 
-export async function saveQuote(dados, silent) {
-  if (dados.fone.length < 10) {
-    toast(silent ? "Dica: informe o WhatsApp do cliente para guardar no histórico" : "Informe o WhatsApp do cliente para salvar no histórico");
-    return false;
-  }
-  if (!dados.planos.length) return false;
+// Com id, atualiza a cotação em andamento; se ela foi excluída nesse meio-tempo, cria de novo.
+export async function saveQuote(dados, id = null) {
   try {
-    await api("/api/cotacoes", { metodo: "POST", json: dados });
+    let salva = null;
+    if (id) {
+      try {
+        salva = await api(`/api/cotacoes/${encodeURIComponent(id)}`, { metodo: "PUT", json: dados });
+      } catch (e) {
+        if (e.status !== 404) throw e;
+      }
+    }
+    salva ||= await api("/api/cotacoes", { metodo: "POST", json: dados });
     await carregarHistorico();
-    return true;
+    return salva;
   } catch (e) {
     toast(`Não deu para salvar no histórico: ${e.message}`);
-    return false;
+    return null;
   }
 }
 
@@ -98,6 +102,8 @@ function reopen(h) {
   // Cotação antiga não tem cidade salva: reabre mostrando todos os planos.
   S.uf = h.uf || "";
   S.municipio = h.municipio || "";
+  // Reabrir não cria cotação: só uma alteração gera outra, e a original fica como estava.
+  S.recomecarHistorico = true;
   show("cotacao");
   render();
   renderHistCli();
@@ -124,23 +130,26 @@ export function renderHist() {
   const q = $("#hist-busca").value.trim().toLowerCase(), qd = q.replace(/\D/g, "");
   const groups = new Map();
   for (const h of S.hist) {
-    if (!groups.has(h.fone)) groups.set(h.fone, []);
-    groups.get(h.fone).push(h);
+    // Sem WhatsApp, as cotações são agrupadas pelo nome do cliente.
+    const chave = h.fone || `sem-whatsapp:${(h.cliente || "").trim().toLowerCase()}`;
+    if (!groups.has(chave)) groups.set(chave, []);
+    groups.get(chave).push(h);
   }
-  const gs = [...groups.entries()].filter(([f, l]) => {
+  const gs = [...groups.entries()].filter(([, l]) => {
     if (filtroSt !== "Todas" && l[0].status !== filtroSt) return false;
     if (!q) return true;
-    return (qd.length >= 3 && f.includes(qd)) || l.some((h) => (h.cliente || "").toLowerCase().includes(q));
+    return (qd.length >= 3 && l[0].fone.includes(qd)) || l.some((h) => (h.cliente || "").toLowerCase().includes(q));
   });
   $("#hist-count").textContent = `${groups.size} ${groups.size === 1 ? "cliente" : "clientes"} · ${S.hist.length} ${S.hist.length === 1 ? "cotação" : "cotações"}`;
-  if (!S.hist.length) { box.innerHTML = `<div class="status">Nenhuma cotação salva ainda. Monte uma cotação com o WhatsApp do cliente e clique em <b>Copiar mensagem</b>: ela aparece aqui.</div>`; return; }
+  if (!S.hist.length) { box.innerHTML = `<div class="status">Nenhuma cotação salva ainda. Monte uma cotação em <b>Nova cotação</b>: ela aparece aqui automaticamente.</div>`; return; }
   if (!gs.length) { box.innerHTML = `<div class="status">Nenhum cliente encontrado.</div>`; return; }
   // Mantém abertos os clientes que já estavam abertos ao redesenhar a lista.
   const abertos = new Set([...box.querySelectorAll("details.hg[open]")].map((d) => d.dataset.fone));
-  box.innerHTML = gs.map(([f, l]) => {
-    const nome = l.find((h) => h.cliente)?.cliente || "Sem nome";
-    return `<details class="hg" data-fone="${esc(f)}" ${abertos.has(f) ? "open" : ""}><summary><span class="hg-name">${esc(nome)}</span><span class="hg-meta">${fmtFone(f)} · ${l.length} ${l.length === 1 ? "cotação" : "cotações"} · última em ${fmtData(l[0].criadoEm)}</span><span class="pill ${stClass(l[0].status)}">${esc(l[0].status || "Enviada")}</span></summary>
-      <div class="cat" style="margin-top:10px"><div class="actions"><a class="btn" href="${esc(linkConversaDireta(f, "", navigator.userAgent))}" target="_blank" rel="noopener">Abrir conversa no WhatsApp</a></div>${l.map((h) => quoteRow(h, true)).join("")}</div></details>`;
+  box.innerHTML = gs.map(([chave, l]) => {
+    const nome = l.find((h) => h.cliente)?.cliente || "Sem nome", f = l[0].fone;
+    const conversa = f ? `<div class="actions"><a class="btn" href="${esc(linkConversaDireta(f, "", navigator.userAgent))}" target="_blank" rel="noopener">Abrir conversa no WhatsApp</a></div>` : "";
+    return `<details class="hg" data-fone="${esc(chave)}" ${abertos.has(chave) ? "open" : ""}><summary><span class="hg-name">${esc(nome)}</span><span class="hg-meta">${f ? fmtFone(f) : "Sem WhatsApp"} · ${l.length} ${l.length === 1 ? "cotação" : "cotações"} · última em ${fmtData(l[0].criadoEm)}</span><span class="pill ${stClass(l[0].status)}">${esc(l[0].status || "Enviada")}</span></summary>
+      <div class="cat" style="margin-top:10px">${conversa}${l.map((h) => quoteRow(h, true)).join("")}</div></details>`;
   }).join("");
   wireRows(box);
 }

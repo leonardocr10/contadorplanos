@@ -4,7 +4,7 @@ export const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&am
 
 export const S = {
   plans: [], loaded: false, dbErr: null,
-  tipo: "PF", uf: "MG", municipio: "Uberlândia", selected: [], over: {}, vidas: Array(10).fill(0),
+  tipo: "PF", uf: "MG", municipio: "Uberlândia", recomecarHistorico: false, selected: [], over: {}, vidas: Array(10).fill(0),
   hist: [], histLoaded: false, histErr: null,
   cor: { nome: "", fone: "", empresa: "" },
   leituraDisponivel: false,
@@ -55,6 +55,7 @@ export async function api(url, { metodo = "GET", json, corpo, tipo } = {}) {
   if (!r.ok) {
     const e = new Error(dados?.erro || "Erro inesperado no cotador.");
     e.codigo = dados?.codigo;
+    e.status = r.status;
     throw e;
   }
   return dados;

@@ -1,6 +1,6 @@
 // Ponto de entrada: navegação entre as abas, "Meus dados", backup e carga inicial.
 import { $, S, VIEWS, api, carregarPlanos, definirRender, render, show, toast } from "./estado.js";
-import { iniciarCotacao, renderCotacao } from "./cotacao.js";
+import { iniciarCotacao, renderCotacao, salvarCotacaoPendente } from "./cotacao.js";
 import { iniciarPlanos, renderCat } from "./planos.js";
 import { carregarHistorico, iniciarHistorico, renderHist } from "./historico.js";
 import { carregarAceites, renderAceites } from "./aceites.js";
@@ -18,12 +18,13 @@ definirRender(() => {
 
 /* ---------- abas ---------- */
 document.querySelectorAll(".tabs button[data-view]").forEach((b) => (b.onclick = () => show(b.dataset.view)));
-// Nova cotação recomeça do zero: a página recarrega, sem perder o que ainda estava para salvar em Meus dados.
+// Nova cotação recomeça do zero: a página recarrega, sem perder o que ainda estava para salvar.
 $("#tab-cot").onclick = async () => {
   if (salvarTimer) {
     clearTimeout(salvarTimer);
     await salvarDados();
   }
+  await salvarCotacaoPendente();
   history.replaceState(null, "", "#cotacao");
   location.reload();
 };

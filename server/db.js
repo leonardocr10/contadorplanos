@@ -393,7 +393,7 @@ export class Banco {
   salvarCotacao(c) {
     const ultima = this.listarCotacoes({ fone: c.fone })[0];
     if (
-      ultima && ultima.mensagem === c.mensagem && ultima.tipo === c.tipo && ultima.municipio === (c.municipio ?? "") &&
+      ultima && ultima.fone === c.fone && ultima.mensagem === c.mensagem && ultima.tipo === c.tipo && ultima.municipio === (c.municipio ?? "") &&
       JSON.stringify(ultima.vidas) === JSON.stringify(c.vidas) && JSON.stringify(ultima.planos) === JSON.stringify(c.planos)
     ) {
       return { cotacao: ultima, duplicada: true };
@@ -403,6 +403,14 @@ export class Banco {
       .prepare("INSERT INTO cotacoes (id, fone, cliente, criado_em, tipo, uf, municipio, idades, vidas, overrides, planos, mensagem, status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)")
       .run(id, c.fone, c.cliente, new Date().toISOString(), c.tipo, c.uf ?? "", c.municipio ?? "", c.idades, JSON.stringify(c.vidas), JSON.stringify(c.over), JSON.stringify(c.planos), c.mensagem, c.status ?? "Enviada");
     return { cotacao: this.obterCotacao(id), duplicada: false };
+  }
+
+  // A cotação em andamento: a data e a situação ficam como estão.
+  atualizarCotacao(id, c) {
+    const r = this.db
+      .prepare("UPDATE cotacoes SET fone = ?, cliente = ?, tipo = ?, uf = ?, municipio = ?, idades = ?, vidas = ?, overrides = ?, planos = ?, mensagem = ? WHERE id = ?")
+      .run(c.fone, c.cliente, c.tipo, c.uf ?? "", c.municipio ?? "", c.idades, JSON.stringify(c.vidas), JSON.stringify(c.over), JSON.stringify(c.planos), c.mensagem, id);
+    return r.changes > 0 ? this.obterCotacao(id) : null;
   }
 
   mudarStatus(id, status) {
