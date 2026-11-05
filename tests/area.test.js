@@ -47,6 +47,51 @@ test("linha sem cidade é da cidade do plano, e traço no nome não é cidade", 
   assert.ok(redeDaCidade(plam, "Uberlândia").includes("Laboratório Exame – Unidade Hospital do Triângulo"));
 });
 
+test("a Aurora segue a tabela: valores, área, rede por cidade e comparativo", (t) => {
+  const aurora = planos.find((p) => p.id === "aurora-saude-pf");
+  assert.equal(aurora.faixasEnf.length, 10);
+  assert.equal(aurora.faixasApto.length, 10);
+  assert.equal(aurora.faixasEnf[0], 188.56);
+  assert.equal(aurora.faixasApto[9], 1564.38);
+  assert.ok(vendidoEm(aurora, "MG", "Uberaba") && vendidoEm(aurora, "MG", "Campo Florido") && !vendidoEm(aurora, "MG", "Uberlândia"));
+  assert.equal(redeDaCidade(aurora, "Uberaba").length, 10);
+  assert.equal(redeDaCidade(aurora, "Patos de Minas").length, 15);
+  assert.ok(redeDaCidade(aurora, "Uberaba").includes("Hospital Santa Lúcia"));
+  assert.deepEqual(redeDaCidade(aurora, "Araxá"), []);
+  const pedido = { vidas: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0], over: {}, cliente: "", opts: { copart: true, rede: true, acom: true }, municipio: "Uberaba" };
+  const corretor = { nome: "C", fone: "34999990000", empresa: "E" };
+  // Os produtos adicionais são pagos à parte: não podem aparecer como inclusos na proposta.
+  assert.deepEqual(montarSnapshot(aurora, pedido, corretor).plano.beneficios, []);
+  const amil = planos.find((p) => p.id === "amil-ouro-total");
+  const html = renderizarComparativo([aurora, amil].map((p) => montarSnapshot(p, pedido, corretor)));
+  assert.ok(html.includes("/img/logo-aurora.png"));
+  assert.ok(html.includes("R$ 188,56") && html.includes("R$ 282,22"));
+  const linha = (titulo) => html.match(new RegExp(`<th scope="row">${titulo}</th><td[^>]*>(.*?)</td>`))?.[1];
+  assert.equal(linha("Consulta"), "R$ 45,00");
+  assert.equal(linha("Pronto-socorro"), "R$ 60,00");
+  assert.equal(linha("Internação em enfermaria"), "R$ 130,00");
+  assert.equal(linha("Internação em apartamento"), "R$ 200,00");
+  assert.equal(linha("Exames básicos"), "24 horas");
+  assert.equal(linha("Internação"), "180 dias");
+  assert.equal(linha("Parto"), "300 dias");
+  assert.equal(linha("Preexistência"), "24 meses");
+  const pasta = mkdtempSync(join(tmpdir(), "cotador-aurora-"));
+  t.after(() => rmSync(pasta, { recursive: true, force: true }));
+  const caminho = join(pasta, "c.db");
+  const antigo = new Banco(caminho, seed);
+  antigo.excluirPlano("aurora-saude-pf");
+  antigo.db.exec("PRAGMA user_version = 13");
+  antigo.fechar();
+  const novo = new Banco(caminho, seed);
+  assert.equal(novo.obterPlano("aurora-saude-pf").nome, "AURORA SAÚDE");
+  // Entra uma vez só: quem excluir o plano depois não o recebe de volta.
+  novo.excluirPlano("aurora-saude-pf");
+  novo.fechar();
+  const depois = new Banco(caminho, seed);
+  assert.ok(!depois.obterPlano("aurora-saude-pf"));
+  depois.fechar();
+});
+
 test("a SulAmérica tem a rede de cada cidade, conforme a tabela", () => {
   const especial = planos.find((p) => p.id === "sulamerica-especial-100-rc");
   const direto = planos.find((p) => p.id === "sulamerica-direto-nacional");
@@ -144,8 +189,8 @@ test("todos os planos da base têm área válida", () => {
 });
 
 test("as tabelas definem quais planos aparecem em cada cidade", () => {
-  // Uberlândia está na área de todos os planos atuais.
-  assert.equal(nomesEm("MG", "Uberlândia").length, planos.length);
+  // Uberlândia está na área de todos os planos, menos da Aurora.
+  assert.deepEqual(planos.filter((p) => !vendidoEm(p, "MG", "Uberlândia")).map((p) => p.id), ["aurora-saude-pf"]);
   // Só a tabela Union da Plamedh chega a Goiás.
   assert.deepEqual(nomesEm("GO", ""), ["plamedh-pf", "plamedh-kids-pf"]);
   assert.deepEqual(nomesEm("GO", "Catalão"), ["plamedh-pf", "plamedh-kids-pf"]);
