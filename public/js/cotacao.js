@@ -248,7 +248,6 @@ function abrirVisor(i) {
 function passarVisor(passo) {
   if (cards.length < 2) return;
   visorIndice = (visorIndice + passo + cards.length) % cards.length;
-  $("#visor-img").classList.remove("ampliada");
   pintarVisor();
 }
 function iniciarVisor() {
@@ -256,7 +255,6 @@ function iniciarVisor() {
   $("#visor-fechar").onclick = () => visor.close();
   $("#visor-ant").onclick = () => passarVisor(-1);
   $("#visor-prox").onclick = () => passarVisor(1);
-  $("#visor-img").onclick = () => $("#visor-img").classList.toggle("ampliada");
   $("#visor-copiar").onclick = () => copyCard(cards[visorIndice]);
   $("#visor-pdf").onclick = (e) => savePdf(cards[visorIndice], e.currentTarget);
   // Clique fora da imagem, no fundo escuro, fecha.
@@ -265,10 +263,7 @@ function iniciarVisor() {
     if (e.key === "ArrowLeft") passarVisor(-1);
     if (e.key === "ArrowRight") passarVisor(1);
   };
-  visor.onclose = () => {
-    $("#visor-img").classList.remove("ampliada");
-    document.body.append($("#toast"));
-  };
+  visor.onclose = () => document.body.append($("#toast"));
 }
 
 const fileName = (m, extensao = "png") => `${m.titulo.replace(/[\\/:*?"<>|]/g, "")}${nomeCliente() ? " - " + nomeCliente().replace(/[\\/:*?"<>|]/g, "") : ""}.${extensao}`;

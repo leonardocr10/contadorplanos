@@ -222,8 +222,7 @@ details textarea{margin-top:8px;min-height:200px;font:13px/1.5 var(--mono)}
 .imgs-abrir::after{content:"Ampliar";position:absolute;right:6px;bottom:6px;padding:2px 8px;border-radius:999px;background:var(--pine);color:var(--pine-ink);font:600 11px var(--body)}
 .imgs-abrir img{display:block;transition:border-color .12s}
 .imgs-abrir:hover img{border-color:var(--pine)}
-.visor:has(img.ampliada){width:calc(100vw - 32px);height:calc(100dvh - 32px)}
-.visor{width:fit-content;min-width:min(520px,calc(100vw - 32px));max-width:calc(100vw - 32px);height:fit-content;max-height:calc(100dvh - 32px);margin:auto;padding:0;border:0;border-radius:14px;overflow:hidden;background:var(--surface);color:var(--ink);box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.visor{width:calc(100vw - 32px);max-width:none;height:calc(100dvh - 32px);max-height:none;margin:auto;padding:0;border:0;border-radius:14px;overflow:hidden;background:var(--surface);color:var(--ink);box-shadow:0 20px 60px rgba(0,0,0,.3)}
 .visor[open]{display:flex;flex-direction:column}
 .visor::backdrop{background:var(--scrim)}
 .visor-topo{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;padding:12px 16px;border-bottom:1px solid var(--line)}
@@ -231,10 +230,8 @@ details textarea{margin-top:8px;min-height:200px;font:13px/1.5 var(--mono)}
 .visor-botoes{display:flex;align-items:center;gap:8px}
 .visor-botoes .btn{padding:6px 12px;font-size:13px}
 .visor-corpo{flex:1;min-height:0;overflow:auto;padding:12px;background:var(--bg)}
-/* A imagem inteira cabe na tela, descontados o topo, o rodapé e as margens da janela. */
-.visor-corpo img{display:block;width:auto;height:auto;max-width:calc(100vw - 56px);max-height:calc(100dvh - 196px);margin:0 auto;border-radius:6px;cursor:zoom-in}
-/* Ampliada, a imagem ocupa toda a largura da janela e a rolagem fica só na vertical. */
-.visor-corpo img.ampliada{width:100%;max-width:100%;max-height:none;margin:0;cursor:zoom-out}
+/* A imagem ocupa toda a largura da janela e a rolagem fica só na vertical. */
+.visor-corpo img{display:block;width:100%;height:auto;border-radius:6px}
 .visor-rodape{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px;padding:12px 16px;border-top:1px solid var(--line)}
 .visor .btn.primary{background:var(--pine);border-color:var(--pine);color:var(--pine-ink)}
 .imgs figcaption{font-size:12px;color:var(--muted);line-height:1.3}
