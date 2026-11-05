@@ -33,6 +33,17 @@ test("compara valores e destaca só o menor de cada acomodação", () => {
   assert.ok(html.includes("Maria"));
 });
 
+test("mostra o valor por pessoa de cada faixa etária", () => {
+  const varias = { ...pedido, vidas: [2, 0, 1, 0, 0, 0, 0, 0, 0, 0] };
+  const html = renderizarComparativo(["plam-saude-pf", "amil-platinum-r1-total"].map((id) => montarSnapshot(plano(id), varias, corretor)));
+  const [plam, amil] = celulas(html, "0 a 18 anos · 2 vidas");
+  assert.equal(plam, "Enf. R$ 173,03 Apto R$ 271,74");
+  // Sem enfermaria no plano, a linha fica vazia em vez de sumir.
+  assert.match(amil, /^Enf\. — Apto R\$/);
+  assert.equal(celulas(html, "24 a 28 anos · 1 vida").length, 2);
+  assert.ok(html.indexOf("Valor por pessoa, por faixa etária") < html.indexOf("Valor total mensal"));
+});
+
 test("valores iguais não recebem destaque", () => {
   const html = comparar("plam-saude-pf", "plamedh-pf");
   assert.deepEqual(celulas(html, "Enfermaria"), ["R$ 346,06", "R$ 346,06"]);

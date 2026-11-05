@@ -1,5 +1,6 @@
 // Página do comparativo: vários planos lado a lado, para virar imagem e PDF.
 // Cada operadora escreve as tabelas do seu jeito, por isso as linhas são localizadas pelo assunto.
+import { r2 } from "../public/js/calculo.js";
 import { FONTE, esc, logoDoPlano, moeda, paletaProposta, paraProposta } from "./proposta-html.js";
 
 export const MAX_PLANOS_COMPARATIVO = 4;
@@ -92,6 +93,20 @@ function linhaPreco(titulo, valores) {
   return `<tr class="preco"><th scope="row">${esc(titulo)}</th>${valores.map((v, i) => `<td${menores.includes(i) ? ' class="menor"' : ""}>${v != null ? moeda(v) : VAZIO}${menores.includes(i) ? '<small>menor valor</small>' : ""}</td>`).join("")}</tr>`;
 }
 
+// Valor por pessoa em cada faixa, igual à proposta de cada plano. A snapshot guarda o subtotal da faixa.
+function blocoFaixas(propostas) {
+  const linhas = propostas.find((P) => P.faixas.linhas.length)?.faixas.linhas ?? [];
+  const temEnf = propostas.some((P) => P.faixas.temEnf), temApto = propostas.some((P) => P.faixas.temApto);
+  if (!linhas.length || (!temEnf && !temApto)) return "";
+  const valor = (rotulo, tem, subtotal, n) => `<span><small>${rotulo}</small> ${tem && subtotal != null ? moeda(r2(subtotal / n)) : VAZIO}</span>`;
+  const celula = (P, faixa) => {
+    const l = P.faixas.linhas.find((x) => x.faixa === faixa);
+    if (!l) return `<td>${VAZIO}</td>`;
+    return `<td>${temEnf ? valor("Enf.", P.faixas.temEnf, l.enf, l.n) : ""}${temApto ? valor("Apto", P.faixas.temApto, l.apto, l.n) : ""}</td>`;
+  };
+  return secao("Valor por pessoa, por faixa etária", propostas.length) + linhas.map((l) => `<tr class="faixa"><th scope="row">${esc(l.faixa)} anos · ${l.n} ${l.n === 1 ? "vida" : "vidas"}</th>${propostas.map((P) => celula(P, l.faixa)).join("")}</tr>`).join("");
+}
+
 const MARCA = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Sim"><path d="M20 6 9 17l-5-5"/></svg>';
 
 function blocoRede(propostas) {
@@ -124,6 +139,9 @@ tbody th{padding:7px 12px;font-weight:600;text-align:left;border-bottom:1px soli
 tbody td{padding:7px 12px;text-align:center;border-bottom:1px solid var(--line);border-left:1px solid var(--line);overflow-wrap:anywhere}
 tbody tr:not(.secao):nth-child(even){background:var(--zebra)}
 .secao th{padding:16px 12px 6px;font-size:15px;font-weight:800;color:var(--navy);border-bottom:2px solid var(--navy)}
+.faixa td{font-weight:700;line-height:1.5}
+.faixa td span{display:block}
+.faixa td small{font-size:12px;font-weight:600;color:var(--muted)}
 .preco th{font-weight:800}
 .preco td{font-size:19px;font-weight:800;letter-spacing:-.01em}
 .preco td.menor{background:var(--verde-claro);color:var(--verde)}
@@ -149,7 +167,8 @@ export function renderizarComparativo(snapshots) {
   const situacoes = propostas.map((P) => (!P.situacoes[0] || /^per[ií]odo$/i.test(P.situacoes[0]) ? "Padrão" : P.situacoes[0]));
 
   const corpo = [
-    secao("Valor mensal", n),
+    blocoFaixas(propostas),
+    secao("Valor total mensal", n),
     propostas.some((P) => valorDe(P, "Enfermaria") != null) ? linhaPreco("Enfermaria", propostas.map((P) => valorDe(P, "Enfermaria"))) : "",
     propostas.some((P) => valorDe(P, "Apartamento") != null) ? linhaPreco("Apartamento", propostas.map((P) => valorDe(P, "Apartamento"))) : "",
     taxas.some(Boolean) ? linhaTexto("Taxa associativa", taxas.map((t) => (t ? moeda(t) : VAZIO))) : "",
