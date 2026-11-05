@@ -61,7 +61,9 @@ textarea{resize:vertical;min-height:72px;line-height:1.45}
 /* Na cotação, Cliente e Beneficiários ficam compactos para sobrar espaço para os planos. */
 #v-cotacao>.stack{gap:10px}
 #v-cotacao>.stack>.panel{padding:12px 14px;gap:10px}
-#v-cotacao .btn#limpar-vidas{padding:4px 12px;min-height:0;font-size:13px}
+#v-cotacao .btn#limpar-vidas,#v-cotacao .btn#limpar-planos{padding:4px 12px;min-height:0;font-size:13px}
+#v-cotacao .btn#limpar-planos{white-space:nowrap}
+#v-cotacao .btn#limpar-planos:disabled{opacity:.5;cursor:default}
 #hist-cli:empty{display:none}
 #v-cotacao .faixas{grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:6px}
 #v-cotacao .fx{padding:3px 4px 3px 8px;gap:4px}

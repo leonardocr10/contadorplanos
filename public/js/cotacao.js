@@ -43,7 +43,7 @@ function renderLocal() {
   // Enquanto os planos carregam a lista está vazia: a cidade padrão só cai se não existir de verdade.
   if (S.loaded && !existe) { S.uf = ""; S.municipio = ""; }
   trocarOpcoes($("#municipio"), [["", "Todas as cidades"], ...cidades], existe ? atual : "");
-  $("#limpar-local").disabled = !S.municipio;
+  $("#limpar-local").disabled = !S.municipio && !$("#cliente").value && !$("#fone").value;
 }
 
 // Plano fora da área sai da cotação junto com o cartão, para não ir na proposta por engano.
@@ -303,6 +303,7 @@ export function renderCotacao() {
   $("#nota-envio").textContent = "Abrir no WhatsApp leva o texto e copia a imagem: na conversa, aperte Ctrl+V para colar a imagem. Com vários planos, copie as outras imagens nos botões acima. Ao copiar, a cotação fica salva no histórico do número.";
   $("#links-gerados").hidden = true;
   $("#comparar").hidden = planosEscolhidos().length < 2;
+  $("#limpar-planos").disabled = !S.selected.length;
   manual = false;
   $("#rawtxt").value = lastAuto;
   paintChat(lastAuto);
@@ -324,7 +325,15 @@ export function iniciarCotacao() {
     [S.uf = "", S.municipio = ""] = $("#municipio").value ? $("#municipio").value.split("|") : [];
     aplicarLocal();
   });
-  $("#limpar-local").onclick = () => { S.uf = ""; S.municipio = ""; render(); };
+  $("#limpar-local").onclick = () => {
+    S.uf = "";
+    S.municipio = "";
+    $("#cliente").value = "";
+    $("#fone").value = "";
+    render();
+    renderHistCli();
+  };
+  $("#limpar-planos").onclick = () => { S.selected = []; render(); };
   for (const id of ["cliente", "fone"]) $("#" + id).addEventListener("input", render);
   $("#limpar-vidas").onclick = () => { S.vidas = Array(10).fill(0); render(); };
   $("#rawtxt").addEventListener("input", () => { manual = true; paintChat($("#rawtxt").value); });
