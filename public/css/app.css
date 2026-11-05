@@ -45,6 +45,15 @@ h2{font-family:var(--display);font-weight:600;font-size:19px;margin:0}
 .row{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
 .field{display:flex;flex-direction:column;gap:6px;min-width:0}
 .field label{font-size:13px;font-weight:600;color:var(--muted)}
+.cfg-layout{display:grid;grid-template-columns:minmax(220px,280px) minmax(0,1fr);gap:16px;align-items:start}
+.cfg-menu{gap:6px;position:sticky;top:12px}
+.cfg-menu h2{margin:0}
+.cfg-menu .note{margin-bottom:8px!important}
+.cfg-item{padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);font:600 14px var(--body);text-align:left;cursor:pointer}
+.cfg-item:hover{border-color:var(--accent)}
+.cfg-item[aria-current="true"]{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent);background:var(--accent-soft);color:var(--pine)}
+.cfg-conteudo{min-width:0}
+@media (max-width:900px){.cfg-layout{grid-template-columns:minmax(0,1fr)}.cfg-menu{position:static}}
 .cfg-painel{max-width:860px;width:100%}
 .usr-linha{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;justify-content:space-between;padding:10px 12px;border:1px solid var(--line);border-radius:10px}
 .usr-linha .usr-nome{min-width:0;font-weight:700;overflow-wrap:anywhere}

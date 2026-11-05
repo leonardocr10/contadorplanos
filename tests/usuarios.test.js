@@ -278,8 +278,10 @@ test("a tela só mostra ao administrador o que é dele", () => {
   assert.ok(!html.includes('data-view="corretor"'));
   assert.match(html, /id="novo" data-admin hidden/);
   assert.match(html, /<form id="doc-form"[^>]*data-admin hidden/);
-  for (const id of ["cfg-atualizar", "b-file", "usr-form"]) {
+  // Os itens do administrador começam fechados, e o caminho até eles só aparece para ele.
+  for (const [id, item] of [["cfg-atualizar", "atualizar"], ["b-file", "backup"], ["usr-form", "usuarios"]]) {
     const antes = html.slice(0, html.indexOf(`id="${id}"`));
-    assert.match(antes.slice(antes.lastIndexOf('class="panel')), /^class="panel cfg-painel" data-admin hidden/, id);
+    assert.match(antes.slice(antes.lastIndexOf('class="panel')), new RegExp(`^class="panel cfg-painel" data-cfg="${item}" hidden`), id);
+    assert.match(html, new RegExp(`data-abre="${item}" data-admin hidden`), item);
   }
 });

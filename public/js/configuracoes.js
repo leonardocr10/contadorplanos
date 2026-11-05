@@ -104,13 +104,21 @@ export function aplicarPerfil(usuario) {
   document.querySelectorAll("[data-admin]").forEach((p) => (p.hidden = !admin));
   document.querySelectorAll("[data-nao-admin]").forEach((p) => (p.hidden = admin));
   $("#cfg-entrou").textContent = usuario.login ? `Você entrou como ${usuario.login} (${PERFIS[usuario.perfil]}).` : "";
-  $("#senha-form").hidden = !usuario.id;
+  $("#cfg-item-senha").hidden = !usuario.id;
   if (!admin) return;
   mostrarVersao();
   carregarUsuarios();
 }
 
+// O menu abre um item por vez; os itens do administrador nem aparecem no menu dos demais.
+function abrirItem(item) {
+  document.querySelectorAll("#cfg-menu [data-abre]").forEach((b) => b.setAttribute("aria-current", b.dataset.abre === item));
+  document.querySelectorAll("[data-cfg]").forEach((p) => (p.hidden = p.dataset.cfg !== item));
+  $("#cfg-vazio").hidden = true;
+}
+
 export function iniciarConfiguracoes() {
+  document.querySelectorAll("#cfg-menu [data-abre]").forEach((b) => (b.onclick = () => abrirItem(b.dataset.abre)));
   $("#senha-form").onsubmit = async (e) => {
     e.preventDefault();
     const nova = $("#senha-nova").value, aviso = (t) => ($("#senha-msg").textContent = t);
