@@ -24,6 +24,17 @@ test("plano novo: o prompt não cita plano vazio e pede nome, subtítulo e o tex
   assert.equal(r.subtituloPlano, "A300 e A500");
 });
 
+test("o prompt pede a área e a rede de todas as cidades no formato do filtro", () => {
+  const p = montarPrompt("", "");
+  assert.match(p, /"areaComercializacao"/);
+  assert.match(p, /SEMPRE "Prestador – Cidade"/);
+  assert.match(p, /de todas as cidades listadas/);
+  assert.ok(!p.includes("região de Uberlândia e Triângulo Mineiro que valem"));
+  const r = normalizarLeitura({ areaComercializacao: " MG: Uberaba ", rede: ["Hospital A – Uberaba"] }, 1);
+  assert.equal(r.areaComercializacao, "MG: Uberaba");
+  assert.deepEqual(r.rede, ["Hospital A – Uberaba"]);
+});
+
 test("extrai JSON mesmo com cercas de código", () => {
   assert.deepEqual(extrairJson('```json\n{"a":1}\n```'), { a: 1 });
   assert.throws(() => extrairJson("não sei"), ErroLeitura);

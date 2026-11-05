@@ -1,5 +1,5 @@
 // "Atualizar com nova tabela": abre PDF ou imagem, envia as páginas ao Claude e mostra a revisão.
-import { FAIXAS, brl } from "./calculo.js";
+import { FAIXAS, brl, resumoDaRede } from "./calculo.js";
 import { $, S, api, esc } from "./estado.js";
 
 const PDFJS = "/vendor/pdfjs/";
@@ -201,7 +201,7 @@ function renderReview(box) {
       <div class="field">${chk("uc-cidade", "Atualizar cidade da rede", !!R.cidade)}<input id="uv-cidade" type="text" value="${esc(R.cidade)}"></div>
     </div>
     <div class="field">${chk("uc-area", "Atualizar área de comercialização", !!R.area)}<textarea id="uv-area">${esc(R.area)}</textarea>${R.area ? "" : `<span class="note">O material não informa a área: a atual será mantida.</span>`}</div>
-    <div class="field">${chk("uc-rede", "Atualizar rede hospitalar", R.rede.length > 0)}<textarea id="uv-rede">${esc(R.rede.join("\n"))}</textarea>${R.rede.length ? "" : `<span class="note">O material não lista hospitais: a rede atual será mantida.</span>`}</div>
+    <div class="field">${chk("uc-rede", "Atualizar rede hospitalar", R.rede.length > 0)}<textarea id="uv-rede">${esc(R.rede.join("\n"))}</textarea>${R.rede.length ? "" : `<span class="note">O material não lista hospitais: a rede atual será mantida.</span>`}<span class="note" id="uv-rede-resumo"></span></div>
     <div class="field">${chk("uc-extras", "Atualizar benefícios e linhas extras", R.extras.length > 0)}<textarea id="uv-extras">${esc(R.extras.join("\n"))}</textarea></div>
     <div class="field">${chk("uc-desc", "Atualizar observação do plano", !!R.descricao)}<textarea id="uv-desc">${esc(R.descricao)}</textarea></div>
     <div class="field">${chk("uc-copart", "Atualizar explicação da coparticipação", !!R.copart)}<textarea id="uv-copart">${esc(R.copart)}</textarea></div>
@@ -217,6 +217,15 @@ function renderReview(box) {
     <div class="ucrop" id="cr-car">${chk("uc-imgcar", "Atualizar imagem de carências", !!R.tabCar)}<select class="cr-page" aria-label="Página das carências">${pageOpts(R.tabCar?.page ?? 0)}</select><div class="cropwrap"><canvas></canvas></div><button class="btn cr-clear" type="button">Usar página inteira</button></div>
   </div>
   <div class="actions"><button class="btn primary" id="u-aplicar-salvar">Aplicar tudo e salvar plano</button><button class="btn" id="u-aplicar">Só aplicar no formulário</button><button class="btn" id="u-reler">Ler de novo</button></div>`;
+  // Mostra como a rede vai se dividir por cidade, e acompanha as correções na revisão.
+  const pintarResumoDaRede = () => {
+    const r = resumoDaRede({ rede: $("#uv-rede").value, areaComercializacao: $("#uv-area").value, cidade: $("#uv-cidade").value });
+    const cidades = r.cidades.map((c) => `${c.cidade}: ${c.total}`).join(" · ");
+    const sem = !r.semCidade ? "" : `${r.semCidade} ${r.semCidade === 1 ? "linha sem cidade da área aparece" : "linhas sem cidade da área aparecem"} ${r.destinoSemCidade ? `só em ${r.destinoSemCidade}` : "em todas as cidades"}. Para indicar a cidade, escreva "Prestador – Cidade" e confira a área de comercialização.`;
+    $("#uv-rede-resumo").textContent = [cidades && `Rede por cidade: ${cidades}.`, sem].filter(Boolean).join(" ");
+  };
+  for (const id of ["#uv-rede", "#uv-area", "#uv-cidade"]) $(id).addEventListener("input", pintarResumoDaRede);
+  pintarResumoDaRede();
   const ce1 = cropEditor($("#cr-cop"), R.tabCop), ce2 = cropEditor($("#cr-car"), R.tabCar);
   $("#u-reler").onclick = () => { U.res = null; renderPages(); renderWork(); };
   const apply = async (save) => {

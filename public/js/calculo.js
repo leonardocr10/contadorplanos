@@ -121,6 +121,25 @@ export function redeDaCidade(plano, cidade) {
   return rede;
 }
 
+// Quantos prestadores cada cidade recebe, para conferir a rede antes de salvar.
+export function resumoDaRede(plano) {
+  const naArea = new Map(lerArea(plano.areaComercializacao).estados.flatMap((e) => e.cidades).map((c) => [semAcento(c), c]));
+  const porCidade = new Map();
+  let semCidade = 0;
+  for (const linha of lines(plano.rede)) {
+    const m = linha.match(/^(.*\S)\s+[–-]\s+(\S.*)$/);
+    const cidade = m && naArea.get(semAcento(m[2]));
+    if (cidade) porCidade.set(cidade, (porCidade.get(cidade) || 0) + 1);
+    else semCidade++;
+  }
+  return {
+    cidades: [...porCidade.entries()].map(([cidade, total]) => ({ cidade, total })).sort((a, b) => a.cidade.localeCompare(b.cidade, "pt-BR")),
+    semCidade,
+    // A linha sem cidade da área fica na cidade do plano; sem ela na área, aparece em todas.
+    destinoSemCidade: naArea.get(semAcento(plano.cidade)) || "",
+  };
+}
+
 // Estados e cidades que têm algum plano, em ordem alfabética.
 export function locaisDosPlanos(planos) {
   const porUf = new Map();

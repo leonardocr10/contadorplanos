@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { lerArea, locaisDosPlanos, redeDaCidade, vendidoEm } from "../public/js/calculo.js";
+import { lerArea, locaisDosPlanos, redeDaCidade, resumoDaRede, vendidoEm } from "../public/js/calculo.js";
 import { buildMsg } from "../public/js/mensagem.js";
 import { montarSnapshot, renderizarProposta } from "../server/proposta-html.js";
 import { renderizarComparativo } from "../server/comparativo-html.js";
@@ -87,6 +87,22 @@ test("ao atualizar, recebe a rede por cidade sem trocar rede editada", (t) => {
   assert.equal(novo.obterPlano(especial.id).rede, "Hospital Meu");
   assert.ok(novo.obterPlano(direto.id).areaComercializacao.includes("Timóteo, Tiradentes"));
   novo.fechar();
+});
+
+test("uma tabela nova, no formato da leitura, já separa a rede por cidade", () => {
+  const novo = {
+    cidade: "Triângulo Mineiro",
+    areaComercializacao: "MG: Uberaba, Patos de Minas, Araxá",
+    rede: "Hospital Santa Lúcia – Uberaba\nLaboratório Salk – Uberaba\nHospital Vera Cruz – Patos de Minas\nCLIMA – Clínica de Imagem",
+  };
+  assert.deepEqual(redeDaCidade(novo, "Patos de Minas"), ["Hospital Vera Cruz", "CLIMA – Clínica de Imagem"]);
+  assert.ok(vendidoEm(novo, "MG", "Araxá"));
+  assert.deepEqual(resumoDaRede(novo), {
+    cidades: [{ cidade: "Patos de Minas", total: 1 }, { cidade: "Uberaba", total: 2 }],
+    semCidade: 1,
+    destinoSemCidade: "",
+  });
+  assert.equal(resumoDaRede({ ...novo, cidade: "uberaba" }).destinoSemCidade, "Uberaba");
 });
 
 test("plano sem área ou com região no lugar da cidade não perde a rede", () => {
