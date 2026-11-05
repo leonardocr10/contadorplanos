@@ -88,12 +88,6 @@ const valorDe = (P, rotulo) => P.precos.find((p) => p.label === rotulo)?.valor ?
 const linhaTexto = (titulo, celulas) => `<tr><th scope="row">${esc(titulo)}</th>${celulas.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`;
 const secao = (titulo, colunas) => `<tr class="secao"><th colspan="${colunas + 1}" scope="colgroup">${esc(titulo)}</th></tr>`;
 
-function linhaPreco(titulo, valores) {
-  const menores = menoresValores(valores);
-  return `<tr class="preco"><th scope="row">${esc(titulo)}</th>${valores.map((v, i) => `<td${menores.includes(i) ? ' class="menor"' : ""}>${v != null ? moeda(v) : VAZIO}${menores.includes(i) ? '<small>menor valor</small>' : ""}</td>`).join("")}</tr>`;
-}
-
-// Valor por pessoa em cada faixa, igual à proposta de cada plano. A snapshot guarda o subtotal da faixa.
 // Algumas tabelas agrupam idades ("19 a 58"), então a faixa de cada linha é localizada pelas idades que cobre.
 function idadesDaFaixa(faixa) {
   const [de, ate] = String(faixa).match(/\d+/g).map(Number);
@@ -106,25 +100,35 @@ function propostaMaisDetalhada(propostas) {
   return [...propostas].sort((a, b) => b.faixas.linhas.length - a.faixas.linhas.length || amplitude(a) - amplitude(b))[0];
 }
 
-function blocoFaixas(propostas) {
-  const linhas = propostaMaisDetalhada(propostas).faixas.linhas;
-  const temEnf = propostas.some((P) => P.faixas.temEnf), temApto = propostas.some((P) => P.faixas.temApto);
-  if (!linhas.length || (!temEnf && !temApto)) return "";
+// Valor por pessoa em cada faixa, igual à proposta de cada plano, e o total da cotação na última linha.
+// A snapshot guarda o subtotal da faixa.
+function blocoValores(propostas) {
+  const n = propostas.length, linhas = propostaMaisDetalhada(propostas).faixas.linhas;
+  const totaisEnf = propostas.map((P) => valorDe(P, "Enfermaria")), totaisApto = propostas.map((P) => valorDe(P, "Apartamento"));
+  const temEnf = totaisEnf.some((v) => v != null), temApto = totaisApto.some((v) => v != null);
+  const titulo = secao(linhas.length ? "Valor por pessoa, por faixa etária" : "Valor mensal", n);
+  if (!temEnf && !temApto) return titulo;
+
+  const coluna = (rotulo, valores) => {
+    const menores = menoresValores(valores);
+    return valores.map((v, i) => `<span${menores.includes(i) ? ' class="menor"' : ""}><small>${rotulo}</small> ${v != null ? moeda(v) : VAZIO}</span>`);
+  };
+  const linha = (classe, rotulo, enf, apto) => {
+    const colunaEnf = temEnf ? coluna("Enf.", enf) : [], colunaApto = temApto ? coluna("Apto", apto) : [];
+    return `<tr class="${classe}"><th scope="row">${esc(rotulo)}</th>${propostas.map((_, i) => `<td>${colunaEnf[i] ?? ""}${colunaApto[i] ?? ""}</td>`).join("")}</tr>`;
+  };
   const porPessoa = (P, faixa, campo, tem) => {
     const idades = idadesDaFaixa(faixa);
     const l = P.faixas.linhas.find((x) => { const { de, ate } = idadesDaFaixa(x.faixa); return de <= idades.de && ate >= idades.ate; });
     return tem && l?.[campo] != null ? r2(l[campo] / l.n) : null;
   };
-  const coluna = (rotulo, faixa, campo, tem) => {
-    const valores = propostas.map((P) => porPessoa(P, faixa, campo, tem(P)));
-    const menores = menoresValores(valores);
-    return valores.map((v, i) => `<span${menores.includes(i) ? ' class="menor"' : ""}><small>${rotulo}</small> ${v != null ? moeda(v) : VAZIO}</span>`);
-  };
-  return secao("Valor por pessoa, por faixa etária", propostas.length) + linhas.map((l) => {
-    const enf = temEnf ? coluna("Enf.", l.faixa, "enf", (P) => P.faixas.temEnf) : [];
-    const apto = temApto ? coluna("Apto", l.faixa, "apto", (P) => P.faixas.temApto) : [];
-    return `<tr class="faixa"><th scope="row">${esc(l.faixa)} anos · ${l.n} ${l.n === 1 ? "vida" : "vidas"}</th>${propostas.map((_, i) => `<td>${enf[i] ?? ""}${apto[i] ?? ""}</td>`).join("")}</tr>`;
-  }).join("");
+  const faixas = linhas.map((l) => linha(
+    "faixa",
+    `${l.faixa} anos · ${l.n} ${l.n === 1 ? "vida" : "vidas"}`,
+    propostas.map((P) => porPessoa(P, l.faixa, "enf", P.faixas.temEnf)),
+    propostas.map((P) => porPessoa(P, l.faixa, "apto", P.faixas.temApto)),
+  ));
+  return titulo + faixas.join("") + linha("faixa total", "Total mensal", totaisEnf, totaisApto);
 }
 
 const MARCA = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Sim"><path d="M20 6 9 17l-5-5"/></svg>';
@@ -165,10 +169,8 @@ tbody tr:not(.secao):nth-child(even){background:var(--zebra)}
 .faixa td small{font-size:12px;font-weight:600;color:var(--muted)}
 .faixa td span.menor{background:var(--verde-claro);color:var(--verde)}
 .faixa td span.menor small{color:inherit}
-.preco th{font-weight:800}
-.preco td{font-size:19px;font-weight:800;letter-spacing:-.01em}
-.preco td.menor{background:var(--verde-claro);color:var(--verde)}
-.preco small{display:block;font-size:11px;font-weight:700;letter-spacing:0}
+.total th{font-weight:800}
+.total td{font-size:16px;font-weight:800}
 .sim{display:inline-flex;color:var(--verde);vertical-align:middle}
 footer{font-size:12px;line-height:1.5;color:var(--muted)}
 `;
@@ -194,10 +196,7 @@ export function renderizarComparativo(snapshots) {
   const situacoes = propostas.map((P) => (!P.situacoes[0] || /^per[ií]odo$/i.test(P.situacoes[0]) ? "Padrão" : P.situacoes[0]));
 
   const corpo = [
-    blocoFaixas(propostas),
-    secao("Valor total mensal", n),
-    propostas.some((P) => valorDe(P, "Enfermaria") != null) ? linhaPreco("Enfermaria", propostas.map((P) => valorDe(P, "Enfermaria"))) : "",
-    propostas.some((P) => valorDe(P, "Apartamento") != null) ? linhaPreco("Apartamento", propostas.map((P) => valorDe(P, "Apartamento"))) : "",
+    blocoValores(propostas),
     taxas.some(Boolean) ? linhaTexto("Taxa associativa", taxas.map((t) => (t ? moeda(t) : VAZIO))) : "",
     temFidelidade ? linhaTexto("Fidelidade", propostas.map((P) => (P.fidelidade ? "12 meses" : VAZIO))) : "",
     temCoparticipacao ? secao("Coparticipação", n) : "",

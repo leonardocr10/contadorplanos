@@ -24,10 +24,17 @@ function celulas(html, titulo) {
   return [...linha[1].matchAll(/<td[^>]*>(.*?)<\/td>/g)].map((m) => m[1].replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
 }
 
+// Valores em destaque de uma linha de faixa ou do total, por plano.
+function destaquesDaLinha(html, titulo) {
+  const linha = html.match(new RegExp(`<tr class="faixa[^"]*"><th scope="row">${titulo}</th>(.*?)</tr>`));
+  assert.ok(linha, `linha ${titulo} não encontrada`);
+  return [...linha[1].matchAll(/<td>(.*?)<\/td>/g)].map((c) => [...c[1].matchAll(/<span class="menor"><small>(.*?)<\/small>/g)].map((m) => m[1]));
+}
+
 test("compara valores e destaca só o menor de cada acomodação", () => {
   const html = comparar("plam-saude-pf", "amil-ouro-total", "unimed-udiplan-on-pf");
-  assert.deepEqual(celulas(html, "Enfermaria"), ["R$ 346,06 menor valor", "R$ 725,30", "R$ 526,36"]);
-  assert.deepEqual(celulas(html, "Apartamento"), ["R$ 543,48 menor valor", "R$ 805,10", "R$ 679,38"]);
+  assert.deepEqual(celulas(html, "Total mensal"), ["Enf. R$ 346,06 Apto R$ 543,48", "Enf. R$ 725,30 Apto R$ 805,10", "Enf. R$ 526,36 Apto R$ 679,38"]);
+  assert.deepEqual(destaquesDaLinha(html, "Total mensal"), [["Enf.", "Apto"], [], []]);
   assert.deepEqual(celulas(html, "Taxa associativa"), ["R$ 7,00", "—", "R$ 4,00"]);
   for (const logo of ["plam", "amil", "unimed"]) assert.ok(html.includes(`/img/logo-${logo}.png`));
   assert.ok(html.includes("Maria"));
@@ -41,31 +48,26 @@ test("mostra o valor por pessoa de cada faixa etária", () => {
   // Sem enfermaria no plano, a linha fica vazia em vez de sumir.
   assert.match(amil, /^Enf\. — Apto R\$/);
   assert.equal(celulas(html, "24 a 28 anos · 1 vida").length, 2);
-  assert.ok(html.indexOf("Valor por pessoa, por faixa etária") < html.indexOf("Valor total mensal"));
+  // O total é só mais uma linha, logo depois das faixas e sem seção própria.
+  assert.ok(html.indexOf("24 a 28 anos · 1 vida") < html.indexOf("Total mensal"));
+  assert.ok(!html.includes("Valor total mensal"));
 });
-
-// Valores em destaque de uma linha de faixa, por plano.
-function destaquesDaFaixa(html, titulo) {
-  const linha = html.match(new RegExp(`<tr class="faixa"><th scope="row">${titulo}</th>(.*?)</tr>`));
-  assert.ok(linha, `faixa ${titulo} não encontrada`);
-  return [...linha[1].matchAll(/<td>(.*?)<\/td>/g)].map((c) => [...c[1].matchAll(/<span class="menor"><small>(.*?)<\/small>/g)].map((m) => m[1]));
-}
 
 test("destaca o menor valor de cada acomodação em cada faixa", () => {
   const html = comparar("plam-saude-pf", "amil-ouro-total", "unimed-udiplan-on-pf");
-  assert.deepEqual(destaquesDaFaixa(html, "0 a 18 anos · 2 vidas"), [["Enf.", "Apto"], [], []]);
+  assert.deepEqual(destaquesDaLinha(html, "0 a 18 anos · 2 vidas"), [["Enf.", "Apto"], [], []]);
 });
 
 test("plano sem a acomodação não concorre ao menor valor da faixa", () => {
   const html = comparar("amil-platinum-r1-total", "unimed-udiplan-on-pf");
   // Só um plano tem enfermaria, então não há o que destacar nela.
-  assert.deepEqual(destaquesDaFaixa(html, "0 a 18 anos · 2 vidas"), [[], ["Apto"]]);
+  assert.deepEqual(destaquesDaLinha(html, "0 a 18 anos · 2 vidas"), [[], ["Apto"]]);
 });
 
 test("compara pessoa física com CNPJ e mostra o tipo de cada coluna", () => {
   const html = comparar("plam-saude-pf", "plam-total-cnpj");
   assert.deepEqual([...html.matchAll(/<span class="tipo">(.*?)<\/span>/g)].map((m) => m[1]), ["Pessoa física", "CNPJ"]);
-  assert.equal(celulas(html, "Enfermaria").length, 2);
+  assert.equal(celulas(html, "Total mensal").length, 2);
 });
 
 test("plano com faixas agrupadas mostra o valor nas faixas detalhadas dos outros", () => {
@@ -86,8 +88,8 @@ test("planos do mesmo tipo não repetem o tipo nas colunas", () => {
 
 test("valores iguais não recebem destaque", () => {
   const html = comparar("plam-saude-pf", "plamedh-pf");
-  assert.deepEqual(celulas(html, "Enfermaria"), ["R$ 346,06", "R$ 346,06"]);
-  assert.deepEqual(destaquesDaFaixa(html, "0 a 18 anos · 2 vidas"), [[], []]);
+  assert.deepEqual(destaquesDaLinha(html, "Total mensal"), [[], []]);
+  assert.deepEqual(destaquesDaLinha(html, "0 a 18 anos · 2 vidas"), [[], []]);
 });
 
 test("encontra a mesma coparticipação nas tabelas de cada operadora", () => {
