@@ -1,6 +1,6 @@
 // Tela "Histórico" e o quadro "Histórico deste número" da cotação.
 import { brl, fmtFone, normFone } from "./calculo.js";
-import { $, S, api, esc, render, show, toast } from "./estado.js";
+import { $, S, api, esc, pode, render, show, toast } from "./estado.js";
 import { linkConversaDireta, waHtml } from "./mensagem.js";
 
 const STATUS = ["Enviada", "Em Negociação", "Vendida", "Negativa"];
@@ -10,6 +10,7 @@ const fmtData = (iso) => {
 };
 
 export async function carregarHistorico() {
+  if (!pode("historico")) return;
   try {
     S.hist = await api("/api/cotacoes");
     S.histLoaded = true;
@@ -49,9 +50,9 @@ function quoteRow(h, withDelete) {
   const nv = (h.vidas || []).reduce((a, b) => a + b, 0);
   return `<div class="hq" data-hid="${esc(h.id)}">
     <div class="hq-top"><span class="hq-date">${fmtData(h.criadoEm)} · ${h.tipo === "CNPJ" ? "CNPJ" : "PF"}${h.municipio ? ` · ${esc(h.municipio)}` : ""}${nv ? ` · ${nv} ${nv === 1 ? "vida" : "vidas"}` : ""}${h.idades ? ` (${esc(h.idades)})` : ""}${h.responsavel ? ` · Corretor: ${esc(h.responsavel)}` : ""}</span>
-      <select class="hq-st ${stClass(h.status)}" aria-label="Situação da cotação">${STATUS.map((s) => `<option ${s === h.status ? "selected" : ""}>${s}</option>`).join("")}</select></div>
+      <select class="hq-st ${stClass(h.status)}" aria-label="Situação da cotação" ${pode("historico", "editar") ? "" : "disabled"}>${STATUS.map((s) => `<option ${s === h.status ? "selected" : ""}>${s}</option>`).join("")}</select></div>
     <div class="hq-plans">${resumoPlanos(h)}</div>
-    <div class="actions"><button class="btn" data-reopen="1">Reabrir cotação</button>${withDelete ? `<button class="btn danger" data-del="1">Excluir</button>` : ""}</div>
+    <div class="actions">${pode("cotacao") ? `<button class="btn" data-reopen="1">Reabrir cotação</button>` : ""}${withDelete && pode("historico", "editar") ? `<button class="btn danger" data-del="1">Excluir</button>` : ""}</div>
     <div class="status" data-confirm hidden>Excluir esta cotação do histórico? <span class="actions" style="margin-top:8px"><button class="btn danger" data-del2="1">Sim, excluir</button><button class="btn" data-delno="1">Manter</button></span></div>
     <details><summary>Ver mensagem enviada</summary><div class="bubble" style="margin-top:8px;max-width:100%">${waHtml(h.mensagem || "")}</div></details>
   </div>`;
@@ -61,7 +62,8 @@ function wireRows(box) {
   box.querySelectorAll(".hq").forEach((row) => {
     const h = S.hist.find((x) => x.id === row.dataset.hid);
     if (!h) return;
-    row.querySelector("[data-reopen]").onclick = () => reopen(h);
+    const reabrir = row.querySelector("[data-reopen]");
+    if (reabrir) reabrir.onclick = () => reopen(h);
     const st = row.querySelector(".hq-st");
     st.onchange = async () => {
       try {
@@ -113,7 +115,7 @@ function reopen(h) {
 
 export function renderHistCli() {
   const box = $("#hist-cli"), f = normFone($("#fone").value);
-  if (f.length < 10) { box.innerHTML = ""; return; }
+  if (f.length < 10 || !pode("historico")) { box.innerHTML = ""; return; }
   if (!S.histLoaded) { box.innerHTML = `<div class="note">${S.histErr ? esc(S.histErr) : "Buscando histórico deste número…"}</div>`; return; }
   const list = S.hist.filter((h) => h.fone === f);
   if (!list.length) { box.innerHTML = `<div class="note">Cliente novo: nenhuma cotação anterior para ${fmtFone(f)}.</div>`; return; }

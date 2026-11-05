@@ -5,6 +5,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { completarCarencias, redeDaCidade } from "../public/js/calculo.js";
+import { permissoesDoUsuario } from "./permissoes.js";
 
 export const STATUS = ["Enviada", "Em Negociação", "Vendida", "Negativa"];
 
@@ -144,6 +145,18 @@ const MIGRACOES = [
     const existe = db.prepare("PRAGMA table_info(cotacoes)").all().some((c) => c.name === "usuario_id");
     if (!existe) db.exec("ALTER TABLE cotacoes ADD COLUMN usuario_id TEXT NOT NULL DEFAULT ''");
   },
+  (db) => {
+    const existe = db.prepare("PRAGMA table_info(usuarios)").all().some((c) => c.name === "email");
+    if (!existe) db.exec("ALTER TABLE usuarios ADD COLUMN email TEXT NOT NULL DEFAULT ''");
+    const temPermissoes = db.prepare("PRAGMA table_info(usuarios)").all().some((c) => c.name === "permissoes");
+    if (!temPermissoes) db.exec("ALTER TABLE usuarios ADD COLUMN permissoes TEXT NOT NULL DEFAULT ''");
+    db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_usuarios_email ON usuarios (email COLLATE NOCASE) WHERE email <> '';
+      CREATE TABLE IF NOT EXISTS recuperacoes_senha (
+        token_hash TEXT PRIMARY KEY,
+        usuario_id TEXT NOT NULL,
+        expira_em INTEGER NOT NULL
+      );`);
+  },
 ];
 
 const VERSAO_TEXTOS_COPARTICIPACAO = 11;
@@ -208,7 +221,7 @@ function linhaParaCotacao(l) {
 }
 
 function linhaParaUsuario(l) {
-  return { id: l.id, login: l.login, perfil: l.perfil, nome: l.nome, fone: l.fone, empresa: l.empresa, ativo: !!l.ativo, criadoEm: l.criado_em };
+  return { id: l.id, login: l.login, email: l.email, perfil: l.perfil, permissoes: permissoesDoUsuario(l.perfil, l.permissoes), nome: l.nome, fone: l.fone, empresa: l.empresa, ativo: !!l.ativo, criadoEm: l.criado_em };
 }
 
 function linhaParaProposta(l) {
@@ -516,23 +529,46 @@ export class Banco {
     return l ? linhaParaUsuario(l) : null;
   }
 
+  obterUsuarioPorEmail(email) {
+    const valor = String(email).trim();
+    if (!valor) return null;
+    const l = this.db.prepare("SELECT * FROM usuarios WHERE email = ? COLLATE NOCASE").get(valor);
+    return l ? linhaParaUsuario(l) : null;
+  }
+
+  // Só o hash do token fica guardado, e um pedido novo cancela os anteriores do mesmo usuário.
+  criarRecuperacaoDeSenha(usuarioId, tokenHash, expiraEm) {
+    this.db.prepare("DELETE FROM recuperacoes_senha WHERE usuario_id = ? OR expira_em < ?").run(usuarioId, Date.now());
+    this.db.prepare("INSERT INTO recuperacoes_senha (token_hash, usuario_id, expira_em) VALUES (?, ?, ?)").run(tokenHash, usuarioId, expiraEm);
+  }
+
+  lerRecuperacaoDeSenha(tokenHash) {
+    const l = this.db.prepare("SELECT usuario_id, expira_em FROM recuperacoes_senha WHERE token_hash = ?").get(tokenHash);
+    return l && l.expira_em >= Date.now() ? l.usuario_id : null;
+  }
+
+  apagarRecuperacoesDeSenha(usuarioId) {
+    this.db.prepare("DELETE FROM recuperacoes_senha WHERE usuario_id = ?").run(usuarioId);
+  }
+
   lerHashDaSenha(id) {
     return this.db.prepare("SELECT senha_hash FROM usuarios WHERE id = ?").get(id)?.senha_hash ?? null;
   }
 
-  criarUsuario({ login, senhaHash, perfil = "usuario", nome = "", fone = "", empresa = "" }) {
+  criarUsuario({ login, senhaHash, perfil = "usuario", nome = "", fone = "", empresa = "", email = "", permissoes }) {
     const id = "u" + randomUUID();
     this.db
-      .prepare("INSERT INTO usuarios (id, login, senha_hash, perfil, nome, fone, empresa, ativo, criado_em) VALUES (?,?,?,?,?,?,?,1,?)")
-      .run(id, login, senhaHash, perfil, nome, fone, empresa, new Date().toISOString());
+      .prepare("INSERT INTO usuarios (id, login, senha_hash, perfil, nome, fone, empresa, email, permissoes, ativo, criado_em) VALUES (?,?,?,?,?,?,?,?,?,1,?)")
+      .run(id, login, senhaHash, perfil, nome, fone, empresa, email, permissoes ? JSON.stringify(permissoes) : "", new Date().toISOString());
     return this.obterUsuario(id);
   }
 
-  atualizarDadosDoUsuario(id, { nome, fone, empresa }) {
+  atualizarDadosDoUsuario(id, { nome, fone, empresa, email }) {
     const st = (coluna, valor) => { if (valor !== undefined) this.db.prepare(`UPDATE usuarios SET ${coluna} = ? WHERE id = ?`).run(valor, id); };
     st("nome", nome);
     st("fone", fone);
     st("empresa", empresa);
+    st("email", email);
     return this.obterUsuario(id);
   }
 
@@ -540,7 +576,8 @@ export class Banco {
     this.db.prepare("UPDATE usuarios SET senha_hash = ? WHERE id = ?").run(senhaHash, id);
   }
 
-  alterarAcessoDoUsuario(id, { perfil, ativo }) {
+  alterarAcessoDoUsuario(id, { perfil, ativo, permissoes }) {
+    if (permissoes !== undefined) this.db.prepare("UPDATE usuarios SET permissoes = ? WHERE id = ?").run(JSON.stringify(permissoes), id);
     if (perfil !== undefined) this.db.prepare("UPDATE usuarios SET perfil = ? WHERE id = ?").run(perfil, id);
     if (ativo !== undefined) this.db.prepare("UPDATE usuarios SET ativo = ? WHERE id = ?").run(ativo ? 1 : 0, id);
     return this.obterUsuario(id);

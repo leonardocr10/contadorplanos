@@ -57,13 +57,14 @@
         <div id="imgs" class="imgs"></div>
         <div class="actions">
           <button class="btn primary" id="comparar" hidden>Comparativo</button>
-          <button class="btn" id="copy">Copiar mensagem</button>
-          <button class="btn" id="copiar-link">Copiar link</button>
-          <a class="btn" id="wa" href="https://api.whatsapp.com/send/" target="_blank" rel="noopener">Abrir no WhatsApp</a>
+          <button class="btn" id="copy" data-edita="cotacao" hidden>Copiar mensagem</button>
+          <button class="btn" id="copiar-link" data-edita="cotacao" hidden>Copiar link</button>
+          <a class="btn" id="wa" href="https://api.whatsapp.com/send/" target="_blank" rel="noopener" data-edita="cotacao" hidden>Abrir no WhatsApp</a>
         </div>
         <p class="note" id="links-gerados" style="margin:0;white-space:pre-wrap;overflow-wrap:anywhere" hidden></p>
-        <p class="note" style="margin:0" id="nota-envio"></p>
-        <details id="raw"><summary>Ajustar o texto antes de enviar</summary><textarea id="rawtxt" spellcheck="true"></textarea><p class="note">Mudanças no formulário refazem o texto.</p></details>
+        <p class="note" style="margin:0" id="nota-envio" data-edita="cotacao" hidden></p>
+        <p class="note" style="margin:0" data-so-ve="cotacao" hidden>O seu usuário só visualiza a cotação: nada é enviado nem salvo no histórico.</p>
+        <details id="raw" data-edita="cotacao" hidden><summary>Ajustar o texto antes de enviar</summary><textarea id="rawtxt" spellcheck="true"></textarea><p class="note">Mudanças no formulário refazem o texto.</p></details>
       </div>
     </aside>
   </section>
@@ -73,10 +74,10 @@
     <div class="panel">
       <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center">
         <h2>Planos e valores</h2>
-        <button class="btn primary" id="novo" data-admin hidden>Novo plano</button>
+        <button class="btn primary" id="novo" data-edita="planos" hidden>Novo plano</button>
       </div>
-      <p class="note" style="margin:0" id="cat-hint" data-admin hidden>Os valores ficam salvos para todas as próximas cotações.</p>
-      <p class="note" style="margin:0" data-nao-admin hidden>Consulte aqui as informações dos planos. Só o administrador altera planos e valores.</p>
+      <p class="note" style="margin:0" id="cat-hint" data-edita="planos" hidden>Os valores ficam salvos para todas as próximas cotações.</p>
+      <p class="note" style="margin:0" data-so-ve="planos" hidden>Consulte aqui as informações dos planos. O seu usuário não altera planos e valores.</p>
       <input id="cat-busca" type="text" placeholder="Buscar plano pelo nome ou pela descrição" aria-label="Buscar plano" autocomplete="off">
       <div id="cat" class="cat"></div>
     </div>
@@ -100,10 +101,10 @@
   <section id="v-documentos" hidden>
     <div class="panel">
       <h2>Documentos necessários</h2>
-      <p class="note" style="margin:0" data-admin hidden>Cadastre os documentos e escolha quais ficam ativos em cada plano. Os ativos aparecem para o cliente depois do aceite e na mensagem da aba Aceites.</p>
-      <p class="note" style="margin:0" data-nao-admin hidden>Escolha o plano para ver os documentos pedidos ao cliente. Só o administrador altera esta lista.</p>
+      <p class="note" style="margin:0" data-edita="documentos" hidden>Cadastre os documentos e escolha quais ficam ativos em cada plano. Os ativos aparecem para o cliente depois do aceite e na mensagem da aba Aceites.</p>
+      <p class="note" style="margin:0" data-so-ve="documentos" hidden>Escolha o plano para ver os documentos pedidos ao cliente. O seu usuário não altera esta lista.</p>
       <div class="field"><label for="doc-plano">Plano</label><select id="doc-plano"></select></div>
-      <form id="doc-form" class="row" style="grid-template-columns:minmax(0,1fr) auto;align-items:end" data-admin hidden>
+      <form id="doc-form" class="row" style="grid-template-columns:minmax(0,1fr) auto;align-items:end" data-edita="documentos" hidden>
         <div class="field"><label for="doc-nome">Novo documento (já entra ativo no plano escolhido)</label><input id="doc-nome" type="text" placeholder="Ex.: Comprovante de residência" autocomplete="off"></div>
         <button class="btn primary" type="submit">Adicionar</button>
       </form>
@@ -145,6 +146,7 @@
         <div class="field"><label for="c-fone">Seu telefone</label><input id="c-fone" type="tel" placeholder="(34) 99999-0000"></div>
       </div>
       <div class="field"><label for="c-empresa">Corretora (opcional)</label><input id="c-empresa" type="text"></div>
+      <div class="field"><label for="c-email">E-mail (para recuperar a senha)</label><input id="c-email" type="email" autocapitalize="none" placeholder="voce@exemplo.com"><span class="note" id="c-email-msg" role="status"></span></div>
     </div>
     <form class="panel cfg-painel" id="senha-form" data-cfg="senha" autocomplete="off" hidden>
       <h2>Alterar senha</h2>
@@ -159,17 +161,20 @@
     <div class="panel cfg-painel" data-cfg="usuarios" hidden>
       <h2>Usuários</h2>
       <p class="note" style="margin:0">Cada usuário entra com o próprio login e preenche os próprios dados em Configurações. Só o administrador vê usuários, backup e atualização do sistema.</p>
-      <div id="usr-lista" class="cat"></div>
       <form id="usr-form" class="stack" style="gap:10px" autocomplete="off">
         <div class="label">Novo usuário</div>
         <div class="row">
           <div class="field"><label for="usr-login">Login</label><input id="usr-login" type="text" autocomplete="off" autocapitalize="none" required></div>
+          <div class="field"><label for="usr-email">E-mail (para recuperar a senha)</label><input id="usr-email" type="email" autocomplete="off" autocapitalize="none" required></div>
           <div class="field"><label for="usr-senha">Senha inicial (mínimo de 8 caracteres)</label><input id="usr-senha" class="campo-senha" type="password" autocomplete="new-password" minlength="8" required></div>
           <div class="field"><label for="usr-perfil">Perfil</label><select id="usr-perfil"><option value="usuario">Usuário</option><option value="admin">Administrador</option></select></div>
         </div>
+        <div id="usr-permissoes"></div>
         <div class="actions"><button class="btn primary" type="submit">Criar usuário</button></div>
       </form>
       <p class="note" id="usr-msg" role="status" style="margin:0"></p>
+      <div class="label">Usuários criados</div>
+      <div id="usr-lista" class="cat"></div>
     </div>
     <div class="panel cfg-painel" data-cfg="backup" hidden>
       <h2>Backup</h2>

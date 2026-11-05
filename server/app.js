@@ -8,6 +8,8 @@ import { ErroBackup, STATUS } from "./db.js";
 import { ErroLeitura, MODELO_PADRAO, lerTabela } from "./claude.js";
 import { criarLogin } from "./login.js";
 import { conferirSenha, gerarHash } from "./senhas.js";
+import { criarEnviadorDeEmail } from "./email.js";
+import { NIVEIS, TELAS, atende } from "./permissoes.js";
 import { montarSnapshot, renderizarProposta } from "./proposta-html.js";
 import { MAX_PLANOS_COMPARATIVO, renderizarComparativo } from "./comparativo-html.js";
 
@@ -134,6 +136,21 @@ function validarSenha(v) {
   return v;
 }
 
+function validarEmail(v, podeVazio = false) {
+  const email = String(v ?? "").trim().toLowerCase();
+  if (!email && podeVazio) return "";
+  if (email.length > 200 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new ErroEntrada("Informe um e-mail válido.");
+  return email;
+}
+
+function validarPermissoes(v) {
+  if (!v || typeof v !== "object") throw new ErroEntrada("As permissões informadas são inválidas.");
+  return Object.fromEntries(TELAS.map((t) => {
+    if (!NIVEIS.includes(v[t])) throw new ErroEntrada("As permissões informadas são inválidas.");
+    return [t, v[t]];
+  }));
+}
+
 function validarPerfil(v) {
   if (v !== "admin" && v !== "usuario") throw new ErroEntrada("O perfil precisa ser administrador ou usuário.");
   return v;
@@ -171,7 +188,7 @@ function validarPedidoDeLinks(b) {
   };
 }
 
-export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env = process.env, exigirLogin = false, aceitarQualquerHost = false, sistema, clienteClaude, linkPublico = () => ({ estado: "indisponivel", url: null }) }) {
+export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env = process.env, exigirLogin = false, aceitarQualquerHost = false, sistema, clienteClaude, linkPublico = () => ({ estado: "indisponivel", url: null }), enviarEmail = criarEnviadorDeEmail(env) }) {
   const app = express();
   app.disable("x-powered-by");
   mkdirSync(pastaUploads, { recursive: true });
@@ -182,12 +199,17 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     res.status(403).json({ erro: "Acesso permitido só neste computador." });
   });
 
-  const login = exigirLogin ? criarLogin(env, banco) : null;
+  // Um link local só abriria no próprio servidor, então não serve para mandar por e-mail.
+  const urlBase = () => { const l = linkPublico(); return l.estado === "ativo" && !l.local ? l.url : null; };
+  const login = exigirLogin ? criarLogin(env, banco, { enviarEmail, urlBase }) : null;
   if (login) app.use(login);
 
   // Sem exigir login (só nos testes), a tela age como administrador com os dados gerais.
   const eAdmin = (req) => !req.usuario || req.usuario.perfil === "admin";
   const soAdmin = (req, res, next) => (eAdmin(req) ? next() : res.status(403).json({ erro: "Só o administrador pode fazer isso." }));
+  // Permissão por tela: "ver" basta para consultar, e "editar" inclui consultar.
+  const pode = (req, tela, minimo) => !req.usuario || atende(req.usuario.permissoes[tela], minimo);
+  const exige = (tela, minimo) => (req, res, next) => (pode(req, tela, minimo) ? next() : res.status(403).json({ erro: "O seu usuário não tem permissão para fazer isso." }));
   const corretorDe = (req) => (req.usuario ? { nome: req.usuario.nome, fone: req.usuario.fone, empresa: req.usuario.empresa } : banco.lerConfig());
   // A proposta guarda de quem é, para o link do cliente chamar o WhatsApp do corretor certo.
   const corretorDaProposta = (req) => ({ ...corretorDe(req), usuarioId: req.usuario?.id });
@@ -210,7 +232,7 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     res.json({ app: "cotador", leituraDisponivel: !!chave() || !!clienteClaude, modelo: modelo(), linkPublico: linkPublico() });
   });
 
-  app.post("/api/ler-tabela", soAdmin, express.json({ limit: "160mb" }), async (req, res) => {
+  app.post("/api/ler-tabela", exige("planos", "editar"), express.json({ limit: "160mb" }), async (req, res) => {
     const b = req.body ?? {};
     const resultado = await lerTabela(
       { nome: b.nome, subtitulo: b.subtitulo, imagens: b.imagens },
@@ -219,7 +241,7 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     res.json(resultado);
   });
 
-  app.post("/api/uploads", soAdmin, express.raw({ type: ["image/png", "image/jpeg", "image/webp"], limit: MAX_UPLOAD }), (req, res) => {
+  app.post("/api/uploads", exige("planos", "editar"), express.raw({ type: ["image/png", "image/jpeg", "image/webp"], limit: MAX_UPLOAD }), (req, res) => {
     const dados = req.body;
     const ext = Buffer.isBuffer(dados) ? tipoImagem(dados) : null;
     if (!ext) throw new ErroEntrada("Envie uma imagem PNG, JPG ou WebP.");
@@ -238,22 +260,26 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
   app.use("/api", express.json({ limit: "4mb" }));
 
   /* ---------- planos ---------- */
-  app.get("/api/planos", (_req, res) => res.json(banco.listarPlanos()));
+  // A cotação e os documentos também dependem da lista de planos.
+  app.get("/api/planos", (req, res) => {
+    if (!["cotacao", "planos", "documentos"].some((t) => pode(req, t, "ver"))) return res.status(403).json({ erro: "O seu usuário não tem permissão para fazer isso." });
+    res.json(banco.listarPlanos());
+  });
 
-  app.post("/api/planos", soAdmin, (req, res) => res.status(201).json(banco.criarPlano(validarPlano(req.body))));
+  app.post("/api/planos", exige("planos", "editar"), (req, res) => res.status(201).json(banco.criarPlano(validarPlano(req.body))));
 
-  app.put("/api/planos/:id", soAdmin, (req, res) => {
+  app.put("/api/planos/:id", exige("planos", "editar"), (req, res) => {
     if (!banco.obterPlano(req.params.id)) return res.status(404).json({ erro: "Plano não encontrado." });
     res.json(banco.gravarPlano(req.params.id, validarPlano(req.body)));
   });
 
-  app.delete("/api/planos/:id", soAdmin, (req, res) => {
+  app.delete("/api/planos/:id", exige("planos", "editar"), (req, res) => {
     if (!banco.excluirPlano(req.params.id)) return res.status(404).json({ erro: "Plano não encontrado." });
     res.status(204).end();
   });
 
   /* ---------- cotações ---------- */
-  app.get("/api/cotacoes", (req, res) => {
+  app.get("/api/cotacoes", exige("historico", "ver"), (req, res) => {
     const { fone, q, status } = req.query;
     const lista = banco.listarCotacoes({
       fone: typeof fone === "string" ? normFone(fone) : "",
@@ -264,30 +290,30 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     res.json(eAdmin(req) ? lista.map((c) => ({ ...c, responsavel: responsavel(c.usuarioId) })) : lista);
   });
 
-  app.post("/api/cotacoes", (req, res) => {
+  app.post("/api/cotacoes", exige("cotacao", "editar"), (req, res) => {
     // O dono vem do login, nunca do que a tela envia.
     const { cotacao, duplicada } = banco.salvarCotacao({ ...validarCotacao(req.body), usuarioId: req.usuario?.id ?? "" });
     res.status(duplicada ? 200 : 201).json(cotacao);
   });
 
-  app.put("/api/cotacoes/:id", (req, res) => {
+  app.put("/api/cotacoes/:id", exige("cotacao", "editar"), (req, res) => {
     if (!cotacaoVisivel(req)) return res.status(404).json(NAO_ACHOU_COTACAO);
     res.json(banco.atualizarCotacao(req.params.id, validarCotacao(req.body)));
   });
 
-  app.patch("/api/cotacoes/:id", (req, res) => {
+  app.patch("/api/cotacoes/:id", exige("historico", "editar"), (req, res) => {
     if (!STATUS.includes(req.body?.status)) throw new ErroEntrada("Situação inválida.");
     if (!cotacaoVisivel(req)) return res.status(404).json(NAO_ACHOU_COTACAO);
     res.json(banco.mudarStatus(req.params.id, req.body.status));
   });
 
-  app.delete("/api/cotacoes/:id", (req, res) => {
+  app.delete("/api/cotacoes/:id", exige("historico", "editar"), (req, res) => {
     if (!cotacaoVisivel(req) || !banco.excluirCotacao(req.params.id)) return res.status(404).json(NAO_ACHOU_COTACAO);
     res.status(204).end();
   });
 
   /* ---------- links públicos das propostas ---------- */
-  app.post("/api/propostas", (req, res) => {
+  app.post("/api/propostas", exige("cotacao", "editar"), (req, res) => {
     const pedido = validarPedidoDeLinks(req.body);
     const { estado, url } = linkPublico();
     if (estado !== "ativo") return res.status(503).json({ erro: "Os links das propostas não estão disponíveis agora. Tente de novo em instantes.", codigo: "sem_link" });
@@ -302,7 +328,7 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
   });
 
   // Página de cada plano para virar imagem: nada fica salvo.
-  app.post("/api/propostas/previa", (req, res) => {
+  app.post("/api/propostas/previa", exige("cotacao", "ver"), (req, res) => {
     const pedido = validarPedidoDeLinks(req.body);
     const corretor = corretorDe(req);
     res.json({
@@ -315,7 +341,7 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
   });
 
   // Vários planos lado a lado para virar imagem: nada fica salvo.
-  app.post("/api/propostas/comparativo", (req, res) => {
+  app.post("/api/propostas/comparativo", exige("cotacao", "editar"), (req, res) => {
     const pedido = validarPedidoDeLinks(req.body);
     if (pedido.planos.length < 2 || pedido.planos.length > MAX_PLANOS_COMPARATIVO) {
       throw new ErroEntrada(`Escolha de 2 a ${MAX_PLANOS_COMPARATIVO} planos para comparar.`);
@@ -344,7 +370,7 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
 
   /* ---------- aceites ---------- */
   const donoDaProposta = (p) => p.dados.corretor?.usuarioId ?? "";
-  app.get("/api/aceites", (req, res) => {
+  app.get("/api/aceites", exige("aceites", "ver"), (req, res) => {
     res.json(banco.listarAceites().filter((a) => podeVer(req, donoDaProposta(a))).map((a) => {
       // A lista de documentos sai assinada pelo corretor da proposta, mesmo quando o administrador envia.
       const dono = donoDaProposta(a) ? banco.obterUsuario(donoDaProposta(a)) : null;
@@ -358,7 +384,7 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     }));
   });
 
-  app.post("/api/aceites/:token/documentos", (req, res) => {
+  app.post("/api/aceites/:token/documentos", exige("aceites", "editar"), (req, res) => {
     const proposta = banco.obterProposta(req.params.token);
     if (!proposta || !podeVer(req, donoDaProposta(proposta))) return res.status(404).json({ erro: "Aceite não encontrado." });
     const a = banco.marcarDocumentosEnviados(req.params.token);
@@ -385,30 +411,30 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     return b.ativo;
   };
 
-  app.get("/api/documentos", (_req, res) => res.json(banco.listarDocumentos()));
+  app.get("/api/documentos", exige("documentos", "ver"), (_req, res) => res.json(banco.listarDocumentos()));
 
-  app.post("/api/documentos", soAdmin, (req, res) => {
+  app.post("/api/documentos", exige("documentos", "editar"), (req, res) => {
     const nome = nomeDeDocumento(req.body);
     const planoId = req.body?.planoId ? String(req.body.planoId) : null;
     if (planoId && !banco.obterPlano(planoId)) throw new ErroNaoEncontrado("Plano não encontrado.");
     res.status(201).json(banco.criarDocumento(nome, planoId));
   });
 
-  app.put("/api/documentos/:id", soAdmin, (req, res) => {
+  app.put("/api/documentos/:id", exige("documentos", "editar"), (req, res) => {
     const d = documentoDaRota(req);
     res.json(banco.renomearDocumento(d.id, nomeDeDocumento(req.body, d.id)));
   });
 
-  app.delete("/api/documentos/:id", soAdmin, (req, res) => {
+  app.delete("/api/documentos/:id", exige("documentos", "editar"), (req, res) => {
     banco.excluirDocumento(documentoDaRota(req).id);
     res.status(204).end();
   });
 
-  app.put("/api/documentos/:id/planos", soAdmin, (req, res) => {
+  app.put("/api/documentos/:id/planos", exige("documentos", "editar"), (req, res) => {
     res.json(banco.definirDocumentoEmTodos(documentoDaRota(req).id, ativoDoPedido(req.body)));
   });
 
-  app.put("/api/documentos/:id/planos/:planoId", soAdmin, (req, res) => {
+  app.put("/api/documentos/:id/planos/:planoId", exige("documentos", "editar"), (req, res) => {
     const d = documentoDaRota(req);
     if (!banco.obterPlano(req.params.planoId)) throw new ErroNaoEncontrado("Plano não encontrado.");
     res.json(banco.definirDocumentoNoPlano(d.id, req.params.planoId, ativoDoPedido(req.body)));
@@ -426,6 +452,7 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
       empresa: b.empresa === undefined ? undefined : textoOpc(b.empresa, "corretora", 200),
     };
     if (!req.usuario) return res.json(banco.gravarConfig(dados));
+    if (b.email !== undefined) dados.email = emailLivre(b.email, req.usuario.id, true);
     const { nome, fone, empresa } = banco.atualizarDadosDoUsuario(req.usuario.id, dados);
     res.json({ nome, fone, empresa });
   });
@@ -446,14 +473,23 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     res.json({ ok: true });
   });
 
+  const emailLivre = (v, idAtual = null, podeVazio = false) => {
+    const email = validarEmail(v, podeVazio);
+    const dono = banco.obterUsuarioPorEmail(email);
+    if (dono && dono.id !== idAtual) throw new ErroEntrada("Já existe um usuário com este e-mail.");
+    return email;
+  };
+
   app.get("/api/usuarios", soAdmin, (_req, res) => res.json(banco.listarUsuarios()));
 
   app.post("/api/usuarios", soAdmin, (req, res) => {
     const b = req.body ?? {};
     const novoLogin = validarLogin(b.login);
     if (banco.obterUsuarioPorLogin(novoLogin)) throw new ErroEntrada("Já existe um usuário com este login.");
+    const email = emailLivre(b.email);
     const perfil = b.perfil === undefined ? "usuario" : validarPerfil(b.perfil);
-    res.status(201).json(banco.criarUsuario({ login: novoLogin, senhaHash: gerarHash(validarSenha(b.senha)), perfil }));
+    const permissoes = b.permissoes === undefined ? undefined : validarPermissoes(b.permissoes);
+    res.status(201).json(banco.criarUsuario({ login: novoLogin, email, senhaHash: gerarHash(validarSenha(b.senha)), perfil, permissoes }));
   });
 
   app.put("/api/usuarios/:id", soAdmin, (req, res) => {
@@ -470,7 +506,9 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
       banco.alterarSenhaDoUsuario(alvo.id, hash);
       if (req.usuario?.id === alvo.id) login.manterSessao(req.tokenDaSessao, hash);
     }
-    res.json(banco.alterarAcessoDoUsuario(alvo.id, { perfil, ativo }));
+    if (b.email !== undefined) banco.atualizarDadosDoUsuario(alvo.id, { email: emailLivre(b.email, alvo.id) });
+    const permissoes = b.permissoes === undefined ? undefined : validarPermissoes(b.permissoes);
+    res.json(banco.alterarAcessoDoUsuario(alvo.id, { perfil, ativo, permissoes }));
   });
 
   app.delete("/api/usuarios/:id", soAdmin, (req, res) => {

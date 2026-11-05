@@ -62,6 +62,8 @@ h2{font-family:var(--display);font-weight:600;font-size:19px;margin:0}
 .usr-linha .btn{padding:5px 12px;min-height:0;font-size:13px}
 .usr-senha{display:flex;flex-wrap:wrap;gap:8px;width:100%}
 .usr-senha input{flex:1;min-width:180px}
+.usr-permissoes{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;width:100%}
+.usr-permissoes .label{grid-column:1/-1}
 input[type=text],input[type=tel],input[type=password],textarea,select{width:100%;font:500 15px var(--body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
 textarea{resize:vertical;min-height:72px;line-height:1.45}
 .money{font-variant-numeric:tabular-nums}

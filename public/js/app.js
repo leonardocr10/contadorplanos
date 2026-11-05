@@ -1,5 +1,5 @@
 // Ponto de entrada: navegação entre as abas, dados do usuário, backup e carga inicial.
-import { $, S, VIEWS, api, carregarPlanos, definirRender, render, show, toast } from "./estado.js";
+import { $, S, VIEWS, api, carregarPlanos, definirRender, pode, render, show, toast } from "./estado.js";
 import { iniciarCotacao, renderCotacao, salvarCotacaoPendente } from "./cotacao.js";
 import { iniciarPlanos, renderCat } from "./planos.js";
 import { carregarHistorico, iniciarHistorico, renderHist } from "./historico.js";
@@ -36,7 +36,17 @@ show(viewDoHash());
 let salvarTimer = null;
 const salvarDados = () => {
   salvarTimer = null;
-  return api("/api/config", { metodo: "PUT", json: S.cor }).catch(() => toast("Não deu para salvar os seus dados"));
+  // O e-mail só vai quando está completo, para não dar erro enquanto é digitado.
+  const email = $("#c-email").value.trim();
+  const json = { ...S.cor, ...(!email || EMAIL_VALIDO.test(email) ? { email } : {}) };
+  return api("/api/config", { metodo: "PUT", json }).then(() => ($("#c-email-msg").textContent = "")).catch((e) => toast(`Não deu para salvar os seus dados: ${e.message}`));
+};
+const EMAIL_VALIDO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+$("#c-email").oninput = () => {
+  const email = $("#c-email").value.trim();
+  $("#c-email-msg").textContent = email && !EMAIL_VALIDO.test(email) ? "Complete o e-mail para salvar." : "";
+  clearTimeout(salvarTimer);
+  salvarTimer = setTimeout(salvarDados, 400);
 };
 const CAMPOS_CONFIG = ["nome", "fone", "empresa"];
 for (const k of CAMPOS_CONFIG) {
@@ -100,25 +110,31 @@ async function verificarLink() {
 /* ---------- carga inicial ---------- */
 async function carregar() {
   try {
-    const [status, eu] = await Promise.all([api("/api/status"), api("/api/eu"), carregarPlanos()]);
+    // As permissões vêm primeiro: elas decidem o que mais pode ser carregado.
+    const eu = await api("/api/eu");
+    S.eu = eu;
+    aplicarPerfil(eu);
+    show(viewDoHash());
+    const precisaDosPlanos = ["cotacao", "planos", "documentos"].some((t) => pode(t));
+    const [status] = await Promise.all([api("/api/status"), precisaDosPlanos ? carregarPlanos() : null]);
     S.leituraDisponivel = status.leituraDisponivel;
     S.linkAtivo = status.linkPublico.estado === "ativo";
     S.linkLocal = status.linkPublico.local;
-    S.eu = eu;
     S.cor = { nome: eu.nome ?? "", fone: eu.fone ?? "", empresa: eu.empresa ?? "" };
     for (const k of CAMPOS_CONFIG) $("#c-" + k).value = S.cor[k];
-    aplicarPerfil(eu);
+    $("#c-email").value = eu.email ?? "";
   } catch (e) {
     S.dbErr = e.message;
   }
   render();
   await carregarHistorico();
-  await carregarDocumentos().catch((e) => toast(e.message));
+  if (pode("documentos")) await carregarDocumentos().catch((e) => toast(e.message));
   await verificarAceites();
 }
 
 // O aceite chega do link, fora desta tela, então a lista é conferida de tempos em tempos.
 async function verificarAceites() {
+  if (!pode("aceites")) return;
   try {
     await carregarAceites();
   } catch {

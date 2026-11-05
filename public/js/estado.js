@@ -26,8 +26,13 @@ export function toast(t) {
 
 // Só para decidir o que aparece na tela: a permissão de verdade é conferida no servidor.
 export const eAdmin = () => S.eu?.perfil === "admin";
-export const VIEWS =["cotacao", "planos", "documentos", "historico", "aceites", "configuracoes"];
-export function show(v) {
+const ORDEM_NIVEIS = ["nenhum", "ver", "editar"];
+export const pode = (tela, minimo = "ver") => ORDEM_NIVEIS.indexOf(S.eu?.permissoes?.[tela] ?? "nenhum") >= ORDEM_NIVEIS.indexOf(minimo);
+export const VIEWS = ["cotacao", "planos", "documentos", "historico", "aceites", "configuracoes"];
+export function show(telaPedida) {
+  // Tela sem permissão abre a primeira permitida; Configurações é de todos.
+  const permitida = (t) => !S.eu || t === "configuracoes" || pode(t);
+  const v = permitida(telaPedida) ? telaPedida : VIEWS.find(permitida);
   for (const b of document.querySelectorAll(".tabs button")) b.setAttribute("aria-selected", b.dataset.view === v);
   for (const id of VIEWS) $("#v-" + id).hidden = id !== v;
   if (location.hash.slice(1) !== v) history.replaceState(null, "", "#" + v);

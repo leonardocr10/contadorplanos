@@ -1,23 +1,60 @@
 // Login da tela do cotador. Os usuários ficam no banco. O .env só cria o primeiro administrador
 // e redefine a senha dele quando ela for esquecida.
 import express from "express";
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { conferirSenha, gerarHash } from "./senhas.js";
 
 const DURACAO_SESSAO = 12 * 60 * 60 * 1000;
 const MAX_FALHAS = 5, ESPERA_FALHAS = 60 * 1000;
+const DURACAO_RECUPERACAO = 60 * 60 * 1000, INTERVALO_RECUPERACAO = 60 * 1000;
 const COOKIE = "cotador_sessao";
 
 const esc =(s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const resumoDoToken = (token) => createHash("sha256").update(String(token)).digest("hex");
 
-function pagina(aviso = "", podeEntrar = true) {
+function pagina(aviso = "", podeEntrar = true, sucesso = "") {
+  return casca("Entrar no Cotador", `<p>Entre com o seu login e senha.</p>
+  ${sucesso ? `<div class="aviso ok" role="status">${esc(sucesso)}</div>` : ""}
+  ${aviso ? `<div class="aviso" role="alert">${esc(aviso)}</div>` : ""}
+  ${podeEntrar ? `<form method="post" action="/login">
+    <label>Login<input name="usuario" autocomplete="username" autocapitalize="none" autofocus required></label>
+    <label>Senha<input name="senha" type="password" autocomplete="current-password" required></label>
+    <button type="submit">Entrar</button>
+  </form>
+  <a class="link" href="/login/recuperar">Esqueci minha senha</a>` : ""}`);
+}
+
+function paginaRecuperar(aviso = "", sucesso = "", disponivel = true) {
+  return casca("Recuperar senha", `<p>Informe o e-mail cadastrado para receber o link de uma nova senha.</p>
+  ${sucesso ? `<div class="aviso ok" role="status">${esc(sucesso)}</div>` : ""}
+  ${aviso ? `<div class="aviso" role="alert">${esc(aviso)}</div>` : ""}
+  ${disponivel && !sucesso ? `<form method="post" action="/login/recuperar">
+    <label>E-mail<input name="email" type="email" autocomplete="email" autocapitalize="none" autofocus required></label>
+    <button type="submit">Enviar link</button>
+  </form>` : ""}
+  <a class="link" href="/login">Voltar para o login</a>`);
+}
+
+function paginaRedefinir(token, aviso = "") {
+  return casca("Nova senha", `<p>Escolha a nova senha, com pelo menos 8 caracteres.</p>
+  ${aviso ? `<div class="aviso" role="alert">${esc(aviso)}</div>` : ""}
+  <form method="post" action="/login/redefinir">
+    <input type="hidden" name="token" value="${esc(token)}">
+    <label>Nova senha<input name="senha" type="password" autocomplete="new-password" minlength="8" autofocus required></label>
+    <label>Repita a nova senha<input name="repete" type="password" autocomplete="new-password" minlength="8" required></label>
+    <button type="submit">Salvar nova senha</button>
+  </form>
+  <a class="link" href="/login">Voltar para o login</a>`);
+}
+
+function casca(titulo, corpo) {
   return `<!doctype html>
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>Entrar no Cotador</title>
+<title>${esc(titulo)}</title>
 <style>
 @font-face{font-family:Figtree;font-weight:300 900;font-display:swap;src:url(/fonts/figtree-latin-wght-normal.woff2) format("woff2")}
 *{box-sizing:border-box}
@@ -30,24 +67,20 @@ input{display:block;width:100%;min-height:44px;margin-top:6px;padding:0 12px;bor
 input:focus-visible,button:focus-visible{outline:3px solid #0f9d4f;outline-offset:1px}
 button{width:100%;min-height:44px;border:0;border-radius:10px;background:#0b7a3d;color:#fff;font:inherit;font-size:15px;font-weight:700;cursor:pointer}
 .aviso{margin:0 0 14px;padding:10px 12px;border-radius:10px;background:#fdecea;color:#8f1f1a;font-size:13.5px}
+.aviso.ok{background:#e2f4e9;color:#0b5a45}
+.link{display:block;margin-top:14px;text-align:center;font-size:13.5px;font-weight:600;color:#0b5a45}
 </style>
 </head>
 <body>
 <main>
   <h1>Cotador de Planos</h1>
-  <p>Entre com o seu login e senha.</p>
-  ${aviso ? `<div class="aviso" role="alert">${esc(aviso)}</div>` : ""}
-  ${podeEntrar ? `<form method="post" action="/login">
-    <label>Login<input name="usuario" autocomplete="username" autocapitalize="none" autofocus required></label>
-    <label>Senha<input name="senha" type="password" autocomplete="current-password" required></label>
-    <button type="submit">Entrar</button>
-  </form>` : ""}
+  ${corpo}
 </main>
 </body>
 </html>`;
 }
 
-export function criarLogin(env, banco) {
+export function criarLogin(env, banco, { enviarEmail = null, urlBase = () => null } = {}) {
   const usuarioEnv = () => (env.LOGIN_USUARIO || "").trim();
   const senhaEnv = () => (env.LOGIN_SENHA || "").trim();
   const sessoes = new Map(), falhas = new Map();
@@ -124,6 +157,74 @@ export function criarLogin(env, banco) {
     sessoes.set(token, { usuarioId: usuario.id, expira: Date.now() + DURACAO_SESSAO, marca: hash });
     res.setHeader("Set-Cookie", `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${DURACAO_SESSAO / 1000}`);
     res.redirect(303, "/");
+  });
+
+  /* ---------- recuperação de senha ---------- */
+  // A resposta é sempre a mesma, para a tela não revelar quais e-mails estão cadastrados.
+  const AVISO_ENVIADO = "Se este e-mail estiver cadastrado, enviamos um link para criar uma nova senha. Ele vale por 1 hora.";
+  const AVISO_SEM_EMAIL = "A recuperação por e-mail ainda não foi configurada. Peça ao administrador para redefinir a sua senha.";
+  const AVISO_LINK_INVALIDO = "Este link é inválido ou já venceu. Peça um novo.";
+  const ultimosPedidos = new Map();
+  const semMemoria = (res) => {
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Referrer-Policy", "no-referrer");
+  };
+  const podeEnviar = () => !!enviarEmail && !!urlBase();
+
+  // Limita os pedidos por e-mail e por origem, para o formulário não virar um disparador de mensagens.
+  const pedidoRepetido = (chave) => {
+    const agora = Date.now();
+    if (ultimosPedidos.size > 1000) ultimosPedidos.clear();
+    const repetido = agora - (ultimosPedidos.get(chave) ?? 0) < INTERVALO_RECUPERACAO;
+    if (!repetido) ultimosPedidos.set(chave, agora);
+    return repetido;
+  };
+
+  rotas.get("/login/recuperar", (_req, res) => {
+    semMemoria(res);
+    res.type("html").send(podeEnviar() ? paginaRecuperar() : paginaRecuperar(AVISO_SEM_EMAIL, "", false));
+  });
+
+  rotas.post("/login/recuperar", express.urlencoded({ extended: false, limit: "4kb" }), (req, res) => {
+    semMemoria(res);
+    if (!podeEnviar()) return res.status(503).type("html").send(paginaRecuperar(AVISO_SEM_EMAIL, "", false));
+    const email = String(req.body?.email ?? "").trim().toLowerCase();
+    const repetido = pedidoRepetido(`email:${email}`);
+    const usuario = !repetido ? banco.obterUsuarioPorEmail(email) : null;
+    if (usuario?.ativo) {
+      const token = randomBytes(32).toString("base64url");
+      banco.criarRecuperacaoDeSenha(usuario.id, resumoDoToken(token), Date.now() + DURACAO_RECUPERACAO);
+      const link = `${urlBase()}/login/redefinir?token=${token}`;
+      const saudacao = usuario.nome ? `Olá, ${usuario.nome}!` : "Olá!";
+      // Sem esperar o envio: o tempo de resposta também não pode revelar quem está cadastrado.
+      Promise.resolve(enviarEmail({
+        para: usuario.email,
+        assunto: "Cotador de Planos: criar uma nova senha",
+        texto: `${saudacao}\n\nRecebemos um pedido para criar uma nova senha do login ${usuario.login}.\nAbra este link em até 1 hora:\n\n${link}\n\nSe não foi você, ignore este e-mail: a sua senha continua a mesma.`,
+      })).catch((e) => console.error("Não consegui enviar o e-mail de recuperação de senha:", e.message));
+    }
+    res.type("html").send(paginaRecuperar("", AVISO_ENVIADO));
+  });
+
+  rotas.get("/login/redefinir", (req, res) => {
+    semMemoria(res);
+    const token = String(req.query?.token ?? "");
+    if (!banco.lerRecuperacaoDeSenha(resumoDoToken(token))) return res.status(400).type("html").send(paginaRecuperar(AVISO_LINK_INVALIDO, "", podeEnviar()));
+    res.type("html").send(paginaRedefinir(token));
+  });
+
+  rotas.post("/login/redefinir", express.urlencoded({ extended: false, limit: "4kb" }), (req, res) => {
+    semMemoria(res);
+    const token = String(req.body?.token ?? ""), senha = String(req.body?.senha ?? "");
+    const usuarioId = banco.lerRecuperacaoDeSenha(resumoDoToken(token));
+    const usuario = usuarioId ? banco.obterUsuario(usuarioId) : null;
+    if (!usuario?.ativo) return res.status(400).type("html").send(paginaRecuperar(AVISO_LINK_INVALIDO, "", podeEnviar()));
+    if (senha.length < 8 || senha.length > 200) return res.status(400).type("html").send(paginaRedefinir(token, "A senha precisa ter pelo menos 8 caracteres."));
+    if (senha !== req.body?.repete) return res.status(400).type("html").send(paginaRedefinir(token, "A nova senha e a repetição estão diferentes."));
+    banco.alterarSenhaDoUsuario(usuario.id, gerarHash(senha));
+    banco.apagarRecuperacoesDeSenha(usuario.id);
+    falhas.delete(usuario.login.toLowerCase());
+    res.type("html").send(pagina("", true, "Senha alterada. Entre com a nova senha."));
   });
 
   rotas.post("/sair", (req, res) => {

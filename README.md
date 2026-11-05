@@ -30,6 +30,24 @@ Depois disso, a senha é alterada em **Configurações**, e mudar o `.env` não 
 
 Se o administrador esquecer a senha, coloque a nova senha em `LOGIN_SENHA`, acrescente `LOGIN_REDEFINIR_SENHA=1` ao `.env` e reinicie o cotador. Depois de entrar, apague a linha `LOGIN_REDEFINIR_SENHA`, senão a senha volta para a do `.env` a cada reinício.
 
+### Acesso às telas
+
+Em **Configurações > Usuários**, o administrador escolhe, para cada usuário e cada tela (Nova cotação, Planos e valores, Documentos, Histórico e Aceites), entre **Sem acesso**, **Visualização** e **Edição**. O administrador sempre tem acesso a tudo. Quem só visualiza a Nova cotação pode simular, mas não envia nem salva.
+
+### Recuperar a senha por e-mail
+
+Cada usuário tem um e-mail, e a tela de login oferece **Esqueci minha senha**. O link enviado vale por uma hora e uma única vez. Para funcionar, preencha os dados do servidor de e-mail no `.env` e reinicie o cotador:
+
+```
+SMTP_HOST=smtp.seu-provedor.com
+SMTP_PORTA=587
+SMTP_USUARIO=seu_usuario
+SMTP_SENHA=sua_senha
+SMTP_REMETENTE=cotador@seu-dominio.com
+```
+
+O endereço do link vem de `PUBLIC_URL`, que também precisa estar preenchido: sem ele, a recuperação fica desligada. Quem já existia antes desta função precisa preencher o e-mail em **Configurações > Meus dados**, ou pedir ao administrador.
+
 ## Links das propostas
 
 As páginas das propostas ficam abertas para a internet na porta 9090. Execute o `iniciar.bat` como administrador na primeira vez, para ele liberar a porta no firewall do Windows, e preencha no `.env` o endereço público, como `PUBLIC_URL=http://IP_DA_MAQUINA:9090`. A tela do cotador também abre nessa porta, sempre com login. Use uma senha forte e, se possível, um domínio com HTTPS: sem HTTPS, a senha e os dados trafegam sem criptografia.

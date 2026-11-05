@@ -1,5 +1,5 @@
 // Tela "Documentos": cadastro dos documentos e o que fica ativo em cada plano.
-import { $, S, api, eAdmin, esc, toast } from "./estado.js";
+import { $, S, api, esc, pode, toast } from "./estado.js";
 import { normalizar } from "./filtro-select.js";
 
 let docs = [], planoId = null, editando = null, excluindo = null, planosAberto = null, filtroPlanos = "";
@@ -60,7 +60,7 @@ function aplicarFiltroPlanos(row) {
   if (vazio) vazio.hidden = algum;
 }
 
-// Quem não é administrador só consulta os documentos pedidos no plano escolhido.
+// Quem tem só visualização consulta os documentos pedidos no plano escolhido.
 function renderConsulta() {
   const lista = docs.filter((d) => d.planos.includes(planoId));
   $("#doc-count").textContent = planoId ? `${lista.length} ${lista.length === 1 ? "documento pedido" : "documentos pedidos"} neste plano` : "";
@@ -71,7 +71,7 @@ function renderConsulta() {
 
 export function renderDocumentos() {
   renderSeletor();
-  if (!eAdmin()) { renderConsulta(); return; }
+  if (!pode("documentos", "editar")) { renderConsulta(); return; }
   const ativos = docs.filter((d) => d.planos.includes(planoId)).length;
   $("#doc-count").textContent = planoId ? `${ativos} de ${docs.length} ${docs.length === 1 ? "documento ativo" : "documentos ativos"} neste plano` : "";
   const box = $("#doc-list");

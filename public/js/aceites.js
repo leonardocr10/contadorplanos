@@ -1,6 +1,6 @@
 // Tela "Aceites": clientes que aceitaram a proposta pelo link e o envio da lista de documentos.
 import { brl, fmtFone } from "./calculo.js";
-import { $, S, api, eAdmin, esc, toast } from "./estado.js";
+import { $, S, api, esc, pode, toast } from "./estado.js";
 import { linkConversaDireta, mensagemDocumentos } from "./mensagem.js";
 
 let aceites = [], assinatura = null;
@@ -33,14 +33,14 @@ export function renderAceites() {
     <div class="hq-date">${a.fone ? esc(fmtFone(a.fone)) : "Sem número"} · aceitou em ${esc(fmtData(a.aceitoEm))}${a.responsavel ? ` · Corretor: ${esc(a.responsavel)}` : ""}</div>
     <div class="hq-plans"><b>${esc(a.plano)}</b> · ${esc(a.acomodacao)} · R$ ${brl(a.valor)} · ${a.categoria === "CNPJ" ? "CNPJ" : "PF"}</div>
     ${a.docsEnviadosEm ? `<div class="note">Conversa aberta com a lista em ${esc(fmtData(a.docsEnviadosEm))}</div>` : ""}
-    <div class="actions"><button class="btn ${a.docsEnviadosEm ? "" : "primary"}" data-docs="1">${a.docsEnviadosEm ? "Enviar de novo" : "Enviar documentos no WhatsApp"}</button></div>
+    ${pode("aceites", "editar") ? `<div class="actions"><button class="btn ${a.docsEnviadosEm ? "" : "primary"}" data-docs="1">${a.docsEnviadosEm ? "Enviar de novo" : "Enviar documentos no WhatsApp"}</button></div>` : ""}
   </div>`).join("");
   box.querySelectorAll("[data-docs]").forEach((b) => (b.onclick = () => enviarDocumentos(aceites.find((a) => a.token === b.closest(".hq").dataset.token))));
 }
 
 async function enviarDocumentos(a) {
   if (!a.documentos.length) {
-    toast(eAdmin() ? `Nenhum documento ativo para ${a.plano}: ative na aba Documentos` : `Nenhum documento ativo para ${a.plano}: peça ao administrador para ativar`);
+    toast(pode("documentos", "editar") ? `Nenhum documento ativo para ${a.plano}: ative na aba Documentos` : `Nenhum documento ativo para ${a.plano}: peça ao administrador para ativar`);
     return;
   }
   if (!a.fone) {

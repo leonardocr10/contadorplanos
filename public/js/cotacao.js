@@ -1,6 +1,6 @@
 // Tela "Nova cotação": formulário, cartões de planos, prévia do WhatsApp e imagens da proposta.
 import { FAIXAS, brl, hasFaixas, lerArea, locaisDosPlanos, normFone, parseBRL, planPrices, redeDaCidade, totalVidas, vendidoEm } from "./calculo.js";
-import { $, S, api, esc, render, toast } from "./estado.js";
+import { $, S, api, esc, pode, render, toast } from "./estado.js";
 import { buildMsg, linkConversaDireta, textoDosLinks, waHtml } from "./mensagem.js";
 import { paginaParaPng } from "./imagem-proposta.js";
 import { imagemParaPdf } from "./pdf-imagem.js";
@@ -149,7 +149,8 @@ function salvar() {
   clearTimeout(auto.timer);
   auto.timer = null;
   const dados = dadosCotacao(currentMsg());
-  if (!podeSalvar(dados)) return Promise.resolve(false);
+  // Com visualização, a pessoa simula, mas nada vai para o histórico.
+  if (!pode("cotacao", "editar") || !podeSalvar(dados)) return Promise.resolve(false);
   const assinatura = JSON.stringify(dados);
   auto.fila = auto.fila.then(async () => {
     if (assinatura === auto.assinatura) return true;
@@ -216,7 +217,7 @@ async function renderCards() {
   cards = made;
   cardsProntos = true;
   cardUrls = made.map((m) => m.url);
-  box.innerHTML = made.map((m, i) => `<figure><img src="${m.url}" alt="Proposta ${esc(m.p.nome)}"><figcaption>${esc(m.p.nome)}</figcaption><button class="btn primary" data-cp="${i}">Copiar e baixar imagem</button><button class="btn" data-pdf="${i}">Baixar PDF</button></figure>`).join("");
+  box.innerHTML = made.map((m, i) => `<figure><img src="${m.url}" alt="Proposta ${esc(m.p.nome)}"><figcaption>${esc(m.p.nome)}</figcaption>${pode("cotacao", "editar") ? `<button class="btn primary" data-cp="${i}">Copiar e baixar imagem</button><button class="btn" data-pdf="${i}">Baixar PDF</button>` : ""}</figure>`).join("");
   box.querySelectorAll("[data-pdf]").forEach((b) => (b.onclick = () => savePdf(cards[+b.dataset.pdf], b)));
   box.querySelectorAll("[data-cp]").forEach((b) => (b.onclick = () => copyCard(cards[+b.dataset.cp])));
   paintChat(currentMsg());
@@ -345,7 +346,7 @@ export function renderCotacao() {
   lastAuto = buildMsg({ items: planosEscolhidos(), vidas: S.vidas, over: S.over, nome, corretor: corretor(), opts: opcoes(), cidade: S.municipio });
   $("#nota-envio").textContent = "Abrir no WhatsApp leva o texto e copia a imagem: na conversa, aperte Ctrl+V para colar a imagem. Com vários planos, copie as outras imagens nos botões acima. A cotação fica salva no histórico automaticamente quando tem nome, WhatsApp e plano.";
   $("#links-gerados").hidden = true;
-  $("#comparar").hidden = planosEscolhidos().length < 2;
+  $("#comparar").hidden = planosEscolhidos().length < 2 || !pode("cotacao", "editar");
   $("#limpar-planos").disabled = !S.selected.length;
   manual = false;
   $("#rawtxt").value = lastAuto;

@@ -6,17 +6,19 @@ import { join } from "node:path";
 import { Banco } from "../server/db.js";
 import { criarApp } from "../server/app.js";
 import { conferirSenha, gerarHash } from "../server/senhas.js";
+import { criarEnviadorDeEmail } from "../server/email.js";
+import net from "node:net";
 
 const raiz = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
 const seed = join(raiz, "dados", "planos.json");
 const SENHA_ADMIN = "senha-do-admin-1";
 
-async function subir(t, env = { LOGIN_USUARIO: "chefe", LOGIN_SENHA: SENHA_ADMIN }, preparar, linkPublico) {
+async function subir(t, env = { LOGIN_USUARIO: "chefe", LOGIN_SENHA: SENHA_ADMIN }, preparar, linkPublico, enviarEmail = null) {
   const pasta = mkdtempSync(join(tmpdir(), "cotador-usr-"));
   const banco = new Banco(join(pasta, "c.db"), seed);
   preparar?.(banco);
   const sistema = { versao: async () => ({ commit: "abc", data: "2026-01-01" }), atualizar: async () => ({ atualizado: false }) };
-  const app = criarApp({ banco, pastaPublica: join(raiz, "public"), pastaUploads: join(pasta, "u"), pastaBackups: join(pasta, "b"), env, exigirLogin: true, sistema, ...(linkPublico ? { linkPublico } : {}) });
+  const app = criarApp({ banco, pastaPublica: join(raiz, "public"), pastaUploads: join(pasta, "u"), pastaBackups: join(pasta, "b"), env, exigirLogin: true, sistema, ...(linkPublico ? { linkPublico } : {}), enviarEmail });
   const servidor = await new Promise((ok) => { const s = app.listen(0, "127.0.0.1", () => ok(s)); });
   t.after(() => new Promise((fim) => { servidor.closeAllConnections(); servidor.close(() => { banco.fechar(); rmSync(pasta, { recursive: true, force: true }); fim(); }); }));
   const base = `http://127.0.0.1:${servidor.address().port}`;
@@ -72,7 +74,7 @@ test("login e senha errados são recusados, com o mesmo aviso", async (t) => {
 test("usuário comum não acessa o que é do administrador", async (t) => {
   const { entrar, pedir } = await subir(t);
   const admin = (await entrar("chefe", SENHA_ADMIN)).cookie;
-  const criado = await pedir(admin, "/api/usuarios", "POST", { login: "corretor1", senha: "senha-do-corretor", perfil: "usuario" });
+  const criado = await pedir(admin, "/api/usuarios", "POST", { login: "corretor1", email: "corretor1@exemplo.com", senha: "senha-do-corretor", perfil: "usuario" });
   assert.equal(criado.status, 201);
   assert.equal(JSON.stringify(await criado.json()).includes("hash"), false);
   const comum = (await entrar("corretor1", "senha-do-corretor")).cookie;
@@ -89,7 +91,7 @@ test("nome, telefone e corretora são de cada login e vão na proposta dele", as
   const { entrar, pedir } = await subir(t);
   const admin = (await entrar("chefe", SENHA_ADMIN)).cookie;
   await pedir(admin, "/api/config", "PUT", { nome: "Dono", fone: "3411", empresa: "Matriz" });
-  await pedir(admin, "/api/usuarios", "POST", { login: "corretor1", senha: "senha-do-corretor" });
+  await pedir(admin, "/api/usuarios", "POST", { login: "corretor1", email: "corretor1@exemplo.com", senha: "senha-do-corretor" });
   const comum = (await entrar("corretor1", "senha-do-corretor")).cookie;
   assert.deepEqual(await (await pedir(comum, "/api/config")).json(), { nome: "", fone: "", empresa: "" });
   await pedir(comum, "/api/config", "PUT", { nome: "Corretor Um", fone: "3422", empresa: "Filial" });
@@ -116,11 +118,11 @@ test("troca a própria senha conferindo a atual, e as outras sessões caem", asy
 test("o administrador redefine, desativa e exclui, e o acesso cai na hora", async (t) => {
   const { entrar, pedir } = await subir(t);
   const admin = (await entrar("chefe", SENHA_ADMIN)).cookie;
-  const u = await (await pedir(admin, "/api/usuarios", "POST", { login: "corretor1", senha: "senha-do-corretor" })).json();
+  const u = await (await pedir(admin, "/api/usuarios", "POST", { login: "corretor1", email: "corretor1@exemplo.com", senha: "senha-do-corretor" })).json();
   let comum = (await entrar("corretor1", "senha-do-corretor")).cookie;
-  assert.equal((await pedir(admin, "/api/usuarios", "POST", { login: "CORRETOR1", senha: "outra-senha-boa" })).status, 400);
-  assert.equal((await pedir(admin, "/api/usuarios", "POST", { login: "a b", senha: "outra-senha-boa" })).status, 400);
-  assert.equal((await pedir(admin, "/api/usuarios", "POST", { login: "novo", senha: "curta" })).status, 400);
+  assert.equal((await pedir(admin, "/api/usuarios", "POST", { login: "CORRETOR1", email: "corretor1@exemplo.com", senha: "outra-senha-boa" })).status, 400);
+  assert.equal((await pedir(admin, "/api/usuarios", "POST", { login: "a b", email: "ab@exemplo.com", senha: "outra-senha-boa" })).status, 400);
+  assert.equal((await pedir(admin, "/api/usuarios", "POST", { login: "novo", email: "novo@exemplo.com", senha: "curta" })).status, 400);
 
   await pedir(admin, `/api/usuarios/${u.id}`, "PUT", { senha: "senha-redefinida" });
   assert.equal((await pedir(comum, "/api/eu")).status, 401);
@@ -152,7 +154,7 @@ async function doisCorretores(t, preparar, linkPublico) {
   const ctx = await subir(t, undefined, preparar, linkPublico);
   const admin = (await ctx.entrar("chefe", SENHA_ADMIN)).cookie;
   const criar = async (login) => {
-    await ctx.pedir(admin, "/api/usuarios", "POST", { login, senha: "senha-do-corretor" });
+    await ctx.pedir(admin, "/api/usuarios", "POST", { login, email: `${login}@exemplo.com`, senha: "senha-do-corretor" });
     return (await ctx.entrar(login, "senha-do-corretor")).cookie;
   };
   return { ...ctx, admin, um: await criar("corretor1"), dois: await criar("corretor2") };
@@ -259,6 +261,168 @@ test("planos e documentos: todos consultam, só o administrador altera", async (
   assert.equal((await pedir(um, "/api/propostas/previa", "POST", pedido)).status, 200);
 });
 
+const EMAIL_LINK = () => ({ estado: "ativo", url: "http://exemplo:9090", local: false });
+
+test("novo usuário precisa de e-mail válido e que ainda não exista", async (t) => {
+  const { pedir, entrar } = await subir(t);
+  const admin = (await entrar("chefe", SENHA_ADMIN)).cookie;
+  const criar = (extra) => pedir(admin, "/api/usuarios", "POST", { login: "novo.um", senha: "senha-boa-1234", ...extra });
+  assert.equal((await criar({})).status, 400);
+  assert.equal((await criar({ email: "sem-arroba" })).status, 400);
+  const ok = await criar({ email: "Novo@Exemplo.com" });
+  assert.equal(ok.status, 201);
+  const u = await ok.json();
+  assert.equal(u.email, "novo@exemplo.com");
+  assert.equal((await pedir(admin, "/api/usuarios", "POST", { login: "novo.dois", email: "NOVO@exemplo.com", senha: "senha-boa-1234" })).status, 400);
+  // O usuário e o administrador alteram o e-mail, sem repetir o de outro.
+  const comum = (await entrar("novo.um", "senha-boa-1234")).cookie;
+  await pedir(comum, "/api/config", "PUT", { email: "outro@exemplo.com" });
+  assert.equal((await (await pedir(comum, "/api/eu")).json()).email, "outro@exemplo.com");
+  const chefe = await (await pedir(admin, "/api/eu")).json();
+  assert.equal((await pedir(admin, `/api/usuarios/${chefe.id}`, "PUT", { email: "outro@exemplo.com" })).status, 400);
+  assert.equal((await pedir(admin, `/api/usuarios/${chefe.id}`, "PUT", { email: "chefe@exemplo.com" })).status, 200);
+});
+
+async function comRecuperacao(t) {
+  const enviados = [];
+  const ctx = await subir(t, undefined, undefined, EMAIL_LINK, async (m) => { enviados.push(m); });
+  const admin = (await ctx.entrar("chefe", SENHA_ADMIN)).cookie;
+  await ctx.pedir(admin, "/api/usuarios", "POST", { login: "corretor1", email: "corretor@exemplo.com", senha: "senha-do-corretor" });
+  const formulario = (rota, dados) => fetch(ctx.base + rota, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams(dados) });
+  return { ...ctx, admin, enviados, formulario };
+}
+const tokenDe = (m) => m.texto.match(/token=([\w-]+)/)[1];
+
+test("recupera a senha pelo e-mail, e o link só vale uma vez", async (t) => {
+  const { base, banco, entrar, enviados, formulario } = await comRecuperacao(t);
+  assert.match(await (await fetch(base + "/login")).text(), /Esqueci minha senha/);
+  const r = await formulario("/login/recuperar", { email: "CORRETOR@exemplo.com" });
+  assert.equal(r.status, 200);
+  assert.match(await r.text(), /Se este e-mail estiver cadastrado/);
+  assert.equal(enviados.length, 1);
+  assert.equal(enviados[0].para, "corretor@exemplo.com");
+  assert.ok(enviados[0].texto.includes("http://exemplo:9090/login/redefinir?token="));
+  assert.ok(!enviados[0].texto.includes("senha-do-corretor"));
+  const token = tokenDe(enviados[0]);
+  // O banco guarda só o hash do link.
+  assert.equal(JSON.stringify(banco.db.prepare("SELECT * FROM recuperacoes_senha").all()).includes(token), false);
+  const pagina = await fetch(`${base}/login/redefinir?token=${token}`);
+  assert.equal(pagina.status, 200);
+  assert.equal(pagina.headers.get("referrer-policy"), "no-referrer");
+  assert.equal((await formulario("/login/redefinir", { token, senha: "curta", repete: "curta" })).status, 400);
+  assert.equal((await formulario("/login/redefinir", { token, senha: "nova-senha-longa", repete: "outra-senha-longa" })).status, 400);
+  assert.equal((await formulario("/login/redefinir", { token, senha: "nova-senha-longa", repete: "nova-senha-longa" })).status, 200);
+  assert.equal((await entrar("corretor1", "senha-do-corretor")).status, 401);
+  assert.equal((await entrar("corretor1", "nova-senha-longa")).status, 303);
+  assert.equal((await fetch(`${base}/login/redefinir?token=${token}`)).status, 400);
+  assert.equal((await formulario("/login/redefinir", { token, senha: "terceira-senha", repete: "terceira-senha" })).status, 400);
+});
+
+test("a recuperação não revela quem está cadastrado e não abre para quem foi desativado", async (t) => {
+  const { pedir, admin, enviados, formulario } = await comRecuperacao(t);
+  const existe = await (await formulario("/login/recuperar", { email: "corretor@exemplo.com" })).text();
+  const naoExiste = await (await formulario("/login/recuperar", { email: "ninguem@exemplo.com" })).text();
+  assert.equal(existe, naoExiste);
+  assert.equal(enviados.length, 1);
+  // Pedido repetido não dispara outro e-mail.
+  await formulario("/login/recuperar", { email: "corretor@exemplo.com" });
+  assert.equal(enviados.length, 1);
+  const u = (await (await pedir(admin, "/api/usuarios")).json()).find((x) => x.login === "corretor1");
+  const token = tokenDe(enviados[0]);
+  await pedir(admin, `/api/usuarios/${u.id}`, "PUT", { ativo: false });
+  assert.equal((await formulario("/login/redefinir", { token, senha: "nova-senha-longa", repete: "nova-senha-longa" })).status, 400);
+});
+
+test("o link vencido não serve, e sem e-mail configurado a tela avisa", async (t) => {
+  const { banco, enviados, formulario } = await comRecuperacao(t);
+  await formulario("/login/recuperar", { email: "corretor@exemplo.com" });
+  banco.db.exec("UPDATE recuperacoes_senha SET expira_em = 1");
+  const token = tokenDe(enviados[0]);
+  assert.equal((await formulario("/login/redefinir", { token, senha: "nova-senha-longa", repete: "nova-senha-longa" })).status, 400);
+  assert.equal((await formulario("/login/redefinir", { token: "inventado", senha: "nova-senha-longa", repete: "nova-senha-longa" })).status, 400);
+  const sem = await subir(t);
+  assert.match(await (await fetch(sem.base + "/login/recuperar")).text(), /ainda não foi configurada/);
+  // Com link local, o e-mail levaria a um endereço que só abre no servidor.
+  const local = await subir(t, undefined, undefined, () => ({ estado: "ativo", url: "http://127.0.0.1:9090", local: true }), async () => {});
+  assert.match(await (await fetch(local.base + "/login/recuperar")).text(), /ainda não foi configurada/);
+});
+
+test("o envio funciona de verdade por SMTP", async (t) => {
+  const recebido = [];
+  const smtp = net.createServer((c) => {
+    let dados = false;
+    c.write("220 teste\r\n");
+    c.on("data", (b) => {
+      const texto = b.toString();
+      if (dados) {
+        recebido.push(texto);
+        if (texto.includes("\r\n.\r\n")) { dados = false; c.write("250 ok\r\n"); }
+        return;
+      }
+      if (/^DATA/i.test(texto)) { dados = true; c.write("354 envie\r\n"); return; }
+      if (/^QUIT/i.test(texto)) { c.end("221 tchau\r\n"); return; }
+      c.write("250 ok\r\n");
+    });
+  });
+  await new Promise((ok) => smtp.listen(0, "127.0.0.1", ok));
+  t.after(() => new Promise((fim) => smtp.close(fim)));
+  assert.equal(criarEnviadorDeEmail({}), null);
+  const enviar = criarEnviadorDeEmail({ SMTP_HOST: "127.0.0.1", SMTP_PORTA: String(smtp.address().port), SMTP_REMETENTE: "cotador@exemplo.com" });
+  await enviar({ para: "corretor@exemplo.com", assunto: "Assunto de teste", texto: "Corpo de teste" });
+  const mensagem = recebido.join("");
+  assert.ok(mensagem.includes("corretor@exemplo.com") && mensagem.includes("Assunto de teste") && mensagem.includes("Corpo de teste"));
+});
+
+async function comPermissoes(t, permissoes) {
+  const ctx = await subir(t, undefined, undefined, EMAIL_LINK);
+  const admin = (await ctx.entrar("chefe", SENHA_ADMIN)).cookie;
+  await ctx.pedir(admin, "/api/usuarios", "POST", { login: "corretor1", email: "c@exemplo.com", senha: "senha-do-corretor", permissoes });
+  return { ...ctx, admin, comum: (await ctx.entrar("corretor1", "senha-do-corretor")).cookie };
+}
+
+test("sem escolher, o usuário fica com o acesso padrão, e o administrador com tudo", async (t) => {
+  const { pedir, admin, entrar } = await comPermissoes(t);
+  assert.deepEqual((await (await pedir(admin, "/api/eu")).json()).permissoes, { cotacao: "editar", planos: "editar", documentos: "editar", historico: "editar", aceites: "editar" });
+  const comum = (await entrar("corretor1", "senha-do-corretor")).cookie;
+  assert.deepEqual((await (await pedir(comum, "/api/eu")).json()).permissoes, { cotacao: "editar", planos: "ver", documentos: "ver", historico: "editar", aceites: "editar" });
+});
+
+test("sem acesso a uma tela, as rotas dela ficam fechadas", async (t) => {
+  const { pedir, comum } = await comPermissoes(t, { cotacao: "editar", planos: "nenhum", documentos: "nenhum", historico: "nenhum", aceites: "nenhum" });
+  for (const rota of ["/api/documentos", "/api/cotacoes", "/api/aceites"]) assert.equal((await pedir(comum, rota)).status, 403, rota);
+  assert.equal((await pedir(comum, "/api/planos")).status, 200);
+  assert.equal((await pedir(comum, "/api/propostas/previa", "POST", pedido)).status, 200);
+  // Cotação com edição salva mesmo sem ver a tela de histórico.
+  assert.equal((await pedir(comum, "/api/cotacoes", "POST", cotacao())).status, 201);
+});
+
+test("sem nenhuma tela, a pessoa só acessa os próprios dados", async (t) => {
+  const { pedir, comum } = await comPermissoes(t, { cotacao: "nenhum", planos: "nenhum", documentos: "nenhum", historico: "nenhum", aceites: "nenhum" });
+  assert.equal((await pedir(comum, "/api/planos")).status, 403);
+  assert.equal((await pedir(comum, "/api/propostas/previa", "POST", pedido)).status, 403);
+  assert.equal((await pedir(comum, "/api/eu")).status, 200);
+  assert.equal((await pedir(comum, "/api/config")).status, 200);
+});
+
+test("com visualização, consulta e não altera", async (t) => {
+  const { banco, pedir, admin, comum } = await comPermissoes(t, { cotacao: "ver", planos: "ver", documentos: "ver", historico: "ver", aceites: "ver" });
+  const eu = await (await pedir(comum, "/api/eu")).json();
+  for (const rota of ["/api/planos", "/api/documentos", "/api/cotacoes", "/api/aceites"]) assert.equal((await pedir(comum, rota)).status, 200, rota);
+  assert.equal((await pedir(comum, "/api/propostas/previa", "POST", pedido)).status, 200);
+  const c = banco.salvarCotacao({ ...cotacao(), usuarioId: eu.id }).cotacao;
+  const proibidos = [
+    ["/api/cotacoes", "POST", cotacao()], [`/api/cotacoes/${c.id}`, "PUT", cotacao()], [`/api/cotacoes/${c.id}`, "PATCH", { status: "Vendida" }], [`/api/cotacoes/${c.id}`, "DELETE"],
+    ["/api/propostas", "POST", { ...pedido, fone: "34999990000" }], ["/api/propostas/comparativo", "POST", { ...pedido, planos: ["plam-saude-pf", "plamedh-pf"] }],
+    ["/api/planos", "POST", { nome: "X", categoria: "PF" }], ["/api/documentos", "POST", { nome: "Y" }], ["/api/aceites/qualquer/documentos", "POST", {}],
+  ];
+  for (const [rota, metodo, json] of proibidos) assert.equal((await pedir(comum, rota, metodo, json)).status, 403, `${metodo} ${rota}`);
+  // A permissão muda na hora, sem precisar entrar de novo.
+  const editar = { cotacao: "editar", planos: "editar", documentos: "editar", historico: "editar", aceites: "editar" };
+  assert.equal((await pedir(admin, `/api/usuarios/${eu.id}`, "PUT", { permissoes: editar })).status, 200);
+  assert.equal((await pedir(comum, "/api/planos", "POST", { nome: "X", categoria: "PF" })).status, 201);
+  assert.equal((await pedir(admin, `/api/usuarios/${eu.id}`, "PUT", { permissoes: { ...editar, planos: "nada" } })).status, 400);
+});
+
 test("LOGIN_REDEFINIR_SENHA recupera o acesso do administrador", async (t) => {
   const pasta = mkdtempSync(join(tmpdir(), "cotador-usr-"));
   t.after(() => rmSync(pasta, { recursive: true, force: true }));
@@ -276,8 +440,8 @@ test("LOGIN_REDEFINIR_SENHA recupera o acesso do administrador", async (t) => {
 test("a tela só mostra ao administrador o que é dele", () => {
   const html = readFileSync(join(raiz, "public", "index.html"), "utf8");
   assert.ok(!html.includes('data-view="corretor"'));
-  assert.match(html, /id="novo" data-admin hidden/);
-  assert.match(html, /<form id="doc-form"[^>]*data-admin hidden/);
+  assert.match(html, /id="novo" data-edita="planos" hidden/);
+  assert.match(html, /<form id="doc-form"[^>]*data-edita="documentos" hidden/);
   // Os itens do administrador começam fechados, e o caminho até eles só aparece para ele.
   for (const [id, item] of [["cfg-atualizar", "atualizar"], ["b-file", "backup"], ["usr-form", "usuarios"]]) {
     const antes = html.slice(0, html.indexOf(`id="${id}"`));
