@@ -127,9 +127,11 @@
 
   <!-- CONFIGURAÇÕES -->
   <section id="v-configuracoes" class="cfg-layout" hidden>
-    <nav class="panel cfg-menu" id="cfg-menu" aria-label="Itens de configuração">
+    <header class="cfg-topo">
       <h2>Configurações</h2>
-      <p class="note" id="cfg-entrou" style="margin:0"></p>
+      <p class="note" id="cfg-entrou"></p>
+    </header>
+    <nav class="cfg-abas" id="cfg-menu" aria-label="Itens de configuração">
       <button type="button" class="cfg-item" data-abre="dados">Meus dados</button>
       <button type="button" class="cfg-item" data-abre="senha" id="cfg-item-senha">Alterar senha</button>
       <button type="button" class="cfg-item" data-abre="usuarios" data-admin hidden>Usuários</button>
@@ -137,7 +139,6 @@
       <button type="button" class="cfg-item" data-abre="atualizar" data-admin hidden>Atualizar sistema</button>
     </nav>
     <div class="cfg-conteudo">
-    <div class="status" id="cfg-vazio">Escolha um item do menu para abrir.</div>
     <div class="panel cfg-painel" data-cfg="dados" hidden>
       <h2>Meus dados</h2>
       <p class="note" style="margin:0">Estes dados aparecem no rodapé da imagem e na assinatura da mensagem das cotações feitas com o seu login.</p>
@@ -158,23 +159,54 @@
       <div class="actions"><button class="btn primary" type="submit">Alterar senha</button></div>
       <p class="note" id="senha-msg" role="status" style="margin:0"></p>
     </form>
-    <div class="panel cfg-painel" data-cfg="usuarios" hidden>
-      <h2>Usuários</h2>
-      <p class="note" style="margin:0">Cada usuário entra com o próprio login e preenche os próprios dados em Configurações. Só o administrador vê usuários, backup e atualização do sistema.</p>
-      <form id="usr-form" class="stack" style="gap:10px" autocomplete="off">
-        <div class="label">Novo usuário</div>
-        <div class="row">
-          <div class="field"><label for="usr-login">Login</label><input id="usr-login" type="text" autocomplete="off" autocapitalize="none" required></div>
-          <div class="field"><label for="usr-email">E-mail (para recuperar a senha)</label><input id="usr-email" type="email" autocomplete="off" autocapitalize="none" required></div>
-          <div class="field"><label for="usr-senha">Senha inicial (mínimo de 8 caracteres)</label><input id="usr-senha" class="campo-senha" type="password" autocomplete="new-password" minlength="8" required></div>
-          <div class="field"><label for="usr-perfil">Perfil</label><select id="usr-perfil"><option value="usuario">Usuário</option><option value="admin">Administrador</option></select></div>
+    <div class="panel cfg-painel usr-painel" data-cfg="usuarios" hidden>
+      <div class="usr-cabeca">
+        <div>
+          <h2>Usuários <span class="usr-total" id="usr-total"></span></h2>
+          <p class="note">Cada usuário entra com o próprio login. Só o administrador vê usuários, backup e atualização do sistema.</p>
         </div>
-        <div id="usr-permissoes"></div>
-        <div class="actions"><button class="btn primary" type="submit">Criar usuário</button></div>
-      </form>
-      <p class="note" id="usr-msg" role="status" style="margin:0"></p>
-      <div class="label">Usuários criados</div>
-      <div id="usr-lista" class="cat"></div>
+        <button class="btn primary" type="button" id="usr-novo">Novo usuário</button>
+      </div>
+      <p class="note usr-msg" id="usr-msg" role="status"></p>
+      <table class="usr-tabela">
+        <thead><tr><th scope="col">Usuário</th><th scope="col">Perfil</th><th scope="col">Acesso às telas</th><th scope="col"><span class="so-leitor">Ações</span></th></tr></thead>
+        <tbody id="usr-lista"></tbody>
+      </table>
+      <div class="usr-legenda">
+        <span><span class="chip-tela editar">Tela</span> Edição</span>
+        <span><span class="chip-tela ver">Tela</span> Visualização</span>
+        <span><span class="chip-tela nenhum">Tela</span> Sem acesso</span>
+      </div>
+      <dialog class="gaveta" id="usr-gaveta" aria-labelledby="usr-titulo">
+        <form id="usr-form" autocomplete="off">
+          <header class="gaveta-topo">
+            <h2 id="usr-titulo">Novo usuário</h2>
+            <button class="gaveta-fechar" type="button" data-fechar aria-label="Fechar">×</button>
+          </header>
+          <div class="gaveta-corpo">
+            <div class="field"><label for="usr-login">Login</label><input id="usr-login" type="text" placeholder="Ex.: maria" autocomplete="off" autocapitalize="none" required></div>
+            <div class="field"><label for="usr-email">E-mail<small>para recuperar a senha</small></label><input id="usr-email" type="email" placeholder="nome@exemplo.com" autocomplete="off" autocapitalize="none"></div>
+            <div class="field"><label for="usr-senha"><span id="usr-senha-rotulo">Senha inicial</span><small id="usr-senha-dica">mínimo de 8 caracteres</small></label><input id="usr-senha" class="campo-senha" type="password" autocomplete="new-password" minlength="8"></div>
+            <div class="field">
+              <div class="gaveta-rotulo" id="usr-perfil-rotulo">Perfil</div>
+              <div class="usr-perfis" role="radiogroup" aria-labelledby="usr-perfil-rotulo">
+                <label class="usr-perfil"><input type="radio" name="usr-perfil" value="usuario" checked><span><b>Usuário</b><small>Acesso conforme as telas</small></span></label>
+                <label class="usr-perfil"><input type="radio" name="usr-perfil" value="admin"><span><b>Administrador</b><small>Acesso total</small></span></label>
+              </div>
+              <p class="note" id="usr-perfil-proprio" style="margin:0" hidden>Você não pode alterar o seu próprio perfil.</p>
+            </div>
+            <div class="field" id="usr-acesso">
+              <div class="gaveta-rotulo">Acesso às telas</div>
+              <div class="usr-telas" id="usr-permissoes"></div>
+            </div>
+            <p class="note usr-msg" id="usr-gaveta-msg" role="alert"></p>
+          </div>
+          <footer class="gaveta-rodape">
+            <button class="btn" type="button" data-fechar>Cancelar</button>
+            <button class="btn primary" type="submit" id="usr-salvar">Criar usuário</button>
+          </footer>
+        </form>
+      </dialog>
     </div>
     <div class="panel cfg-painel" data-cfg="backup" hidden>
       <h2>Backup</h2>

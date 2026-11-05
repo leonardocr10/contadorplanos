@@ -501,13 +501,16 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     const perdeAdmin = alvo.perfil === "admin" && alvo.ativo && ((perfil && perfil !== "admin") || ativo === false);
     if (perdeAdmin && req.usuario?.id === alvo.id) throw new ErroEntrada("Você não pode tirar o seu próprio acesso de administrador.");
     if (perdeAdmin && banco.contarAdminsAtivos() <= 1) throw new ErroEntrada("O sistema precisa de pelo menos um administrador ativo.");
-    if (b.senha !== undefined) {
-      const hash = gerarHash(validarSenha(b.senha));
+    // Valida tudo antes de gravar, para um erro não deixar a alteração pela metade.
+    const senha = b.senha === undefined ? undefined : validarSenha(b.senha);
+    const email = b.email === undefined ? undefined : emailLivre(b.email, alvo.id);
+    const permissoes = b.permissoes === undefined ? undefined : validarPermissoes(b.permissoes);
+    if (senha !== undefined) {
+      const hash = gerarHash(senha);
       banco.alterarSenhaDoUsuario(alvo.id, hash);
       if (req.usuario?.id === alvo.id) login.manterSessao(req.tokenDaSessao, hash);
     }
-    if (b.email !== undefined) banco.atualizarDadosDoUsuario(alvo.id, { email: emailLivre(b.email, alvo.id) });
-    const permissoes = b.permissoes === undefined ? undefined : validarPermissoes(b.permissoes);
+    if (email !== undefined) banco.atualizarDadosDoUsuario(alvo.id, { email });
     res.json(banco.alterarAcessoDoUsuario(alvo.id, { perfil, ativo, permissoes }));
   });
 

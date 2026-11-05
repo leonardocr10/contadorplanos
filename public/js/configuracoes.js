@@ -6,14 +6,20 @@ const msg = (t) => ($("#cfg-msg").textContent = t);
 const msgUsuarios = (t) => ($("#usr-msg").textContent = t);
 const PERFIS = { admin: "Administrador", usuario: "Usuário" };
 const TELAS = { cotacao: "Nova cotação", planos: "Planos e valores", documentos: "Documentos", historico: "Histórico", aceites: "Aceites" };
-const NIVEIS = { nenhum: "Sem acesso", ver: "Visualização", editar: "Edição" };
+const NIVEIS = { nenhum: "Sem acesso", ver: "Ver", editar: "Editar" };
+const NOMES_NIVEIS = { nenhum: "sem acesso", ver: "visualização", editar: "edição" };
 const PADRAO = { cotacao: "editar", planos: "ver", documentos: "ver", historico: "editar", aceites: "editar" };
 
-let eu = null, usuarios = [];
+let eu = null, usuarios = [], editando = null;
 
-const camposDePermissao = (atuais) => `<div class="usr-permissoes" data-permissoes><div class="label">Acesso às telas</div>${Object.entries(TELAS).map(([tela, nome]) => `<div class="field"><label>${nome}<select data-tela="${tela}" aria-label="Acesso a ${nome}">${Object.entries(NIVEIS).map(([n, rotulo]) => `<option value="${n}" ${atuais[tela] === n ? "selected" : ""}>${rotulo}</option>`).join("")}</select></label></div>`).join("")}</div>`;
-const lerPermissoes = (raiz) => Object.fromEntries([...raiz.querySelectorAll("[data-tela]")].map((s) => [s.dataset.tela, s.value]));
-const resumoDePermissoes = (p) => Object.entries(TELAS).map(([t, nome]) => `${nome}: ${NIVEIS[p[t]]}`).join(" · ");
+const camposDePermissao = (atuais) => Object.entries(TELAS).map(([tela, nome]) => `<div class="usr-tela"><span>${nome}</span><div class="usr-niveis" role="radiogroup" aria-label="Acesso a ${nome}">${Object.entries(NIVEIS).map(([n, rotulo]) => `<label><input type="radio" name="perm-${tela}" value="${n}" ${atuais[tela] === n ? "checked" : ""}><span>${rotulo}</span></label>`).join("")}</div></div>`).join("");
+const lerPermissoes = () => Object.fromEntries([...$("#usr-permissoes").querySelectorAll("input:checked")].map((r) => [r.name.slice(5), r.value]));
+const perfilEscolhido = () => document.querySelector('[name="usr-perfil"]:checked').value;
+const nivelNaTela = (u, tela) => (u.perfil === "admin" ? "editar" : u.permissoes?.[tela] ?? "nenhum");
+const chipsDeAcesso = (u) => Object.entries(TELAS).map(([tela, nome]) => {
+  const nivel = nivelNaTela(u, tela);
+  return `<span class="chip-tela ${nivel}">${nome}<span class="so-leitor">: ${NOMES_NIVEIS[nivel]}</span></span>`;
+}).join("");
 
 async function mostrarVersao() {
   try {
@@ -50,63 +56,41 @@ async function carregarUsuarios() {
 }
 
 function renderUsuarios() {
+  $("#usr-total").textContent = `· ${usuarios.length}`;
   const box = $("#usr-lista");
   box.innerHTML = usuarios.map((u) => {
     const proprio = u.id === eu?.id;
-    const detalhes = [PERFIS[u.perfil], u.nome, u.email || "Sem e-mail", u.ativo ? "" : "Desativado"].filter(Boolean).join(" · ");
-    return `<div class="usr-linha" data-id="${esc(u.id)}">
-      <div class="usr-nome">${esc(u.login)}${proprio ? " (você)" : ""}<small>${esc(detalhes)}</small>${u.perfil === "admin" ? "" : `<small>${esc(resumoDePermissoes(u.permissoes))}</small>`}</div>
-      <div class="actions">
-        ${u.perfil === "admin" ? "" : `<button class="btn" type="button" data-telas>Telas</button>`}
-        <button class="btn" type="button" data-email>E-mail</button>
-        <button class="btn" type="button" data-senha>Redefinir senha</button>
-        ${proprio ? "" : `<button class="btn" type="button" data-perfil>${u.perfil === "admin" ? "Tornar usuário" : "Tornar administrador"}</button>
-        <button class="btn" type="button" data-ativo>${u.ativo ? "Desativar" : "Ativar"}</button>
+    const detalhes = [u.nome, u.email || "Sem e-mail"].filter(Boolean).join(" · ");
+    return `<tr data-id="${esc(u.id)}" class="${u.ativo ? "" : "usr-inativo"}">
+      <td><div class="usr-quem"><span class="usr-avatar" aria-hidden="true">${esc(u.login.charAt(0).toUpperCase())}</span><div><b>${esc(u.login)}</b>${proprio ? " <span class=\"usr-voce\">(você)</span>" : ""}<small>${esc(detalhes)}</small></div></div></td>
+      <td><span class="usr-selo ${u.perfil}">${PERFIS[u.perfil]}</span>${u.ativo ? "" : '<span class="usr-selo desativado">Desativado</span>'}</td>
+      <td><div class="usr-chips">${chipsDeAcesso(u)}</div></td>
+      <td><div class="usr-acoes">
+        <button class="btn" type="button" data-editar>Editar</button>
+        ${proprio ? "" : `<button class="btn" type="button" data-ativo>${u.ativo ? "Desativar" : "Ativar"}</button>
         <button class="btn danger" type="button" data-excluir>Excluir</button>`}
-      </div>
-      ${u.perfil === "admin" ? "" : `<form class="usr-senha" data-form-telas hidden>${camposDePermissao(u.permissoes)}<button class="btn primary" type="submit">Salvar telas</button></form>`}
-      <form class="usr-senha" data-form-email hidden autocomplete="off">
-        <input type="email" required autocapitalize="none" value="${esc(u.email)}" placeholder="E-mail para recuperar a senha" aria-label="E-mail de ${esc(u.login)}">
-        <button class="btn primary" type="submit">Salvar e-mail</button>
-      </form>
-      <form class="usr-senha" data-form-senha hidden autocomplete="off">
-        <input class="campo-senha" type="password" minlength="8" required autocomplete="new-password" placeholder="Nova senha (mínimo de 8 caracteres)" aria-label="Nova senha de ${esc(u.login)}">
-        <button class="btn primary" type="submit">Salvar senha</button>
-      </form>
-      <div class="status" data-confirma hidden style="width:100%">Excluir o usuário <b>${esc(u.login)}</b>? As cotações e propostas dele continuam visíveis para o administrador. <span class="actions" style="margin-top:8px"><button class="btn danger" type="button" data-sim>Sim, excluir</button><button class="btn" type="button" data-nao>Manter</button></span></div>
-    </div>`;
+      </div></td>
+    </tr>
+    <tr class="usr-confirma" data-confirma="${esc(u.id)}" hidden><td colspan="4"><div class="status">Excluir o usuário <b>${esc(u.login)}</b>? As cotações e propostas dele continuam visíveis para o administrador. <span class="actions" style="margin-top:8px"><button class="btn danger" type="button" data-sim>Sim, excluir</button><button class="btn" type="button" data-nao>Manter</button></span></div></td></tr>`;
   }).join("");
-  box.querySelectorAll(".usr-linha").forEach((linha) => {
+  box.querySelectorAll("tr[data-id]").forEach((linha) => {
     const u = usuarios.find((x) => x.id === linha.dataset.id);
-    const alterar = async (dados, aviso) => {
+    linha.querySelector("[data-editar]").onclick = () => abrirGaveta(u);
+    if (!linha.querySelector("[data-ativo]")) return;
+    linha.querySelector("[data-ativo]").onclick = async () => {
       msgUsuarios("");
       try {
-        await api(`/api/usuarios/${encodeURIComponent(u.id)}`, { metodo: "PUT", json: dados });
-        toast(aviso);
+        await api(`/api/usuarios/${encodeURIComponent(u.id)}`, { metodo: "PUT", json: { ativo: !u.ativo } });
+        toast(u.ativo ? "Usuário desativado" : "Usuário ativado");
         await carregarUsuarios();
       } catch (e) {
         msgUsuarios(e.message);
       }
     };
-    const formEmail = linha.querySelector("[data-form-email]");
-    linha.querySelector("[data-email]").onclick = () => { formEmail.hidden = !formEmail.hidden; if (!formEmail.hidden) formEmail.querySelector("input").focus(); };
-    formEmail.onsubmit = (e) => { e.preventDefault(); alterar({ email: formEmail.querySelector("input").value }, "E-mail alterado"); };
-    const formTelas = linha.querySelector("[data-form-telas]");
-    if (formTelas) {
-      linha.querySelector("[data-telas]").onclick = () => (formTelas.hidden = !formTelas.hidden);
-      formTelas.onsubmit = (e) => { e.preventDefault(); alterar({ permissoes: lerPermissoes(formTelas) }, "Acesso às telas alterado"); };
-    }
-    const form = linha.querySelector("[data-form-senha]");
-    linha.querySelector("[data-senha]").onclick = () => { form.hidden = !form.hidden; if (!form.hidden) form.querySelector("input").focus(); };
-    form.onsubmit = (e) => { e.preventDefault(); alterar({ senha: form.querySelector("input").value }, "Senha redefinida"); };
-    const perfil = linha.querySelector("[data-perfil]");
-    if (!perfil) return;
-    perfil.onclick = () => alterar({ perfil: u.perfil === "admin" ? "usuario" : "admin" }, "Perfil alterado");
-    linha.querySelector("[data-ativo]").onclick = () => alterar({ ativo: !u.ativo }, u.ativo ? "Usuário desativado" : "Usuário ativado");
-    const confirma = linha.querySelector("[data-confirma]");
+    const confirma = linha.nextElementSibling;
     linha.querySelector("[data-excluir]").onclick = () => (confirma.hidden = false);
-    linha.querySelector("[data-nao]").onclick = () => (confirma.hidden = true);
-    linha.querySelector("[data-sim]").onclick = async () => {
+    confirma.querySelector("[data-nao]").onclick = () => (confirma.hidden = true);
+    confirma.querySelector("[data-sim]").onclick = async () => {
       msgUsuarios("");
       try {
         await api(`/api/usuarios/${encodeURIComponent(u.id)}`, { metodo: "DELETE" });
@@ -119,6 +103,61 @@ function renderUsuarios() {
   });
 }
 
+/* ---------- janela lateral de novo usuário e de edição ---------- */
+function abrirGaveta(u = null) {
+  editando = u;
+  const proprio = u?.id === eu?.id;
+  $("#usr-form").reset();
+  $("#usr-gaveta-msg").textContent = "";
+  $("#usr-titulo").textContent = u ? "Editar usuário" : "Novo usuário";
+  $("#usr-salvar").textContent = u ? "Salvar alterações" : "Criar usuário";
+  $("#usr-login").value = u?.login ?? "";
+  $("#usr-login").disabled = !!u;
+  $("#usr-email").value = u?.email ?? "";
+  // Quem foi criado antes do e-mail existir continua editável sem ele.
+  $("#usr-email").required = !u;
+  $("#usr-senha").required = !u;
+  $("#usr-senha-rotulo").textContent = u ? "Nova senha" : "Senha inicial";
+  $("#usr-senha-dica").textContent = u ? "deixe em branco para manter a atual" : "mínimo de 8 caracteres";
+  document.querySelectorAll('[name="usr-perfil"]').forEach((r) => {
+    r.checked = r.value === (u?.perfil ?? "usuario");
+    r.disabled = proprio;
+  });
+  $("#usr-perfil-proprio").hidden = !proprio;
+  $("#usr-permissoes").innerHTML = camposDePermissao(u && u.perfil !== "admin" ? u.permissoes : PADRAO);
+  mostrarAcesso();
+  $("#usr-gaveta").showModal();
+}
+
+// O administrador tem acesso a tudo, então não há o que escolher.
+const mostrarAcesso = () => ($("#usr-acesso").hidden = perfilEscolhido() === "admin");
+
+async function salvarGaveta(e) {
+  e.preventDefault();
+  $("#usr-gaveta-msg").textContent = "";
+  const perfil = perfilEscolhido(), email = $("#usr-email").value.trim(), senha = $("#usr-senha").value;
+  const permissoes = perfil === "admin" ? {} : { permissoes: lerPermissoes() };
+  try {
+    if (editando) {
+      await api(`/api/usuarios/${encodeURIComponent(editando.id)}`, { metodo: "PUT", json: {
+        ...permissoes,
+        ...(perfil !== editando.perfil ? { perfil } : {}),
+        ...(email !== editando.email ? { email } : {}),
+        ...(senha ? { senha } : {}),
+      } });
+      if (editando.id === eu?.id) $("#c-email").value = email;
+    } else {
+      await api("/api/usuarios", { metodo: "POST", json: { login: $("#usr-login").value, email, senha, perfil, ...permissoes } });
+    }
+    const aviso = editando ? "Usuário alterado" : "Usuário criado";
+    $("#usr-gaveta").close();
+    toast(aviso);
+    await carregarUsuarios();
+  } catch (erro) {
+    $("#usr-gaveta-msg").textContent = erro.message;
+  }
+}
+
 // O que é só do administrador continua protegido no servidor; aqui apenas some da tela.
 export function aplicarPerfil(usuario) {
   eu = usuario;
@@ -127,25 +166,26 @@ export function aplicarPerfil(usuario) {
   document.querySelectorAll("[data-edita]").forEach((p) => (p.hidden = !pode(p.dataset.edita, "editar")));
   document.querySelectorAll("[data-so-ve]").forEach((p) => (p.hidden = pode(p.dataset.soVe, "editar")));
   document.querySelectorAll(".tabs button[data-view]").forEach((b) => (b.hidden = b.dataset.view !== "configuracoes" && !pode(b.dataset.view)));
-  $("#cfg-entrou").textContent = usuario.login ? `Você entrou como ${usuario.login} (${PERFIS[usuario.perfil]}).` : "";
+  $("#cfg-entrou").innerHTML = usuario.login ? `Você entrou como <b>${esc(usuario.login)}</b> (${PERFIS[usuario.perfil]})` : "";
   $("#cfg-item-senha").hidden = !usuario.id;
   if (!admin) return;
   mostrarVersao();
   carregarUsuarios();
 }
 
-// O menu abre um item por vez; os itens do administrador nem aparecem no menu dos demais.
+// As abas abrem um item por vez; as do administrador nem aparecem para os demais.
 function abrirItem(item) {
   document.querySelectorAll("#cfg-menu [data-abre]").forEach((b) => b.setAttribute("aria-current", b.dataset.abre === item));
   document.querySelectorAll("[data-cfg]").forEach((p) => (p.hidden = p.dataset.cfg !== item));
-  $("#cfg-vazio").hidden = true;
 }
 
 export function iniciarConfiguracoes() {
   document.querySelectorAll("#cfg-menu [data-abre]").forEach((b) => (b.onclick = () => abrirItem(b.dataset.abre)));
-  $("#usr-permissoes").innerHTML = camposDePermissao(PADRAO);
-  // O administrador tem acesso a tudo, então não há o que escolher.
-  $("#usr-perfil").addEventListener("change", () => ($("#usr-permissoes").hidden = $("#usr-perfil").value === "admin"));
+  abrirItem("dados");
+  $("#usr-novo").onclick = () => abrirGaveta();
+  document.querySelectorAll('[name="usr-perfil"]').forEach((r) => (r.onchange = mostrarAcesso));
+  document.querySelectorAll("#usr-gaveta [data-fechar]").forEach((b) => (b.onclick = () => $("#usr-gaveta").close()));
+  $("#usr-form").onsubmit = salvarGaveta;
   $("#senha-form").onsubmit = async (e) => {
     e.preventDefault();
     const nova = $("#senha-nova").value, aviso = (t) => ($("#senha-msg").textContent = t);
@@ -157,26 +197,6 @@ export function iniciarConfiguracoes() {
       toast("Senha alterada");
     } catch (erro) {
       aviso(erro.message);
-    }
-  };
-
-  $("#usr-form").onsubmit = async (e) => {
-    e.preventDefault();
-    msgUsuarios("");
-    try {
-      const perfil = $("#usr-perfil").value;
-      await api("/api/usuarios", { metodo: "POST", json: {
-        login: $("#usr-login").value, email: $("#usr-email").value, senha: $("#usr-senha").value, perfil,
-        ...(perfil === "admin" ? {} : { permissoes: lerPermissoes($("#usr-permissoes")) }),
-      } });
-      e.target.reset();
-      $("#usr-perfil").value = "usuario";
-      $("#usr-permissoes").innerHTML = camposDePermissao(PADRAO);
-      $("#usr-permissoes").hidden = false;
-      toast("Usuário criado");
-      await carregarUsuarios();
-    } catch (erro) {
-      msgUsuarios(erro.message);
     }
   };
 

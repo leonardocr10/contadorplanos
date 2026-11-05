@@ -279,7 +279,9 @@ test("novo usuário precisa de e-mail válido e que ainda não exista", async (t
   await pedir(comum, "/api/config", "PUT", { email: "outro@exemplo.com" });
   assert.equal((await (await pedir(comum, "/api/eu")).json()).email, "outro@exemplo.com");
   const chefe = await (await pedir(admin, "/api/eu")).json();
-  assert.equal((await pedir(admin, `/api/usuarios/${chefe.id}`, "PUT", { email: "outro@exemplo.com" })).status, 400);
+  assert.equal((await pedir(admin, `/api/usuarios/${chefe.id}`, "PUT", { email: "outro@exemplo.com", senha: "senha-que-nao-vale" })).status, 400);
+  // O erro no e-mail não pode deixar a senha trocada pela metade.
+  assert.equal((await entrar("chefe", "senha-que-nao-vale")).status, 401);
   assert.equal((await pedir(admin, `/api/usuarios/${chefe.id}`, "PUT", { email: "chefe@exemplo.com" })).status, 200);
 });
 
@@ -445,7 +447,7 @@ test("a tela só mostra ao administrador o que é dele", () => {
   // Os itens do administrador começam fechados, e o caminho até eles só aparece para ele.
   for (const [id, item] of [["cfg-atualizar", "atualizar"], ["b-file", "backup"], ["usr-form", "usuarios"]]) {
     const antes = html.slice(0, html.indexOf(`id="${id}"`));
-    assert.match(antes.slice(antes.lastIndexOf('class="panel')), new RegExp(`^class="panel cfg-painel" data-cfg="${item}" hidden`), id);
+    assert.match(antes.slice(antes.lastIndexOf('class="panel')), new RegExp(`^class="panel cfg-painel[^"]*" data-cfg="${item}" hidden`), id);
     assert.match(html, new RegExp(`data-abre="${item}" data-admin hidden`), item);
   }
 });
