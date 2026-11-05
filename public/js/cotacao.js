@@ -38,8 +38,10 @@ function renderLocal() {
     .flatMap((l) => l.cidades.map((c) => [`${l.uf}|${c}`, `${c} (${l.uf})`]))
     .sort((a, b) => a[1].localeCompare(b[1], "pt-BR"));
   const atual = `${S.uf}|${S.municipio}`;
-  if (!cidades.some(([v]) => v === atual)) { S.uf = ""; S.municipio = ""; }
-  trocarOpcoes($("#municipio"), [["", "Todas as cidades"], ...cidades], S.municipio ? atual : "");
+  const existe = cidades.some(([v]) => v === atual);
+  // Enquanto os planos carregam a lista está vazia: a cidade padrão só cai se não existir de verdade.
+  if (S.loaded && !existe) { S.uf = ""; S.municipio = ""; }
+  trocarOpcoes($("#municipio"), [["", "Todas as cidades"], ...cidades], existe ? atual : "");
   $("#limpar-local").disabled = !S.municipio;
 }
 
