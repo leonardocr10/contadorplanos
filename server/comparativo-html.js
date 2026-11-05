@@ -98,13 +98,20 @@ function blocoFaixas(propostas) {
   const linhas = propostas.find((P) => P.faixas.linhas.length)?.faixas.linhas ?? [];
   const temEnf = propostas.some((P) => P.faixas.temEnf), temApto = propostas.some((P) => P.faixas.temApto);
   if (!linhas.length || (!temEnf && !temApto)) return "";
-  const valor = (rotulo, tem, subtotal, n) => `<span><small>${rotulo}</small> ${tem && subtotal != null ? moeda(r2(subtotal / n)) : VAZIO}</span>`;
-  const celula = (P, faixa) => {
+  const porPessoa = (P, faixa, campo, tem) => {
     const l = P.faixas.linhas.find((x) => x.faixa === faixa);
-    if (!l) return `<td>${VAZIO}</td>`;
-    return `<td>${temEnf ? valor("Enf.", P.faixas.temEnf, l.enf, l.n) : ""}${temApto ? valor("Apto", P.faixas.temApto, l.apto, l.n) : ""}</td>`;
+    return tem && l?.[campo] != null ? r2(l[campo] / l.n) : null;
   };
-  return secao("Valor por pessoa, por faixa etária", propostas.length) + linhas.map((l) => `<tr class="faixa"><th scope="row">${esc(l.faixa)} anos · ${l.n} ${l.n === 1 ? "vida" : "vidas"}</th>${propostas.map((P) => celula(P, l.faixa)).join("")}</tr>`).join("");
+  const coluna = (rotulo, faixa, campo, tem) => {
+    const valores = propostas.map((P) => porPessoa(P, faixa, campo, tem(P)));
+    const menores = menoresValores(valores);
+    return valores.map((v, i) => `<span${menores.includes(i) ? ' class="menor"' : ""}><small>${rotulo}</small> ${v != null ? moeda(v) : VAZIO}</span>`);
+  };
+  return secao("Valor por pessoa, por faixa etária", propostas.length) + linhas.map((l) => {
+    const enf = temEnf ? coluna("Enf.", l.faixa, "enf", (P) => P.faixas.temEnf) : [];
+    const apto = temApto ? coluna("Apto", l.faixa, "apto", (P) => P.faixas.temApto) : [];
+    return `<tr class="faixa"><th scope="row">${esc(l.faixa)} anos · ${l.n} ${l.n === 1 ? "vida" : "vidas"}</th>${propostas.map((_, i) => `<td>${enf[i] ?? ""}${apto[i] ?? ""}</td>`).join("")}</tr>`;
+  }).join("");
 }
 
 const MARCA = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Sim"><path d="M20 6 9 17l-5-5"/></svg>';
@@ -140,8 +147,10 @@ tbody td{padding:7px 12px;text-align:center;border-bottom:1px solid var(--line);
 tbody tr:not(.secao):nth-child(even){background:var(--zebra)}
 .secao th{padding:16px 12px 6px;font-size:15px;font-weight:800;color:var(--navy);border-bottom:2px solid var(--navy)}
 .faixa td{font-weight:700;line-height:1.5}
-.faixa td span{display:block}
+.faixa td span{display:block;width:fit-content;margin:0 auto;padding:0 8px;border-radius:6px}
 .faixa td small{font-size:12px;font-weight:600;color:var(--muted)}
+.faixa td span.menor{background:var(--verde-claro);color:var(--verde)}
+.faixa td span.menor small{color:inherit}
 .preco th{font-weight:800}
 .preco td{font-size:19px;font-weight:800;letter-spacing:-.01em}
 .preco td.menor{background:var(--verde-claro);color:var(--verde)}
@@ -205,7 +214,7 @@ export function renderizarComparativo(snapshots) {
     <thead><tr><th></th>${colunas}</tr></thead>
     <tbody>${corpo}</tbody>
   </table>
-  <footer>${VAZIO} não consta na tabela do plano. Resumo para comparação: os detalhes e as condições completas estão na proposta de cada plano.</footer>
+  <footer>Em verde, o menor valor. ${VAZIO} não consta na tabela do plano. Resumo para comparação: os detalhes e as condições completas estão na proposta de cada plano.</footer>
 </div>
 </body>
 </html>`;
