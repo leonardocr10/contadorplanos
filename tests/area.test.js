@@ -47,6 +47,48 @@ test("linha sem cidade é da cidade do plano, e traço no nome não é cidade", 
   assert.ok(redeDaCidade(plam, "Uberlândia").includes("Laboratório Exame – Unidade Hospital do Triângulo"));
 });
 
+test("a SulAmérica tem a rede de cada cidade, conforme a tabela", () => {
+  const especial = planos.find((p) => p.id === "sulamerica-especial-100-rc");
+  const direto = planos.find((p) => p.id === "sulamerica-direto-nacional");
+  assert.deepEqual(redeDaCidade(especial, "Uberaba"), ["Hospital São Marcos", "Hospital Universitário Mário Palmerio", "Hospital da Criança", "Laboratório Santa Lucilia"]);
+  assert.deepEqual(redeDaCidade(especial, "Prata"), ["Hospital e Mat. Renascer", "Biomed"]);
+  // Nova Lima: Labclass não atende o Clássico, mas atende o Especial. Na tabela do Direto as colunas são outras.
+  assert.ok(redeDaCidade(especial, "Nova Lima").includes("Labclass"));
+  assert.ok(redeDaCidade(especial, "Ituiutaba").includes("Arantes Medicina Laboratorial"));
+  assert.ok(!redeDaCidade(direto, "Ituiutaba").includes("Arantes Medicina Laboratorial"));
+  // Uberlândia continua com a mesma lista, e sem cidade escolhida a proposta não traz centenas de linhas.
+  assert.deepEqual(redeDaCidade(direto, ""), ["Madrecor Hospital", "Uberlândia Medical Center", "Anatomo", "Check Up Laboratório de Análises Clínicas", "Labormed"]);
+  assert.deepEqual(redeDaCidade(direto, "Uberlândia"), redeDaCidade(direto, ""));
+  // Toda cidade da rede está na área, senão a linha seria tomada como de Uberlândia.
+  for (const p of planos.filter((x) => x.id.startsWith("sulamerica-"))) {
+    const area = lerArea(p.areaComercializacao).estados[0].cidades;
+    assert.ok(area.includes("Timóteo") && area.includes("Tiradentes"));
+    for (const l of p.rede.split("\n")) {
+      const m = l.match(/ – ([^–]+)$/);
+      if (m) assert.ok(vendidoEm(p, "MG", m[1]), `${p.id}: ${l}`);
+    }
+  }
+});
+
+test("ao atualizar, recebe a rede por cidade sem trocar rede editada", (t) => {
+  const pasta = mkdtempSync(join(tmpdir(), "cotador-rede-"));
+  t.after(() => rmSync(pasta, { recursive: true, force: true }));
+  const caminho = join(pasta, "c.db");
+  const antigo = new Banco(caminho, seed);
+  const direto = planos.find((p) => p.id === "sulamerica-direto-nacional");
+  const especial = planos.find((p) => p.id === "sulamerica-especial-100-rc");
+  antigo.db.prepare("UPDATE planos SET rede = ? WHERE id = ?").run(redeDaCidade(direto, "").join("\n"), direto.id);
+  antigo.db.prepare("UPDATE planos SET rede = ? WHERE id = ?").run("Hospital Meu", especial.id);
+  antigo.db.exec("UPDATE planos SET area_comercializacao = REPLACE(area_comercializacao, 'Timóteo, Tiradentes', 'Timóteo Tiradentes')");
+  antigo.db.exec("PRAGMA user_version = 12");
+  antigo.fechar();
+  const novo = new Banco(caminho, seed);
+  assert.equal(novo.obterPlano(direto.id).rede, direto.rede);
+  assert.equal(novo.obterPlano(especial.id).rede, "Hospital Meu");
+  assert.ok(novo.obterPlano(direto.id).areaComercializacao.includes("Timóteo, Tiradentes"));
+  novo.fechar();
+});
+
 test("plano sem área ou com região no lugar da cidade não perde a rede", () => {
   assert.deepEqual(redeDaCidade({ rede: "Hospital A\nHospital B – Araxá", cidade: "Uberlândia", areaComercializacao: "" }, "Uberaba"), ["Hospital A", "Hospital B – Araxá"]);
   assert.deepEqual(redeDaCidade({ rede: "Hospital A\nHospital B – Araxá", cidade: "Triângulo Mineiro", areaComercializacao: "MG: Araxá, Prata" }, "Prata"), ["Hospital A"]);

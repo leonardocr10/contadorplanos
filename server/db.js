@@ -4,6 +4,7 @@ import { copyFileSync, existsSync, readFileSync, rmSync, writeFileSync } from "n
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { redeDaCidade } from "../public/js/calculo.js";
 
 export const STATUS = ["Enviada", "Em Negociação", "Vendida", "Negativa"];
 
@@ -112,10 +113,13 @@ const MIGRACOES = [
     const existe = db.prepare("PRAGMA table_info(planos)").all().some((c) => c.name === "area_comercializacao");
     if (!existe) db.exec("ALTER TABLE planos ADD COLUMN area_comercializacao TEXT NOT NULL DEFAULT ''");
   },
+  // Sem mudança na estrutura: corrige a área e marca a rede por cidade (ver atualizarRedePorCidade).
+  "UPDATE planos SET area_comercializacao = REPLACE(area_comercializacao, 'Timóteo Tiradentes', 'Timóteo, Tiradentes')",
 ];
 
 const VERSAO_TEXTOS_COPARTICIPACAO = 11;
 const VERSAO_AREA_COMERCIALIZACAO = 12;
+const VERSAO_REDE_POR_CIDADE = 13;
 
 // Planos lançados depois que o banco já existia: entram uma única vez, ao atualizar.
 const PLANOS_NOVOS = [{ id: "plamedh-basic-pme", versao: 6 }, { id: "plam-total-cnpj", versao: 7 }, ...["sulamerica-direto-nacional", "sulamerica-especial-100-rc", "sulamerica-especial-100-r1", "sulamerica-executivo-pleno"].map((id) => ({ id, versao: 10 }))];
@@ -199,6 +203,7 @@ export class Banco {
     this.incluirPlanosNovos(versaoAntes);
     this.atualizarTextosCoparticipacao(versaoAntes);
     this.preencherAreaComercializacao(versaoAntes);
+    this.atualizarRedePorCidade(versaoAntes);
   }
 
   fechar() {
@@ -231,6 +236,17 @@ export class Banco {
     if (!this.caminhoSeed || !existsSync(this.caminhoSeed)) return;
     const atualizar = this.db.prepare("UPDATE planos SET area_comercializacao = ? WHERE id = ? AND area_comercializacao = ''");
     for (const p of JSON.parse(readFileSync(this.caminhoSeed, "utf8"))) atualizar.run(p.areaComercializacao ?? "", p.id);
+  }
+
+  // Só troca a rede que continua igual à antiga, que era só a da cidade do plano. Rede editada fica como está.
+  atualizarRedePorCidade(versaoAntes) {
+    if (versaoAntes === 0 || versaoAntes >= VERSAO_REDE_POR_CIDADE) return;
+    if (!this.caminhoSeed || !existsSync(this.caminhoSeed)) return;
+    const atualizar = this.db.prepare("UPDATE planos SET rede = ? WHERE id = ? AND TRIM(rede) = ?");
+    for (const p of JSON.parse(readFileSync(this.caminhoSeed, "utf8"))) {
+      const antiga = redeDaCidade(p, p.cidade).join("\n");
+      if (p.id.startsWith("sulamerica-") && antiga && antiga !== p.rede) atualizar.run(p.rede, p.id, antiga);
+    }
   }
 
   semear() {

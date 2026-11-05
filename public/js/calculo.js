@@ -103,9 +103,11 @@ export function vendidoEm(plano, uf, cidade) {
 // O traço só indica cidade quando ela está na área: "LABAC – Laboratório" é parte do nome.
 export function redeDaCidade(plano, cidade) {
   const linhas = lines(plano.rede);
-  if (!cidade) return linhas;
   const naArea = new Set(lerArea(plano.areaComercializacao).estados.flatMap((e) => e.cidades).map(semAcento));
-  const alvo = semAcento(cidade), cidadeDoPlano = semAcento(plano.cidade);
+  const cidadeDoPlano = semAcento(plano.cidade);
+  // Sem cidade escolhida vale a cidade do plano: a rede completa pode ter centenas de prestadores.
+  const alvo = semAcento(cidade) || (naArea.has(cidadeDoPlano) ? cidadeDoPlano : "");
+  if (!alvo) return linhas;
   const rede = [];
   for (const linha of linhas) {
     const m = linha.match(/^(.*\S)\s+[–-]\s+(\S.*)$/);
