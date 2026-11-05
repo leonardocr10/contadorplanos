@@ -46,7 +46,7 @@ async function esperarVoltar() {
 }
 
 /* ---------- usuários ---------- */
-async function carregarUsuarios() {
+export async function carregarUsuarios() {
   try {
     usuarios = await api("/api/usuarios");
     renderUsuarios();
@@ -191,7 +191,7 @@ export function iniciarConfiguracoes() {
     const nova = $("#senha-nova").value, aviso = (t) => ($("#senha-msg").textContent = t);
     if (nova !== $("#senha-repete").value) { aviso("A nova senha e a repetição estão diferentes."); return; }
     try {
-      await api("/api/eu/senha", { metodo: "PUT", json: { atual: $("#senha-atual").value, nova } });
+      await api("/api/eu/senha", { metodo: "PUT", json: { nova } });
       e.target.reset();
       aviso("");
       toast("Senha alterada");

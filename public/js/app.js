@@ -5,7 +5,7 @@ import { iniciarPlanos, renderCat } from "./planos.js";
 import { carregarHistorico, iniciarHistorico, renderHist } from "./historico.js";
 import { carregarAceites, renderAceites } from "./aceites.js";
 import { carregarDocumentos, iniciarDocumentos, renderDocumentos } from "./documentos.js";
-import { aplicarPerfil, iniciarConfiguracoes } from "./configuracoes.js";
+import { aplicarPerfil, carregarUsuarios, iniciarConfiguracoes } from "./configuracoes.js";
 import { iniciarFiltroSelects } from "./filtro-select.js";
 
 iniciarFiltroSelects();
@@ -39,8 +39,6 @@ const dadosAlterados = () => {
   const d = lerDados();
   return CAMPOS_CONFIG.some((k) => d[k] !== (S.cor?.[k] ?? "")) || d.email !== (S.eu?.email ?? "");
 };
-const atualizarBotaoDados = () => ($("#dados-salvar").disabled = !dadosAlterados());
-for (const k of [...CAMPOS_CONFIG, "email"]) $("#c-" + k).addEventListener("input", atualizarBotaoDados);
 // Nova cotação recarrega a página: avisa antes de perder o que não foi salvo.
 addEventListener("beforeunload", (e) => { if (S.eu && dadosAlterados()) e.preventDefault(); });
 $("#dados-form").onsubmit = async (e) => {
@@ -57,10 +55,12 @@ $("#dados-form").onsubmit = async (e) => {
     $("#c-email").value = email;
     render();
     toast("Dados salvos");
+    // O cadastro de usuários mostra estes mesmos dados.
+    if (S.eu.perfil === "admin") carregarUsuarios();
   } catch (erro) {
     msg.textContent = `Não deu para salvar: ${erro.message}`;
   }
-  atualizarBotaoDados();
+  $("#dados-salvar").disabled = false;
 };
 
 /* ---------- restaurar backup ---------- */
@@ -127,7 +127,6 @@ async function carregar() {
     S.cor = { nome: eu.nome ?? "", fone: eu.fone ?? "", empresa: eu.empresa ?? "" };
     for (const k of CAMPOS_CONFIG) $("#c-" + k).value = S.cor[k];
     $("#c-email").value = eu.email ?? "";
-    atualizarBotaoDados();
   } catch (e) {
     S.dbErr = e.message;
   }

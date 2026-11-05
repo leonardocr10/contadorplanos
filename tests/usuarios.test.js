@@ -102,13 +102,13 @@ test("nome, telefone e corretora são de cada login e vão na proposta dele", as
   assert.ok(doAdmin.includes("Dono") && !doAdmin.includes("Corretor Um"));
 });
 
-test("troca a própria senha conferindo a atual, e as outras sessões caem", async (t) => {
+test("troca a própria senha só com a nova, e as outras sessões caem", async (t) => {
   const { entrar, pedir } = await subir(t);
   const a = (await entrar("chefe", SENHA_ADMIN)).cookie, outra = (await entrar("chefe", SENHA_ADMIN)).cookie;
-  const trocar = (atual, nova) => pedir(a, "/api/eu/senha", "PUT", { atual, nova });
-  assert.equal((await trocar("errada", "nova-senha-longa")).status, 400);
-  assert.equal((await trocar(SENHA_ADMIN, "curta")).status, 400);
-  assert.equal((await trocar(SENHA_ADMIN, "nova-senha-longa")).status, 200);
+  const trocar = (nova) => pedir(a, "/api/eu/senha", "PUT", { nova });
+  assert.equal((await pedir("", "/api/eu/senha", "PUT", { nova: "nova-senha-longa" })).status, 401);
+  assert.equal((await trocar("curta")).status, 400);
+  assert.equal((await trocar("nova-senha-longa")).status, 200);
   assert.equal((await pedir(a, "/api/eu")).status, 200);
   assert.equal((await pedir(outra, "/api/eu")).status, 401);
   assert.equal((await entrar("chefe", SENHA_ADMIN)).status, 401);
@@ -278,6 +278,10 @@ test("novo usuário precisa de e-mail válido e que ainda não exista", async (t
   const comum = (await entrar("novo.um", "senha-boa-1234")).cookie;
   await pedir(comum, "/api/config", "PUT", { email: "outro@exemplo.com" });
   assert.equal((await (await pedir(comum, "/api/eu")).json()).email, "outro@exemplo.com");
+  // Salvar o mesmo e-mail é permitido, e o cadastro de usuários mostra a alteração.
+  assert.equal((await pedir(comum, "/api/config", "PUT", { email: "outro@exemplo.com" })).status, 200);
+  const cadastro = await (await pedir(admin, "/api/usuarios")).json();
+  assert.equal(cadastro.find((x) => x.login === "novo.um").email, "outro@exemplo.com");
   const chefe = await (await pedir(admin, "/api/eu")).json();
   assert.equal((await pedir(admin, `/api/usuarios/${chefe.id}`, "PUT", { email: "outro@exemplo.com", senha: "senha-que-nao-vale" })).status, 400);
   // O erro no e-mail não pode deixar a senha trocada pela metade.
