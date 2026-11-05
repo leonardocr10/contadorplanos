@@ -219,6 +219,9 @@ details textarea{margin-top:8px;min-height:200px;font:13px/1.5 var(--mono)}
 /* Planos e valores: a lista à esquerda e as informações do plano selecionado à direita. */
 .cat-mestre{display:grid;grid-template-columns:minmax(300px,380px) minmax(0,1fr);gap:16px;align-items:start}
 .cat-lista{gap:6px}
+.cat-qtd{margin-left:4px;padding:1px 7px;border-radius:999px;background:var(--line);color:var(--muted);font-size:12px}
+.cfg-item[aria-current="true"] .cat-qtd{background:var(--accent-soft);color:var(--pine)}
+#cat:has(.cfg-abas){gap:16px}
 .cat-lista .catrow{flex-wrap:nowrap;gap:8px;padding:6px 8px 6px 4px;border-radius:10px}
 .cat-lista .btn{flex:none;padding:5px 12px;min-height:0;font-size:13px}
 .cat-nome{flex:1;min-width:0;padding:5px 8px;border:0;background:none;color:var(--ink);font:700 14px var(--body);text-align:left;cursor:pointer;overflow-wrap:anywhere}

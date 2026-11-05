@@ -18,19 +18,26 @@ const IMAGES = {
   "img/unimed-copart-cnpj.png": "Unimed – coparticipação CNPJ",
 };
 
+const CATEGORIAS = { PF: "Pessoa física", CNPJ: "CNPJ" };
+let abaDosPlanos = "PF";
+
 export function renderCat() {
   const box = $("#cat");
   if (!S.loaded) { box.innerHTML = `<div class="status">${S.dbErr ? esc(S.dbErr) : "Carregando planos…"}</div>`; return; }
   if (!S.plans.length) { box.innerHTML = `<div class="status">Nenhum plano cadastrado ainda.${pode("planos", "editar") ? " Clique em <b>Novo plano</b> para adicionar o primeiro." : ""}</div>`; return; }
   const encontrados = filtrarOpcoes(S.plans.map((p) => ({ plano: p, texto: `${p.nome} ${p.subtitulo || ""}` })), $("#cat-busca").value).map((o) => o.plano);
   if (!encontrados.length) { box.innerHTML = `<div class="status">Nenhum plano encontrado.</div>`; return; }
-  if (!encontrados.some((p) => p.id === planoVisto)) planoVisto = null;
-  const lista = ["PF", "CNPJ"].map((cat) => {
-    const l = encontrados.filter((p) => p.categoria === cat);
-    if (!l.length) return "";
-    return `<div class="label" style="margin-top:6px">${cat === "PF" ? "Pessoa física" : "CNPJ"}</div>` + l.map((p) => `<div class="catrow" data-ver="${esc(p.id)}"><button type="button" class="cat-nome">${p.ativo === false ? '<span class="pill off">OCULTO</span>' : ""}${esc(p.nome)}</button>${pode("planos", "editar") ? `<button class="btn" data-ed="${esc(p.id)}">Editar</button>` : ""}</div>`).join("");
-  }).join("");
-  box.innerHTML = `<div class="cat-mestre"><div class="cat cat-lista">${lista}</div><aside class="cat-detalhe" id="cat-detalhe" aria-live="polite"></aside></div>`;
+  const daCategoria = (cat) => encontrados.filter((p) => p.categoria === cat);
+  // Na busca, se só a outra aba tem resultado, mostra ela sem mudar a aba escolhida.
+  const buscando = !!$("#cat-busca").value.trim();
+  const outra = abaDosPlanos === "PF" ? "CNPJ" : "PF";
+  const aba = buscando && !daCategoria(abaDosPlanos).length ? outra : abaDosPlanos;
+  const planosDaAba = daCategoria(aba);
+  if (!planosDaAba.some((p) => p.id === planoVisto)) planoVisto = null;
+  const abas = Object.entries(CATEGORIAS).map(([cat, nome]) => `<button type="button" class="cfg-item" data-aba="${cat}" aria-current="${cat === aba}">${nome} <span class="cat-qtd">${daCategoria(cat).length}</span></button>`).join("");
+  const lista = planosDaAba.map((p) => `<div class="catrow" data-ver="${esc(p.id)}"><button type="button" class="cat-nome">${p.ativo === false ? '<span class="pill off">OCULTO</span>' : ""}${esc(p.nome)}</button>${pode("planos", "editar") ? `<button class="btn" data-ed="${esc(p.id)}">Editar</button>` : ""}</div>`).join("") || `<div class="status">Nenhum plano de ${CATEGORIAS[aba]} cadastrado.</div>`;
+  box.innerHTML = `<nav class="cfg-abas" aria-label="Tipo de contratação">${abas}</nav><div class="cat-mestre"><div class="cat cat-lista">${lista}</div><aside class="cat-detalhe" id="cat-detalhe" aria-live="polite"></aside></div>`;
+  box.querySelectorAll("[data-aba]").forEach((b) => (b.onclick = () => { abaDosPlanos = b.dataset.aba; renderCat(); }));
   box.querySelectorAll("[data-ed]").forEach((b) => (b.onclick = () => openEditor(S.plans.find((p) => p.id === b.dataset.ed))));
   box.querySelectorAll(".catrow").forEach((row) => row.querySelector(".cat-nome").addEventListener("click", () => { planoVisto = row.dataset.ver; pintarPlanoVisto(); }));
   pintarPlanoVisto();
@@ -133,7 +140,7 @@ export function closeModal() {
 
 function openEditor(p) {
   const ed = $("#editor"), isNew = !p;
-  p = p || { fidelidade: S.tipo === "CNPJ", categoria: S.tipo, subtitulo: "Plano com coparticipação", cidade: "Uberlândia", ativo: true, ordem: (S.plans.length + 1) * 10 };
+  p = p || { fidelidade: abaDosPlanos === "CNPJ", categoria: abaDosPlanos, subtitulo: "Plano com coparticipação", cidade: "Uberlândia", ativo: true, ordem: (S.plans.length + 1) * 10 };
   const opt = (cur) => `<option value="">Sem imagem</option>` + (cur && !IMAGES[cur] ? `<option value="${esc(cur)}" selected>Imagem enviada</option>` : "") + Object.entries(IMAGES).map(([k, v]) => `<option value="${k}" ${cur === k ? "selected" : ""}>${v}</option>`).join("");
   openModal();
   ed.classList.add("editor-plano");
@@ -250,6 +257,7 @@ function openEditor(p) {
     try {
       const salvo = await api(isNew ? "/api/planos" : `/api/planos/${encodeURIComponent(p.id)}`, { metodo: isNew ? "POST" : "PUT", json: data });
       delete S.over[salvo.id];
+      abaDosPlanos = salvo.categoria;
       await carregarPlanos();
       closeModal();
       render();
