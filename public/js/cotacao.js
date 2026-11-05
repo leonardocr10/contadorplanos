@@ -22,7 +22,7 @@ function renderFaixas() {
   $("#faixas").querySelectorAll("[data-p]").forEach((b) => (b.onclick = () => { const i = +b.dataset.p; S.vidas[i]++; render(); }));
 }
 
-/* ---------- estado e cidade ---------- */
+/* ---------- cidade ---------- */
 // Só troca as opções quando elas mudam: a cotação redesenha a cada alteração e há centenas de cidades.
 const opcoesAtuais = new Map();
 const trocarOpcoes = (select, opcoes, valor) => {
@@ -33,13 +33,14 @@ const trocarOpcoes = (select, opcoes, valor) => {
 };
 
 function renderLocal() {
-  const locais = locaisDosPlanos(S.plans.filter((p) => p.ativo !== false));
-  if (!locais.some((l) => l.uf === S.uf)) { S.uf = ""; S.municipio = ""; }
-  const estado = locais.find((l) => l.uf === S.uf);
-  if (!estado?.cidades.includes(S.municipio)) S.municipio = "";
-  trocarOpcoes($("#uf"), [["", "Todos os estados"], ...locais.map((l) => [l.uf, l.nome])], S.uf);
-  trocarOpcoes($("#municipio"), estado ? [["", "Todas as cidades"], ...estado.cidades.map((c) => [c, c])] : [["", "Escolha o estado"]], S.municipio);
-  $("#limpar-local").disabled = !S.uf;
+  // O valor guarda o estado junto: nomes de cidade podem se repetir entre estados.
+  const cidades = locaisDosPlanos(S.plans.filter((p) => p.ativo !== false))
+    .flatMap((l) => l.cidades.map((c) => [`${l.uf}|${c}`, `${c} (${l.uf})`]))
+    .sort((a, b) => a[1].localeCompare(b[1], "pt-BR"));
+  const atual = `${S.uf}|${S.municipio}`;
+  if (!cidades.some(([v]) => v === atual)) { S.uf = ""; S.municipio = ""; }
+  trocarOpcoes($("#municipio"), [["", "Todas as cidades"], ...cidades], S.municipio ? atual : "");
+  $("#limpar-local").disabled = !S.municipio;
 }
 
 // Plano fora da área sai da cotação junto com o cartão, para não ir na proposta por engano.
@@ -58,7 +59,7 @@ function renderPlans() {
   const nomeTipo = S.tipo === "PF" ? "para pessoa física" : "CNPJ";
   if (!doTipo.length) { box.innerHTML = `<div class="status">Nenhum plano ${nomeTipo} cadastrado. Adicione na aba <b>Planos e valores</b>.</div>`; return; }
   const list = doTipo.filter((p) => vendidoEm(p, S.uf, S.municipio));
-  if (!list.length) { box.innerHTML = `<div class="status">Nenhum plano ${nomeTipo} comercializado em ${esc(S.municipio || $("#uf").selectedOptions[0]?.textContent || "")}.</div>`; return; }
+  if (!list.length) { box.innerHTML = `<div class="status">Nenhum plano ${nomeTipo} comercializado em ${esc(S.municipio)}.</div>`; return; }
   box.innerHTML = list.map((p) => {
     const v = prices(p);
     const semArea = S.uf && !lerArea(p.areaComercializacao).estados.length ? `<span>Área de comercialização não informada</span>` : "";
@@ -316,8 +317,10 @@ export function iniciarCotacao() {
     // Os planos marcados continuam ao trocar de tipo, para comparar pessoa física com CNPJ.
     render();
   };
-  $("#uf").addEventListener("change", () => { S.uf = $("#uf").value; S.municipio = ""; aplicarLocal(); });
-  $("#municipio").addEventListener("change", () => { S.municipio = $("#municipio").value; aplicarLocal(); });
+  $("#municipio").addEventListener("change", () => {
+    [S.uf = "", S.municipio = ""] = $("#municipio").value ? $("#municipio").value.split("|") : [];
+    aplicarLocal();
+  });
   $("#limpar-local").onclick = () => { S.uf = ""; S.municipio = ""; render(); };
   for (const id of ["cliente", "fone", "o-copart", "o-rede", "o-acom"]) $("#" + id).addEventListener("input", render);
   $("#limpar-vidas").onclick = () => { S.vidas = Array(10).fill(0); render(); };
