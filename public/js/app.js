@@ -18,12 +18,25 @@ definirRender(() => {
 
 /* ---------- abas ---------- */
 document.querySelectorAll(".tabs button[data-view]").forEach((b) => (b.onclick = () => show(b.dataset.view)));
+// Nova cotação recomeça do zero: a página recarrega, sem perder o que ainda estava para salvar em Meus dados.
+$("#tab-cot").onclick = async () => {
+  if (salvarTimer) {
+    clearTimeout(salvarTimer);
+    await salvarDados();
+  }
+  history.replaceState(null, "", "#cotacao");
+  location.reload();
+};
 const viewDoHash = () => (VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "cotacao");
 addEventListener("hashchange", () => show(viewDoHash()));
 show(viewDoHash());
 
 /* ---------- meus dados ---------- */
-let salvarTimer;
+let salvarTimer = null;
+const salvarDados = () => {
+  salvarTimer = null;
+  return api("/api/config", { metodo: "PUT", json: S.cor }).catch(() => toast("Não deu para salvar os seus dados"));
+};
 const CAMPOS_CONFIG = ["nome", "fone", "empresa"];
 for (const k of CAMPOS_CONFIG) {
   const el = $("#c-" + k);
@@ -31,7 +44,7 @@ for (const k of CAMPOS_CONFIG) {
     S.cor[k] = el.value;
     render();
     clearTimeout(salvarTimer);
-    salvarTimer = setTimeout(() => api("/api/config", { metodo: "PUT", json: S.cor }).catch(() => toast("Não deu para salvar os seus dados")), 400);
+    salvarTimer = setTimeout(salvarDados, 400);
   };
 }
 
