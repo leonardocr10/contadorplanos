@@ -176,6 +176,27 @@ test("mensagem, imagem e comparativo usam a rede da cidade", () => {
   assert.ok(completa.includes("🏨 *Rede Credenciada*\n• Hospital UMC – Uberlândia\n"));
 });
 
+test("a cotação guarda a cidade, e a cotação antiga continua abrindo", (t) => {
+  const pasta = mkdtempSync(join(tmpdir(), "cotador-cid-"));
+  t.after(() => rmSync(pasta, { recursive: true, force: true }));
+  const caminho = join(pasta, "c.db");
+  const banco = new Banco(caminho, seed);
+  const base = { fone: "34999990000", cliente: "Maria", tipo: "PF", idades: "", vidas: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0], over: {}, planos: [{ id: "amil-ouro-total", nome: "AMIL OURO", enf: 1, apto: 2 }], mensagem: "m" };
+  const antiga = banco.salvarCotacao(base).cotacao;
+  assert.equal(antiga.municipio, "");
+  const { cotacao, duplicada } = banco.salvarCotacao({ ...base, uf: "MG", municipio: "Uberaba" });
+  // Mesma mensagem em outra cidade é outra cotação.
+  assert.equal(duplicada, false);
+  assert.equal(cotacao.uf, "MG");
+  assert.equal(cotacao.municipio, "Uberaba");
+  assert.equal(banco.salvarCotacao({ ...base, uf: "MG", municipio: "Uberaba" }).duplicada, true);
+  banco.db.exec("PRAGMA user_version = 14");
+  banco.fechar();
+  const depois = new Banco(caminho, seed);
+  assert.equal(depois.obterCotacao(cotacao.id).municipio, "Uberaba");
+  depois.fechar();
+});
+
 test("plano sem área cadastrada continua aparecendo", () => {
   assert.ok(vendidoEm({ areaComercializacao: "" }, "SP", "Santos"));
 });

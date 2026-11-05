@@ -10,7 +10,8 @@ import { renderHistCli, saveQuote } from "./historico.js";
 const planosEscolhidos = () => S.selected.map((id) => S.plans.find((p) => p.id === id)).filter(Boolean);
 const nomeCliente = () => $("#cliente").value.trim();
 const corretor = () => ({ nome: S.cor.nome.trim(), fone: S.cor.fone.trim(), empresa: S.cor.empresa.trim() });
-const opcoes = () => ({ copart: $("#o-copart").checked, rede: $("#o-rede").checked, acom: $("#o-acom").checked });
+// Coparticipação, rede e legenda de acomodação vão em toda cotação: texto, imagem, PDF e link.
+const opcoes = () => ({ copart: true, rede: true, acom: true });
 const prices = (p) => planPrices(p, S.vidas, S.over);
 
 /* ---------- beneficiários ---------- */
@@ -85,7 +86,7 @@ function renderSel() {
   const misturados = new Set(items.map((p) => p.categoria)).size > 1;
   const tipoDe = (p) => {
     // O aviso é só para o corretor: sem rede na cidade, a proposta sai sem essa seção.
-    const semRede = S.municipio && opcoes().rede && !redeDaCidade(p, S.municipio).length ? `Sem rede cadastrada em ${esc(S.municipio)} · ` : "";
+    const semRede = S.municipio && !redeDaCidade(p, S.municipio).length ? `Sem rede cadastrada em ${esc(S.municipio)} · ` : "";
     return `${misturados ? `${p.categoria === "CNPJ" ? "CNPJ" : "Pessoa física"} · ` : ""}${semRede}`;
   };
   box.innerHTML = `<div class="note">Valores desta cotação:</div>` + items.map((p) => {
@@ -127,7 +128,7 @@ function paintChat(msg) {
 
 function dadosCotacao(mensagem) {
   return {
-    fone: normFone($("#fone").value), cliente: nomeCliente(), tipo: S.tipo, vidas: [...S.vidas],
+    fone: normFone($("#fone").value), cliente: nomeCliente(), tipo: S.tipo, uf: S.uf, municipio: S.municipio, vidas: [...S.vidas],
     over: JSON.parse(JSON.stringify(S.over)),
     planos: planosEscolhidos().map((p) => { const v = prices(p); return { id: p.id, nome: p.nome, enf: v.enf ?? null, apto: v.apto ?? null }; }),
     mensagem,
@@ -324,7 +325,7 @@ export function iniciarCotacao() {
     aplicarLocal();
   });
   $("#limpar-local").onclick = () => { S.uf = ""; S.municipio = ""; render(); };
-  for (const id of ["cliente", "fone", "o-copart", "o-rede", "o-acom"]) $("#" + id).addEventListener("input", render);
+  for (const id of ["cliente", "fone"]) $("#" + id).addEventListener("input", render);
   $("#limpar-vidas").onclick = () => { S.vidas = Array(10).fill(0); render(); };
   $("#rawtxt").addEventListener("input", () => { manual = true; paintChat($("#rawtxt").value); });
 

@@ -110,6 +110,8 @@ function validarCotacao(b) {
     fone,
     cliente: textoOpc(b.cliente, "cliente", 200),
     tipo: b.tipo,
+    uf: textoOpc(b.uf, "estado", 2),
+    municipio: textoOpc(b.municipio, "cidade", 200),
     idades: textoOpc(b.idades, "idades", 500),
     vidas: b.vidas,
     over: b.over && typeof b.over === "object" ? b.over : {},

@@ -117,6 +117,10 @@ const MIGRACOES = [
   "UPDATE planos SET area_comercializacao = REPLACE(area_comercializacao, 'Timóteo Tiradentes', 'Timóteo, Tiradentes')",
   // Sem mudança na estrutura: marca a chegada da Aurora (ver PLANOS_NOVOS).
   () => {},
+  (db) => {
+    const colunas = db.prepare("PRAGMA table_info(cotacoes)").all().map((c) => c.name);
+    for (const c of ["uf", "municipio"]) if (!colunas.includes(c)) db.exec(`ALTER TABLE cotacoes ADD COLUMN ${c} TEXT NOT NULL DEFAULT ''`);
+  },
 ];
 
 const VERSAO_TEXTOS_COPARTICIPACAO = 11;
@@ -175,7 +179,7 @@ function linhaParaPlano(l) {
 
 function linhaParaCotacao(l) {
   return {
-    id: l.id, fone: l.fone, cliente: l.cliente, criadoEm: l.criado_em, tipo: l.tipo, idades: l.idades,
+    id: l.id, fone: l.fone, cliente: l.cliente, criadoEm: l.criado_em, tipo: l.tipo, uf: l.uf, municipio: l.municipio, idades: l.idades,
     vidas: JSON.parse(l.vidas), over: JSON.parse(l.overrides), planos: JSON.parse(l.planos), mensagem: l.mensagem, status: l.status,
   };
 }
@@ -382,15 +386,15 @@ export class Banco {
   salvarCotacao(c) {
     const ultima = this.listarCotacoes({ fone: c.fone })[0];
     if (
-      ultima && ultima.mensagem === c.mensagem && ultima.tipo === c.tipo &&
+      ultima && ultima.mensagem === c.mensagem && ultima.tipo === c.tipo && ultima.municipio === (c.municipio ?? "") &&
       JSON.stringify(ultima.vidas) === JSON.stringify(c.vidas) && JSON.stringify(ultima.planos) === JSON.stringify(c.planos)
     ) {
       return { cotacao: ultima, duplicada: true };
     }
     const id = "c" + randomUUID();
     this.db
-      .prepare("INSERT INTO cotacoes (id, fone, cliente, criado_em, tipo, idades, vidas, overrides, planos, mensagem, status) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
-      .run(id, c.fone, c.cliente, new Date().toISOString(), c.tipo, c.idades, JSON.stringify(c.vidas), JSON.stringify(c.over), JSON.stringify(c.planos), c.mensagem, c.status ?? "Enviada");
+      .prepare("INSERT INTO cotacoes (id, fone, cliente, criado_em, tipo, uf, municipio, idades, vidas, overrides, planos, mensagem, status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)")
+      .run(id, c.fone, c.cliente, new Date().toISOString(), c.tipo, c.uf ?? "", c.municipio ?? "", c.idades, JSON.stringify(c.vidas), JSON.stringify(c.over), JSON.stringify(c.planos), c.mensagem, c.status ?? "Enviada");
     return { cotacao: this.obterCotacao(id), duplicada: false };
   }
 
