@@ -245,6 +245,21 @@
 </div>
 <!-- Fora das telas: uma tela escondida esconderia a janela junto. -->
 <div class="modal" id="modal" hidden><div class="panel modal-box" id="editor" role="dialog" aria-modal="true" aria-labelledby="ed-title"></div></div>
+<dialog class="visor" id="visor" aria-labelledby="visor-titulo">
+  <header class="visor-topo">
+    <div class="visor-nome"><h2 id="visor-titulo"></h2><span class="note" id="visor-conta"></span></div>
+    <div class="visor-botoes">
+      <button class="btn" type="button" id="visor-ant">Anterior</button>
+      <button class="btn" type="button" id="visor-prox">Próxima</button>
+      <button class="gaveta-fechar" type="button" id="visor-fechar" aria-label="Fechar">×</button>
+    </div>
+  </header>
+  <div class="visor-corpo" id="visor-corpo"><img id="visor-img" alt="" title="Clique para ampliar ou reduzir"></div>
+  <footer class="visor-rodape" data-edita="cotacao" hidden>
+    <button class="btn" type="button" id="visor-pdf">Baixar PDF</button>
+    <button class="btn primary" type="button" id="visor-copiar">Copiar e baixar imagem</button>
+  </footer>
+</dialog>
 <div class="toast" id="toast" hidden></div>
 <script type="module" src="js/app.js"></script>
 </body>

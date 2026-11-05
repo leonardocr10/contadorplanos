@@ -217,10 +217,58 @@ async function renderCards() {
   cards = made;
   cardsProntos = true;
   cardUrls = made.map((m) => m.url);
-  box.innerHTML = made.map((m, i) => `<figure><img src="${m.url}" alt="Proposta ${esc(m.p.nome)}"><figcaption>${esc(m.p.nome)}</figcaption>${pode("cotacao", "editar") ? `<button class="btn primary" data-cp="${i}">Copiar e baixar imagem</button><button class="btn" data-pdf="${i}">Baixar PDF</button>` : ""}</figure>`).join("");
+  box.innerHTML = made.map((m, i) => `<figure><button type="button" class="imgs-abrir" data-ver="${i}" title="Clique para ampliar" aria-label="Ampliar a proposta de ${esc(m.p.nome)}"><img src="${m.url}" alt=""></button><figcaption>${esc(m.p.nome)}</figcaption>${pode("cotacao", "editar") ? `<button class="btn primary" data-cp="${i}">Copiar e baixar imagem</button><button class="btn" data-pdf="${i}">Baixar PDF</button>` : ""}</figure>`).join("");
+  box.querySelectorAll("[data-ver]").forEach((b) => (b.onclick = () => abrirVisor(+b.dataset.ver)));
   box.querySelectorAll("[data-pdf]").forEach((b) => (b.onclick = () => savePdf(cards[+b.dataset.pdf], b)));
   box.querySelectorAll("[data-cp]").forEach((b) => (b.onclick = () => copyCard(cards[+b.dataset.cp])));
+  // Se as imagens forem refeitas com a janela aberta, ela acompanha.
+  if ($("#visor").open) { if (cards.length) pintarVisor(); else $("#visor").close(); }
   paintChat(currentMsg());
+}
+
+/* ---------- imagem ampliada ---------- */
+let visorIndice = 0;
+function pintarVisor() {
+  visorIndice = Math.min(visorIndice, cards.length - 1);
+  const m = cards[visorIndice];
+  $("#visor-titulo").textContent = m.p.nome;
+  $("#visor-img").src = m.url;
+  $("#visor-img").alt = `Proposta ${m.p.nome}`;
+  $("#visor-conta").textContent = cards.length > 1 ? `${visorIndice + 1} de ${cards.length}` : "";
+  $("#visor-ant").hidden = $("#visor-prox").hidden = cards.length < 2;
+  $("#visor-corpo").scrollTo(0, 0);
+}
+function abrirVisor(i) {
+  visorIndice = i;
+  pintarVisor();
+  $("#visor").showModal();
+  // A janela fica acima do resto da página: o aviso precisa estar dentro dela para aparecer.
+  $("#visor").append($("#toast"));
+}
+function passarVisor(passo) {
+  if (cards.length < 2) return;
+  visorIndice = (visorIndice + passo + cards.length) % cards.length;
+  $("#visor-img").classList.remove("ampliada");
+  pintarVisor();
+}
+function iniciarVisor() {
+  const visor = $("#visor");
+  $("#visor-fechar").onclick = () => visor.close();
+  $("#visor-ant").onclick = () => passarVisor(-1);
+  $("#visor-prox").onclick = () => passarVisor(1);
+  $("#visor-img").onclick = () => $("#visor-img").classList.toggle("ampliada");
+  $("#visor-copiar").onclick = () => copyCard(cards[visorIndice]);
+  $("#visor-pdf").onclick = (e) => savePdf(cards[visorIndice], e.currentTarget);
+  // Clique fora da imagem, no fundo escuro, fecha.
+  visor.onclick = (e) => { if (e.target === visor) visor.close(); };
+  visor.onkeydown = (e) => {
+    if (e.key === "ArrowLeft") passarVisor(-1);
+    if (e.key === "ArrowRight") passarVisor(1);
+  };
+  visor.onclose = () => {
+    $("#visor-img").classList.remove("ampliada");
+    document.body.append($("#toast"));
+  };
 }
 
 const fileName = (m, extensao = "png") => `${m.titulo.replace(/[\\/:*?"<>|]/g, "")}${nomeCliente() ? " - " + nomeCliente().replace(/[\\/:*?"<>|]/g, "") : ""}.${extensao}`;
@@ -363,6 +411,7 @@ export function renderCotacao() {
 }
 
 export function iniciarCotacao() {
+  iniciarVisor();
   $("#tipo").onclick = (e) => {
     const b = e.target.closest("button");
     if (!b) return;
