@@ -21,6 +21,18 @@ const chipsDeAcesso = (u) => Object.entries(TELAS).map(([tela, nome]) => {
   return `<span class="chip-tela ${nivel}">${nome}<span class="so-leitor">: ${NOMES_NIVEIS[nivel]}</span></span>`;
 }).join("");
 
+// Foto do usuário ou, sem foto, a inicial do nome.
+export const avatarDoUsuario = (u) => (u.foto
+  ? `<img src="${esc(u.foto)}" alt="">`
+  : esc((u.nome || u.login || "?").trim().charAt(0).toUpperCase()));
+
+export function mostrarUsuarioLogado(u) {
+  const box = $("#usuario-logado");
+  box.hidden = !u.id;
+  if (!u.id) return;
+  box.innerHTML = `<span class="usr-avatar">${avatarDoUsuario(u)}</span><span class="usuario-logado-texto"><b>${esc(u.nome || u.login)}</b><small>${PERFIS[u.perfil]}</small></span>`;
+}
+
 async function mostrarVersao() {
   try {
     const { commit, data } = await api("/api/sistema/versao");
@@ -62,7 +74,7 @@ function renderUsuarios() {
     const proprio = u.id === eu?.id;
     const detalhes = [u.nome, u.email || "Sem e-mail"].filter(Boolean).join(" · ");
     return `<tr data-id="${esc(u.id)}" class="${u.ativo ? "" : "usr-inativo"}">
-      <td><div class="usr-quem"><span class="usr-avatar" aria-hidden="true">${esc(u.login.charAt(0).toUpperCase())}</span><div><b>${esc(u.login)}</b>${proprio ? " <span class=\"usr-voce\">(você)</span>" : ""}<small>${esc(detalhes)}</small></div></div></td>
+      <td><div class="usr-quem"><span class="usr-avatar" aria-hidden="true">${u.foto ? avatarDoUsuario(u) : esc(u.login.charAt(0).toUpperCase())}</span><div><b>${esc(u.login)}</b>${proprio ? " <span class=\"usr-voce\">(você)</span>" : ""}<small>${esc(detalhes)}</small></div></div></td>
       <td><span class="usr-selo ${u.perfil}">${PERFIS[u.perfil]}</span>${u.ativo ? "" : '<span class="usr-selo desativado">Desativado</span>'}</td>
       <td><div class="usr-chips">${chipsDeAcesso(u)}</div></td>
       <td><div class="usr-acoes">
@@ -168,13 +180,15 @@ export function aplicarPerfil(usuario) {
   document.querySelectorAll(".tabs button[data-view]").forEach((b) => (b.hidden = b.dataset.view !== "configuracoes" && !pode(b.dataset.view)));
   $("#cfg-entrou").innerHTML = usuario.login ? `Você entrou como <b>${esc(usuario.login)}</b> (${PERFIS[usuario.perfil]})` : "";
   $("#cfg-item-senha").hidden = !usuario.id;
+  $("#foto-campo").hidden = !usuario.id;
+  mostrarUsuarioLogado(usuario);
   if (!admin) return;
   mostrarVersao();
   carregarUsuarios();
 }
 
 // As abas abrem um item por vez; as do administrador nem aparecem para os demais.
-function abrirItem(item) {
+export function abrirItem(item) {
   document.querySelectorAll("#cfg-menu [data-abre]").forEach((b) => b.setAttribute("aria-current", b.dataset.abre === item));
   document.querySelectorAll("[data-cfg]").forEach((p) => (p.hidden = p.dataset.cfg !== item));
 }

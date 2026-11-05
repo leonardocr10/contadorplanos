@@ -10,6 +10,7 @@
 <div class="wrap">
   <header class="top">
     <h1>Cotador de Planos<small>Monte a proposta e envie pelo WhatsApp em poucos cliques</small></h1>
+    <button type="button" class="usuario-logado" id="usuario-logado" title="Abrir Meus dados" hidden></button>
     <nav class="tabs" role="tablist">
       <button id="tab-cot" role="tab" aria-selected="true" data-view="cotacao">Nova cotação</button>
       <button id="tab-cat" role="tab" aria-selected="false" data-view="planos">Planos e valores</button>
@@ -142,6 +143,17 @@
     <form class="panel cfg-painel" id="dados-form" data-cfg="dados" novalidate hidden>
       <h2>Meus dados</h2>
       <p class="note" style="margin:0">Estes dados aparecem no rodapé da imagem e na assinatura da mensagem das cotações feitas com o seu login.</p>
+      <div class="foto-campo" id="foto-campo" hidden>
+        <span class="usr-avatar foto-previa" id="foto-previa" aria-hidden="true"></span>
+        <div class="foto-acoes">
+          <div class="actions">
+            <button class="btn" type="button" id="foto-escolher">Escolher foto</button>
+            <button class="btn" type="button" id="foto-remover" hidden>Remover foto</button>
+          </div>
+          <p class="note" id="foto-dica">JPG, PNG ou WebP. A foto aparece no menu ao lado do seu nome.</p>
+        </div>
+        <input id="foto-arquivo" type="file" accept="image/png,image/jpeg,image/webp" aria-label="Foto do usuário" hidden>
+      </div>
       <div class="row">
         <div class="field"><label for="c-nome">Seu nome</label><input id="c-nome" type="text" placeholder="Ex.: Diego Araújo"></div>
         <div class="field"><label for="c-fone">Seu telefone</label><input id="c-fone" type="tel" placeholder="(34) 99999-0000"></div>

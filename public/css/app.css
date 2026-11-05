@@ -75,6 +75,18 @@ h2{font-family:var(--display);font-weight:600;font-size:19px;margin:0}
 .usr-quem small{display:block;font-size:13px;color:var(--muted)}
 .usr-voce{color:var(--muted)}
 .usr-avatar{flex:none;display:grid;place-items:center;width:36px;height:36px;border-radius:50%;background:var(--accent-soft);color:var(--pine);font-weight:700}
+.usr-avatar{overflow:hidden}
+.usr-avatar img{display:block;width:100%;height:100%;object-fit:cover}
+.foto-campo{display:flex;flex-wrap:wrap;align-items:center;gap:14px}
+.foto-previa{width:72px;height:72px;font-size:26px}
+.foto-acoes{min-width:0;flex:1 1 220px}
+.foto-acoes .actions{margin:0}
+.foto-acoes .note{margin:6px 0 0}
+.usuario-logado{display:flex;align-items:center;gap:10px;min-width:0;padding:8px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.usuario-logado:hover{border-color:var(--pine)}
+.usuario-logado-texto{min-width:0}
+.usuario-logado-texto b{display:block;font-size:14px;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.usuario-logado-texto small{display:block;font-size:12px;color:var(--muted)}
 .usr-selo{display:inline-block;margin:2px 4px 2px 0;padding:4px 10px;border-radius:999px;background:var(--line);color:var(--ink);font-size:13px;font-weight:600;white-space:nowrap}
 .usr-selo.admin{background:var(--ink);color:var(--surface)}
 .usr-selo.desativado{background:var(--danger-soft);color:var(--danger)}

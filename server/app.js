@@ -1,8 +1,8 @@
 // Aplicação Express: API REST e arquivos estáticos. Não abre porta; quem faz isso é o index.js.
 import express from "express";
 import { randomUUID } from "node:crypto";
-import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { basename, join } from "node:path";
 import { completarCarencias, lerArea, normFone } from "../public/js/calculo.js";
 import { ErroBackup, STATUS } from "./db.js";
 import { ErroLeitura, MODELO_PADRAO, lerTabela } from "./claude.js";
@@ -14,6 +14,8 @@ import { montarSnapshot, renderizarProposta } from "./proposta-html.js";
 import { MAX_PLANOS_COMPARATIVO, renderizarComparativo } from "./comparativo-html.js";
 
 const MAX_UPLOAD = 15 * 1024 * 1024;
+// A tela já reduz a foto antes de enviar.
+const MAX_FOTO = 2 * 1024 * 1024;
 
 class ErroEntrada extends Error {}
 class ErroNaoEncontrado extends Error {}
@@ -463,6 +465,28 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     res.json(req.usuario);
   });
 
+  // A foto fica junto das outras imagens enviadas; o nome vem sempre do servidor.
+  const apagarFoto = (foto) => {
+    if (foto) rmSync(join(pastaUploads, basename(foto)), { force: true });
+  };
+  app.post("/api/eu/foto", express.raw({ type: ["image/png", "image/jpeg", "image/webp"], limit: MAX_FOTO }), (req, res) => {
+    if (!req.usuario) throw new ErroEntrada("Entre com o seu login para escolher uma foto.");
+    const dados = req.body;
+    const ext = Buffer.isBuffer(dados) ? tipoImagem(dados) : null;
+    if (!ext) throw new ErroEntrada("Envie uma imagem PNG, JPG ou WebP.");
+    const nome = `foto-${randomUUID()}.${ext}`;
+    writeFileSync(join(pastaUploads, nome), dados);
+    apagarFoto(req.usuario.foto);
+    const { foto } = banco.atualizarDadosDoUsuario(req.usuario.id, { foto: `uploads/${nome}` });
+    res.status(201).json({ foto });
+  });
+  app.delete("/api/eu/foto", (req, res) => {
+    if (!req.usuario) throw new ErroEntrada("Entre com o seu login para remover a foto.");
+    apagarFoto(req.usuario.foto);
+    banco.atualizarDadosDoUsuario(req.usuario.id, { foto: "" });
+    res.status(204).end();
+  });
+
   app.put("/api/eu/senha", (req, res) => {
     if (!req.usuario) throw new ErroEntrada("Entre com o seu login para alterar a senha.");
     const hashAtual = banco.lerHashDaSenha(req.usuario.id);
@@ -520,6 +544,7 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     if (req.usuario?.id === alvo.id) throw new ErroEntrada("Você não pode excluir o seu próprio usuário.");
     if (alvo.perfil === "admin" && alvo.ativo && banco.contarAdminsAtivos() <= 1) throw new ErroEntrada("O sistema precisa de pelo menos um administrador ativo.");
     banco.excluirUsuario(alvo.id);
+    apagarFoto(alvo.foto);
     res.status(204).end();
   });
 

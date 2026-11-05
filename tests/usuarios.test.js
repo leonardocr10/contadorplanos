@@ -32,6 +32,41 @@ async function subir(t, env = { LOGIN_USUARIO: "chefe", LOGIN_SENHA: SENHA_ADMIN
 
 const pedido = { planos: ["plam-saude-pf"], vidas: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0], over: {}, cliente: "Maria", opts: {} };
 
+test("cada usuário troca e remove a própria foto, e o arquivo antigo é apagado", async (t) => {
+  const { base, entrar, pedir } = await subir(t);
+  const admin = (await entrar("chefe", SENHA_ADMIN)).cookie;
+  await pedir(admin, "/api/usuarios", "POST", { login: "corretor1", email: "c@exemplo.com", senha: "senha-do-corretor" });
+  const comum = (await entrar("corretor1", "senha-do-corretor")).cookie;
+  const enviar = (cookie, corpo, tipo = "image/jpeg") => fetch(base + "/api/eu/foto", { method: "POST", redirect: "manual", headers: { cookie, "Content-Type": tipo }, body: corpo });
+  const jpg = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 0, 0, 0]);
+  assert.notEqual((await enviar("", jpg)).status, 201);
+  // O conteúdo decide o tipo, não o cabeçalho.
+  assert.equal((await enviar(comum, Buffer.from("<svg onload=alert(1)>"))).status, 400);
+  assert.equal((await enviar(comum, Buffer.alloc(3 * 1024 * 1024, 0xff))).status, 413);
+  const primeira = await enviar(comum, jpg);
+  assert.equal(primeira.status, 201);
+  const { foto } = await primeira.json();
+  assert.match(foto, /^uploads\/foto-[\w-]+\.jpg$/);
+  assert.equal((await (await pedir(comum, "/api/eu")).json()).foto, foto);
+  assert.equal((await pedir(comum, `/${foto}`)).status, 200);
+  assert.notEqual((await pedir("", `/${foto}`)).status, 200);
+  const cadastro = await (await pedir(admin, "/api/usuarios")).json();
+  const u = cadastro.find((x) => x.login === "corretor1");
+  assert.equal(u.foto, foto);
+  // Trocar apaga a anterior.
+  const { foto: segunda } = await (await enviar(comum, jpg)).json();
+  assert.notEqual(segunda, foto);
+  assert.equal((await pedir(comum, `/${foto}`)).status, 404);
+  // Remover limpa o cadastro e o arquivo.
+  assert.equal((await pedir(comum, "/api/eu/foto", "DELETE")).status, 204);
+  assert.equal((await (await pedir(comum, "/api/eu")).json()).foto, "");
+  assert.equal((await pedir(comum, `/${segunda}`)).status, 404);
+  // Excluir o usuário não deixa a foto para trás.
+  const { foto: terceira } = await (await enviar(comum, jpg)).json();
+  assert.equal((await pedir(admin, `/api/usuarios/${u.id}`, "DELETE")).status, 204);
+  assert.equal((await pedir(admin, `/${terceira}`)).status, 404);
+});
+
 test("a senha guardada não é a senha e só confere com a certa", () => {
   const hash = gerarHash("minha-senha");
   assert.ok(!hash.includes("minha-senha"));

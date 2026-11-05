@@ -157,6 +157,10 @@ const MIGRACOES = [
         expira_em INTEGER NOT NULL
       );`);
   },
+  (db) => {
+    const existe = db.prepare("PRAGMA table_info(usuarios)").all().some((c) => c.name === "foto");
+    if (!existe) db.exec("ALTER TABLE usuarios ADD COLUMN foto TEXT NOT NULL DEFAULT ''");
+  },
 ];
 
 const VERSAO_TEXTOS_COPARTICIPACAO = 11;
@@ -221,7 +225,7 @@ function linhaParaCotacao(l) {
 }
 
 function linhaParaUsuario(l) {
-  return { id: l.id, login: l.login, email: l.email, perfil: l.perfil, permissoes: permissoesDoUsuario(l.perfil, l.permissoes), nome: l.nome, fone: l.fone, empresa: l.empresa, ativo: !!l.ativo, criadoEm: l.criado_em };
+  return { id: l.id, login: l.login, email: l.email, perfil: l.perfil, permissoes: permissoesDoUsuario(l.perfil, l.permissoes), nome: l.nome, fone: l.fone, empresa: l.empresa, foto: l.foto, ativo: !!l.ativo, criadoEm: l.criado_em };
 }
 
 function linhaParaProposta(l) {
@@ -563,12 +567,13 @@ export class Banco {
     return this.obterUsuario(id);
   }
 
-  atualizarDadosDoUsuario(id, { nome, fone, empresa, email }) {
+  atualizarDadosDoUsuario(id, { nome, fone, empresa, email, foto }) {
     const st = (coluna, valor) => { if (valor !== undefined) this.db.prepare(`UPDATE usuarios SET ${coluna} = ? WHERE id = ?`).run(valor, id); };
     st("nome", nome);
     st("fone", fone);
     st("empresa", empresa);
     st("email", email);
+    st("foto", foto);
     return this.obterUsuario(id);
   }
 

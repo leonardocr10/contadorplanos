@@ -5,7 +5,7 @@ import { iniciarPlanos, renderCat } from "./planos.js";
 import { carregarHistorico, iniciarHistorico, renderHist } from "./historico.js";
 import { carregarAceites, renderAceites } from "./aceites.js";
 import { carregarDocumentos, iniciarDocumentos, renderDocumentos } from "./documentos.js";
-import { aplicarPerfil, carregarUsuarios, iniciarConfiguracoes } from "./configuracoes.js";
+import { abrirItem, aplicarPerfil, avatarDoUsuario, carregarUsuarios, iniciarConfiguracoes, mostrarUsuarioLogado } from "./configuracoes.js";
 import { iniciarFiltroSelects } from "./filtro-select.js";
 
 iniciarFiltroSelects();
@@ -37,8 +37,58 @@ const lerDados = () => ({
 });
 const dadosAlterados = () => {
   const d = lerDados();
-  return CAMPOS_CONFIG.some((k) => d[k] !== (S.cor?.[k] ?? "")) || d.email !== (S.eu?.email ?? "");
+  return fotoPendente !== undefined || CAMPOS_CONFIG.some((k) => d[k] !== (S.cor?.[k] ?? "")) || d.email !== (S.eu?.email ?? "");
 };
+
+/* A foto escolhida só é enviada ao salvar: undefined = sem mudança, null = remover. */
+let fotoPendente;
+const LADO_DA_FOTO = 256;
+async function reduzirFoto(arquivo) {
+  const imagem = await createImageBitmap(arquivo);
+  const lado = Math.min(imagem.width, imagem.height);
+  const tela = document.createElement("canvas");
+  tela.width = tela.height = LADO_DA_FOTO;
+  tela.getContext("2d").drawImage(imagem, (imagem.width - lado) / 2, (imagem.height - lado) / 2, lado, lado, 0, 0, LADO_DA_FOTO, LADO_DA_FOTO);
+  imagem.close();
+  const blob = await new Promise((ok) => tela.toBlob(ok, "image/jpeg", 0.85));
+  return { blob, previa: tela.toDataURL("image/jpeg", 0.85) };
+}
+function pintarFoto(src) {
+  const nome = $("#c-nome").value || S.eu?.login;
+  $("#foto-previa").innerHTML = avatarDoUsuario({ foto: src, nome, login: S.eu?.login });
+  $("#foto-remover").hidden = !src;
+  $("#foto-dica").textContent = fotoPendente !== undefined
+    ? "Clique em Salvar alterações para aplicar."
+    : "JPG, PNG ou WebP. A foto aparece no menu ao lado do seu nome.";
+}
+$("#foto-escolher").onclick = () => $("#foto-arquivo").click();
+$("#foto-arquivo").onchange = async () => {
+  const arquivo = $("#foto-arquivo").files[0];
+  $("#foto-arquivo").value = "";
+  if (!arquivo) return;
+  $("#dados-msg").textContent = "";
+  try {
+    const { blob, previa } = await reduzirFoto(arquivo);
+    fotoPendente = blob;
+    pintarFoto(previa);
+  } catch {
+    $("#dados-msg").textContent = "Não deu para ler esta imagem. Use um arquivo JPG, PNG ou WebP.";
+  }
+};
+$("#foto-remover").onclick = () => {
+  fotoPendente = S.eu?.foto ? null : undefined;
+  pintarFoto("");
+};
+$("#usuario-logado").onclick = () => { show("configuracoes"); abrirItem("dados"); };
+async function salvarFoto() {
+  if (fotoPendente === undefined) return;
+  if (fotoPendente) S.eu.foto = (await api("/api/eu/foto", { metodo: "POST", corpo: fotoPendente, tipo: "image/jpeg" })).foto;
+  else {
+    await api("/api/eu/foto", { metodo: "DELETE" });
+    S.eu.foto = "";
+  }
+  fotoPendente = undefined;
+}
 // Nova cotação recarrega a página: avisa antes de perder o que não foi salvo.
 addEventListener("beforeunload", (e) => { if (S.eu && dadosAlterados()) e.preventDefault(); });
 $("#dados-form").onsubmit = async (e) => {
@@ -52,7 +102,11 @@ $("#dados-form").onsubmit = async (e) => {
     const { email, ...cor } = dados;
     S.cor = cor;
     S.eu.email = email;
+    S.eu.nome = cor.nome;
     $("#c-email").value = email;
+    await salvarFoto();
+    pintarFoto(S.eu.foto);
+    mostrarUsuarioLogado(S.eu);
     render();
     toast("Dados salvos");
     // O cadastro de usuários mostra estes mesmos dados.
@@ -127,6 +181,7 @@ async function carregar() {
     S.cor = { nome: eu.nome ?? "", fone: eu.fone ?? "", empresa: eu.empresa ?? "" };
     for (const k of CAMPOS_CONFIG) $("#c-" + k).value = S.cor[k];
     $("#c-email").value = eu.email ?? "";
+    pintarFoto(eu.foto);
   } catch (e) {
     S.dbErr = e.message;
   }
