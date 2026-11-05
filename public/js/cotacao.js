@@ -46,14 +46,17 @@ function renderSel() {
   const box = $("#sel"), items = planosEscolhidos();
   if (!items.length) { box.innerHTML = ""; return; }
   const tv = totalVidas(S.vidas);
+  // Com os dois tipos marcados, cada plano diz o seu.
+  const misturados = new Set(items.map((p) => p.categoria)).size > 1;
+  const tipoDe = (p) => (misturados ? `${p.categoria === "CNPJ" ? "CNPJ" : "Pessoa física"} · ` : "");
   box.innerHTML = `<div class="note">Valores desta cotação:</div>` + items.map((p) => {
     const v = prices(p);
     const remover = `<button class="iconbtn" title="Tirar da proposta" aria-label="Tirar ${esc(p.nome)} da proposta" data-rm="1">×</button>`;
-    if (v.porFaixa) return `<div class="selitem" data-id="${esc(p.id)}"><div class="name">${esc(p.nome)}<small>${esc(p.subtitulo || "")} · ${tv} ${tv === 1 ? "vida" : "vidas"}</small></div>
+    if (v.porFaixa) return `<div class="selitem" data-id="${esc(p.id)}"><div class="name">${esc(p.nome)}<small>${tipoDe(p)}${esc(p.subtitulo || "")} · ${tv} ${tv === 1 ? "vida" : "vidas"}</small></div>
       <div class="tot"><small>Enfermaria total</small>${v.enf != null ? "R$ " + brl(v.enf) : "falta valor"}</div>
       <div class="tot"><small>Apartamento total</small>${v.apto != null ? "R$ " + brl(v.apto) : "falta valor"}</div>
       ${remover}</div>`;
-    return `<div class="selitem" data-id="${esc(p.id)}"><div class="name">${esc(p.nome)}<small>${esc(p.subtitulo || "")}</small></div>
+    return `<div class="selitem" data-id="${esc(p.id)}"><div class="name">${esc(p.nome)}<small>${tipoDe(p)}${esc(p.subtitulo || "")}</small></div>
       <div class="field"><label for="enf-${esc(p.id)}">Enfermaria R$</label><input class="money" type="text" inputmode="decimal" id="enf-${esc(p.id)}" data-k="enf" value="${brl(v.enf)}"></div>
       <div class="field"><label for="apto-${esc(p.id)}">Apartamento R$</label><input class="money" type="text" inputmode="decimal" id="apto-${esc(p.id)}" data-k="apto" value="${brl(v.apto)}"></div>
       ${remover}</div>`;
@@ -273,7 +276,7 @@ export function iniciarCotacao() {
     if (!b) return;
     S.tipo = b.dataset.t;
     for (const x of $("#tipo").children) x.setAttribute("aria-pressed", x === b);
-    S.selected = S.selected.filter((id) => (S.plans.find((p) => p.id === id) || {}).categoria === S.tipo);
+    // Os planos marcados continuam ao trocar de tipo, para comparar pessoa física com CNPJ.
     render();
   };
   for (const id of ["cliente", "fone", "o-copart", "o-rede", "o-acom"]) $("#" + id).addEventListener("input", render);

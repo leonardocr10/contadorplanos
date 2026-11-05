@@ -62,6 +62,28 @@ test("plano sem a acomodação não concorre ao menor valor da faixa", () => {
   assert.deepEqual(destaquesDaFaixa(html, "0 a 18 anos · 2 vidas"), [[], ["Apto"]]);
 });
 
+test("compara pessoa física com CNPJ e mostra o tipo de cada coluna", () => {
+  const html = comparar("plam-saude-pf", "plam-total-cnpj");
+  assert.deepEqual([...html.matchAll(/<span class="tipo">(.*?)<\/span>/g)].map((m) => m[1]), ["Pessoa física", "CNPJ"]);
+  assert.equal(celulas(html, "Enfermaria").length, 2);
+});
+
+test("plano com faixas agrupadas mostra o valor nas faixas detalhadas dos outros", () => {
+  const vidas = { ...pedido, vidas: [0, 0, 1, 0, 1, 0, 0, 0, 0, 0] };
+  for (const ids of [["plam-total-cnpj", "plamedh-basic-pme"], ["plamedh-basic-pme", "plam-total-cnpj"]]) {
+    const html = renderizarComparativo(ids.map((id) => montarSnapshot(plano(id), vidas, corretor)));
+    const coluna = ids.indexOf("plamedh-basic-pme");
+    // A tabela do Basic junta 19 a 58 anos em um só valor.
+    assert.equal(celulas(html, "24 a 28 anos · 1 vida")[coluna], "Enf. R$ 275,85 Apto —");
+    assert.equal(celulas(html, "34 a 38 anos · 1 vida")[coluna], "Enf. R$ 275,85 Apto —");
+    assert.ok(html.includes("24 a 28 e 34 a 38 anos"));
+  }
+});
+
+test("planos do mesmo tipo não repetem o tipo nas colunas", () => {
+  assert.ok(!comparar("plam-saude-pf", "plamedh-pf").includes('<span class="tipo">'));
+});
+
 test("valores iguais não recebem destaque", () => {
   const html = comparar("plam-saude-pf", "plamedh-pf");
   assert.deepEqual(celulas(html, "Enfermaria"), ["R$ 346,06", "R$ 346,06"]);
@@ -130,6 +152,7 @@ test("rota do comparativo aceita de 2 a 4 planos e não salva nada", async (t) =
   const certo = await enviar(["plam-saude-pf", "amil-ouro-total"]);
   assert.equal(certo.status, 200);
   assert.match((await certo.json()).html, /Comparativo de planos/);
+  assert.equal((await enviar(["plam-saude-pf", "plam-total-cnpj"])).status, 200);
   assert.equal((await enviar(["plam-saude-pf"])).status, 400);
   assert.equal((await enviar(planos.slice(0, 5).map((p) => p.id))).status, 400);
   assert.equal((await enviar(["plam-saude-pf", "nao-existe"])).status, 400);

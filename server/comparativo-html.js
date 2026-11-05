@@ -94,12 +94,25 @@ function linhaPreco(titulo, valores) {
 }
 
 // Valor por pessoa em cada faixa, igual à proposta de cada plano. A snapshot guarda o subtotal da faixa.
+// Algumas tabelas agrupam idades ("19 a 58"), então a faixa de cada linha é localizada pelas idades que cobre.
+function idadesDaFaixa(faixa) {
+  const [de, ate] = String(faixa).match(/\d+/g).map(Number);
+  return { de, ate: ate ?? Infinity };
+}
+
+// As linhas do comparativo vêm do plano com as faixas mais detalhadas.
+function propostaMaisDetalhada(propostas) {
+  const amplitude = (P) => P.faixas.linhas.reduce((soma, l) => { const { de, ate } = idadesDaFaixa(l.faixa); return soma + Math.min(ate, 120) - de; }, 0);
+  return [...propostas].sort((a, b) => b.faixas.linhas.length - a.faixas.linhas.length || amplitude(a) - amplitude(b))[0];
+}
+
 function blocoFaixas(propostas) {
-  const linhas = propostas.find((P) => P.faixas.linhas.length)?.faixas.linhas ?? [];
+  const linhas = propostaMaisDetalhada(propostas).faixas.linhas;
   const temEnf = propostas.some((P) => P.faixas.temEnf), temApto = propostas.some((P) => P.faixas.temApto);
   if (!linhas.length || (!temEnf && !temApto)) return "";
   const porPessoa = (P, faixa, campo, tem) => {
-    const l = P.faixas.linhas.find((x) => x.faixa === faixa);
+    const idades = idadesDaFaixa(faixa);
+    const l = P.faixas.linhas.find((x) => { const { de, ate } = idadesDaFaixa(x.faixa); return de <= idades.de && ate >= idades.ate; });
     return tem && l?.[campo] != null ? r2(l[campo] / l.n) : null;
   };
   const coluna = (rotulo, faixa, campo, tem) => {
@@ -141,6 +154,7 @@ thead th{padding:14px 12px;vertical-align:top;font-weight:800;border-top:5px sol
 thead th:first-child{border-top:0}
 .logo-plano{display:block;height:44px;width:auto;max-width:170px;object-fit:contain;margin:0 auto 10px}
 .nome{display:block;font-size:16px;line-height:1.2;color:var(--cor)}
+.tipo{display:inline-block;margin-top:6px;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:800;line-height:1.4;color:#fff;background:var(--cor)}
 .sub{display:block;margin-top:4px;font-size:12px;font-weight:500;line-height:1.3;color:var(--muted)}
 tbody th{padding:7px 12px;font-weight:600;text-align:left;border-bottom:1px solid var(--line)}
 tbody td{padding:7px 12px;text-align:center;border-bottom:1px solid var(--line);border-left:1px solid var(--line);overflow-wrap:anywhere}
@@ -162,10 +176,14 @@ footer{font-size:12px;line-height:1.5;color:var(--muted)}
 export function renderizarComparativo(snapshots) {
   const propostas = snapshots.map(paraProposta);
   const n = propostas.length, base = propostas[0];
-  const vidas = base.vidas ? `${base.vidas} ${base.vidas === 1 ? "vida" : "vidas"}${base.faixaEtaria ? ` · ${base.faixaEtaria}` : ""}` : "";
+  const faixaEtaria = propostaMaisDetalhada(propostas).faixaEtaria;
+  const vidas = base.vidas ? `${base.vidas} ${base.vidas === 1 ? "vida" : "vidas"}${faixaEtaria ? ` · ${faixaEtaria}` : ""}` : "";
+  // Só quando há os dois tipos na comparação: aí o tipo é o que separa as colunas.
+  const misturados = new Set(snapshots.map((s) => s.plano.categoria)).size > 1;
   const colunas = snapshots.map((s, i) => {
     const cores = paletaProposta(s.plano);
-    return `<th scope="col" style="--cor:${cores.navy}">${logoDoPlano(propostas[i].plano)}<span class="nome">${esc(propostas[i].plano)}</span>${propostas[i].subtitulo ? `<span class="sub">${esc(propostas[i].subtitulo)}</span>` : ""}</th>`;
+    const tipo = misturados ? `<span class="tipo">${s.plano.categoria === "CNPJ" ? "CNPJ" : "Pessoa física"}</span>` : "";
+    return `<th scope="col" style="--cor:${cores.navy}">${logoDoPlano(propostas[i].plano)}<span class="nome">${esc(propostas[i].plano)}</span>${tipo}${propostas[i].subtitulo ? `<span class="sub">${esc(propostas[i].subtitulo)}</span>` : ""}</th>`;
   }).join("");
 
   const taxas = snapshots.map((s) => s.plano.taxa || null);
