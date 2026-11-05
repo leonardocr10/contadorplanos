@@ -102,13 +102,14 @@ test("nome, telefone e corretora são de cada login e vão na proposta dele", as
   assert.ok(doAdmin.includes("Dono") && !doAdmin.includes("Corretor Um"));
 });
 
-test("troca a própria senha só com a nova, e as outras sessões caem", async (t) => {
+test("troca a própria senha conferindo a atual, e as outras sessões caem", async (t) => {
   const { entrar, pedir } = await subir(t);
   const a = (await entrar("chefe", SENHA_ADMIN)).cookie, outra = (await entrar("chefe", SENHA_ADMIN)).cookie;
-  const trocar = (nova) => pedir(a, "/api/eu/senha", "PUT", { nova });
-  assert.equal((await pedir("", "/api/eu/senha", "PUT", { nova: "nova-senha-longa" })).status, 401);
-  assert.equal((await trocar("curta")).status, 400);
-  assert.equal((await trocar("nova-senha-longa")).status, 200);
+  const trocar = (atual, nova) => pedir(a, "/api/eu/senha", "PUT", { atual, nova });
+  assert.equal((await pedir(a, "/api/eu/senha", "PUT", { nova: "nova-senha-longa" })).status, 400);
+  assert.equal((await trocar("errada", "nova-senha-longa")).status, 400);
+  assert.equal((await trocar(SENHA_ADMIN, "curta")).status, 400);
+  assert.equal((await trocar(SENHA_ADMIN, "nova-senha-longa")).status, 200);
   assert.equal((await pedir(a, "/api/eu")).status, 200);
   assert.equal((await pedir(outra, "/api/eu")).status, 401);
   assert.equal((await entrar("chefe", SENHA_ADMIN)).status, 401);

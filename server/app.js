@@ -7,7 +7,7 @@ import { completarCarencias, lerArea, normFone } from "../public/js/calculo.js";
 import { ErroBackup, STATUS } from "./db.js";
 import { ErroLeitura, MODELO_PADRAO, lerTabela } from "./claude.js";
 import { criarLogin } from "./login.js";
-import { gerarHash } from "./senhas.js";
+import { conferirSenha, gerarHash } from "./senhas.js";
 import { criarEnviadorDeEmail } from "./email.js";
 import { NIVEIS, TELAS, atende } from "./permissoes.js";
 import { montarSnapshot, renderizarProposta } from "./proposta-html.js";
@@ -465,6 +465,8 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
 
   app.put("/api/eu/senha", (req, res) => {
     if (!req.usuario) throw new ErroEntrada("Entre com o seu login para alterar a senha.");
+    const hashAtual = banco.lerHashDaSenha(req.usuario.id);
+    if (!conferirSenha(req.body?.atual ?? "", hashAtual)) throw new ErroEntrada("A senha atual está incorreta.");
     const hash = gerarHash(validarSenha(req.body?.nova));
     banco.alterarSenhaDoUsuario(req.usuario.id, hash);
     login.manterSessao(req.tokenDaSessao, hash);
