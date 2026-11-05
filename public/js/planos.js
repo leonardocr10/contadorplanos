@@ -2,6 +2,7 @@
 import { FAIXAS, brl, colarPlanilha, parseBRL } from "./calculo.js";
 import { $, S, api, carregarPlanos, esc, render, toast } from "./estado.js";
 import { wireUpdater } from "./atualizar.js";
+import { filtrarOpcoes } from "./filtro-select.js";
 
 const IMAGES = {
   "img/plam-carencia-2026.jpg": "PLAM – carências (mar/2026)", "img/plam-copart-2026.jpg": "PLAM – coparticipação (mar/2026)",
@@ -21,8 +22,10 @@ export function renderCat() {
   const box = $("#cat");
   if (!S.loaded) { box.innerHTML = `<div class="status">${S.dbErr ? esc(S.dbErr) : "Carregando planos…"}</div>`; return; }
   if (!S.plans.length) { box.innerHTML = `<div class="status">Nenhum plano cadastrado ainda. Clique em <b>Novo plano</b> para adicionar o primeiro.</div>`; return; }
+  const encontrados = filtrarOpcoes(S.plans.map((p) => ({ plano: p, texto: `${p.nome} ${p.subtitulo || ""}` })), $("#cat-busca").value).map((o) => o.plano);
+  if (!encontrados.length) { box.innerHTML = `<div class="status">Nenhum plano encontrado.</div>`; return; }
   box.innerHTML = ["PF", "CNPJ"].map((cat) => {
-    const l = S.plans.filter((p) => p.categoria === cat);
+    const l = encontrados.filter((p) => p.categoria === cat);
     if (!l.length) return "";
     return `<div class="label" style="margin-top:6px">${cat === "PF" ? "Pessoa física" : "CNPJ"}</div>` + l.map((p) => `<div class="catrow"><div class="t"><b>${p.ativo === false ? '<span class="pill off">OCULTO</span>' : ""}${esc(p.nome)}</b></div><button class="btn" data-ed="${esc(p.id)}">Editar</button></div>`).join("");
   }).join("");
@@ -168,6 +171,7 @@ function openEditor(p) {
 
 export function iniciarPlanos() {
   $("#novo").onclick = () => openEditor(null);
+  $("#cat-busca").addEventListener("input", renderCat);
   $("#modal").addEventListener("mousedown", (e) => { if (e.target.id === "modal") closeModal(); });
   addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#modal").hidden) closeModal(); });
 }
