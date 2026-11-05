@@ -236,7 +236,6 @@ function pintarVisor() {
   $("#visor-img").alt = `Proposta ${m.p.nome}`;
   $("#visor-conta").textContent = cards.length > 1 ? `${visorIndice + 1} de ${cards.length}` : "";
   $("#visor-ant").hidden = $("#visor-prox").hidden = cards.length < 2;
-  $("#visor-corpo").scrollTo(0, 0);
 }
 function abrirVisor(i) {
   visorIndice = i;

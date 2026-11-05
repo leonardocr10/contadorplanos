@@ -229,9 +229,10 @@ details textarea{margin-top:8px;min-height:200px;font:13px/1.5 var(--mono)}
 .visor-nome{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;min-width:0}
 .visor-botoes{display:flex;align-items:center;gap:8px}
 .visor-botoes .btn{padding:6px 12px;font-size:13px}
-.visor-corpo{flex:1;min-height:0;overflow:auto;padding:12px;background:var(--bg)}
-/* A imagem ocupa toda a largura da janela e a rolagem fica só na vertical. */
-.visor-corpo img{display:block;width:100%;height:auto;border-radius:6px}
+.visor-corpo{position:relative;flex:1;min-height:0;overflow:hidden;background:var(--bg)}
+/* A imagem aparece sempre inteira, do maior tamanho que couber na janela, sem rolagem. */
+.visor-corpo img{position:absolute;inset:12px;width:calc(100% - 24px);height:calc(100% - 24px);object-fit:contain}
+html:has(.visor[open]){overflow:hidden}
 .visor-rodape{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px;padding:12px 16px;border-top:1px solid var(--line)}
 .visor .btn.primary{background:var(--pine);border-color:var(--pine);color:var(--pine-ink)}
 .imgs figcaption{font-size:12px;color:var(--muted);line-height:1.3}
