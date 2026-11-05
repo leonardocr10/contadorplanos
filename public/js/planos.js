@@ -24,7 +24,7 @@ export function renderCat() {
   if (!S.plans.length) { box.innerHTML = `<div class="status">Nenhum plano cadastrado ainda. Clique em <b>Novo plano</b> para adicionar o primeiro.</div>`; return; }
   const encontrados = filtrarOpcoes(S.plans.map((p) => ({ plano: p, texto: `${p.nome} ${p.subtitulo || ""}` })), $("#cat-busca").value).map((o) => o.plano);
   if (!encontrados.length) { box.innerHTML = `<div class="status">Nenhum plano encontrado.</div>`; return; }
-  if (!encontrados.some((p) => p.id === planoVisto)) planoVisto = encontrados[0].id;
+  if (!encontrados.some((p) => p.id === planoVisto)) planoVisto = null;
   const lista = ["PF", "CNPJ"].map((cat) => {
     const l = encontrados.filter((p) => p.categoria === cat);
     if (!l.length) return "";
@@ -92,7 +92,7 @@ function redeDoPlano(p) {
 }
 
 function detalheDoPlano(p) {
-  if (!p) return "";
+  if (!p) return `<p class="note">Selecione um plano na lista para ver as informações dele.</p>`;
   const secao = (titulo, conteudo) => (conteudo ? `<section><h3>${titulo}</h3>${conteudo}</section>` : "");
   const dados = [
     p.categoria === "CNPJ" ? "CNPJ" : "Pessoa física",
@@ -123,6 +123,10 @@ export function openModal() {
 export function closeModal() {
   $("#modal").hidden = true;
   $("#editor").innerHTML = "";
+  // A mesma janela serve ao comparativo: o tamanho do editor não passa para ele.
+  $("#editor").classList.remove("editor-plano");
+  $("#editor").style.width = "";
+  $("#editor").style.height = "";
   document.documentElement.style.overflow = "";
   try { lastFocus?.focus(); } catch { /* o botão pode ter saído da tela */ }
 }
@@ -132,6 +136,7 @@ function openEditor(p) {
   p = p || { fidelidade: S.tipo === "CNPJ", categoria: S.tipo, subtitulo: "Plano com coparticipação", cidade: "Uberlândia", ativo: true, ordem: (S.plans.length + 1) * 10 };
   const opt = (cur) => `<option value="">Sem imagem</option>` + (cur && !IMAGES[cur] ? `<option value="${esc(cur)}" selected>Imagem enviada</option>` : "") + Object.entries(IMAGES).map(([k, v]) => `<option value="${k}" ${cur === k ? "selected" : ""}>${v}</option>`).join("");
   openModal();
+  ed.classList.add("editor-plano");
   ed.innerHTML = `<div class="modal-head"><h2 id="ed-title">${isNew ? "Novo plano" : "Editar " + esc(p.nome)}</h2><button class="iconbtn" id="e-x" aria-label="Fechar">×</button></div>
   <div class="upd">
     <div class="label">Atualizar com nova tabela</div>
@@ -141,6 +146,7 @@ function openEditor(p) {
     <div id="u-work" class="stack" style="gap:12px"></div>
     <div id="u-msg" class="note" role="status"></div>
   </div>
+  <div class="ed-colunas"><div class="ed-coluna">
   <div class="row">
     <div class="field"><label for="e-nome">Nome</label><input id="e-nome" type="text" value="${esc(p.nome || "")}"></div>
     <div class="field"><label for="e-cat">Tipo</label><select id="e-cat"><option value="PF" ${p.categoria === "PF" ? "selected" : ""}>Pessoa física</option><option value="CNPJ" ${p.categoria === "CNPJ" ? "selected" : ""}>CNPJ</option></select></div>
@@ -169,6 +175,11 @@ function openEditor(p) {
     <div class="field"><label for="e-cor2">Cor escura (cabeçalho e rodapé)</label><input id="e-cor2" type="color" value="${esc(p.corEscura || "#0b5a45")}"></div>
     <div class="field"><label for="e-ordem">Ordem na lista</label><input id="e-ordem" type="text" inputmode="numeric" value="${esc(p.ordem ?? "")}"></div>
   </div>
+  <div class="row">
+    <div class="field"><label for="e-imgcop">Imagem da coparticipação</label><select id="e-imgcop">${opt(p.imgCopart)}</select></div>
+    <div class="field"><label for="e-imgcar">Imagem das carências</label><select id="e-imgcar">${opt(p.imgCarencia)}</select></div>
+  </div>
+  </div><div class="ed-coluna">
   <div class="field"><label for="e-area">Área de comercialização (uma linha por estado, como MG: Uberlândia, Araguari). Define em quais cidades o plano aparece na cotação.</label><textarea id="e-area">${esc(p.areaComercializacao || "")}</textarea></div>
   <div class="field"><label for="e-rede">Rede hospitalar (um hospital por linha)</label><textarea id="e-rede">${esc(p.rede || "")}</textarea></div>
   <div class="field"><label for="e-desc">Observação do plano (opcional; aparece na imagem e no link se marcar "Mostrar observação")</label><textarea id="e-desc">${esc(p.descricao || "")}</textarea></div>
@@ -178,10 +189,7 @@ function openEditor(p) {
   <div class="field"><label for="e-ncop">Observação abaixo da coparticipação (opcional)</label><input id="e-ncop" type="text" value="${esc(p.copartNota || "")}"></div>
   <div class="field"><label for="e-tcar">Tabela de carências da proposta (1ª linha com os títulos; colunas separadas por | ). Quando preenchida, substitui a imagem.</label><textarea id="e-tcar" class="mono">${esc(p.carenciaTabela || "")}</textarea></div>
   <div class="field"><label for="e-ncar">Observação abaixo das carências (opcional)</label><input id="e-ncar" type="text" value="${esc(p.carenciaNota || "")}"></div>
-  <div class="row">
-    <div class="field"><label for="e-imgcop">Imagem da coparticipação</label><select id="e-imgcop">${opt(p.imgCopart)}</select></div>
-    <div class="field"><label for="e-imgcar">Imagem das carências</label><select id="e-imgcar">${opt(p.imgCarencia)}</select></div>
-  </div>
+  </div></div>
   <div class="actions modal-acoes"><button class="btn primary" id="e-save">Salvar plano</button><button class="btn" id="e-cancel">Cancelar</button>${isNew ? "" : `<button class="btn danger" id="e-del">Excluir plano</button>`}</div>
   <div id="e-confirm" hidden class="status">Excluir <b>${esc(p.nome)}</b> de vez? <div class="actions" style="margin-top:8px"><button class="btn danger" id="e-del2">Sim, excluir</button><button class="btn" id="e-del-no">Manter</button></div></div>
   <div id="e-msg" class="note"></div>`;

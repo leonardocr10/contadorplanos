@@ -206,6 +206,18 @@ details textarea{margin-top:8px;min-height:200px;font:13px/1.5 var(--mono)}
 .upages button[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
 .upages img{display:block;width:100%;border-radius:6px}
 .upages span{position:absolute;left:4px;bottom:4px;background:var(--ink);color:var(--bg);font-size:11px;font-weight:700;border-radius:4px;padding:0 5px}
+/* Editor de plano: janela grande, com o canto inferior direito para redimensionar. */
+.editor-plano{width:min(1500px,100%);height:calc(100vh - 48px);min-width:min(640px,100%);min-height:400px;max-width:100%;max-height:calc(100vh - 48px);overflow:auto;resize:both}
+.editor-plano>*{flex-shrink:0}
+.editor-plano .modal-head{top:-20px}
+.editor-plano .modal-acoes{bottom:-20px}
+.ed-colunas{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(480px,100%),1fr));gap:20px;align-items:start}
+.ed-coluna{display:flex;flex-direction:column;gap:14px;min-width:0}
+.editor-plano .ftab input{padding:5px 10px}
+.editor-plano #e-area{min-height:110px}
+.editor-plano #e-rede{min-height:200px}
+.editor-plano textarea.mono{min-height:220px}
+@media (max-width:900px){.editor-plano{height:auto;max-height:none;overflow:visible;resize:none}.editor-plano .modal-head{top:-24px}.editor-plano .modal-acoes{bottom:-24px}}
 .urev{display:flex;flex-direction:column;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px;min-width:0}
 input[type=color]{width:56px;height:40px;padding:3px;border:1px solid var(--line);border-radius:10px;background:var(--bg);cursor:pointer}
 textarea.mono{font:13px/1.5 var(--mono);min-height:140px}
