@@ -1,5 +1,5 @@
 // Tela "Planos e valores" e o editor do plano em janela modal.
-import { FAIXAS, brl, colarPlanilha, parseBRL } from "./calculo.js";
+import { ESTADOS, FAIXAS, brl, colarPlanilha, hasFaixas, lerArea, lines, parseBRL, redeDaCidade, resumoDaRede } from "./calculo.js";
 import { $, S, api, carregarPlanos, esc, render, toast } from "./estado.js";
 import { wireUpdater } from "./atualizar.js";
 import { filtrarOpcoes } from "./filtro-select.js";
@@ -24,12 +24,94 @@ export function renderCat() {
   if (!S.plans.length) { box.innerHTML = `<div class="status">Nenhum plano cadastrado ainda. Clique em <b>Novo plano</b> para adicionar o primeiro.</div>`; return; }
   const encontrados = filtrarOpcoes(S.plans.map((p) => ({ plano: p, texto: `${p.nome} ${p.subtitulo || ""}` })), $("#cat-busca").value).map((o) => o.plano);
   if (!encontrados.length) { box.innerHTML = `<div class="status">Nenhum plano encontrado.</div>`; return; }
-  box.innerHTML = ["PF", "CNPJ"].map((cat) => {
+  if (!encontrados.some((p) => p.id === planoVisto)) planoVisto = encontrados[0].id;
+  const lista = ["PF", "CNPJ"].map((cat) => {
     const l = encontrados.filter((p) => p.categoria === cat);
     if (!l.length) return "";
-    return `<div class="label" style="margin-top:6px">${cat === "PF" ? "Pessoa física" : "CNPJ"}</div>` + l.map((p) => `<div class="catrow"><div class="t"><b>${p.ativo === false ? '<span class="pill off">OCULTO</span>' : ""}${esc(p.nome)}</b></div><button class="btn" data-ed="${esc(p.id)}">Editar</button></div>`).join("");
+    return `<div class="label" style="margin-top:6px">${cat === "PF" ? "Pessoa física" : "CNPJ"}</div>` + l.map((p) => `<div class="catrow" data-ver="${esc(p.id)}"><button type="button" class="cat-nome">${p.ativo === false ? '<span class="pill off">OCULTO</span>' : ""}${esc(p.nome)}</button><button class="btn" data-ed="${esc(p.id)}">Editar</button></div>`).join("");
   }).join("");
+  box.innerHTML = `<div class="cat-mestre"><div class="cat cat-lista">${lista}</div><aside class="cat-detalhe" id="cat-detalhe" aria-live="polite"></aside></div>`;
   box.querySelectorAll("[data-ed]").forEach((b) => (b.onclick = () => openEditor(S.plans.find((p) => p.id === b.dataset.ed))));
+  box.querySelectorAll(".catrow").forEach((row) => row.querySelector(".cat-nome").addEventListener("click", () => { planoVisto = row.dataset.ver; pintarPlanoVisto(); }));
+  pintarPlanoVisto();
+}
+
+/* ---------- informações do plano selecionado ---------- */
+let planoVisto = null;
+
+function pintarPlanoVisto() {
+  for (const row of document.querySelectorAll("#cat .catrow")) {
+    const eh = row.dataset.ver === planoVisto;
+    row.classList.toggle("visto", eh);
+    row.querySelector(".cat-nome").setAttribute("aria-current", eh);
+  }
+  const painel = $("#cat-detalhe");
+  painel.innerHTML = detalheDoPlano(S.plans.find((p) => p.id === planoVisto));
+  painel.scrollTop = 0;
+}
+
+function tabelaDeTexto(texto) {
+  const linhas = lines(texto).map((l) => l.split("|").map((c) => c.trim()));
+  if (linhas.length < 2) return "";
+  return `<div class="cat-rolagem"><table class="ftab"><thead><tr>${linhas[0].map((c) => `<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>${linhas.slice(1).map((l) => `<tr>${l.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+}
+
+function valoresDoPlano(p) {
+  if (!hasFaixas(p)) {
+    const v = [p.enfermaria != null && `Enfermaria: R$ ${brl(p.enfermaria)}`, p.apartamento != null && `Apartamento: R$ ${brl(p.apartamento)}`].filter(Boolean);
+    return `<p>${v.length ? v.join(" · ") : "Valores sob consulta"}</p>`;
+  }
+  // Com 3 faixas, a linha de 19 a 23 anos vale para todas as idades até 58.
+  const faixas = p.faixasModelo === "3" ? [[0, "0 a 18"], [1, "19 a 58"], [9, "59 ou mais"]] : FAIXAS.map((f, i) => [i, f]);
+  const colunas = [["Enfermaria", p.faixasEnf], ["Apartamento", p.faixasApto], ["Enf. 3+ vidas", p.faixasEnfFamilia], ["Apto 3+ vidas", p.faixasAptoFamilia]].filter(([, c]) => c?.some((x) => x != null));
+  return `<div class="cat-rolagem"><table class="ftab"><thead><tr><th>Faixa etária</th>${colunas.map(([t]) => `<th>${t}</th>`).join("")}</tr></thead><tbody>${faixas.map(([i, f]) => `<tr><td>${f} anos</td>${colunas.map(([, c]) => `<td>${c[i] != null ? `R$ ${brl(c[i])}` : "—"}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
+}
+
+function areaDoPlano(p) {
+  const { estados } = lerArea(p.areaComercializacao);
+  if (!estados.length) return `<p>Não informada.</p>`;
+  return estados.map((e) => {
+    const nome = `${ESTADOS[e.uf]}: ${e.cidades.length} ${e.cidades.length === 1 ? "cidade" : "cidades"}`;
+    return e.cidades.length > 12 ? `<details><summary>${nome}</summary><p>${esc(e.cidades.join(", "))}</p></details>` : `<p><b>${nome}.</b> ${esc(e.cidades.join(", "))}</p>`;
+  }).join("");
+}
+
+function redeDoPlano(p) {
+  const linhas = lines(p.rede);
+  if (!linhas.length) return `<p>Não informada.</p>`;
+  const resumo = resumoDaRede(p);
+  const separada = resumo.cidades.length && (!resumo.semCidade || resumo.destinoSemCidade);
+  if (!separada) return `<ul>${linhas.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>`;
+  const cidades = resumo.cidades.map((c) => c.cidade);
+  if (resumo.semCidade && !cidades.includes(resumo.destinoSemCidade)) cidades.push(resumo.destinoSemCidade);
+  cidades.sort((a, b) => a.localeCompare(b, "pt-BR"));
+  return cidades.map((c) => {
+    const rede = redeDaCidade(p, c);
+    return `<details${cidades.length <= 3 ? " open" : ""}><summary>${esc(c)}: ${rede.length} ${rede.length === 1 ? "prestador" : "prestadores"}</summary><ul>${rede.map((l) => `<li>${esc(l)}</li>`).join("")}</ul></details>`;
+  }).join("");
+}
+
+function detalheDoPlano(p) {
+  if (!p) return "";
+  const secao = (titulo, conteudo) => (conteudo ? `<section><h3>${titulo}</h3>${conteudo}</section>` : "");
+  const dados = [
+    p.categoria === "CNPJ" ? "CNPJ" : "Pessoa física",
+    p.cidade && `Cidade principal: ${p.cidade}`,
+    p.taxa ? `Taxa associativa: R$ ${brl(p.taxa)}` : "Sem taxa associativa",
+    p.fidelidade ? "Fidelidade de 12 meses" : "Sem fidelidade",
+    p.odonto && "Odontológico incluso",
+    p.ativo === false && "Oculto na cotação",
+  ].filter(Boolean);
+  const imagem = (caminho, alt) => (caminho ? `<img src="${esc(caminho)}" alt="${alt}">` : "");
+  const extras = lines(p.extras);
+  return `<header><h2>${esc(p.nome)}</h2>${p.subtitulo ? `<p>${esc(p.subtitulo)}</p>` : ""}<div class="cat-dados">${dados.map((d) => `<span class="pill">${esc(d)}</span>`).join("")}</div></header>
+    ${secao("Valores por pessoa", valoresDoPlano(p))}
+    ${secao("Área de comercialização", areaDoPlano(p))}
+    ${secao("Coparticipação", `${p.copartTexto ? `<p>${esc(p.copartTexto)}</p>` : ""}${tabelaDeTexto(p.copartTabela) || imagem(p.imgCopart, "Tabela de coparticipação")}${p.copartNota ? `<p class="note">${esc(p.copartNota)}</p>` : ""}`)}
+    ${secao("Carências", `${tabelaDeTexto(p.carenciaTabela) || imagem(p.imgCarencia, "Tabela de carências")}${p.carenciaNota ? `<p class="note">${esc(p.carenciaNota)}</p>` : ""}`)}
+    ${secao("Rede credenciada", redeDoPlano(p))}
+    ${secao(p.mostrarExtras ? "Benefícios" : "Benefícios (não aparecem na proposta)", extras.length ? `<ul>${extras.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>` : "")}
+    ${secao(p.mostrarObservacao ? "Observação" : "Observação (não aparece na proposta)", p.descricao ? `<p>${esc(p.descricao)}</p>` : "")}`;
 }
 
 let lastFocus = null;

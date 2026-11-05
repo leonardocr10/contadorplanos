@@ -137,6 +137,30 @@ details textarea{margin-top:8px;min-height:200px;font:13px/1.5 var(--mono)}
 .cat{display:flex;flex-direction:column;gap:8px}
 .catrow{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--surface)}
 .catrow .t{min-width:0}
+/* Planos e valores: a lista à esquerda e as informações do plano selecionado à direita. */
+.cat-mestre{display:grid;grid-template-columns:minmax(300px,380px) minmax(0,1fr);gap:16px;align-items:start}
+.cat-lista{gap:6px}
+.cat-lista .catrow{flex-wrap:nowrap;gap:8px;padding:6px 8px 6px 4px;border-radius:10px}
+.cat-lista .btn{flex:none;padding:5px 12px;min-height:0;font-size:13px}
+.cat-nome{flex:1;min-width:0;padding:5px 8px;border:0;background:none;color:var(--ink);font:700 14px var(--body);text-align:left;cursor:pointer;overflow-wrap:anywhere}
+.catrow.visto{border-color:var(--accent);box-shadow:inset 3px 0 0 var(--accent);background:var(--accent-soft)}
+.catrow.visto .cat-nome{color:var(--pine)}
+.cat-detalhe{position:sticky;top:12px;max-height:calc(100vh - 24px);overflow:auto;display:flex;flex-direction:column;gap:18px;padding:16px 18px;border:1px solid var(--accent);border-radius:12px;background:var(--surface);font-size:14px;line-height:1.45}
+.cat-detalhe header h2{margin:0;color:var(--pine)}
+.cat-detalhe p{margin:4px 0}
+.cat-detalhe h3{margin:0 0 6px;font-size:14px;font-weight:800}
+.cat-detalhe ul{margin:4px 0;padding-left:18px}
+.cat-detalhe details{margin:4px 0}
+.cat-detalhe summary{cursor:pointer;font-weight:600}
+.cat-detalhe img{max-width:100%;height:auto;border-radius:8px}
+.cat-dados{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.cat-dados .pill{margin:0;text-transform:none;letter-spacing:0;font-size:12px}
+.cat-rolagem{overflow-x:auto}
+.cat-detalhe .ftab{font-size:13px;font-variant-numeric:tabular-nums}
+.cat-detalhe .ftab th{border-bottom:1px solid var(--line);vertical-align:bottom}
+.cat-detalhe .ftab td{padding:4px 6px;border-bottom:1px solid var(--line)}
+.cat-detalhe .ftab td:first-child{white-space:normal;font-weight:500}
+@media (max-width:900px){.cat-mestre{grid-template-columns:minmax(0,1fr)}.cat-detalhe{position:static;max-height:none}}
 .catrow b{display:block}
 .catrow span{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
 .pill{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.05em;padding:2px 8px;border-radius:999px;background:var(--accent-soft);color:var(--pine);margin-right:6px;vertical-align:1px}
