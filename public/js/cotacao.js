@@ -217,7 +217,7 @@ async function renderCards() {
   cards = made;
   cardsProntos = true;
   cardUrls = made.map((m) => m.url);
-  box.innerHTML = made.map((m, i) => `<figure><button type="button" class="imgs-abrir" data-ver="${i}" title="Clique para ampliar" aria-label="Ampliar a proposta de ${esc(m.p.nome)}"><img src="${m.url}" alt=""></button><figcaption>${esc(m.p.nome)}</figcaption>${pode("cotacao", "editar") ? `<button class="btn primary" data-cp="${i}">Copiar e baixar imagem</button><button class="btn" data-pdf="${i}">Baixar PDF</button>` : ""}</figure>`).join("");
+  box.innerHTML = made.map((m, i) => `<figure><button type="button" class="imgs-abrir" data-ver="${i}" title="Clique para ampliar" aria-label="Ampliar a proposta de ${esc(m.p.nome)}"><img src="${m.url}" alt=""></button><figcaption title="${esc(m.p.nome)}">${esc(m.p.nome)}</figcaption>${pode("cotacao", "editar") ? `<button class="btn primary" data-cp="${i}">Copiar e baixar</button><button class="btn" data-pdf="${i}">Baixar PDF</button>` : ""}</figure>`).join("");
   box.querySelectorAll("[data-ver]").forEach((b) => (b.onclick = () => abrirVisor(+b.dataset.ver)));
   box.querySelectorAll("[data-pdf]").forEach((b) => (b.onclick = () => savePdf(cards[+b.dataset.pdf], b)));
   box.querySelectorAll("[data-cp]").forEach((b) => (b.onclick = () => copyCard(cards[+b.dataset.cp])));
@@ -327,7 +327,7 @@ async function abrirWhatsApp() {
     saveCard(cards[0]);
     toast(AVISO_SEM_COPIA);
   }
-  else if (cards.length > 1) toast(`Imagem de ${cards[0].p.nome} copiada: aperte Ctrl+V na conversa. Copie as outras nos botões Copiar e baixar imagem`);
+  else if (cards.length > 1) toast(`Imagem de ${cards[0].p.nome} copiada: aperte Ctrl+V na conversa. Copie as outras nos botões Copiar e baixar`);
   else toast("Imagem copiada: aperte Ctrl+V na conversa do WhatsApp");
 }
 

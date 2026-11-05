@@ -56,7 +56,7 @@ export function abrirComparativo(planos, pedido, acoes) {
     ${seletorDePlanos(planos)}
     <div class="cmp-previa" id="cmp-previa"></div>
     <div class="actions modal-acoes" id="cmp-acoes" hidden>
-      <button class="btn primary" id="cmp-copiar">Copiar e baixar imagem</button>
+      <button class="btn primary" id="cmp-copiar">Copiar e baixar</button>
       <button class="btn" id="cmp-pdf">Baixar PDF</button>
     </div>`;
   $("#cmp-x").onclick = closeModal;
