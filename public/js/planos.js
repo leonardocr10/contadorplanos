@@ -138,14 +138,16 @@ function openEditor(p) {
   openModal();
   ed.classList.add("editor-plano");
   ed.innerHTML = `<div class="modal-head"><h2 id="ed-title">${isNew ? "Novo plano" : "Editar " + esc(p.nome)}</h2><button class="iconbtn" id="e-x" aria-label="Fechar">×</button></div>
-  <div class="upd">
-    <div class="label">Atualizar com nova tabela</div>
+  <details class="upd"${isNew ? " open" : ""}>
+    <summary class="label">Atualizar com nova tabela</summary>
+    <div class="upd-corpo">
     <p class="note" style="margin:0">Envie o PDF ou as imagens do material da operadora. O Claude lê valores por faixa, taxa, rede, benefícios, carências e coparticipação, e você revisa tudo antes de salvar.</p>
     <div class="actions"><label class="btn primary" for="u-file" tabindex="0">Escolher PDF ou imagem</label><input id="u-file" type="file" accept="application/pdf,image/png,image/jpeg,image/webp" hidden><span class="note" id="u-fname"></span></div>
     <div id="u-pages" class="upages"></div>
     <div id="u-work" class="stack" style="gap:12px"></div>
     <div id="u-msg" class="note" role="status"></div>
-  </div>
+    </div>
+  </details>
   <div class="ed-colunas"><div class="ed-coluna">
   <div class="row">
     <div class="field"><label for="e-nome">Nome</label><input id="e-nome" type="text" value="${esc(p.nome || "")}"></div>
