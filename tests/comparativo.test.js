@@ -83,6 +83,11 @@ test("plano sem rede cadastrada não aparece como se não tivesse o hospital", (
   assert.equal(celulas(html, "Hospital Madrecor")[1], "Não informada");
 });
 
+test("a janela fica fora das telas, para abrir também na Nova cotação", () => {
+  const pagina = readFileSync(join(raiz, "public", "index.html"), "utf8");
+  assert.ok(pagina.indexOf('id="modal"') > pagina.lastIndexOf("</section>"));
+});
+
 test("rota do comparativo aceita de 2 a 4 planos e não salva nada", async (t) => {
   const pasta = mkdtempSync(join(tmpdir(), "cotador-cmp-"));
   const banco = new Banco(join(pasta, "c.db"), seed);
