@@ -126,8 +126,12 @@ export function renderHistCli() {
 let filtroSt = "Todas";
 export function renderHist() {
   const box = $("#hist-list");
-  $("#hist-filtro").innerHTML = ["Todas", ...STATUS].map((s) => `<label><input type="radio" name="hf" value="${s}" ${s === filtroSt ? "checked" : ""}> ${s}</label>`).join("");
-  $("#hist-filtro").querySelectorAll("input").forEach((i) => (i.onchange = () => { filtroSt = i.value; renderHist(); }));
+  // Só troca as opções quando as contagens mudam, para não fechar a lista aberta.
+  const sel = $("#hist-filtro"), quantas = (s) => S.hist.filter((h) => h.status === s).length;
+  const opcoes = `<option value="Todas" data-icone="todos">Todas as situações</option><optgroup label="Situações">${STATUS.map((s) => `<option value="${s}"${S.histLoaded ? ` data-selo="${quantas(s)}"` : ""}>${s}</option>`).join("")}</optgroup>`;
+  if (sel.dataset.opcoes !== opcoes) { sel.innerHTML = opcoes; sel.dataset.opcoes = opcoes; }
+  sel.value = filtroSt;
+  sel.onchange = () => { filtroSt = sel.value; renderHist(); };
   if (!S.histLoaded) { box.innerHTML = `<div class="status">${S.histErr ? esc(S.histErr) : "Carregando histórico…"}</div>`; return; }
   const q = $("#hist-busca").value.trim().toLowerCase(), qd = q.replace(/\D/g, "");
   const groups = new Map();

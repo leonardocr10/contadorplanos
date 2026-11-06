@@ -191,6 +191,8 @@ textarea{resize:vertical;min-height:72px;line-height:1.45}
 @media (max-width:560px){.selitem{grid-template-columns:1fr 1fr}.selitem .name{grid-column:1/-1}}
 .iconbtn{border:1px solid var(--line);background:var(--surface);color:var(--muted);width:38px;height:38px;border-radius:10px;cursor:pointer;font-size:18px;line-height:1}
 .checks{display:flex;flex-wrap:wrap;gap:8px 18px}
+.hist-filtros{display:grid;grid-template-columns:minmax(0,2fr) minmax(200px,1fr);gap:12px;align-items:end}
+@media (max-width:640px){.hist-filtros{grid-template-columns:minmax(0,1fr)}}
 .checks label{display:flex;gap:8px;align-items:center;font-size:14px;cursor:pointer}
 .checks input{accent-color:var(--accent);width:16px;height:16px}
 

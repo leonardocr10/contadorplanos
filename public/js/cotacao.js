@@ -26,23 +26,23 @@ function renderFaixas() {
 /* ---------- cidade ---------- */
 // Só troca as opções quando elas mudam: a cotação redesenha a cada alteração e há centenas de cidades.
 const opcoesAtuais = new Map();
-const trocarOpcoes = (select, opcoes, valor) => {
-  const html = opcoes.map(([v, t]) => `<option value="${esc(v)}">${esc(t)}</option>`).join("");
+const trocarOpcoes = (select, html, valor, quantas) => {
   if (opcoesAtuais.get(select) !== html) { select.innerHTML = html; opcoesAtuais.set(select, html); }
   select.value = valor;
-  select.disabled = opcoes.length < 2;
+  select.disabled = quantas < 1;
 };
 
 function renderLocal() {
   // O valor guarda o estado junto: nomes de cidade podem se repetir entre estados.
   const cidades = locaisDosPlanos(S.plans.filter((p) => p.ativo !== false))
-    .flatMap((l) => l.cidades.map((c) => [`${l.uf}|${c}`, `${c} (${l.uf})`]))
-    .sort((a, b) => a[1].localeCompare(b[1], "pt-BR"));
+    .flatMap((l) => l.cidades.map((c) => [`${l.uf}|${c}`, c, l.uf]))
+    .sort((a, b) => a[1].localeCompare(b[1], "pt-BR") || a[2].localeCompare(b[2]));
   const atual = `${S.uf}|${S.municipio}`;
   const existe = cidades.some(([v]) => v === atual);
   // Enquanto os planos carregam a lista está vazia: a cidade padrão só cai se não existir de verdade.
   if (S.loaded && !existe) { S.uf = ""; S.municipio = ""; }
-  trocarOpcoes($("#municipio"), [["", "Todas as cidades"], ...cidades], existe ? atual : "");
+  const html = `<option value="" data-icone="todos">Todas as cidades</option><optgroup label="Cidades">${cidades.map(([v, c, uf]) => `<option value="${esc(v)}" data-selo="${esc(uf)}">${esc(c)}</option>`).join("")}</optgroup>`;
+  trocarOpcoes($("#municipio"), html, existe ? atual : "", cidades.length);
   $("#limpar-local").disabled = !S.municipio && !$("#cliente").value && !$("#fone").value;
 }
 

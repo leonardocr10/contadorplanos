@@ -47,7 +47,7 @@
           <div class="field"><label>Tipo de contratação</label>
             <div class="seg" id="tipo"><button id="t-pf" aria-pressed="true" data-t="PF">Pessoa física</button><button id="t-cnpj" aria-pressed="false" data-t="CNPJ">CNPJ</button></div>
           </div>
-          <div class="field"><div class="rotulo-acao"><label for="municipio">Cidade</label><button type="button" class="limpar-filtros" id="limpar-local" disabled>Limpar filtros</button></div><select id="municipio"></select></div>
+          <div class="field"><div class="rotulo-acao"><label for="municipio">Cidade</label><button type="button" class="limpar-filtros" id="limpar-local" disabled>Limpar filtros</button></div><select id="municipio" data-icone="local" data-busca="Buscar cidade…" data-contagem="cidade|cidades" data-selo-no-botao></select></div>
         </div>
         <div id="hist-cli"></div>
       </div>
@@ -106,8 +106,10 @@
         <h2>Histórico de cotações</h2>
         <span class="note" id="hist-count"></span>
       </div>
-      <div class="field"><label for="hist-busca">Buscar por número ou nome</label><input id="hist-busca" type="text" placeholder="(34) 99999-0000 ou Maria" autocomplete="off"></div>
-      <div class="checks" id="hist-filtro"></div>
+      <div class="hist-filtros">
+        <div class="field"><label for="hist-busca">Buscar por número ou nome</label><input id="hist-busca" type="text" placeholder="(34) 99999-0000 ou Maria" autocomplete="off"></div>
+        <div class="field"><label for="hist-filtro">Situação</label><select id="hist-filtro" data-icone="filtro" data-contagem="situação|situações"></select></div>
+      </div>
       <div id="hist-list" class="cat"></div>
       <p class="note" style="margin:0">Cada usuário vê só as próprias cotações, e o administrador vê as de todos e faz o backup em Configurações.</p>
     </div>

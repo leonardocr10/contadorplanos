@@ -6,29 +6,57 @@ export function filtrarOpcoes(opcoes, termo) {
   // Cada palavra pode aparecer em qualquer parte: "unimed car" encontra "Unimed – carências".
   const palavras = normalizar(termo).split(/\s+/).filter(Boolean);
   return opcoes.filter((o) => {
-    const alvo = normalizar(`${o.texto} ${o.grupo ?? ""}`);
+    const alvo = normalizar(`${o.texto} ${o.selo ?? ""} ${o.grupo ?? ""}`);
     return palavras.every((p) => alvo.includes(p));
   });
 }
 
 const CSS = `
 .fs{position:relative;width:100%;min-width:0}
-.fs-botao{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-height:40px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg,#fff);color:var(--ink);font-family:var(--body,inherit);font-size:15px;font-weight:500;line-height:1.2;text-align:left;cursor:pointer}
-.fs-botao span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fs-botao{display:flex;align-items:center;gap:8px;width:100%;min-height:40px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg,#fff);color:var(--ink);font-family:var(--body,inherit);font-size:15px;font-weight:500;line-height:1.2;text-align:left;cursor:pointer}
+.fs-botao>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .fs-botao svg{flex:none}
+.fs-botao .fs-icone{color:var(--pine,var(--accent))}
+.fs-botao .fs-seta{transition:transform .15s}
+.fs-botao[aria-expanded="true"]{border-color:var(--pine,var(--accent));box-shadow:0 0 0 1px var(--pine,var(--accent))}
+.fs-botao[aria-expanded="true"] .fs-seta{transform:rotate(180deg)}
 .fs-oculto{position:absolute;width:1px;height:1px;margin:0;padding:0;border:0;opacity:0;pointer-events:none}
-.fs-painel{position:fixed;z-index:1000;display:flex;flex-direction:column;min-width:220px;background:var(--surface,#fff);color:var(--ink);border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.2);overflow:hidden;font-family:var(--body,inherit)}
-.fs-painel input{flex:none;width:auto;margin:8px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg,#fff);color:var(--ink);font:inherit;font-size:14px}
-.fs-lista{flex:1;min-height:0;margin:0;padding:0 0 6px;overflow-y:auto;list-style:none;font-size:14px}
-.fs-grupo{padding:6px 12px 2px;font-size:12px;font-weight:700;color:var(--muted)}
-.fs-opcao{padding:8px 12px;cursor:pointer;overflow-wrap:anywhere}
-.fs-opcao[data-ativa="1"]{background:var(--accent-soft,var(--side));}
-.fs-opcao[aria-selected="true"]{font-weight:800;color:var(--pine,var(--accent))}
+.fs-painel{position:fixed;z-index:1000;display:flex;flex-direction:column;min-width:220px;background:var(--surface,#fff);color:var(--ink);border:1px solid var(--line);border-radius:14px;box-shadow:0 16px 40px rgba(0,0,0,.16);overflow:hidden;font-family:var(--body,inherit)}
+.fs-busca{position:relative;flex:none;margin:10px;padding-bottom:0}
+.fs-busca svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none}
+.fs-painel .fs-busca input{display:block;width:100%;margin:0;padding:10px 12px 10px 36px;border:1px solid var(--line);border-radius:10px;background:var(--surface,#fff);color:var(--ink);font:inherit;font-size:14px}
+.fs-painel .fs-busca input:focus{outline:none;border-color:var(--pine,var(--accent));box-shadow:0 0 0 1px var(--pine,var(--accent))}
+.fs-lista{flex:1;min-height:0;margin:0;padding:4px 6px 6px;overflow-y:auto;list-style:none;font-size:14px;border-top:1px solid var(--line)}
+.fs-sem-busca .fs-lista{border-top:0}
+.fs-grupo{padding:10px 10px 4px;font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.fs-opcao{display:flex;align-items:center;gap:10px;min-height:36px;padding:7px 10px;border-radius:8px;cursor:pointer}
+.fs-opcao>.fs-texto{flex:1;min-width:0;overflow-wrap:anywhere}
+.fs-opcao[data-ativa="1"]{background:var(--bg,#f3f6f3)}
+.fs-opcao[aria-selected="true"]{font-weight:700;color:var(--ink)}
+.fs-opcao[aria-selected="true"][data-destaque="1"],.fs-opcao[data-destaque="1"][data-ativa="1"]{background:var(--accent-soft,#e2f4e9)}
 .fs-opcao[aria-disabled="true"]{opacity:.5;cursor:not-allowed}
-.fs-vazio{padding:10px 12px;font-size:14px;color:var(--muted)}
+.fs-opcao .fs-icone{flex:none;color:var(--muted)}
+.fs-opcao .fs-marca{flex:none;color:var(--pine,var(--accent))}
+.fs-selo{flex:none;padding:2px 8px;border-radius:6px;background:var(--accent-soft,#e2f4e9);color:var(--pine,var(--accent));font-size:11.5px;font-weight:700}
+.fs-vazio{padding:12px 10px;font-size:14px;color:var(--muted)}
+.fs-rodape{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 12px;padding:8px 12px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
+.fs-teclas{display:flex;align-items:center;gap:4px}
+.fs-teclas kbd{min-width:20px;padding:1px 5px;border:1px solid var(--line);border-radius:5px;background:var(--surface,#fff);font:600 11px var(--body,inherit);text-align:center;color:var(--ink)}
+@media (hover:none){.fs-teclas{display:none}}
 `;
 
-const SETA = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+const icone = (corpo, tamanho = 16, classe = "fs-icone") => `<svg class="${classe}" width="${tamanho}" height="${tamanho}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${corpo}</svg>`;
+const SETA = icone('<path d="m6 9 6 6 6-6"/>', 14, "fs-seta");
+const MARCA = icone('<path d="M20 6 9 17l-5-5"/>', 16, "fs-marca");
+const LUPA = icone('<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>', 16, "");
+// Ícones que a tela pode pedir: no botão (data-icone no select) ou numa opção (data-icone na option).
+const ICONES = {
+  local: '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
+  todos: '<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 4 10 15 15 0 0 1-4 10 15 15 0 0 1-4-10 15 15 0 0 1 4-10Z"/>',
+  filtro: '<path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3Z"/>',
+};
+// Listas curtas, como a situação da cotação, dispensam o campo de busca.
+const MINIMO_PARA_BUSCAR = 9;
 const VALOR_NATIVO = globalThis.HTMLSelectElement && Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value");
 
 let sequencia = 0, fecharAberto = null;
@@ -36,6 +64,7 @@ let sequencia = 0, fecharAberto = null;
 function lerOpcoes(select) {
   return [...select.options].map((o) => ({
     valor: o.value, texto: o.textContent, indice: o.index, desativada: o.disabled,
+    selo: o.dataset.selo || null, icone: o.dataset.icone || null,
     grupo: o.parentElement?.tagName === "OPTGROUP" ? o.parentElement.label : null,
   }));
 }
@@ -44,9 +73,16 @@ function abrir(select, botao) {
   fecharAberto?.();
   const painel = document.createElement("div");
   painel.className = "fs-painel";
+  const comBusca = select.dataset.busca !== undefined || select.options.length >= MINIMO_PARA_BUSCAR;
+  if (!comBusca) painel.classList.add("fs-sem-busca");
+  const caixaBusca = document.createElement("div");
+  caixaBusca.className = "fs-busca";
+  caixaBusca.hidden = !comBusca;
+  caixaBusca.innerHTML = LUPA;
   const filtro = document.createElement("input");
   filtro.type = "text";
-  filtro.placeholder = "Filtrar…";
+  filtro.placeholder = select.dataset.busca || "Buscar…";
+  if (!comBusca) filtro.readOnly = true;
   filtro.autocomplete = "off";
   filtro.setAttribute("aria-label", "Filtrar opções");
   const lista = document.createElement("ul");
@@ -56,7 +92,14 @@ function abrir(select, botao) {
   filtro.setAttribute("role", "combobox");
   filtro.setAttribute("aria-expanded", "true");
   filtro.setAttribute("aria-controls", lista.id);
-  painel.append(filtro, lista);
+  caixaBusca.append(filtro);
+  // A contagem diz quantas opções aparecem, no nome que a tela pediu ("cidade|cidades").
+  const [umItem, variosItens] = (select.dataset.contagem || "").split("|");
+  const rodape = document.createElement("div");
+  rodape.className = "fs-rodape";
+  rodape.innerHTML = `<span data-contagem></span><span class="fs-teclas"><kbd>↑</kbd><kbd>↓</kbd> navegar <kbd>Enter</kbd> escolher</span>`;
+  rodape.hidden = !umItem;
+  painel.append(caixaBusca, lista, rodape);
 
   let visiveis = [], ativa = -1;
   const pintarAtiva = (rolar = true) => {
@@ -79,6 +122,7 @@ function abrir(select, botao) {
       vazio.textContent = "Nada encontrado";
       lista.append(vazio);
       ativa = -1;
+      if (umItem) rodape.querySelector("[data-contagem]").textContent = `0 ${variosItens || umItem}`;
       return;
     }
     let grupo = null;
@@ -96,11 +140,19 @@ function abrir(select, botao) {
       li.id = `${lista.id}-${pos}`;
       li.dataset.pos = pos;
       li.setAttribute("role", "option");
-      li.setAttribute("aria-selected", String(o.indice === select.selectedIndex));
+      const marcada = o.indice === select.selectedIndex;
+      li.setAttribute("aria-selected", String(marcada));
       if (o.desativada) li.setAttribute("aria-disabled", "true");
-      li.textContent = o.texto;
+      if (o.icone) li.dataset.destaque = "1";
+      li.innerHTML = `${o.icone && ICONES[o.icone] ? icone(ICONES[o.icone]) : ""}<span class="fs-texto"></span>${o.selo ? `<span class="fs-selo"></span>` : ""}${marcada ? MARCA : ""}`;
+      li.querySelector(".fs-texto").textContent = o.texto;
+      if (o.selo) li.querySelector(".fs-selo").textContent = o.selo;
       lista.append(li);
     });
+    if (umItem) {
+      const n = visiveis.filter((o) => o.valor !== "" && !o.icone).length;
+      rodape.querySelector("[data-contagem]").textContent = `${n} ${n === 1 ? umItem : variosItens || umItem}`;
+    }
     const atual = visiveis.findIndex((o) => o.indice === select.selectedIndex && !o.desativada);
     ativa = atual >= 0 ? atual : visiveis.findIndex((o) => !o.desativada);
     pintarAtiva();
@@ -110,7 +162,7 @@ function abrir(select, botao) {
     const mudou = select.selectedIndex !== o.indice;
     select.selectedIndex = o.indice;
     fechar(true);
-    botao.querySelector("span").textContent = o.texto;
+    botao.querySelector("span").textContent = textoDoBotao(select, o);
     if (mudou) {
       select.dispatchEvent(new Event("input", { bubbles: true }));
       select.dispatchEvent(new Event("change", { bubbles: true }));
@@ -189,6 +241,9 @@ function abrir(select, botao) {
   addEventListener("resize", aoRedimensionar);
 }
 
+// A etiqueta só entra no botão quando a tela pede (a UF da cidade, sim; a contagem da situação, não).
+const textoDoBotao = (select, o) => (o ? (o.selo && select.dataset.seloNoBotao !== undefined ? `${o.texto} (${o.selo})` : o.texto) : "Selecionar");
+
 function ativarSelect(select) {
   if (select.dataset.filtro) return;
   select.dataset.filtro = "1";
@@ -199,13 +254,14 @@ function ativarSelect(select) {
   botao.id = `fs-botao-${++sequencia}`;
   botao.setAttribute("aria-haspopup", "listbox");
   botao.setAttribute("aria-expanded", "false");
-  botao.innerHTML = `<span></span>${SETA}`;
+  botao.innerHTML = `${ICONES[select.dataset.icone] ? icone(ICONES[select.dataset.icone]) : ""}<span></span>${SETA}`;
 
   const rotulo = select.id ? [...document.querySelectorAll("label[for]")].find((l) => l.htmlFor === select.id) : null;
   if (rotulo) rotulo.htmlFor = botao.id;
 
   const atualizar = () => {
-    botao.querySelector("span").textContent = select.selectedOptions[0]?.textContent ?? "Selecionar";
+    const o = select.selectedOptions[0];
+    botao.querySelector("span").textContent = textoDoBotao(select, o && { texto: o.textContent, selo: o.dataset.selo });
     botao.disabled = select.disabled;
     if (select.getAttribute("aria-label")) botao.setAttribute("aria-label", select.getAttribute("aria-label"));
   };
