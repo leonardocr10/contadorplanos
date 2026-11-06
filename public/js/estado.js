@@ -19,6 +19,8 @@ export const render = () => renderizar();
 // Toda mensagem do sistema aparece numa caixa no meio da tela, que some sozinha ou com um clique.
 // O tipo muda o ícone e a cor: sucesso, aviso (o que fazer a seguir) ou erro.
 const ICONES_DO_AVISO = { sucesso: "✓", aviso: "i", erro: "!" };
+// Toda mensagem fica o mesmo tempo na tela.
+const TEMPO_DO_AVISO = 2500;
 function esconderAviso() {
   const el = $("#aviso-central");
   clearTimeout(avisoCentral.t);
@@ -38,8 +40,7 @@ export function avisoCentral(texto, tipo = "sucesso") {
   el.onclick = esconderAviso;
   clearTimeout(avisoCentral.t);
   clearTimeout(avisoCentral.fim);
-  // Texto longo fica mais tempo, para dar tempo de ler.
-  avisoCentral.t = setTimeout(esconderAviso, Math.min(7000, 1800 + texto.length * 45));
+  avisoCentral.t = setTimeout(esconderAviso, TEMPO_DO_AVISO);
 }
 
 export const toast = (texto, tipo = "aviso") => avisoCentral(texto, tipo);
