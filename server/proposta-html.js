@@ -310,20 +310,20 @@ function botaoAceite(s, { token, aceite }, paraImagem) {
   </details>`;
 }
 
-function avisoAceito(s, { aceite, documentos = [], foneCorretor, agente = "" }) {
+// O corretor escolhe e envia pelo WhatsApp os documentos de cada cliente; a página só avisa.
+function avisoAceito(s, { aceite, foneCorretor, agente = "" }) {
   if (!aceite?.aceitoEm) return "";
   const data = new Date(aceite.aceitoEm).toLocaleDateString("pt-BR");
   // O telefone é o atual de Meus dados; o da proposta só vale se ele não estiver preenchido.
   const fone = [foneCorretor, s.corretor.fone].map(normFone).find((f) => f.length >= 10);
   const contato = fone
-    ? `<a class="botao" href="${esc(linkConversaDireta(fone, `Olá! Aceitei a proposta do plano ${s.plano.nome}. Seguem os meus documentos.`, agente))}">Enviar documentos pelo WhatsApp</a>`
+    ? `<a class="botao" href="${esc(linkConversaDireta(fone, `Olá! Aceitei a proposta do plano ${s.plano.nome}.`, agente))}">Falar com o corretor no WhatsApp</a>`
     : "";
   return `<section class="aceito">
     <h2>Proposta aceita</h2>
     <p>Você aceitou esta proposta em ${esc(data)}: <b>${esc(aceite.acomodacao)}, ${moeda(aceite.valor)} por mês</b>.</p>
-    ${documentos.length
-    ? `<h3>Documentos necessários</h3><p>Para dar andamento, precisamos que você nos envie:</p><ul>${documentos.map((d) => `<li>${esc(d)}</li>`).join("")}</ul>${contato}`
-    : "<p>Em breve entraremos em contato com os próximos passos.</p>"}
+    <p>Você receberá a lista de documentos necessários para contratação.</p>
+    ${contato}
   </section>`;
 }
 

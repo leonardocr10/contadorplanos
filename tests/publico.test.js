@@ -407,7 +407,7 @@ test("abrir o link não aceita; aceite exige acomodação válida e confirmaçã
   assert.equal(a.docsEnviadosEm, null);
 });
 
-test("só o primeiro aceite vale e a página passa a mostrar os documentos", async (t) => {
+test("só o primeiro aceite vale e a página avisa que a lista de documentos virá depois", async (t) => {
   const { admin, publico, banco } = await subir(t, ativo);
   banco.gravarConfig({ fone: "(34) 90000-2222" });
   banco.criarDocumento("RG e CPF", "plam-saude-pf");
@@ -421,9 +421,10 @@ test("só o primeiro aceite vale e a página passa a mostrar os documentos", asy
   assert.equal(lista[0].acomodacao, "Enfermaria");
   const pagina = await (await fetch(url)).text();
   assert.ok(pagina.includes("Proposta aceita"));
-  assert.ok(pagina.includes("RG e CPF"));
-  assert.ok(pagina.includes("Comprovante &lt;de&gt; residência"));
-  assert.ok(!pagina.includes("Cartão CNPJ"));
+  assert.ok(pagina.includes("Você receberá a lista de documentos necessários para contratação."));
+  // O corretor escolhe os documentos de cada cliente: a página não lista os do plano.
+  assert.ok(!pagina.includes("RG e CPF") && !pagina.includes("residência") && !pagina.includes("Cartão CNPJ"));
+  assert.ok(pagina.includes("Falar com o corretor no WhatsApp"));
   assert.ok(!pagina.includes('action="/p/'));
   assert.ok(pagina.includes("phone=5534900002222"));
 });
@@ -464,7 +465,6 @@ test("cadastra documentos e ativa ou inativa por plano", async (t) => {
   const url = await criarLink(admin, publico);
   await aceitar(url, { acomodacao: "Enfermaria", confirmo: "1" });
   assert.deepEqual((await listar(admin))[0].documentos, ["cpf NOVO"]);
-  assert.ok((await (await fetch(url)).text()).includes("cpf NOVO"));
 
   assert.equal((await api(`/api/documentos/${cpf.id}`, "DELETE")).status, 204);
   assert.equal((await api(`/api/documentos/${cpf.id}`, "DELETE")).status, 404);
