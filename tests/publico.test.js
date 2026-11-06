@@ -504,7 +504,8 @@ test("documento é de pessoa física ou de CNPJ, e só vale nos planos do mesmo 
 
 test("documento ativo nos dois tipos vira dois ao atualizar", async (t) => {
   const { banco } = await subir(t, ativo);
-  const versao = banco.db.prepare("PRAGMA user_version").get().user_version;
+  // A versão 21 separou os documentos por tipo: o banco volta para a 20.
+  const versao = 21;
   // Volta à tabela antiga, sem tipo, com um documento em todos os planos e outro só em CNPJ.
   banco.db.exec(`DROP TABLE documentos; DELETE FROM documentos_planos;
     CREATE TABLE documentos (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT NOT NULL UNIQUE COLLATE NOCASE);

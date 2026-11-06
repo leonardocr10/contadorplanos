@@ -47,6 +47,30 @@ test("linha sem cidade é da cidade do plano, e traço no nome não é cidade", 
   assert.ok(redeDaCidade(plam, "Uberlândia").includes("Laboratório Exame – Unidade Hospital do Triângulo"));
 });
 
+test("a Hapvida segue a tabela: total e parcial, área, coparticipação, carências e logo", (t) => {
+  const total = planos.find((p) => p.id === "hapvida-nosso-plano-total");
+  const parcial = planos.find((p) => p.id === "hapvida-nosso-plano-parcial");
+  assert.deepEqual([total.faixasEnf[0], total.faixasApto[0], total.faixasEnf[9], total.faixasApto[9]], [209, 274.63, 1138.78, 1529.99]);
+  assert.deepEqual([parcial.faixasEnf[0], parcial.faixasApto[0], parcial.faixasEnf[9], parcial.faixasApto[9]], [294.02, 389.36, 1645.5, 2213.85]);
+  for (const p of [total, parcial]) {
+    assert.equal(p.faixasEnf.length, 10);
+    assert.equal(p.faixasApto.length, 10);
+    assert.ok(vendidoEm(p, "MG", "Uberlândia") && !vendidoEm(p, "MG", "Uberaba"));
+  }
+  const pedido = { vidas: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0], over: {}, cliente: "", opts: { copart: true, rede: true, acom: true }, municipio: "Uberlândia" };
+  const corretor = { nome: "C", fone: "34999990000", empresa: "E" };
+  const html = renderizarComparativo([total, parcial].map((p) => montarSnapshot(p, pedido, corretor)));
+  assert.ok(html.includes("/img/logo-hapvida.png"));
+  assert.ok(html.includes("R$ 209,00") && html.includes("R$ 389,36"));
+  const linha = (titulo) => [...html.matchAll(new RegExp(`<th scope="row">${titulo}</th>((?:<td[^>]*>.*?</td>)+)`, "g"))][0]?.[1].match(/<td[^>]*>(.*?)<\/td>/g).map((c) => c.replace(/<[^>]+>/g, ""));
+  assert.deepEqual(linha("Consulta")?.slice(0, 2), ["R$ 43,63", "—"]);
+  assert.deepEqual(linha("Pronto-socorro"), ["R$ 61,82", "—"]);
+  assert.equal(linha("Exames básicos")[0], "30 dias");
+  assert.equal(linha("Internação")[0], "180 dias");
+  assert.equal(linha("Parto")[0], "300 dias");
+  assert.equal(linha("Preexistência")[0], "24 meses");
+});
+
 test("a Aurora segue a tabela: valores, área, rede por cidade e comparativo", (t) => {
   const aurora = planos.find((p) => p.id === "aurora-saude-pf");
   assert.equal(aurora.faixasEnf.length, 10);

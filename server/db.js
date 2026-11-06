@@ -183,6 +183,8 @@ const MIGRACOES = [
       db.prepare("UPDATE documentos_planos SET documento_id = ? WHERE documento_id = ? AND plano_id IN (SELECT id FROM planos WHERE categoria = 'CNPJ')").run(copia, d.id);
     }
   },
+  // Sem mudança na estrutura: marca a chegada da Hapvida (ver PLANOS_NOVOS).
+  () => {},
 ];
 
 const VERSAO_TEXTOS_COPARTICIPACAO = 11;
@@ -190,7 +192,7 @@ const VERSAO_AREA_COMERCIALIZACAO = 12;
 const VERSAO_REDE_POR_CIDADE = 13;
 
 // Planos lançados depois que o banco já existia: entram uma única vez, ao atualizar.
-const PLANOS_NOVOS = [{ id: "plamedh-basic-pme", versao: 6 }, { id: "plam-total-cnpj", versao: 7 }, ...["sulamerica-direto-nacional", "sulamerica-especial-100-rc", "sulamerica-especial-100-r1", "sulamerica-executivo-pleno"].map((id) => ({ id, versao: 10 })), { id: "aurora-saude-pf", versao: 14 }];
+const PLANOS_NOVOS = [{ id: "plamedh-basic-pme", versao: 6 }, { id: "plam-total-cnpj", versao: 7 }, ...["sulamerica-direto-nacional", "sulamerica-especial-100-rc", "sulamerica-especial-100-r1", "sulamerica-executivo-pleno"].map((id) => ({ id, versao: 10 })), { id: "aurora-saude-pf", versao: 14 }, ...["hapvida-nosso-plano-total", "hapvida-nosso-plano-parcial"].map((id) => ({ id, versao: 22 }))];
 
 function migrar(db) {
   const versao = db.prepare("PRAGMA user_version").get().user_version;
