@@ -6,7 +6,7 @@ const PDFJS = "/vendor/pdfjs/";
 const MAX_PAGINAS = 30, MAX_IMGS = 20;
 
 let pdfjsP = null;
-function loadPdfJs() {
+export function loadPdfJs() {
   return (pdfjsP ||= import(PDFJS + "pdf.min.mjs")
     .then((lib) => { lib.GlobalWorkerOptions.workerSrc = PDFJS + "pdf.worker.min.mjs"; return lib; })
     .catch((e) => { pdfjsP = null; throw e; }));
@@ -30,14 +30,14 @@ async function imagemParaPagina(file) {
   return { blob, url: URL.createObjectURL(blob) };
 }
 
-async function fileToPages(file, onProgress) {
+export async function fileToPages(file, onProgress, maxPaginas = MAX_PAGINAS) {
   if (file.type.startsWith("image/")) return [await imagemParaPagina(file)];
   const lib = await loadPdfJs();
   const doc = await lib.getDocument({
     data: await file.arrayBuffer(), isEvalSupported: false,
     cMapUrl: PDFJS + "cmaps/", cMapPacked: true, standardFontDataUrl: PDFJS + "standard_fonts/", wasmUrl: PDFJS + "wasm/",
   }).promise;
-  const out = [], n = Math.min(doc.numPages, MAX_PAGINAS);
+  const out = [], n = Math.min(doc.numPages, maxPaginas);
   for (let i = 1; i <= n; i++) {
     onProgress?.(i, n);
     const pg = await doc.getPage(i);
@@ -56,7 +56,7 @@ async function fileToPages(file, onProgress) {
 }
 
 // Reduz a página para o envio, mantendo o original para os recortes.
-async function paginaParaBase64(blob) {
+export async function paginaParaBase64(blob) {
   const bmp = await createImageBitmap(blob);
   const k = Math.min(1, 2000 / Math.max(bmp.width, bmp.height));
   const cv = document.createElement("canvas");

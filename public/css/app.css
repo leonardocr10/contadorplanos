@@ -269,6 +269,29 @@ html:has(.visor[open]){overflow:hidden}
 .cat-lista{gap:6px}
 .cat-qtd{margin-left:4px;padding:1px 7px;border-radius:999px;background:var(--line);color:var(--muted);font-size:12px}
 .cfg-item[aria-current="true"] .cat-qtd{background:var(--accent-soft);color:var(--pine)}
+
+/* Leitor de documentos */
+.lei-zona{display:flex;flex-direction:column;align-items:center;gap:4px;padding:28px 16px;border:2px dashed var(--line);border-radius:14px;background:var(--bg);text-align:center;cursor:pointer}
+.lei-zona b{color:var(--pine);font-size:16px}
+.lei-zona span{color:var(--muted);font-size:13px}
+.lei-zona:hover,.lei-zona.arrastando{border-color:var(--pine);background:var(--accent-soft)}
+.lei-zona:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.lei-paginas{display:flex;flex-wrap:wrap;gap:10px}
+.lei-paginas figure{position:relative;margin:0}
+.lei-paginas img{display:block;height:120px;width:auto;max-width:200px;object-fit:contain;border:1px solid var(--line);border-radius:8px;background:#fff}
+.lei-paginas .iconbtn{position:absolute;top:4px;right:4px;width:24px;height:24px;font-size:14px;border-radius:7px}
+.lei-resultado{display:flex;flex-direction:column;gap:12px;padding-top:12px;border-top:1px solid var(--line)}
+.lei-topo{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px}
+.lei-topo h3{margin:0;font:600 18px var(--display)}
+.lei-campos{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(320px,100%),1fr));gap:10px 16px}
+.lei-campo{display:flex;flex-direction:column;gap:4px;min-width:0}
+.lei-campo label{font-size:13px;font-weight:600;color:var(--muted)}
+.lei-linha{display:flex;gap:6px}
+.lei-linha input{flex:1;min-width:0}
+.lei-linha .btn{flex:none;padding:8px 12px}
+.lei-texto summary{cursor:pointer;font-weight:600}
+.lei-texto textarea{margin-top:8px;font:13px/1.5 var(--mono)}
+.lei-texto .actions{margin-top:8px}
 #cat:has(.cfg-abas){gap:16px}
 .cat-lista .catrow{flex-wrap:nowrap;gap:8px;padding:6px 8px 6px 4px;border-radius:10px}
 .cat-lista .btn{flex:none;padding:5px 12px;min-height:0;font-size:13px}
