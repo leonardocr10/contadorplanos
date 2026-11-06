@@ -67,7 +67,9 @@ const rotulosDaLinha = (linha) => ROTULOS_DE_DATA
 function datasDaLinha(linha) {
   const datas = [];
   for (const m of linha.matchAll(/(?<!\d)(\d{1,2})[/.-]?(\d{1,2})[/.-](\d{4})(?!\d)/g)) {
-    const [dia, mes, ano] = [Number(m[1]), Number(m[2]), Number(m[3])];
+    // A leitura costuma trocar o 9 de "19xx" por 0 ("1094"): ano que começa com 10 volta a ser 19.
+    const [dia, mes] = [Number(m[1]), Number(m[2])];
+    const ano = /^10\d\d$/.test(m[3]) ? Number(`19${m[3].slice(2)}`) : Number(m[3]);
     if (dia < 1 || dia > 31 || mes < 1 || mes > 12 || ano < 1900 || ano > 2100) continue;
     datas.push({ valor: `${String(dia).padStart(2, "0")}/${String(mes).padStart(2, "0")}/${ano}`, pos: m.index, fim: m.index + m[0].length });
   }
@@ -89,6 +91,11 @@ export function extrairCampos(texto) {
     if (!m || /NOME SOCIAL|SOCIAL NAME/.test(t)) return;
     guardar("Nome", nomeDaLinha(l.slice(m.index + m[0].length).replace(/\/\s*NAME\b/i, "")) || proximas(i).map(nomeDaLinha).find(Boolean));
   });
+  // Na CNH, o nome é a primeira linha com nome depois do título, mesmo quando o rótulo não sai na leitura.
+  if (tipo === "CNH" && !achados.Nome) {
+    const titulo = linhas.findIndex((l) => /HABILITACAO|DRIVER LICENSE/.test(semAcento(l)));
+    if (titulo >= 0) guardar("Nome", linhas.slice(titulo + 1, titulo + 4).map(nomeDaLinha).find(Boolean));
+  }
 
   // CPF: só número que passa na conferência dos dígitos; perto do rótulo, aceita sem os pontos.
   for (const m of tudo.matchAll(/\d{3}[.\s]\d{3}[.\s]\d{3}[-\s.]\d{2}/g)) if (cpfValido(m[0])) guardar("CPF", formatarCpf(so(m[0])));
@@ -145,7 +152,7 @@ export function extrairCampos(texto) {
 
   // Naturalidade: cidade e UF, como UBERLANDIA/MG ou COROMANDEL-MG.
   const cidadeUf = (linha) => {
-    const m = semAcento(linha.replace(/(?<=[A-Za-z])1(?=[A-Za-z])/g, "I")).match(new RegExp(`([A-Z][A-Z ]{2,}?)\\s?[/-]\\s?(${UF}|[A-Z]{2})\\b`));
+    const m = semAcento(linha.replace(/(?<=[A-Za-z])1(?=[A-Za-z])/g, "I")).match(new RegExp(`([A-Z][A-Z ]{2,}?)\\s?[/,-]\\s?(${UF})\\b`));
     return m ? `${m[1].trim()}/${m[2]}` : "";
   };
   linhas.forEach((l, i) => {

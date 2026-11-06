@@ -122,6 +122,23 @@ test("rótulos não viram filiação, e a data com cidade e UF é o nascimento",
   assert.deepEqual(cnh.Naturalidade, ["ARAGUARI/MG"]);
 });
 
+// Como a leitura da imagem de uma CNH digital (PDF) devolveu, com dados inventados.
+test("CNH digital: nome sem rótulo, ano lido errado e cidade com vírgula", () => {
+  const r = valores(extrairCampos(`REPÚBLICA FEDERATIVA DO BRASIL
+MINISTÉRIO DOS TRANSPORTES
+CARTEIRA NACIONAL DE HABILITAÇÃO / DRIVER LICENSE / PERMISO DE CONDUCCIÓN
+(CAROLINA PEREIRA LIMA 1903201 —)
+(10/06/1094, ARAGUARI, MG
+4a DATA EMISSÃO 4b VALIDADE ACC
+“ | 11/08/2026 | 07/08/2036 =`));
+  assert.deepEqual(r.Nome, ["CAROLINA PEREIRA LIMA"]);
+  assert.deepEqual(r["Data de nascimento"], ["10/06/1994"]);
+  assert.deepEqual(r.Naturalidade, ["ARAGUARI/MG"]);
+  assert.deepEqual(r["Data de expedição"], ["11/08/2026"]);
+  // A folha de legendas do PDF não vira naturalidade.
+  assert.deepEqual(valores(extrairCampos("3. Data e Local de Nascimento / Date and Place of Birth DD/MM/YYYY")).Naturalidade, []);
+});
+
 test("não inventa: ruído e títulos do documento não viram dado", () => {
   const r = extrairCampos("REPÚBLICA FEDERATIVA DO BRASIL\nNOME\nRSS EEOLSPISAA AA BoA EE\n123.456.789-00\nASSINATURA DO DIRETOR");
   assert.deepEqual(r.campos, []);

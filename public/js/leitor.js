@@ -27,6 +27,12 @@ const LEITURAS = [
   { modo: "cinza", lado: 2000, blocos: "11" },
   { modo: "sem-fundo", lado: 3200, blocos: "3" },
 ];
+// Imagem tirada de dentro do PDF (como na CNH digital) é limpa: a leitura em blocos mantém
+// cada rótulo junto do seu valor.
+const LEITURAS_DO_PDF = [
+  { modo: "cinza", lado: 2000, blocos: "3" },
+  { modo: "sem-fundo", lado: 3200, blocos: "3" },
+];
 
 // Desenha a foto girada (0, 90, 180 ou 270 graus), do tamanho pedido.
 function desenhar(ctx, bmp, giro, largura, altura) {
@@ -95,13 +101,40 @@ function textoConfiavel(data) {
   return linhas.join("\n");
 }
 
+// Imagens de dentro da página, no tamanho original: na CNH digital os dados ficam numa imagem
+// que, desenhada na página inteira, sairia pequena demais para ler. QR Code e logotipos ficam de fora.
+async function imagensDaPagina(lib, pagina) {
+  const ops = await pagina.getOperatorList();
+  const imagens = [];
+  for (let i = 0; i < ops.fnArray.length; i++) {
+    if (ops.fnArray[i] !== lib.OPS.paintImageXObject) continue;
+    const obj = await new Promise((ok) => pagina.objs.get(ops.argsArray[i][0], ok));
+    if (!obj || obj.width < 300 || Math.abs(obj.width - obj.height) / Math.max(obj.width, obj.height) < 0.1) continue;
+    const cv = document.createElement("canvas");
+    cv.width = obj.width;
+    cv.height = obj.height;
+    const ctx = cv.getContext("2d");
+    if (obj.bitmap) ctx.drawImage(obj.bitmap, 0, 0);
+    else if (obj.data) {
+      const img = ctx.createImageData(obj.width, obj.height), s = obj.data, d = img.data;
+      if (s.length === d.length) d.set(s);
+      else for (let j = 0, k = 0; j < s.length; j += 3, k += 4) { d[k] = s[j]; d[k + 1] = s[j + 1]; d[k + 2] = s[j + 2]; d[k + 3] = 255; }
+      ctx.putImageData(img, 0, 0);
+    } else continue;
+    imagens.push(await new Promise((ok) => cv.toBlob(ok, "image/png")));
+  }
+  return imagens;
+}
+
 // PDF gerado no computador já traz o texto: aproveitar é exato e instantâneo.
-async function textoDoPdf(file) {
+async function lerPdf(file) {
   const lib = await loadPdfJs();
   const doc = await lib.getDocument({ data: await file.arrayBuffer(), isEvalSupported: false }).promise;
-  const textos = [];
+  const textos = [], imagens = [];
   for (let i = 1; i <= Math.min(doc.numPages, MAX_PAGINAS); i++) {
-    const { items } = await (await doc.getPage(i)).getTextContent();
+    const pagina = await doc.getPage(i);
+    imagens.push(await imagensDaPagina(lib, pagina).catch(() => []));
+    const { items } = await pagina.getTextContent();
     // Junta os pedaços pela altura na página, para cada linha do documento virar uma linha de texto.
     const linhas = new Map();
     for (const it of items) {
@@ -111,7 +144,7 @@ async function textoDoPdf(file) {
     }
     textos.push([...linhas.entries()].sort((a, b) => b[0] - a[0]).map(([, l]) => l.sort((a, b) => a.transform[4] - b.transform[4]).map((it) => it.str).join(" ")).join("\n"));
   }
-  return textos;
+  return { textos, imagens };
 }
 
 function limparPaginas() {
@@ -182,8 +215,8 @@ async function adicionarArquivos(arquivos) {
       if (restam <= 0) { toast(`O leitor usa até ${MAX_PAGINAS} páginas por documento.`); break; }
       const novas = (await fileToPages(f, (i, n) => andamento(`Abrindo página ${i} de ${n}…`), restam)).slice(0, restam);
       if (f.type === "application/pdf") {
-        const textos = await textoDoPdf(f).catch(() => []);
-        novas.forEach((p, i) => (p.texto = textos[i] ?? ""));
+        const { textos, imagens } = await lerPdf(f).catch(() => ({ textos: [], imagens: [] }));
+        novas.forEach((p, i) => { p.texto = textos[i] ?? ""; p.imagens = imagens[i] ?? []; });
       }
       paginas.push(...novas);
     }
@@ -201,24 +234,32 @@ async function ler() {
   try {
     const confiaveis = [], brutos = [];
     for (const [i, p] of paginas.entries()) {
-      // Página com texto de verdade no PDF dispensa a leitura da imagem.
-      if ((p.texto ?? "").replace(/\s/g, "").length >= 40) { confiaveis.push(p.texto); continue; }
-      const pagina = paginas.length > 1 ? `Página ${i + 1} de ${paginas.length}: ` : "";
-      avanco.atual = (m) => { if (m.status !== "recognizing text") andamento(`${pagina}preparando o leitor (só na primeira vez)…`); };
-      andamento(`${pagina}preparando o leitor…`);
-      const giro = await descobrirGiro(await obterLeitor(avanco), p.blob, () => andamento(`${pagina}procurando o lado certo da foto…`));
-      for (const [k, jeito] of LEITURAS.entries()) {
-        const prefixo = `${paginas.length > 1 ? `Página ${i + 1} de ${paginas.length}, ` : ""}leitura ${k + 1} de ${LEITURAS.length}: `;
-        avanco.atual = (m) => {
-          if (m.status === "recognizing text") andamento(`${prefixo}lendo o texto… ${Math.round(m.progress * 100)}%`);
-          else andamento(`${prefixo}preparando o leitor (só na primeira vez)…`);
-        };
-        andamento(`${prefixo}preparando a imagem…`);
-        const leitor = await obterLeitor(avanco);
-        await leitor.setParameters({ tessedit_pageseg_mode: jeito.blocos });
-        const { data } = await leitor.recognize(await prepararParaLeitura(p.blob, jeito, giro), {}, { blocks: true, text: true });
-        confiaveis.push(textoConfiavel(data));
-        brutos.push(data.text);
+      // O texto do PDF só dispensa a leitura da imagem quando traz os dados do documento:
+      // a CNH digital, por exemplo, tem texto só no rodapé, e os dados ficam numa imagem.
+      if (p.texto?.trim()) {
+        confiaveis.push(p.texto);
+        if (extrairCampos(p.texto).campos.length >= 3) continue;
+      }
+      const alvos = p.imagens?.length ? p.imagens : [p.blob];
+      const jeitos = p.imagens?.length ? LEITURAS_DO_PDF : LEITURAS;
+      for (const [a, alvo] of alvos.entries()) {
+        const pagina = `${paginas.length > 1 ? `Página ${i + 1} de ${paginas.length}` : ""}${alvos.length > 1 ? `${paginas.length > 1 ? ", " : ""}imagem ${a + 1} de ${alvos.length}` : ""}${paginas.length > 1 || alvos.length > 1 ? ": " : ""}`;
+        avanco.atual = (m) => { if (m.status !== "recognizing text") andamento(`${pagina}preparando o leitor (só na primeira vez)…`); };
+        andamento(`${pagina}preparando o leitor…`);
+        const giro = await descobrirGiro(await obterLeitor(avanco), alvo, () => andamento(`${pagina}procurando o lado certo da foto…`));
+        for (const [k, jeito] of jeitos.entries()) {
+          const prefixo = `${pagina}leitura ${k + 1} de ${jeitos.length}: `;
+          avanco.atual = (m) => {
+            if (m.status === "recognizing text") andamento(`${prefixo}lendo o texto… ${Math.round(m.progress * 100)}%`);
+            else andamento(`${prefixo}preparando o leitor (só na primeira vez)…`);
+          };
+          andamento(`${prefixo}preparando a imagem…`);
+          const leitor = await obterLeitor(avanco);
+          await leitor.setParameters({ tessedit_pageseg_mode: jeito.blocos });
+          const { data } = await leitor.recognize(await prepararParaLeitura(alvo, jeito, giro), {}, { blocks: true, text: true });
+          confiaveis.push(textoConfiavel(data));
+          brutos.push(data.text);
+        }
       }
     }
     // Primeiro valem as palavras confiáveis; o texto completo só preenche o que faltar.
