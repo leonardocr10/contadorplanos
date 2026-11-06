@@ -3,6 +3,7 @@
 import express from "express";
 import { join } from "node:path";
 import { opcoesDeAceite, renderizarProposta } from "./proposta-html.js";
+import { cacheDoArquivo, cacheDoEnvio } from "./cache.js";
 
 const paginaErro = `<!doctype html><html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Proposta não encontrada</title><body style="font-family:system-ui,sans-serif;padding:32px"><h1>Proposta não encontrada</h1><p>Confira o link ou peça um novo ao seu corretor.</p></body></html>`;
 
@@ -62,10 +63,11 @@ export function criarAppPublica({ banco, pastaPublica, pastaUploads }) {
     res.redirect(303, `/p/${proposta.token}`);
   });
 
-  app.get("/proposta-pagina.js", (_req, res) => res.sendFile(join(pastaPublica, "proposta-pagina.js")));
-  app.get("/filtro-select.js", (_req, res) => res.sendFile(join(pastaPublica, "js", "filtro-select.js")));
+  const enviar = (arquivo) => (_req, res) => res.sendFile(arquivo, { headers: { "Cache-Control": "public, no-cache" } });
+  app.get("/proposta-pagina.js", enviar(join(pastaPublica, "proposta-pagina.js")));
+  app.get("/filtro-select.js", enviar(join(pastaPublica, "js", "filtro-select.js")));
 
-  const estaticos = { index: false, dotfiles: "deny" };
+  const estaticos = { index: false, dotfiles: "deny", setHeaders: (res, caminho) => cacheDoArquivo(res, caminho, { privado: false }) };
   app.use("/fonts", express.static(join(pastaPublica, "fonts"), estaticos));
   app.use("/img", express.static(join(pastaPublica, "img"), estaticos));
   // As fotos dos usuários são do sistema: só as imagens dos planos abrem sem login.
@@ -76,7 +78,7 @@ export function criarAppPublica({ banco, pastaPublica, pastaUploads }) {
       return false;
     }
   };
-  app.use("/uploads", (req, res, next) => (eFoto(req.path) ? res.status(404).end() : next()), express.static(pastaUploads, estaticos));
+  app.use("/uploads", (req, res, next) => (eFoto(req.path) ? res.status(404).end() : next()), express.static(pastaUploads, { ...estaticos, setHeaders: cacheDoEnvio({ privado: false }) }));
 
   app.use((_req, res) => res.status(404).type("html").send(paginaErro));
   // eslint-disable-next-line no-unused-vars

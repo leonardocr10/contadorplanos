@@ -7,6 +7,7 @@ import { completarCarencias, lerArea, normFone } from "../public/js/calculo.js";
 import { ErroBackup, STATUS, tipoImagem } from "./db.js";
 import { ErroLeitura, MODELO_PADRAO, lerTabela } from "./claude.js";
 import { criarLogin } from "./login.js";
+import { cacheDoArquivo, cacheDoEnvio, naoGuardar } from "./cache.js";
 import { conferirSenha, gerarHashSemTravar } from "./senhas.js";
 import { criarEnviadorDeEmail } from "./email.js";
 import { NIVEIS, TELAS, atende } from "./permissoes.js";
@@ -198,6 +199,7 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
   const urlBase = () => { const l = linkPublico(); return l.estado === "ativo" && !l.local ? l.url : null; };
   const login = exigirLogin ? criarLogin(env, banco, { enviarEmail, urlBase }) : null;
   if (login) app.use(login);
+  app.use("/api", naoGuardar);
 
   // Sem exigir login (só nos testes), a tela age como administrador com os dados gerais.
   const eAdmin = (req) => !req.usuario || req.usuario.perfil === "admin";
@@ -549,8 +551,8 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
 
   app.use("/api", (_req, res) => res.status(404).json({ erro: "Rota não encontrada." }));
 
-  app.use("/uploads", express.static(pastaUploads, { fallthrough: false }));
-  app.use(express.static(pastaPublica));
+  app.use("/uploads", express.static(pastaUploads, { fallthrough: false, setHeaders: cacheDoEnvio() }));
+  app.use(express.static(pastaPublica, { setHeaders: cacheDoArquivo }));
 
   // eslint-disable-next-line no-unused-vars
   app.use((err, _req, res, _next) => {

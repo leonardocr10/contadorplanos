@@ -1,6 +1,6 @@
 # Cotador de Planos
 
-Monta cotações por faixa etária e gera uma imagem de proposta por plano para enviar pelo WhatsApp. Roda só no seu computador.
+Monta cotações por faixa etária e gera uma imagem de proposta por plano para enviar pelo WhatsApp. Roda num computador ou servidor Windows, com login para cada pessoa, e as propostas podem ser abertas pelo cliente num link.
 
 ## Como usar
 
@@ -9,11 +9,11 @@ Monta cotações por faixa etária e gera uma imagem de proposta por plano para 
 
 Se o Node.js não puder ser instalado automaticamente, baixe a versão LTS em https://nodejs.org e abra o `iniciar.bat` de novo.
 
-Na aba **Meus dados**, preencha seu nome, telefone e corretora. Eles aparecem na imagem e na mensagem.
+Em **Configurações > Meus dados**, preencha seu nome, telefone e corretora. Eles aparecem na imagem e na mensagem.
 
 ## Atualizar o sistema
 
-Com o login de administrador, na aba **Configurações**, clique em **Atualizar agora**. O cotador baixa a versão nova do GitHub e reinicia sozinho, desde que tenha sido aberto pelo `iniciar.bat`.
+Com o login de administrador, em **Configurações > Atualizar sistema**, clique em **Atualizar agora**. O cotador baixa a versão nova do GitHub e reinicia sozinho, desde que tenha sido aberto pelo `iniciar.bat`. Quando ele volta, a tela recarrega com a versão nova: o navegador sempre confere com o servidor as telas e os scripts, então não precisa limpar o cache.
 
 ## Login
 
@@ -54,7 +54,7 @@ As páginas das propostas ficam abertas para a internet na porta 9090. Execute o
 
 A mensagem enviada não traz link: vai o texto e a imagem da proposta. O botão **Copiar link** cria a página de cada plano escolhido, com o botão de aceite, e copia o endereço para você enviar ao cliente.
 
-**Por enquanto, o link é local:** ele só abre neste computador, com o cotador ligado, e o cliente não consegue abri-lo. Até ter o domínio, envie também a imagem da proposta. A imagem mostra a mesma página do link, na tela de computador, com a primeira situação de carência. O botão de aceite e o seletor da imagem são só desenho: para aceitar ou trocar a situação, o cliente precisa do link.
+**Sem `PUBLIC_URL`, o link é local:** ele só abre no próprio computador do cotador, e o cliente não consegue abri-lo. A imagem da proposta mostra a mesma página do link, na tela de computador, com a primeira situação de carência. O botão de aceite e o seletor da imagem são só desenho: para aceitar ou trocar a situação, o cliente precisa do link.
 
 A página guarda os valores do momento em que o link foi criado. Mudar o plano depois não altera o que já foi gerado.
 
@@ -75,7 +75,7 @@ Quando as páginas estiverem publicadas num domínio, coloque o endereço no `.e
 PUBLIC_URL=https://propostas.seudominio.com.br
 ```
 
-Quem receber o link consegue ver o nome do cliente e os valores da proposta. Na publicação, exponha só a porta pública: o cotador, o histórico e o backup não têm senha.
+Quem receber o link consegue ver o nome do cliente e os valores da proposta. Exponha na internet só a porta pública (9090): nela, as propostas abrem sem login, e a tela do cotador, o histórico e o backup sempre pedem login. A porta 3210 atende só o próprio computador.
 
 ## Leitura automática de tabelas (opcional)
 

@@ -16,7 +16,6 @@ const montar = (ids, idades, extra = {}) => buildMsg({ items: ids.map(plano), vi
 test("teste 1: PLAM SAÚDE é idêntico ao modelo", () => {
   // O texto da coparticipação vem do cadastro do plano; aqui usa o do modelo.
   const msg = buildMsg({ items: [{ ...plano("plam-saude-pf"), copartTexto: COPART_MODELO }], vidas: idadesParaVidas("7"), over: {}, nome: "Maria", corretor: CORRETOR, opts: OPTS });
-  console.log(msg);
   assert.equal(msg, [
     "Olá, *Maria*! Tudo bem? 😊",
     "Preparamos esta proposta para que você conheça as condições do plano *PLAM SAÚDE*.",

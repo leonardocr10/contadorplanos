@@ -153,6 +153,9 @@ export function criarLogin(env, banco, { enviarEmail = null, urlBase = () => nul
       return res.status(401).type("html").send(pagina("Login ou senha incorretos."));
     }
     falhas.delete(login);
+    // Sessões vencidas saem da memória a cada login, para não se acumularem com o servidor ligado por meses.
+    const agora = Date.now();
+    for (const [t, s] of sessoes) if (s.expira < agora) sessoes.delete(t);
     const token = randomBytes(32).toString("base64url");
     sessoes.set(token, { usuarioId: usuario.id, expira: Date.now() + DURACAO_SESSAO, marca: hash });
     res.setHeader("Set-Cookie", `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${DURACAO_SESSAO / 1000}`);
@@ -171,13 +174,24 @@ export function criarLogin(env, banco, { enviarEmail = null, urlBase = () => nul
   };
   const podeEnviar = () => !!enviarEmail && !!urlBase();
 
-  // Limita os pedidos por e-mail e por origem, para o formulário não virar um disparador de mensagens.
+  // Limita os pedidos por e-mail (um por minuto) e por origem (alguns a cada 10 minutos),
+  // para o formulário não virar um disparador de mensagens.
   const pedidoRepetido = (chave) => {
     const agora = Date.now();
     if (ultimosPedidos.size > 1000) ultimosPedidos.clear();
     const repetido = agora - (ultimosPedidos.get(chave) ?? 0) < INTERVALO_RECUPERACAO;
     if (!repetido) ultimosPedidos.set(chave, agora);
     return repetido;
+  };
+  const MAX_PEDIDOS_POR_ORIGEM = 5, JANELA_ORIGEM = 10 * 60 * 1000;
+  const pedidosPorOrigem = new Map();
+  const origemPassouDoLimite = (origem) => {
+    const agora = Date.now();
+    if (pedidosPorOrigem.size > 1000) pedidosPorOrigem.clear();
+    const recentes = (pedidosPorOrigem.get(origem) ?? []).filter((t) => agora - t < JANELA_ORIGEM);
+    recentes.push(agora);
+    pedidosPorOrigem.set(origem, recentes);
+    return recentes.length > MAX_PEDIDOS_POR_ORIGEM;
   };
 
   rotas.get("/login/recuperar", (_req, res) => {
@@ -189,7 +203,8 @@ export function criarLogin(env, banco, { enviarEmail = null, urlBase = () => nul
     semMemoria(res);
     if (!podeEnviar()) return res.status(503).type("html").send(paginaRecuperar(AVISO_SEM_EMAIL, "", false));
     const email = String(req.body?.email ?? "").trim().toLowerCase();
-    const repetido = pedidoRepetido(`email:${email}`);
+    // A resposta continua a mesma: quem passa do limite só deixa de receber o e-mail.
+    const repetido = origemPassouDoLimite(req.socket.remoteAddress ?? "") || pedidoRepetido(`email:${email}`);
     const usuario = !repetido ? banco.obterUsuarioPorEmail(email) : null;
     if (usuario?.ativo) {
       const token = randomBytes(32).toString("base64url");
