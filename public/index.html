@@ -117,8 +117,9 @@
   <section id="v-documentos" hidden>
     <div class="panel">
       <h2>Documentos necessários</h2>
-      <p class="note" style="margin:0" data-edita="documentos" hidden>Cadastre os documentos e escolha quais ficam ativos em cada plano. Os ativos aparecem para o cliente depois do aceite e na mensagem da aba Aceites.</p>
+      <p class="note" style="margin:0" data-edita="documentos" hidden>Cadastre os documentos de pessoa física e os de CNPJ, cada um na sua aba, e escolha em quais planos do tipo ele fica ativo. Os ativos aparecem para escolher na mensagem da aba Aceites.</p>
       <p class="note" style="margin:0" data-so-ve="documentos" hidden>Escolha o plano para ver os documentos pedidos ao cliente. O seu usuário não altera esta lista.</p>
+      <nav class="cfg-abas" id="doc-abas" aria-label="Tipo de documento"></nav>
       <div class="field"><label for="doc-plano">Plano</label><select id="doc-plano"></select></div>
       <form id="doc-form" class="row" style="grid-template-columns:minmax(0,1fr) auto;align-items:end" data-edita="documentos" hidden>
         <div class="field"><label for="doc-nome">Novo documento (já entra ativo no plano escolhido)</label><input id="doc-nome" type="text" placeholder="Ex.: Comprovante de residência" autocomplete="off"></div>

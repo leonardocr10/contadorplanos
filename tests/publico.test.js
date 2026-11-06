@@ -410,9 +410,9 @@ test("abrir o link não aceita; aceite exige acomodação válida e confirmaçã
 test("só o primeiro aceite vale e a página avisa que a lista de documentos virá depois", async (t) => {
   const { admin, publico, banco } = await subir(t, ativo);
   banco.gravarConfig({ fone: "(34) 90000-2222" });
-  banco.criarDocumento("RG e CPF", "plam-saude-pf");
-  banco.criarDocumento("Comprovante <de> residência", "plam-saude-pf");
-  banco.criarDocumento("Cartão CNPJ", "amil-ouro-total");
+  banco.criarDocumento("RG e CPF", "PF", "plam-saude-pf");
+  banco.criarDocumento("Comprovante <de> residência", "PF", "plam-saude-pf");
+  banco.criarDocumento("Cartão CNPJ", "PF", "amil-ouro-total");
   const url = await criarLink(admin, publico);
   await aceitar(url, { acomodacao: "Enfermaria", confirmo: "1" });
   await aceitar(url, { acomodacao: "Apartamento", confirmo: "1" });
@@ -454,7 +454,7 @@ test("cadastra documentos e ativa ou inativa por plano", async (t) => {
   assert.equal((await api(`/api/documentos/${rg.id}/planos/plam-saude-pf`, "PUT", { ativo: "sim" })).status, 400);
   assert.equal((await api(`/api/documentos/${rg.id}/planos/nao-existe`, "PUT", { ativo: true })).status, 404);
 
-  assert.equal((await (await api(`/api/documentos/${rg.id}/planos`, "PUT", { ativo: true })).json()).planos.length, 20);
+  assert.equal((await (await api(`/api/documentos/${rg.id}/planos`, "PUT", { ativo: true })).json()).planos.length, banco.db.prepare("SELECT COUNT(*) AS n FROM planos WHERE categoria = 'PF'").get().n);
   assert.equal((await (await api(`/api/documentos/${rg.id}/planos`, "PUT", { ativo: false })).json()).planos.length, 0);
 
   assert.equal((await (await api(`/api/documentos/${cpf.id}`, "PUT", { nome: "CPF novo" })).json()).nome, "CPF novo");
@@ -474,7 +474,7 @@ test("cadastra documentos e ativa ou inativa por plano", async (t) => {
 
 test("excluir plano remove os vínculos dele", async (t) => {
   const { banco } = await subir(t, ativo);
-  const d = banco.criarDocumento("RG", "plam-saude-pf");
+  const d = banco.criarDocumento("RG", "PF", "plam-saude-pf");
   banco.excluirPlano("plam-saude-pf");
   assert.deepEqual(banco.obterDocumento(d.id).planos, []);
 });
@@ -486,15 +486,62 @@ test("listas antigas de PF e CNPJ viram documentos dos planos do tipo", async (t
   banco.db.prepare("UPDATE planos SET categoria = 'CNPJ' WHERE id = 'amil-ouro-total'").run();
   banco.fechar();
   banco.abrir();
-  assert.deepEqual(banco.listarDocumentos().map((d) => d.nome), ["RG", "CPF", "Contrato social"]);
+  // O RG das duas listas vira um documento de pessoa física e outro de CNPJ.
+  assert.deepEqual(banco.listarDocumentos().map((d) => `${d.nome} ${d.tipo}`), ["RG PF", "CPF PF", "Contrato social CNPJ", "RG CNPJ"]);
   assert.deepEqual(banco.documentosDoPlano("plam-saude-pf"), ["RG", "CPF"]);
-  assert.deepEqual(banco.documentosDoPlano("amil-ouro-total"), ["RG", "Contrato social"]);
+  assert.deepEqual(banco.documentosDoPlano("amil-ouro-total"), ["Contrato social", "RG"]);
   assert.deepEqual(Object.keys(banco.lerConfig()).sort(), ["empresa", "fone", "nome"]);
+});
+
+test("documento é de pessoa física ou de CNPJ, e só vale nos planos do mesmo tipo", async (t) => {
+  const { admin, banco } = await subir(t, ativo);
+  const api = (rota, metodo, json) => fetch(admin + rota, { method: metodo, headers: { "Content-Type": "application/json" }, body: json ? JSON.stringify(json) : undefined });
+  const cnpj = banco.db.prepare("SELECT id FROM planos WHERE categoria = 'CNPJ'").all().map((p) => p.id);
+  // O tipo vem do plano escolhido, e não pode contradizer o plano.
+  const contrato = await (await api("/api/documentos", "POST", { nome: "Contrato social", planoId: cnpj[0] })).json();
+  assert.equal(contrato.tipo, "CNPJ");
+  assert.equal((await api("/api/documentos", "POST", { nome: "Outro", tipo: "PF", planoId: cnpj[0] })).status, 400);
+  assert.equal((await api("/api/documentos", "POST", { nome: "Outro", tipo: "MEI" })).status, 400);
+  // O mesmo nome pode existir uma vez em cada tipo.
+  assert.equal((await api("/api/documentos", "POST", { nome: "RG", tipo: "PF" })).status, 201);
+  const rgCnpj = await api("/api/documentos", "POST", { nome: "rg", tipo: "CNPJ" });
+  assert.equal(rgCnpj.status, 201);
+  assert.equal((await api("/api/documentos", "POST", { nome: "RG", tipo: "CNPJ" })).status, 400);
+  // Ativar em todos só pega os planos do tipo, e um plano de outro tipo é recusado.
+  const todos = await (await api(`/api/documentos/${contrato.id}/planos`, "PUT", { ativo: true })).json();
+  assert.deepEqual(todos.planos.sort(), [...cnpj].sort());
+  assert.equal((await api(`/api/documentos/${contrato.id}/planos/plam-saude-pf`, "PUT", { ativo: true })).status, 400);
+  assert.equal((await api(`/api/documentos/${contrato.id}/planos/plam-saude-pf`, "PUT", { ativo: false })).status, 200);
+  assert.deepEqual(banco.documentosDoPlano("plam-saude-pf"), []);
+  assert.deepEqual(banco.documentosDoPlano(cnpj[0]), ["Contrato social"]);
+  // Se o plano mudar de tipo, os documentos do tipo antigo deixam de valer nele.
+  banco.db.prepare("UPDATE planos SET categoria = 'PF' WHERE id = ?").run(cnpj[0]);
+  assert.deepEqual(banco.documentosDoPlano(cnpj[0]), []);
+});
+
+test("documento ativo nos dois tipos vira dois ao atualizar", async (t) => {
+  const { banco } = await subir(t, ativo);
+  const versao = banco.db.prepare("PRAGMA user_version").get().user_version;
+  // Volta à tabela antiga, sem tipo, com um documento em todos os planos e outro só em CNPJ.
+  banco.db.exec(`DROP TABLE documentos; DELETE FROM documentos_planos;
+    CREATE TABLE documentos (id INTEGER PRIMARY KEY AUTOINCREMENT, nome TEXT NOT NULL UNIQUE COLLATE NOCASE);
+    INSERT INTO documentos (id, nome) VALUES (1, 'Comprovante'), (2, 'Contrato social'), (3, 'Sem plano');
+    INSERT INTO documentos_planos (documento_id, plano_id) SELECT 1, id FROM planos;
+    INSERT INTO documentos_planos (documento_id, plano_id) SELECT 2, id FROM planos WHERE categoria = 'CNPJ';
+    PRAGMA user_version = ${versao - 1};`);
+  banco.fechar();
+  banco.abrir();
+  const docs = banco.listarDocumentos();
+  assert.deepEqual(docs.map((d) => `${d.nome} ${d.tipo}`), ["Comprovante PF", "Contrato social CNPJ", "Sem plano PF", "Comprovante CNPJ"]);
+  const tipoDe = (id) => banco.db.prepare("SELECT categoria FROM planos WHERE id = ?").get(id).categoria;
+  for (const d of docs) assert.ok(d.planos.every((p) => tipoDe(p) === d.tipo), d.nome);
+  assert.deepEqual(banco.documentosDoPlano("plam-saude-pf"), ["Comprovante"]);
+  assert.deepEqual(banco.documentosDoPlano("plam-total-cnpj"), ["Contrato social", "Comprovante"]);
 });
 
 test("link antigo, sem o id do plano, encontra os documentos pelo nome", async (t) => {
   const { banco } = await subir(t, ativo);
-  banco.criarDocumento("RG", "plam-saude-pf");
+  banco.criarDocumento("RG", "PF", "plam-saude-pf");
   assert.deepEqual(banco.documentosDaProposta({ plano: { nome: "PLAM SAÚDE" } }), ["RG"]);
   assert.deepEqual(banco.documentosDaProposta({ plano: { nome: "Plano apagado" } }), []);
 });

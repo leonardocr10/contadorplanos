@@ -161,6 +161,28 @@ const MIGRACOES = [
     const existe = db.prepare("PRAGMA table_info(usuarios)").all().some((c) => c.name === "foto");
     if (!existe) db.exec("ALTER TABLE usuarios ADD COLUMN foto TEXT NOT NULL DEFAULT ''");
   },
+  // Cada documento passa a ser de pessoa física ou de CNPJ, e o nome só se repete entre tipos diferentes.
+  (db) => {
+    db.exec(`CREATE TABLE documentos_tipo (
+       id INTEGER PRIMARY KEY AUTOINCREMENT,
+       nome TEXT NOT NULL COLLATE NOCASE,
+       tipo TEXT NOT NULL CHECK (tipo IN ('PF','CNPJ')),
+       UNIQUE (nome, tipo)
+     );
+     INSERT INTO documentos_tipo (id, nome, tipo) SELECT id, nome, 'PF' FROM documentos;
+     DROP TABLE documentos;
+     ALTER TABLE documentos_tipo RENAME TO documentos;`);
+    // Ativo nos dois tipos, o documento vira dois: o de pessoa física e uma cópia para CNPJ.
+    const ativosEm = (id, categoria) => db.prepare(
+      "SELECT COUNT(*) AS n FROM documentos_planos v JOIN planos p ON p.id = v.plano_id WHERE v.documento_id = ? AND p.categoria = ?",
+    ).get(id, categoria).n;
+    for (const d of db.prepare("SELECT id, nome FROM documentos ORDER BY id").all()) {
+      if (!ativosEm(d.id, "CNPJ")) continue;
+      if (!ativosEm(d.id, "PF")) { db.prepare("UPDATE documentos SET tipo = 'CNPJ' WHERE id = ?").run(d.id); continue; }
+      const copia = Number(db.prepare("INSERT INTO documentos (nome, tipo) VALUES (?, 'CNPJ')").run(d.nome).lastInsertRowid);
+      db.prepare("UPDATE documentos_planos SET documento_id = ? WHERE documento_id = ? AND plano_id IN (SELECT id FROM planos WHERE categoria = 'CNPJ')").run(copia, d.id);
+    }
+  },
 ];
 
 const VERSAO_TEXTOS_COPARTICIPACAO = 11;
@@ -348,8 +370,8 @@ export class Banco {
   /* ---------- documentos por plano ---------- */
   listarDocumentos() {
     const vinculos = this.db.prepare("SELECT documento_id, plano_id FROM documentos_planos").all();
-    return this.db.prepare("SELECT id, nome FROM documentos ORDER BY id").all().map((d) => ({
-      id: d.id, nome: d.nome, planos: vinculos.filter((v) => v.documento_id === d.id).map((v) => v.plano_id),
+    return this.db.prepare("SELECT id, nome, tipo FROM documentos ORDER BY id").all().map((d) => ({
+      id: d.id, nome: d.nome, tipo: d.tipo, planos: vinculos.filter((v) => v.documento_id === d.id).map((v) => v.plano_id),
     }));
   }
 
@@ -357,12 +379,12 @@ export class Banco {
     return this.listarDocumentos().find((d) => d.id === id) ?? null;
   }
 
-  documentoComNome(nome) {
-    return this.db.prepare("SELECT id FROM documentos WHERE nome = ?").get(nome)?.id ?? null;
+  documentoComNome(nome, tipo) {
+    return this.db.prepare("SELECT id FROM documentos WHERE nome = ? AND tipo = ?").get(nome, tipo)?.id ?? null;
   }
 
-  criarDocumento(nome, planoId) {
-    const id = Number(this.db.prepare("INSERT INTO documentos (nome) VALUES (?)").run(nome).lastInsertRowid);
+  criarDocumento(nome, tipo, planoId) {
+    const id = Number(this.db.prepare("INSERT INTO documentos (nome, tipo) VALUES (?, ?)").run(nome, tipo).lastInsertRowid);
     if (planoId) this.definirDocumentoNoPlano(id, planoId, true);
     return this.obterDocumento(id);
   }
@@ -387,13 +409,15 @@ export class Banco {
 
   definirDocumentoEmTodos(id, ativo) {
     this.db.prepare("DELETE FROM documentos_planos WHERE documento_id = ?").run(id);
-    if (ativo) this.db.prepare("INSERT INTO documentos_planos (documento_id, plano_id) SELECT ?, id FROM planos").run(id);
+    // "Todos" são os planos do mesmo tipo do documento.
+    if (ativo) this.db.prepare("INSERT INTO documentos_planos (documento_id, plano_id) SELECT d.id, p.id FROM documentos d JOIN planos p ON p.categoria = d.tipo WHERE d.id = ?").run(id);
     return this.obterDocumento(id);
   }
 
   documentosDoPlano(planoId) {
+    // Um plano que mudou de tipo não leva os documentos do tipo antigo.
     return this.db
-      .prepare("SELECT d.nome FROM documentos d JOIN documentos_planos v ON v.documento_id = d.id WHERE v.plano_id = ? ORDER BY d.id")
+      .prepare("SELECT d.nome FROM documentos d JOIN documentos_planos v ON v.documento_id = d.id JOIN planos p ON p.id = v.plano_id AND p.categoria = d.tipo WHERE v.plano_id = ? ORDER BY d.id")
       .all(planoId)
       .map((d) => d.nome);
   }

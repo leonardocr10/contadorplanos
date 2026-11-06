@@ -3,6 +3,12 @@ import { $, S, api, avisoCentral, esc, pode, toast } from "./estado.js";
 import { normalizar } from "./filtro-select.js";
 
 let docs = [], planoId = null, editando = null, excluindo = null, planosAberto = null, filtroPlanos = "";
+// Pessoa física e CNPJ têm documentos próprios; a aba escolhe qual lista aparece.
+const TIPOS = { PF: "Pessoa física", CNPJ: "CNPJ" };
+const NOME_DO_TIPO = { PF: "pessoa física", CNPJ: "CNPJ" };
+let aba = "PF";
+const docsDaAba = () => docs.filter((d) => d.tipo === aba);
+const planosDaAba = () => S.plans.filter((p) => p.categoria === aba);
 
 const icone = (corpo) => `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${corpo}</svg>`;
 const ICONES = {
@@ -19,19 +25,28 @@ export async function carregarDocumentos() {
   renderDocumentos();
 }
 
+function renderAbas() {
+  $("#doc-abas").innerHTML = Object.entries(TIPOS).map(([tipo, nome]) =>
+    `<button type="button" class="cfg-item" data-tipo="${tipo}" aria-current="${tipo === aba}">${nome} <span class="cat-qtd">${docs.filter((d) => d.tipo === tipo).length}</span></button>`).join("");
+  $("#doc-abas").querySelectorAll("[data-tipo]").forEach((b) => (b.onclick = () => {
+    aba = b.dataset.tipo;
+    editando = excluindo = planosAberto = null;
+    renderDocumentos();
+  }));
+}
+
 function renderSeletor() {
-  if (!S.plans.some((p) => p.id === planoId)) planoId = S.plans[0]?.id ?? null;
-  const grupo = (cat, rotulo) => {
-    const lista = S.plans.filter((p) => p.categoria === cat);
-    return lista.length ? `<optgroup label="${rotulo}">${lista.map((p) => `<option value="${esc(p.id)}" ${p.id === planoId ? "selected" : ""}>${esc(p.nome)}${p.ativo === false ? " (oculto)" : ""}</option>`).join("")}</optgroup>` : "";
-  };
-  $("#doc-plano").innerHTML = grupo("PF", "Pessoa física") + grupo("CNPJ", "CNPJ");
+  const lista = planosDaAba();
+  if (!lista.some((p) => p.id === planoId)) planoId = lista[0]?.id ?? null;
+  $("#doc-plano").innerHTML = lista.length
+    ? lista.map((p) => `<option value="${esc(p.id)}" ${p.id === planoId ? "selected" : ""}>${esc(p.nome)}${p.ativo === false ? " (oculto)" : ""}</option>`).join("")
+    : `<option value="">Nenhum plano de ${NOME_DO_TIPO[aba]} cadastrado</option>`;
 }
 
 function painelPlanos(d) {
   const grupo = (cat, rotulo) => {
     const lista = S.plans.filter((p) => p.categoria === cat);
-    if (!lista.length) return "";
+    if (!lista.length || cat !== d.tipo) return "";
     return `<div class="doc-grupo" data-grupo>
       <div class="label">${rotulo}</div>
       <div class="doc-planos">${lista.map((p) => `<label class="uchk" data-nome-plano="${esc(normalizar(p.nome))}"><input type="checkbox" data-plano="${esc(p.id)}" ${d.planos.includes(p.id) ? "checked" : ""}> ${esc(p.nome)}${p.ativo === false ? " (oculto)" : ""}</label>`).join("")}</div>
@@ -62,7 +77,7 @@ function aplicarFiltroPlanos(row) {
 
 // Quem tem só visualização consulta os documentos pedidos no plano escolhido.
 function renderConsulta() {
-  const lista = docs.filter((d) => d.planos.includes(planoId));
+  const lista = docsDaAba().filter((d) => d.planos.includes(planoId));
   $("#doc-count").textContent = planoId ? `${lista.length} ${lista.length === 1 ? "documento pedido" : "documentos pedidos"} neste plano` : "";
   $("#doc-list").innerHTML = lista.length
     ? lista.map((d) => `<div class="catrow"><div class="t"><b>${esc(d.nome)}</b></div></div>`).join("")
@@ -70,28 +85,31 @@ function renderConsulta() {
 }
 
 export function renderDocumentos() {
+  renderAbas();
   renderSeletor();
   if (!pode("documentos", "editar")) { renderConsulta(); return; }
-  const ativos = docs.filter((d) => d.planos.includes(planoId)).length;
-  $("#doc-count").textContent = planoId ? `${ativos} de ${docs.length} ${docs.length === 1 ? "documento ativo" : "documentos ativos"} neste plano` : "";
+  const lista = docsDaAba();
+  const ativos = lista.filter((d) => d.planos.includes(planoId)).length;
+  $("#doc-count").textContent = planoId ? `${ativos} de ${lista.length} ${lista.length === 1 ? "documento ativo" : "documentos ativos"} neste plano` : "";
+  $("#doc-nome").placeholder = aba === "CNPJ" ? "Ex.: Contrato social" : "Ex.: Comprovante de residência";
   const box = $("#doc-list");
-  if (!docs.length) {
-    box.innerHTML = `<div class="status">Nenhum documento cadastrado. Escreva o nome acima e clique em <b>Adicionar</b>.</div>`;
+  if (!lista.length) {
+    box.innerHTML = `<div class="status">Nenhum documento de ${NOME_DO_TIPO[aba]} cadastrado. Escreva o nome acima e clique em <b>Adicionar</b>.</div>`;
     return;
   }
-  const total = S.plans.length;
-  box.innerHTML = docs.map((d) => {
+  const total = planosDaAba().length;
+  box.innerHTML = lista.map((d) => {
     const ativo = d.planos.includes(planoId), aberto = planosAberto === d.id;
     const nome = editando === d.id
       ? `<input type="text" data-nome value="${esc(d.nome)}" aria-label="Nome do documento"><div class="actions" style="margin-top:8px"><button class="btn primary" data-salvar>Salvar</button><button class="btn" data-cancelar>Cancelar</button></div>`
-      : `<b>${esc(d.nome)}</b><span>Ativo em ${d.planos.length} de ${total} planos</span>`;
+      : `<b>${esc(d.nome)}</b><span>Ativo em ${d.planos.length} de ${total} ${total === 1 ? "plano" : "planos"} de ${NOME_DO_TIPO[d.tipo]}</span>`;
     return `<div class="catrow" data-id="${d.id}">
       <div class="t" style="flex:1 1 240px">${nome}</div>
       <label class="uchk"><input type="checkbox" data-ativo ${ativo ? "checked" : ""} ${planoId ? "" : "disabled"}> <span class="pill ${ativo ? "" : "off"}" style="margin:0">${ativo ? "ATIVO" : "INATIVO"}</span></label>
       <div class="actions">
         ${botaoIcone("planos", `Ver e marcar os planos de ${d.nome}`, `data-ver-planos aria-expanded="${aberto}"`, aberto ? "ligado" : "")}
-        ${botaoIcone("todos", "Ativar em todos os planos", 'data-todos="1"')}
-        ${botaoIcone("nenhum", "Inativar em todos os planos", 'data-todos="0"')}
+        ${botaoIcone("todos", `Ativar em todos os planos de ${NOME_DO_TIPO[d.tipo]}`, 'data-todos="1"')}
+        ${botaoIcone("nenhum", `Inativar em todos os planos de ${NOME_DO_TIPO[d.tipo]}`, 'data-todos="0"')}
         ${botaoIcone("editar", "Editar nome", "data-editar")}
         ${botaoIcone("excluir", "Excluir documento", "data-excluir", "perigo")}
       </div>
@@ -165,7 +183,7 @@ export function iniciarDocumentos() {
     e.preventDefault();
     const campo = $("#doc-nome");
     try {
-      await api("/api/documentos", { metodo: "POST", json: { nome: campo.value, planoId } });
+      await api("/api/documentos", { metodo: "POST", json: { nome: campo.value, tipo: aba, ...(planoId ? { planoId } : {}) } });
       campo.value = "";
       await carregarDocumentos();
       campo.focus();
