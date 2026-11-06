@@ -1,8 +1,12 @@
-// Encontra os dados de RG, CNH e outros documentos no texto lido do PDF ou da foto.
+// Encontra no texto lido do RG, da CNH ou da Carteira de Identidade só os dados usados na proposta:
+// nome, CPF, data de nascimento, número do RG, data de expedição, filiação e naturalidade.
 // Roda inteiro no navegador: nada do documento sai do computador.
 
-const semAcento = (s) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
-const so = (s) => s.replace(/\D/g, "");
+const semAcento = (s) => String(s).normalize("NFD").replace(/[̀-ͯ]/g, "").toUpperCase();
+const so = (s) => String(s).replace(/\D/g, "");
+const UF = "AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO";
+
+export const CAMPOS = ["Nome", "CPF", "Data de nascimento", "Número do RG", "Data de expedição", "Filiação", "Naturalidade"];
 
 export function cpfValido(numeros) {
   const d = so(numeros);
@@ -14,147 +18,168 @@ export function cpfValido(numeros) {
   };
   return digito(9) === Number(d[9]) && digito(10) === Number(d[10]);
 }
-
-export function cnpjValido(numeros) {
-  const d = so(numeros);
-  if (d.length !== 14 || /^(\d)\1{13}$/.test(d)) return false;
-  const digito = (n) => {
-    const pesos = n === 12 ? [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2] : [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
-    const r = [...d.slice(0, n)].reduce((t, c, i) => t + Number(c) * pesos[i], 0) % 11;
-    return r < 2 ? 0 : 11 - r;
-  };
-  return digito(12) === Number(d[12]) && digito(13) === Number(d[13]);
-}
-
 const formatarCpf = (d) => `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
-const formatarCnpj = (d) => `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
 
 export function tipoDoDocumento(texto) {
   const t = semAcento(texto);
-  if (/HABILITACAO|DRIVER LICENSE|PERMISSAO PARA DIRIGIR/.test(t)) return "CNH";
-  if (/IDENTIDADE NACIONAL/.test(t)) return "Carteira de Identidade Nacional";
-  if (/REGISTRO GERAL|CARTEIRA DE IDENTIDADE|SECRETARIA DE SEGURANCA|INSTITUTO DE IDENTIFICACAO/.test(t)) return "RG";
-  if (/PESSOA JURIDICA|CNPJ/.test(t) && /RAZAO SOCIAL|NOME EMPRESARIAL|INSCRICAO/.test(t)) return "Cartão CNPJ";
-  if (/CERTIDAO DE NASCIMENTO/.test(t)) return "Certidão de nascimento";
-  if (/CERTIDAO DE CASAMENTO/.test(t)) return "Certidão de casamento";
-  if (/CARTAO NACIONAL DE SAUDE|CARTAO DO SUS|\bCNS\b/.test(t)) return "Cartão do SUS";
-  if (/PASSAPORTE|PASSPORT/.test(t)) return "Passaporte";
-  if (/CADASTRO DE PESSOAS FISICAS|RECEITA FEDERAL/.test(t)) return "CPF";
-  if (/VENCIMENTO|LEITURA|CONSUMO|FATURA|CODIGO DO CLIENTE|INSTALACAO/.test(t)) return "Comprovante de residência";
+  if (/HABILITACAO|DRIVER LICENSE|PERMISO DE CONDUC/.test(t)) return "CNH";
+  if (/IDENTIDADE NACIONAL|PERSONAL NUMBER|CARD ISSUER|CARDHOLDER|FILIATION|PLACE OF BIRTH/.test(t)) return "Carteira de Identidade";
+  if (/REGISTRO GERAL|CARTEIRA DE IDENTIDADE|SECRETARIA DE SEGURANCA|INSTITUTO DE IDENTIFICACAO|NATURALIDADE/.test(t) || new RegExp(`\\b(${UF})-\\d{1,2}\\.\\d{3}\\.\\d{3}\\b`).test(t)) return "RG";
   return "Documento";
 }
 
-// Rótulos que podem aparecer antes de uma data; o primeiro que bater dá o nome do campo.
-const ROTULOS_DE_DATA = [
-  [/NASC/, "Data de nascimento"],
-  [/VALIDADE|VALIDA ATE|VENCIMENTO/, "Validade"],
-  [/1[A-Z.ºª° ]{0,3}HABILITA|PRIMEIRA HABILITA/, "Primeira habilitação"],
-  [/EXPEDI|EMISSAO|EMITIDO/, "Data de expedição"],
-];
+// A leitura da foto troca letras por números parecidos (e vice-versa) dentro dos números.
+const corrigirNumeros = (s) => s.replace(/[\dOoIl|]{3,}[\d.\-/OoIl|]*/g, (m) => (/\d/.test(m) ? m.replace(/[Oo]/g, "0").replace(/[Il|]/g, "1") : m));
 
-// Linhas que são títulos do formulário, e não dados.
-const TITULO = /REPUBLICA|FEDERATIVA|BRASIL|MINISTERIO|SECRETARIA|DEPARTAMENTO|ESTADO D|CARTEIRA|VALIDA EM|TODO O TERRITORIO|ASSINATURA|POLEGAR|DETRAN|INSTITUTO|DOCUMENTO|LEI N/;
-
-const limparLinha = (s) => s.replace(/[|_~=*«»"“”]+/g, " ").replace(/\s{2,}/g, " ").trim();
-const pareceNome = (s) => {
-  const t = semAcento(s);
-  return /^[A-Z][A-Z '.-]{3,}$/.test(t) && t.split(" ").filter((p) => p.length > 1).length >= 2 && !TITULO.test(t);
-};
-
-// Valor de um rótulo: o que vem depois dele na mesma linha ou, se nada, a linha seguinte.
-function valorDoRotulo(linhas, rotulo, aceita = () => true) {
-  for (let i = 0; i < linhas.length; i++) {
-    const t = semAcento(linhas[i]);
-    const m = rotulo.exec(t);
-    if (!m) continue;
-    const resto = limparLinha(linhas[i].slice(m.index + m[0].length)).replace(/^[\s:.\-–]+/, "");
-    if (resto && aceita(resto)) return resto;
-    for (let j = i + 1; j < Math.min(i + 3, linhas.length); j++) {
-      const proxima = limparLinha(linhas[j]);
-      if (proxima && aceita(proxima)) return proxima;
-    }
+const CONECTORES = new Set(["DE", "DA", "DO", "DOS", "DAS", "E"]);
+// Um nome: palavras em maiúsculas, com vogal, sem sequências de consoantes que nenhum nome tem.
+function nomeDaLinha(linha) {
+  const palavras = String(linha).split(/\s+/).map((p) => p.replace(/^[^A-ZÀ-Ú]+|[^A-ZÀ-Ú]+$/g, ""));
+  const boa = (p) => CONECTORES.has(semAcento(p)) || (/^[A-ZÀ-Ú]{2,}$/.test(p) && /[AEIOUY]/.test(semAcento(p)) && !/[^AEIOUY]{4}/.test(semAcento(p)) && !/(.)\1\1/.test(p));
+  let melhor = [], atual = [];
+  for (const p of [...palavras, ""]) {
+    if (p && boa(p)) { atual.push(p); continue; }
+    while (atual.length && CONECTORES.has(semAcento(atual[0]))) atual.shift();
+    while (atual.length && CONECTORES.has(semAcento(atual.at(-1)))) atual.pop();
+    const fortes = atual.filter((x) => !CONECTORES.has(semAcento(x)) && x.length >= 3).length;
+    if (fortes >= 2 && atual.join(" ").length > melhor.join(" ").length) melhor = atual;
+    atual = [];
   }
-  return "";
+  const nome = melhor.join(" ");
+  return TITULOS.test(semAcento(nome)) || ROTULO.test(semAcento(nome)) ? "" : nome;
+}
+const TITULOS = /REPUBLICA|FEDERATIVA|BRASIL|MINISTERIO|SECRETARIA|ESTADO|GOVERNO|POLICIA|INSTITUTO|CARTEIRA|NACIONAL|TERRITORIO|ASSINATURA|DIRETOR|IDENTIDADE|HABILITACAO|TRANSITO|BRASILEIR|HORIZONTE/;
+// Palavras dos rótulos do documento: uma linha com elas é rótulo, não nome de pessoa.
+const ROTULO = /\b(DATA|EMISSAO|EXPEDICAO|EXPEDIDOR|LOCAL|VALIDADE|NOME|CPF|REGISTRO|ORGAO|EMISSOR|NACIONALIDADE|NATURALIDADE|SEXO|CARD|ISSUER|ISSUE|PLACE|BIRTH|NAME|EXPIRY|NATIONALITY|SIGNATURE|DOC|CATEGORIA|HAB)\b/;
+
+// Rótulos de cada data; validade e 1ª habilitação entram só para não serem confundidas com as outras.
+const ROTULOS_DE_DATA = [
+  [/NASC|BIRTH/, "Data de nascimento"],
+  [/EXPEDI|EMISS|ISSUE\b/, "Data de expedição"],
+  [/VALIDADE|EXPIRY|VALIDA ATE/, ""],
+  [/HABILITA/, ""],
+];
+const rotulosDaLinha = (linha) => ROTULOS_DE_DATA
+  .map(([r, nome]) => ({ nome, pos: semAcento(linha).search(r) }))
+  .filter((r) => r.pos >= 0)
+  .sort((a, b) => a.pos - b.pos);
+
+function datasDaLinha(linha) {
+  const datas = [];
+  for (const m of linha.matchAll(/(?<!\d)(\d{1,2})[/.-]?(\d{1,2})[/.-](\d{4})(?!\d)/g)) {
+    const [dia, mes, ano] = [Number(m[1]), Number(m[2]), Number(m[3])];
+    if (dia < 1 || dia > 31 || mes < 1 || mes > 12 || ano < 1900 || ano > 2100) continue;
+    datas.push({ valor: `${String(dia).padStart(2, "0")}/${String(mes).padStart(2, "0")}/${ano}`, pos: m.index, fim: m.index + m[0].length });
+  }
+  return datas;
 }
 
 export function extrairCampos(texto) {
-  const linhas = String(texto || "").split(/\r?\n/).map(limparLinha).filter(Boolean);
+  const linhas = String(texto || "").split(/\r?\n/).map((l) => corrigirNumeros(l.replace(/\s{2,}/g, " ").trim())).filter(Boolean);
   const tudo = linhas.join("\n");
-  const campos = [];
-  const juntar = (campo, valor) => {
-    const v = String(valor || "").trim();
-    if (v && !campos.some((c) => c.campo === campo && c.valor === v)) campos.push({ campo, valor: v });
-  };
+  const tipo = tipoDoDocumento(tudo);
+  const achados = {};
+  const guardar = (campo, valor) => { if (valor && !achados[campo]) achados[campo] = valor; };
+  const proximas = (i, n = 2) => linhas.slice(i + 1, i + 1 + n);
 
-  // Categoria da CNH: na CNH ela fica na mesma faixa da filiação, e a leitura costuma juntar as duas na linha.
-  const CATEGORIA = /(?:^|\s)(ACC|AB|AC|AD|AE|[A-E])$/;
-  let categoria = "";
+  // Nome: depois do rótulo, na mesma linha ou nas seguintes.
   linhas.forEach((l, i) => {
-    if (categoria || !/CAT(?:EGORIA|\.)?\s?HAB/.test(semAcento(l))) return;
-    const mesma = semAcento(l).match(/CAT(?:EGORIA|\.)?\s?HAB[A-Z.]*\s*[:.-]?\s*(ACC|AB|AC|AD|AE|[A-E])\b/);
-    if (mesma) { categoria = mesma[1]; return; }
-    for (const proxima of linhas.slice(i + 1, i + 3)) {
-      const m = semAcento(proxima).match(CATEGORIA);
-      if (m) { categoria = m[1]; break; }
+    const t = semAcento(l);
+    const m = t.match(/\bNOME\b(?:\s+E\s+SOBRENOME)?(?!\s+(?:SOCIAL|DO PAI|DA MAE|EMPRESARIAL))/);
+    if (!m || /NOME SOCIAL|SOCIAL NAME/.test(t)) return;
+    guardar("Nome", nomeDaLinha(l.slice(m.index + m[0].length).replace(/\/\s*NAME\b/i, "")) || proximas(i).map(nomeDaLinha).find(Boolean));
+  });
+
+  // CPF: só número que passa na conferência dos dígitos; perto do rótulo, aceita sem os pontos.
+  for (const m of tudo.matchAll(/\d{3}[.\s]\d{3}[.\s]\d{3}[-\s.]\d{2}/g)) if (cpfValido(m[0])) guardar("CPF", formatarCpf(so(m[0])));
+  linhas.forEach((l, i) => {
+    if (!/\bCPF\b/.test(semAcento(l))) return;
+    for (const linha of [l, ...proximas(i)]) for (const m of linha.matchAll(/(?<!\d)\d{3}\.?\d{3}\.?\d{3}-?\d{2}(?!\d)/g)) if (cpfValido(m[0])) guardar("CPF", formatarCpf(so(m[0])));
+  });
+
+  // Número do RG: o do RG antigo tem a UF na frente; na CNH vem em "Doc. identidade";
+  // na Carteira de Identidade nova, o registro geral é o próprio CPF.
+  // Sem a UF legível, o formato 00.000.000 do RG ainda o identifica (o CPF tem um traço no fim).
+  // No RG antigo o número fica na mesma linha da data de expedição, o que também o identifica.
+  const RG_SEM_UF = /(?<![\d.])\d{1,2}\.\s?\d{3}\.\s?\d{3}(?![\d.-])/;
+  const rgComUf = tudo.match(new RegExp(`\\b(?:${UF})-?\\s?\\d{1,2}\\.?\\d{3}\\.?\\d{3}\\b`))
+    ?? (tipo === "RG" ? tudo.match(RG_SEM_UF) : null)
+    ?? linhas.filter((l) => datasDaLinha(l).length).map((l) => l.match(RG_SEM_UF)).find(Boolean);
+  if (rgComUf) guardar("Número do RG", rgComUf[0].replace(/\s/g, ""));
+  linhas.forEach((l, i) => {
+    const t = semAcento(l);
+    if (/REGISTRO GERAL/.test(t) && /CPF/.test(t) && achados.CPF) guardar("Número do RG", achados.CPF);
+    if (!/DOC(?:UMENTO)?\.?\s?(?:DE\s)?IDENTIDADE|REGISTRO GERAL|\bRG\b/.test(t) || /CPF/.test(t)) return;
+    for (const linha of [l.slice(t.search(/IDENTIDADE|GERAL|\bRG\b/) + 5), ...proximas(i)]) {
+      const m = semAcento(linha).match(/\b[A-Z]{0,2}-?\d[\d.\-]{4,12}[\dX]\b/);
+      if (m && !cpfValido(m[0])) { guardar("Número do RG", m[0]); break; }
     }
   });
-  const semCategoria = (nome) => (categoria ? nome.replace(new RegExp(`\\s${categoria}$`), "") : nome);
 
-  juntar("Nome", semCategoria(valorDoRotulo(linhas, /\bNOME(?: E SOBRENOME| SOCIAL| CIVIL)?\b(?! DO PAI| DA MAE| EMPRESARIAL)/, pareceNome)));
-  const filiacao = (() => {
-    for (let i = 0; i < linhas.length; i++) {
-      if (!/FILIACAO/.test(semAcento(linhas[i]))) continue;
-      return linhas.slice(i + 1, i + 4).map(semCategoria).filter(pareceNome).slice(0, 2);
-    }
-    return [];
-  })();
-  filiacao.forEach((nome, i) => juntar(filiacao.length === 2 ? (i === 0 ? "Filiação (pai)" : "Filiação (mãe)") : "Filiação", nome));
-  juntar("Nome do pai", valorDoRotulo(linhas, /\bNOME DO PAI\b|\bPAI\b:/, pareceNome));
-  juntar("Nome da mãe", valorDoRotulo(linhas, /\bNOME DA MAE\b|\bMAE\b:/, pareceNome));
-
-  // CPF e CNPJ: só números que passam na conferência dos dígitos. Onze dígitos soltos só contam
-  // com a palavra CPF na linha, senão o registro da CNH, por exemplo, poderia passar por CPF.
-  for (const m of tudo.matchAll(/\d{3}[.\s]\d{3}[.\s]\d{3}[-\s.]\d{2}/g)) if (cpfValido(m[0])) juntar("CPF", formatarCpf(so(m[0])));
-  for (const linha of linhas.filter((l) => /\bCPF\b/.test(semAcento(l)))) {
-    for (const m of linha.matchAll(/(?<!\d)\d{11}(?!\d)/g)) if (cpfValido(m[0])) juntar("CPF", formatarCpf(m[0]));
-  }
-  for (const m of tudo.matchAll(/\d{2}[.\s]?\d{3}[.\s]?\d{3}[/\s]?\d{4}[-\s]?\d{2}/g)) if (cnpjValido(m[0])) juntar("CNPJ", formatarCnpj(so(m[0])));
-
-  const rg = valorDoRotulo(linhas, /REGISTRO GERAL|\bRG\b|DOC(?:UMENTO)?\.? (?:DE )?IDENTIDADE|IDENTIDADE N/, (v) => /\d{5,}/.test(so(v)) && !cpfValido(v));
-  if (rg) juntar("RG", (rg.match(/[A-Z]{0,2}[-\s]?\d[\d.\-\sX]{4,14}[\dX]/i)?.[0] || rg).trim());
-  juntar("Órgão emissor", (semAcento(tudo).match(/\b(SSP|SDS|SESP|SEDS|PC|PCMG|IIRGD|DETRAN|DGPC|IFP|SJS|SSPDS)\s?[/-]?\s?(AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO)\b/) || [])[0]?.replace(/\s?[/-]?\s?(?=[A-Z]{2}$)/, "/"));
-
-  // CNH: registro de 11 dígitos e categoria.
-  const registro = valorDoRotulo(linhas, /N[º°O.]?\s?(?:DO )?REGISTRO|REGISTRO N/, (v) => /^\d{9,11}$/.test(so(v).slice(0, 11)));
-  if (registro) juntar("Nº de registro", so(registro).slice(0, 11));
-  juntar("Categoria", categoria);
-
-  // Datas: o rótulo da mesma linha diz qual é. Sem ele, valem os rótulos da linha de cima,
-  // na ordem em que aparecem: com duas datas e dois rótulos, a primeira data é do primeiro rótulo.
-  const rotulosDaLinha = (linha) => ROTULOS_DE_DATA
-    .map(([r, nome]) => ({ nome, pos: semAcento(linha).search(r) }))
-    .filter((r) => r.pos >= 0)
-    .sort((a, b) => a.pos - b.pos);
-  linhas.forEach((linha, i) => {
-    const datas = [...linha.matchAll(/\b(\d{2})[/.-](\d{2})[/.-](\d{4})\b/g)];
+  // Datas: o rótulo da mesma linha diz qual é; sem ele, valem os da linha de cima, na ordem.
+  // Na leitura por partes, o rótulo pode ficar algumas linhas acima: vale o mais próximo, se for um só.
+  linhas.forEach((l, i) => {
+    const datas = datasDaLinha(l);
     const deCima = rotulosDaLinha(linhas[i - 1] || "");
-    datas.forEach((m, k) => {
-      const data = `${m[1]}/${m[2]}/${m[3]}`;
-      const naLinha = rotulosDaLinha(linha.slice(datas[k - 1] ? datas[k - 1].index + datas[k - 1][0].length : 0, m.index)).at(-1);
-      const rotulo = naLinha ?? (deCima.length === datas.length ? deCima[k] : deCima.length === 1 && datas.length === 1 ? deCima[0] : null);
-      juntar(rotulo ? rotulo.nome : "Data", data);
+    const acima = linhas.slice(Math.max(0, i - 4), i).reverse().map(rotulosDaLinha).find((r) => r.length);
+    datas.forEach((d, k) => {
+      const naLinha = rotulosDaLinha(l.slice(datas[k - 1]?.fim ?? 0, d.pos)).at(-1);
+      const rotulo = naLinha ?? (deCima.length === datas.length ? deCima[k] : !deCima.length && datas.length === 1 && acima?.length === 1 ? acima[0] : null);
+      if (rotulo) guardar(rotulo.nome, d.valor);
+      // No RG antigo, a data de expedição fica na mesma linha do número do RG.
+      else if (rgComUf && l.includes(rgComUf[0].slice(0, 5))) guardar("Data de expedição", d.valor);
     });
   });
 
-  juntar("Naturalidade", valorDoRotulo(linhas, /NATURALIDADE|LOCAL DE NASCIMENTO/, (v) => /[A-Z]{3,}/i.test(v) && !/\d{2}\/\d{2}/.test(v)));
-  const endereco = linhas.find((l) => /^(RUA|R\.|AV\.?|AVENIDA|ALAMEDA|AL\.|TRAVESSA|TV\.|PRACA|RODOVIA|ESTRADA)\s/i.test(semAcento(l)));
-  juntar("Endereço", endereco);
-  juntar("Bairro", valorDoRotulo(linhas, /\bBAIRRO\b/, (v) => /[A-Z]{3,}/i.test(v)));
-  const cep = tudo.match(/\b\d{2}\.?\d{3}-\d{3}\b/);
-  if (cep) juntar("CEP", `${so(cep[0]).slice(0, 5)}-${so(cep[0]).slice(5)}`);
-  juntar("Razão social", valorDoRotulo(linhas, /RAZAO SOCIAL|NOME EMPRESARIAL/, (v) => /[A-Z]{3,}/i.test(v)));
-  for (const m of tudo.matchAll(/[\w.+-]+@[\w-]+\.[\w.-]+/g)) juntar("E-mail", m[0].toLowerCase());
-  for (const m of tudo.matchAll(/\(?\b(\d{2})\)?\s?(9?\d{4})[-\s](\d{4})\b/g)) juntar("Telefone", `(${m[1]}) ${m[2]}-${m[3]}`);
+  // Filiação: os dois nomes que vêm depois do rótulo, na ordem do documento, até o próximo rótulo.
+  const filiacao = [];
+  linhas.forEach((l, i) => {
+    if (filiacao.length || !/\bF\w{0,3}ACAO\b|FILIATION/.test(semAcento(l))) return;
+    for (const linha of linhas.slice(i + 1, i + 9)) {
+      if (ROTULO.test(semAcento(linha))) break;
+      const nome = nomeDaLinha(linha);
+      if (nome && nome !== achados.Nome) filiacao.push(nome);
+      if (filiacao.length === 2) break;
+    }
+  });
 
-  return { tipoDocumento: tipoDoDocumento(tudo), campos };
+  // Naturalidade: cidade e UF, como UBERLANDIA/MG ou COROMANDEL-MG.
+  const cidadeUf = (linha) => {
+    const m = semAcento(linha.replace(/(?<=[A-Za-z])1(?=[A-Za-z])/g, "I")).match(new RegExp(`([A-Z][A-Z ]{2,}?)\\s?[/-]\\s?(${UF}|[A-Z]{2})\\b`));
+    return m ? `${m[1].trim()}/${m[2]}` : "";
+  };
+  linhas.forEach((l, i) => {
+    const t = semAcento(l);
+    if (!/NATURALIDADE|PLACE OF BIRTH|LOCAL E UF DE NASCIMENTO/.test(t)) return;
+    const resto = l.slice(t.search(/NATURALIDADE|PLACE OF BIRTH|NASCIMENTO/) + 12);
+    guardar("Naturalidade", [resto, ...proximas(i)].map(cidadeUf).find(Boolean));
+  });
+  // Na CNH, a data de nascimento vem junto da cidade e da UF ("05/09/1980 ARAGUARI/MG"):
+  // mesmo sem o rótulo legível, esse par é o nascimento.
+  for (const l of linhas) {
+    const [d] = datasDaLinha(l);
+    const cidade = d ? cidadeUf(l.slice(d.fim)) : "";
+    if (!cidade || ROTULO.test(semAcento(l.slice(d.fim)))) continue;
+    guardar("Data de nascimento", d.valor);
+    guardar("Naturalidade", cidade);
+    break;
+  }
+
+  const campos = CAMPOS.flatMap((campo) => (campo === "Filiação" ? filiacao.map((valor) => ({ campo, valor })) : achados[campo] ? [{ campo, valor: achados[campo] }] : []));
+  return { tipoDocumento: tipo, campos };
+}
+
+// Junta as leituras da mesma imagem: vale o primeiro valor achado de cada dado. No nome, a leitura
+// costuma cortar o começo ou o fim, então fica o mais completo.
+export function juntarLeituras(leituras) {
+  const tipo = leituras.map((l) => l.tipoDocumento).find((t) => t !== "Documento") ?? "Documento";
+  const campos = [];
+  for (const campo of CAMPOS) {
+    const valores = leituras.map((l) => l.campos.filter((c) => c.campo === campo).map((c) => c.valor));
+    const escolhidos = campo === "Filiação" ? (valores.find((v) => v.length === 2) ?? valores.find((v) => v.length) ?? [])
+      : campo === "Nome" ? valores.flat().sort((a, b) => b.length - a.length).slice(0, 1)
+      : (valores.find((v) => v.length) ?? []).slice(0, 1);
+    campos.push(...escolhidos.map((valor) => ({ campo, valor })));
+  }
+  return { tipoDocumento: tipo, campos };
 }

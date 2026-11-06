@@ -1,109 +1,130 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { cnpjValido, cpfValido, extrairCampos, tipoDoDocumento } from "../public/js/documento-campos.js";
+import { CAMPOS, cpfValido, extrairCampos, juntarLeituras, tipoDoDocumento } from "../public/js/documento-campos.js";
 
-const campo = (r, nome) => r.campos.filter((c) => c.campo === nome).map((c) => c.valor);
+// Os textos abaixo imitam o que a leitura das fotos devolve de verdade (ruído, ordem trocada,
+// letras no lugar de números), mas com nomes e números inventados.
+const valores = (r) => Object.fromEntries(CAMPOS.map((c) => [c, r.campos.filter((x) => x.campo === c).map((x) => x.valor)]));
 
-test("confere os dígitos do CPF e do CNPJ", () => {
+test("confere os dígitos do CPF", () => {
   assert.equal(cpfValido("529.982.247-25"), true);
   assert.equal(cpfValido("529.982.247-26"), false);
   assert.equal(cpfValido("111.111.111-11"), false);
-  assert.equal(cnpjValido("11.222.333/0001-81"), true);
-  assert.equal(cnpjValido("11.222.333/0001-82"), false);
 });
 
-// Texto como o leitor costuma devolver de uma CNH: rótulos e valores em linhas separadas e algum ruído.
-const CNH = `REPÚBLICA FEDERATIVA DO BRASIL
-MINISTÉRIO DA INFRAESTRUTURA
-CARTEIRA NACIONAL DE HABILITAÇÃO
-NOME E SOBRENOME
-MARIA APARECIDA DA SILVA
-DOC. IDENTIDADE / ÓRG. EMISSOR / UF
-MG-12.345.678 SSP MG
-CPF DATA NASCIMENTO
-529.982.247-25 | 15/03/1985
-FILIAÇÃO
-JOSÉ CARLOS DA SILVA
-ANA MARIA DE SOUZA
-CAT. HAB.
-AB
-Nº REGISTRO VALIDADE 1ª HABILITAÇÃO
-01234567890 20/05/2030 10/01/2005
-DATA EMISSÃO
-20/05/2025
-UBERLÂNDIA, MG`;
+test("só traz os dados usados na proposta, na ordem combinada", () => {
+  assert.deepEqual(CAMPOS, ["Nome", "CPF", "Data de nascimento", "Número do RG", "Data de expedição", "Filiação", "Naturalidade"]);
+});
 
-test("encontra os dados de uma CNH", () => {
-  const r = extrairCampos(CNH);
+test("CNH: nome, CPF, nascimento, RG, filiação e naturalidade", () => {
+  const r = extrairCampos(`REPÚBLICA FEDERATIVA DO BRASIL
+CARTEIRA NACIONAL DE HABILITAÇÃO / DRIVER LICENSE / PERMISO DE CONDUCCION
+2 e 1 NOME E SOBRENOME 1º HABILITAÇÃO
+CAROLINA PEREIRA LIMA [ 11/07/2001
+3 DATA, LOCAL E UF DE NASCIMENTO
+05/09/1980 ARAGUARI/MG
+4a DATA EMISSÃO 4b VALIDADE ACC
+[ 01/10/2024 )[ 16/02/2034 ) D
+4c DOC. IDENTIDADE / ÓRG. EMISSOR / UF
+[M1234567 SSP MG
+4d CPF 5 Nº REGISTRO 9 CAT. HAB.
+[ 529.982.247-25 )[ oo0123456789 )| B
+FILIAÇÃO
+PAULO ROBERTO LIMA
+MARIA HELENA PEREIRA LIMA
+7 ASSINATURA DO PORTADOR`);
   assert.equal(r.tipoDocumento, "CNH");
-  assert.deepEqual(campo(r, "Nome"), ["MARIA APARECIDA DA SILVA"]);
-  assert.deepEqual(campo(r, "CPF"), ["529.982.247-25"]);
-  assert.deepEqual(campo(r, "Data de nascimento"), ["15/03/1985"]);
-  assert.deepEqual(campo(r, "Filiação (pai)"), ["JOSÉ CARLOS DA SILVA"]);
-  assert.deepEqual(campo(r, "Filiação (mãe)"), ["ANA MARIA DE SOUZA"]);
-  assert.deepEqual(campo(r, "Categoria"), ["AB"]);
-  assert.deepEqual(campo(r, "Nº de registro"), ["01234567890"]);
-  assert.deepEqual(campo(r, "Órgão emissor"), ["SSP/MG"]);
-  assert.ok(campo(r, "RG")[0].includes("12.345.678"));
-  assert.deepEqual(campo(r, "Data de expedição"), ["20/05/2025"]);
-  // Duas datas na linha e dois rótulos na de cima: cada data fica com o seu.
-  assert.deepEqual(campo(r, "Validade"), ["20/05/2030"]);
-  assert.deepEqual(campo(r, "Primeira habilitação"), ["10/01/2005"]);
+  assert.deepEqual(valores(r), {
+    Nome: ["CAROLINA PEREIRA LIMA"], CPF: ["529.982.247-25"], "Data de nascimento": ["05/09/1980"], "Número do RG": ["M1234567"],
+    "Data de expedição": ["01/10/2024"], Filiação: ["PAULO ROBERTO LIMA", "MARIA HELENA PEREIRA LIMA"], Naturalidade: ["ARAGUARI/MG"],
+  });
 });
 
-// Como a leitura da foto devolveu de verdade: a categoria junta com o nome do pai, e o º vira outro símbolo.
-test("separa a categoria do nome quando a leitura junta as duas na linha", () => {
-  const r = extrairCampos(`CARTEIRA NACIONAL DE HABILITAÇÃO\nNOME E SOBRENOME\nMARIA APARECIDA DA SILVA\nCPF DATA NASCIMENTO\n529.982.247-25 15/03/1985\nFILIAÇÃO CAT. HAB.\nJOSÉ CARLOS DA SILVA AB\nANA MARIA DE SOUZA\nNº REGISTRO VALIDADE 1º HABILITAÇÃO\n01234567890 20/05/2030 10/01/2005`);
-  assert.deepEqual(campo(r, "Filiação (pai)"), ["JOSÉ CARLOS DA SILVA"]);
-  assert.deepEqual(campo(r, "Filiação (mãe)"), ["ANA MARIA DE SOUZA"]);
-  assert.deepEqual(campo(r, "Categoria"), ["AB"]);
-  assert.deepEqual(campo(r, "Validade"), ["20/05/2030"]);
-  assert.deepEqual(campo(r, "Primeira habilitação"), ["10/01/2005"]);
-  assert.deepEqual(campo(r, "Data de nascimento"), ["15/03/1985"]);
+test("Carteira de Identidade nova: o registro geral é o próprio CPF", () => {
+  const frente = extrairCampos(`REPUBLICA FEDERATIVA DO BRASIL
+GOVERNO FEDERAL
+Polícia Cívil do Estado de Minas Gerais
+Nome / Name
+VITOR AUGUSTO MENDES ROCHA
+Nome Social / Social Name
+Registro Geral - CPF / Personal Number
+529982247-25
+Data de Nascimento / Date of Birth Nacionalidade / Nationality
+08/01/2002 BRA
+Naturalidade / Place of Birth Validade / Expiry
+UBERLANDIA/MG 25/03/2035`);
+  assert.equal(frente.tipoDocumento, "Carteira de Identidade");
+  const f = valores(frente);
+  assert.deepEqual(f.Nome, ["VITOR AUGUSTO MENDES ROCHA"]);
+  assert.deepEqual(f.CPF, ["529.982.247-25"]);
+  assert.deepEqual(f["Número do RG"], ["529.982.247-25"]);
+  assert.deepEqual(f["Data de nascimento"], ["08/01/2002"]);
+  assert.deepEqual(f.Naturalidade, ["UBERLANDIA/MG"]);
+  // Validade não é um dos dados pedidos.
+  assert.ok(!frente.campos.some((c) => c.valor === "25/03/2035"));
+
+  // No verso, a leitura por partes separa rótulos e valores em linhas distantes.
+  const verso = extrairCampos(`Fiação / Fliaton
+HELENA CRISTINA ALVES ROCHA
+JORGE LUIZ MENDES ROCHA
+Órgão Expedidor / Card Issuer
+INSTITUTO DE IDENTIFICAÇÃO / PCMG
+Emissão / Issue
+Local / Place of Issue
+BELO HORIZONTE
+25/03/2025`);
+  const v = valores(verso);
+  assert.deepEqual(v.Filiação, ["HELENA CRISTINA ALVES ROCHA", "JORGE LUIZ MENDES ROCHA"]);
+  assert.deepEqual(v["Data de expedição"], ["25/03/2025"]);
 });
 
-const RG = `REPÚBLICA FEDERATIVA DO BRASIL
-ESTADO DE MINAS GERAIS
-SECRETARIA DE ESTADO DE SEGURANÇA PÚBLICA
-CARTEIRA DE IDENTIDADE
-REGISTRO GERAL 12.345.678 DATA DE EXPEDIÇÃO 02/08/2010
+test("RG antigo: número com a UF, expedição na mesma linha e mês com um dígito", () => {
+  const r = extrairCampos(`VÁLIDA EM TODO O TERRITÓRIO NACIONAL
+REGISTRO MG-12.345.678 DATA DE 11/09/2018
+GERAL EXPEDIÇÃO
 NOME
-JOÃO PEDRO OLIVEIRA
+ANDREIA COSTA MARTINS
 FILIAÇÃO
-ANTÔNIO OLIVEIRA
-LUCIA OLIVEIRA
+ROBERTO MARTINS
+SILVIA COSTA MARTINS
 NATURALIDADE DATA DE NASCIMENTO
-UBERLÂNDIA - MG 30/11/1990
-CPF 529.982.247-25`;
-
-test("encontra os dados de um RG", () => {
-  const r = extrairCampos(RG);
+UBERLANDIA-MG 28/6/1995
+CPF 529.982.247-25`);
   assert.equal(r.tipoDocumento, "RG");
-  assert.deepEqual(campo(r, "Nome"), ["JOÃO PEDRO OLIVEIRA"]);
-  assert.deepEqual(campo(r, "RG"), ["12.345.678"]);
-  assert.deepEqual(campo(r, "Data de expedição"), ["02/08/2010"]);
-  assert.deepEqual(campo(r, "Data de nascimento"), ["30/11/1990"]);
-  assert.deepEqual(campo(r, "CPF"), ["529.982.247-25"]);
-  assert.deepEqual(campo(r, "Filiação (mãe)"), ["LUCIA OLIVEIRA"]);
+  assert.deepEqual(valores(r), {
+    Nome: ["ANDREIA COSTA MARTINS"], CPF: ["529.982.247-25"], "Data de nascimento": ["28/06/1995"], "Número do RG": ["MG-12.345.678"],
+    "Data de expedição": ["11/09/2018"], Filiação: ["ROBERTO MARTINS", "SILVIA COSTA MARTINS"], Naturalidade: ["UBERLANDIA/MG"],
+  });
+  // Sem a UF legível, o formato do número ainda identifica o RG.
+  assert.deepEqual(valores(extrairCampos("REGISTRO GERAL\nxostome- 12.345. 678 uns 11/09/2018"))["Número do RG"], ["12.345.678"]);
+  // Nem o rótulo legível: o número ao lado da data ainda é o RG, e a data é a expedição.
+  const semRotulo = valores(extrairCampos("ps * TR\nxostome- 12.345. 678 uns 11/09/2018 BM"));
+  assert.deepEqual(semRotulo["Número do RG"], ["12.345.678"]);
+  assert.deepEqual(semRotulo["Data de expedição"], ["11/09/2018"]);
 });
 
-test("comprovante e cartão CNPJ trazem endereço, CEP e empresa", () => {
-  const conta = extrairCampos(`CEMIG DISTRIBUIÇÃO\nFATURA DE ENERGIA\nMARIA DA SILVA\nRUA DAS FLORES, 123 APTO 4\nBAIRRO CENTRO\nUBERLÂNDIA MG 38400-123\nVENCIMENTO 10/12/2026\ncontato@exemplo.com (34) 99999-0000`);
-  assert.equal(conta.tipoDocumento, "Comprovante de residência");
-  assert.deepEqual(campo(conta, "Endereço"), ["RUA DAS FLORES, 123 APTO 4"]);
-  assert.deepEqual(campo(conta, "CEP"), ["38400-123"]);
-  assert.deepEqual(campo(conta, "Bairro"), ["CENTRO"]);
-  assert.deepEqual(campo(conta, "Validade"), ["10/12/2026"]);
-  assert.deepEqual(campo(conta, "E-mail"), ["contato@exemplo.com"]);
-  assert.deepEqual(campo(conta, "Telefone"), ["(34) 99999-0000"]);
-  const cnpj = extrairCampos(`CADASTRO NACIONAL DA PESSOA JURÍDICA\nNÚMERO DE INSCRIÇÃO\n11.222.333/0001-81\nNOME EMPRESARIAL\nEXEMPLO CORRETORA LTDA`);
-  assert.equal(cnpj.tipoDocumento, "Cartão CNPJ");
-  assert.deepEqual(campo(cnpj, "CNPJ"), ["11.222.333/0001-81"]);
-  assert.deepEqual(campo(cnpj, "Razão social"), ["EXEMPLO CORRETORA LTDA"]);
+test("junta as duas leituras: o primeiro valor achado vale, e o nome mais completo fica", () => {
+  const a = extrairCampos("NOME E SOBRENOME\nROLINA PEREIRA LIMA\nCPF 529.982.247-25");
+  const b = extrairCampos("NOME E SOBRENOME\nCAROLINA PEREIRA LIMA\nFILIAÇÃO\nPAULO ROBERTO LIMA\nMARIA HELENA LIMA");
+  const j = valores(juntarLeituras([a, b]));
+  assert.deepEqual(j.Nome, ["CAROLINA PEREIRA LIMA"]);
+  assert.deepEqual(j.CPF, ["529.982.247-25"]);
+  assert.deepEqual(j.Filiação, ["PAULO ROBERTO LIMA", "MARIA HELENA LIMA"]);
 });
 
-test("não inventa: texto sem dados não vira campo", () => {
-  assert.deepEqual(extrairCampos("REPÚBLICA FEDERATIVA DO BRASIL\n123.456.789-00\n||| ~~~").campos, []);
+test("rótulos não viram filiação, e a data com cidade e UF é o nascimento", () => {
+  // "IDENTIFICAÇÃO" termina parecido com "FILIAÇÃO", e o nome da cidade não é de pessoa.
+  const verso = valores(extrairCampos("Órgão Expedidor / Card Issuer\nINSTITUTO DE IDENTIFICAÇÃO / PCMG\nLocal / Place of Issue\nBELO HORIZONTE\nEmissão / Issue\n25/03/2025"));
+  assert.deepEqual(verso.Filiação, []);
+  const cnh = valores(extrairCampos("FILIAÇÃO\nPAULO ROBERTO LIMA\nDATA EMISSÃO\n[05/09/1980 ARAGUARI/MG |"));
+  assert.deepEqual(cnh.Filiação, ["PAULO ROBERTO LIMA"]);
+  assert.deepEqual(cnh["Data de nascimento"], ["05/09/1980"]);
+  assert.deepEqual(cnh.Naturalidade, ["ARAGUARI/MG"]);
+});
+
+test("não inventa: ruído e títulos do documento não viram dado", () => {
+  const r = extrairCampos("REPÚBLICA FEDERATIVA DO BRASIL\nNOME\nRSS EEOLSPISAA AA BoA EE\n123.456.789-00\nASSINATURA DO DIRETOR");
+  assert.deepEqual(r.campos, []);
   assert.equal(tipoDoDocumento("qualquer coisa"), "Documento");
   assert.deepEqual(extrairCampos(""), { tipoDocumento: "Documento", campos: [] });
 });
