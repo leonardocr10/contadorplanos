@@ -1,6 +1,6 @@
 // "Atualizar com nova tabela": abre PDF ou imagem, envia as páginas ao Claude e mostra a revisão.
 import { FAIXAS, brl, resumoDaRede } from "./calculo.js";
-import { $, S, api, esc } from "./estado.js";
+import { $, S, api, esc, toast } from "./estado.js";
 
 const PDFJS = "/vendor/pdfjs/";
 const MAX_PAGINAS = 30, MAX_IMGS = 20;
@@ -75,6 +75,11 @@ function uMsg(t) {
   const el = $("#u-msg");
   if (el) el.textContent = t || "";
 }
+// O andamento fica escrito no editor; os resultados e os erros aparecem na caixa do meio da tela.
+function avisar(texto, tipo = "aviso") {
+  uMsg("");
+  toast(texto, tipo);
+}
 
 export function wireUpdater() {
   U.pages.forEach((pg) => URL.revokeObjectURL(pg.url));
@@ -98,9 +103,10 @@ export function wireUpdater() {
     try {
       U.pages = await fileToPages(f, (i, n) => uMsg(`Abrindo página ${i} de ${n}…`));
       U.pages.forEach((_, i) => { if (i < MAX_IMGS) U.sel.add(i); });
-      uMsg(U.pages.length > 1 ? "Todas as páginas estão marcadas. Desmarque as que não interessam (capa, documentos) e clique em Ler a tabela completa." : "");
+      uMsg("");
+      if (U.pages.length > 1) avisar("Todas as páginas estão marcadas. Desmarque as que não interessam (capa, documentos) e clique em Ler a tabela completa.");
     } catch {
-      uMsg("Não consegui abrir este arquivo. Tente um PDF ou uma imagem PNG/JPG.");
+      avisar("Não consegui abrir este arquivo. Tente um PDF ou uma imagem PNG/JPG.", "erro");
     }
     $("#u-file").value = "";
     renderPages();
@@ -117,7 +123,7 @@ function renderPages() {
     const i = +b.dataset.pg;
     if (U.sel.has(i)) U.sel.delete(i);
     else {
-      if (U.sel.size >= MAX_IMGS) { uMsg(`Marque no máximo ${MAX_IMGS} páginas.`); return; }
+      if (U.sel.size >= MAX_IMGS) { avisar(`Marque no máximo ${MAX_IMGS} páginas.`); return; }
       U.sel.add(i);
     }
     renderPages();
@@ -167,11 +173,11 @@ async function lerTudo() {
     };
     renderPages();
     renderWork();
-    uMsg("Leitura concluída. Revise abaixo e clique em Aplicar.");
+    avisar("Leitura concluída. Revise abaixo e clique em Aplicar.", "sucesso");
   } catch (e) {
     btn.disabled = false;
     btn.textContent = "Ler a tabela completa com o Claude";
-    uMsg(e.message || "Não consegui ler o material. Desmarque páginas que não têm tabela e tente de novo.");
+    avisar(e.message || "Não consegui ler o material. Desmarque páginas que não têm tabela e tente de novo.", "erro");
   }
 }
 
@@ -267,11 +273,11 @@ function renderReview(box) {
         uMsg("Salvando plano…");
         $("#e-save").click();
       } else {
-        uMsg("Tudo aplicado no formulário. Confira e clique em Salvar plano.");
+        avisar("Tudo aplicado no formulário. Confira e clique em Salvar plano.", "sucesso");
         bs.forEach((b) => (b.disabled = false));
       }
     } catch (e) {
-      uMsg("Não deu para aplicar tudo: " + (e?.message || "erro ao enviar imagem") + ". Tente de novo.");
+      avisar("Não deu para aplicar tudo: " + (e?.message || "erro ao enviar imagem") + ". Tente de novo.", "erro");
       bs.forEach((b) => (b.disabled = false));
     }
   };

@@ -176,7 +176,6 @@
       <div class="field"><label for="c-empresa">Corretora (opcional)</label><input id="c-empresa" type="text"></div>
       <div class="field"><label for="c-email">E-mail (para recuperar a senha)</label><input id="c-email" type="email" autocapitalize="none" placeholder="voce@exemplo.com"></div>
       <div class="actions"><button class="btn primary" type="submit" id="dados-salvar">Salvar alterações</button></div>
-      <p class="note usr-msg" id="dados-msg" role="alert"></p>
     </form>
     <form class="panel cfg-painel" id="senha-form" data-cfg="senha" autocomplete="off" hidden>
       <h2>Alterar senha</h2>
@@ -186,7 +185,6 @@
         <div class="field"><label for="senha-repete">Repita a nova senha</label><input id="senha-repete" class="campo-senha" type="password" autocomplete="new-password" minlength="8" required></div>
       </div>
       <div class="actions"><button class="btn primary" type="submit">Alterar senha</button></div>
-      <p class="note" id="senha-msg" role="status" style="margin:0"></p>
     </form>
     <div class="panel cfg-painel usr-painel" data-cfg="usuarios" hidden>
       <div class="usr-cabeca">
@@ -196,7 +194,6 @@
         </div>
         <button class="btn primary" type="button" id="usr-novo">Novo usuário</button>
       </div>
-      <p class="note usr-msg" id="usr-msg" role="status"></p>
       <table class="usr-tabela">
         <thead><tr><th scope="col">Usuário</th><th scope="col">Perfil</th><th scope="col">Acesso às telas</th><th scope="col"><span class="so-leitor">Ações</span></th></tr></thead>
         <tbody id="usr-lista"></tbody>
@@ -228,7 +225,6 @@
               <div class="gaveta-rotulo">Acesso às telas</div>
               <div class="usr-telas" id="usr-permissoes"></div>
             </div>
-            <p class="note usr-msg" id="usr-gaveta-msg" role="alert"></p>
           </div>
           <footer class="gaveta-rodape">
             <button class="btn" type="button" data-fechar>Cancelar</button>
@@ -246,7 +242,6 @@
         <input id="b-file" type="file" accept=".db" hidden>
       </div>
       <div id="b-confirm" class="status" hidden>Trocar todos os dados atuais pelos de <b id="b-nome"></b>? Uma cópia dos dados atuais fica na pasta backups. <div class="actions" style="margin-top:8px"><button class="btn danger" id="b-sim">Sim, restaurar</button><button class="btn" id="b-nao">Cancelar</button></div></div>
-      <div id="b-msg" class="note" role="status"></div>
     </div>
     <div class="panel cfg-painel" data-cfg="atualizar" hidden>
       <h2>Atualizar sistema</h2>
@@ -276,8 +271,7 @@
     <button class="btn primary" type="button" id="visor-copiar">Copiar e baixar</button>
   </footer>
 </dialog>
-<div class="toast" id="toast" hidden></div>
-<div class="aviso-central" id="aviso-central" role="status" aria-live="polite" hidden><span class="aviso-central-icone" aria-hidden="true">✓</span><b></b></div>
+<div class="aviso-central" id="aviso-central" role="status" aria-live="polite" title="Clique para fechar" hidden><span class="aviso-central-icone" aria-hidden="true">✓</span><b></b></div>
 <script type="module" src="js/app.js"></script>
 </body>
 </html>

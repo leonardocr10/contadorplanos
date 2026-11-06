@@ -265,8 +265,6 @@ function abrirVisor(i) {
   visorIndice = i;
   pintarVisor();
   $("#visor").showModal();
-  // A janela fica acima do resto da página: o aviso precisa estar dentro dela para aparecer.
-  $("#visor").append($("#toast"));
 }
 function passarVisor(passo) {
   if (cards.length < 2) return;
@@ -295,10 +293,7 @@ function iniciarVisor() {
     if (e.key === "ArrowLeft") passarVisor(-1);
     if (e.key === "ArrowRight") passarVisor(1);
   };
-  visor.onclose = () => {
-    definirZoom(false);
-    document.body.append($("#toast"));
-  };
+  visor.onclose = () => definirZoom(false);
 }
 
 const fileName = (m, extensao = "png") => `${m.titulo.replace(/[\\/:*?"<>|]/g, "")}${nomeCliente() ? " - " + nomeCliente().replace(/[\\/:*?"<>|]/g, "") : ""}.${extensao}`;
@@ -325,7 +320,7 @@ async function savePdf(m, botao) {
     setTimeout(() => URL.revokeObjectURL(url), 10000);
   } catch (e) {
     console.error("Falha ao gerar o PDF:", e);
-    toast("Não consegui gerar o PDF: tente de novo");
+    toast("Não consegui gerar o PDF: tente de novo", "erro");
   } finally {
     botao.disabled = false;
   }
@@ -347,8 +342,8 @@ async function copyCard(m) {
   // A cópia vem antes, enquanto o clique ainda vale para o navegador. Em endereço sem HTTPS ela é recusada.
   const copiou = await copiarImagem(m);
   const salvou = await saveCard(m);
-  if (!copiou) toast(AVISO_SEM_COPIA);
-  else toast(salvou ? "Imagem copiada, baixada e salva no histórico: cole no WhatsApp" : `Imagem copiada e baixada. ${AVISO_SEM_DADOS}`);
+  if (!copiou) toast(AVISO_SEM_COPIA, "erro");
+  else toast(salvou ? "Imagem copiada, baixada e salva no histórico: cole no WhatsApp" : `Imagem copiada e baixada. ${AVISO_SEM_DADOS}`, salvou ? "sucesso" : "aviso");
 }
 
 // O link do WhatsApp só leva texto. A imagem vai para a área de transferência antes de abrir a conversa,
@@ -361,10 +356,10 @@ async function abrirWhatsApp() {
   salvar();
   if (!copiou) {
     saveCard(cards[0]);
-    toast(AVISO_SEM_COPIA);
+    toast(AVISO_SEM_COPIA, "erro");
   }
-  else if (cards.length > 1) toast(`Imagem de ${cards[0].p.nome} copiada: aperte Ctrl+V na conversa. Copie as outras nos botões Copiar e baixar`);
-  else toast("Imagem copiada: aperte Ctrl+V na conversa do WhatsApp");
+  else if (cards.length > 1) toast(`Imagem de ${cards[0].p.nome} copiada: aperte Ctrl+V na conversa. Copie as outras nos botões Copiar e baixar`, "sucesso");
+  else toast("Imagem copiada: aperte Ctrl+V na conversa do WhatsApp", "sucesso");
 }
 
 /* ---------- link da proposta ---------- */
@@ -397,13 +392,13 @@ async function copiarLink() {
     });
     texto = textoDosLinks(links);
   } catch (e) {
-    toast(e.message);
+    toast(e.message, "erro");
     return;
   }
   caixa.textContent = texto;
   caixa.hidden = false;
-  if (await copiarTexto(texto)) toast(S.linkLocal ? "Link copiado, mas ele só abre neste computador: preencha PUBLIC_URL no .env" : "Link copiado: cole na conversa do cliente");
-  else toast("O navegador bloqueou a cópia: selecione o link abaixo dos botões");
+  if (await copiarTexto(texto)) toast(S.linkLocal ? "Link copiado, mas ele só abre neste computador: preencha PUBLIC_URL no .env" : "Link copiado: cole na conversa do cliente", S.linkLocal ? "aviso" : "sucesso");
+  else toast("O navegador bloqueou a cópia: selecione o link abaixo dos botões", "erro");
 }
 
 /* ---------- render ---------- */
@@ -475,7 +470,7 @@ export function iniciarCotacao() {
     try {
       await navigator.clipboard.writeText(t);
       const ok = await salvar();
-      toast(ok ? "Mensagem copiada e salva no histórico" : `Mensagem copiada. ${AVISO_SEM_DADOS}`);
+      toast(ok ? "Mensagem copiada e salva no histórico" : `Mensagem copiada. ${AVISO_SEM_DADOS}`, ok ? "sucesso" : "aviso");
     } catch {
       $("#raw").open = true;
       const ta = $("#rawtxt");

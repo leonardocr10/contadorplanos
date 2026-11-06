@@ -16,7 +16,7 @@ export async function carregarAceites() {
   assinatura = nova;
   aceites = lista;
   renderAceites();
-  if (novos > 0) toast(novos === 1 ? "Novo aceite de proposta" : `${novos} novos aceites de proposta`);
+  if (novos > 0) toast(novos === 1 ? "Novo aceite de proposta" : `${novos} novos aceites de proposta`, "sucesso");
 }
 
 export function renderAceites() {
@@ -80,7 +80,7 @@ async function excluirAceite(a, botao) {
     avisoCentral("Aceite excluído com sucesso");
   } catch (e) {
     botao.disabled = false;
-    toast(`Não deu para excluir: ${e.message}`);
+    toast(`Não deu para excluir: ${e.message}`, "erro");
   }
 }
 
@@ -114,6 +114,6 @@ async function enviarDocumentos(a, documentos) {
     await api(`/api/aceites/${encodeURIComponent(a.token)}/documentos`, { metodo: "POST", json: {} });
     await carregarAceites();
   } catch (e) {
-    toast(e.message);
+    toast(e.message, "erro");
   }
 }

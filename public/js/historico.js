@@ -37,7 +37,7 @@ export async function saveQuote(dados, id = null) {
     await carregarHistorico();
     return salva;
   } catch (e) {
-    toast(`Não deu para salvar no histórico: ${e.message}`);
+    toast(`Não deu para salvar no histórico: ${e.message}`, "erro");
     return null;
   }
 }
@@ -71,7 +71,7 @@ function wireRows(box) {
         await carregarHistorico();
         avisoCentral("Situação salva com sucesso");
       } catch (e) {
-        toast(`Não deu para atualizar: ${e.message}`);
+        toast(`Não deu para atualizar: ${e.message}`, "erro");
       }
     };
     const d = row.querySelector("[data-del]");
@@ -85,7 +85,7 @@ function wireRows(box) {
           await carregarHistorico();
           avisoCentral("Cotação excluída com sucesso");
         } catch (e) {
-          toast(`Não deu para excluir: ${e.message}`);
+          toast(`Não deu para excluir: ${e.message}`, "erro");
         }
       };
     }

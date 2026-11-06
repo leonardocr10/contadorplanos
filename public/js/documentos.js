@@ -68,7 +68,7 @@ function ligarLinha(row) {
       await acao();
       await carregarDocumentos();
     } catch (e) {
-      toast(e.message);
+      toast(e.message, "erro");
       await carregarDocumentos().catch(() => {});
     }
   };
@@ -103,7 +103,7 @@ export function iniciarDocumentos() {
       avisoCentral("Documento cadastrado com sucesso");
       campo.focus();
     } catch (erro) {
-      toast(erro.message);
+      toast(erro.message, "erro");
     }
   };
 }

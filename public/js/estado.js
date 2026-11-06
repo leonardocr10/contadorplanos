@@ -16,27 +16,33 @@ let renderizar = () => {};
 export const definirRender = (fn) => { renderizar = fn; };
 export const render = () => renderizar();
 
-// Confirmação em destaque, numa caixa no meio da tela, que some sozinha.
-export function avisoCentral(texto) {
+// Toda mensagem do sistema aparece numa caixa no meio da tela, que some sozinha ou com um clique.
+// O tipo muda o ícone e a cor: sucesso, aviso (o que fazer a seguir) ou erro.
+const ICONES_DO_AVISO = { sucesso: "✓", aviso: "i", erro: "!" };
+function esconderAviso() {
   const el = $("#aviso-central");
+  clearTimeout(avisoCentral.t);
+  el.classList.add("saindo");
+  avisoCentral.fim = setTimeout(() => (el.hidden = true), 250);
+}
+export function avisoCentral(texto, tipo = "sucesso") {
+  const el = $("#aviso-central");
+  const destino = [...document.querySelectorAll("dialog[open]")].pop() ?? document.body;
+  if (el.parentElement !== destino) destino.append(el);
+  el.dataset.tipo = tipo;
+  el.setAttribute("role", tipo === "erro" ? "alert" : "status");
+  el.querySelector(".aviso-central-icone").textContent = ICONES_DO_AVISO[tipo];
   el.querySelector("b").textContent = texto;
   el.hidden = false;
   el.classList.remove("saindo");
+  el.onclick = esconderAviso;
   clearTimeout(avisoCentral.t);
   clearTimeout(avisoCentral.fim);
-  avisoCentral.t = setTimeout(() => {
-    el.classList.add("saindo");
-    avisoCentral.fim = setTimeout(() => (el.hidden = true), 250);
-  }, 1800);
+  // Texto longo fica mais tempo, para dar tempo de ler.
+  avisoCentral.t = setTimeout(esconderAviso, Math.min(7000, 1800 + texto.length * 45));
 }
 
-export function toast(t) {
-  const el = $("#toast");
-  el.textContent = t;
-  el.hidden = false;
-  clearTimeout(toast.t);
-  toast.t = setTimeout(() => (el.hidden = true), 2200);
-}
+export const toast = (texto, tipo = "aviso") => avisoCentral(texto, tipo);
 
 // Só para decidir o que aparece na tela: a permissão de verdade é conferida no servidor.
 export const eAdmin = () => S.eu?.perfil === "admin";

@@ -201,7 +201,7 @@ function openEditor(p) {
   </div></div>
   <div class="actions modal-acoes"><button class="btn primary" id="e-save">Salvar plano</button><button class="btn" id="e-cancel">Cancelar</button>${isNew ? "" : `<button class="btn danger" id="e-del">Excluir plano</button>`}</div>
   <div id="e-confirm" hidden class="status">Excluir <b>${esc(p.nome)}</b> de vez? <div class="actions" style="margin-top:8px"><button class="btn danger" id="e-del2">Sim, excluir</button><button class="btn" id="e-del-no">Manter</button></div></div>
-  <div id="e-msg" class="note"></div>`;
+`;
   $("#modal").scrollTop = 0;
   setTimeout(() => $("#e-nome").focus(), 0);
   // Com 3 faixas, a linha de 19 a 23 vale para todas as idades até 58 anos.
@@ -219,7 +219,7 @@ function openEditor(p) {
   $("#e-paste").addEventListener("input", () => {
     const rows = colarPlanilha($("#e-paste").value);
     rows.forEach((r, i) => { $("#e-fe-" + i).value = r.enf; $("#e-fa-" + i).value = r.apto; });
-    $("#e-msg").textContent = rows.length ? `${rows.length} faixa${rows.length > 1 ? "s" : ""} preenchida${rows.length > 1 ? "s" : ""}. Confira e clique em Salvar plano.` : "";
+    if (rows.length) toast(`${rows.length} faixa${rows.length > 1 ? "s" : ""} preenchida${rows.length > 1 ? "s" : ""}. Confira e clique em Salvar plano.`);
   });
   if (!isNew) {
     $("#e-del").onclick = () => ($("#e-confirm").hidden = false);
@@ -232,13 +232,13 @@ function openEditor(p) {
         render();
         avisoCentral("Plano excluído com sucesso");
       } catch (e) {
-        $("#e-msg").textContent = "Não deu para excluir: " + e.message;
+        toast("Não deu para excluir: " + e.message, "erro");
       }
     };
   }
   $("#e-save").onclick = async () => {
     const nome = $("#e-nome").value.trim();
-    if (!nome) { $("#e-msg").textContent = "Dê um nome ao plano."; return; }
+    if (!nome) { toast("Dê um nome ao plano.", "erro"); return; }
     const data = {
       nome, categoria: $("#e-cat").value, subtitulo: $("#e-sub").value.trim(),
       enfermaria: p.enfermaria ?? null, apartamento: p.apartamento ?? null, taxa: parseBRL($("#e-taxa").value),
@@ -263,7 +263,7 @@ function openEditor(p) {
       render();
       avisoCentral("Plano salvo com sucesso");
     } catch (e) {
-      $("#e-msg").textContent = "Não deu para salvar: " + e.message;
+      toast("Não deu para salvar: " + e.message, "erro");
       btn.disabled = false;
     }
   };

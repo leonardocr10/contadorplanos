@@ -3,7 +3,7 @@ import { $, api, avisoCentral, esc, pode, toast } from "./estado.js";
 
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 const msg = (t) => ($("#cfg-msg").textContent = t);
-const msgUsuarios = (t) => ($("#usr-msg").textContent = t);
+const msgUsuarios = (t) => toast(t, "erro");
 const PERFIS = { admin: "Administrador", usuario: "Usuário" };
 const TELAS = { cotacao: "Nova cotação", planos: "Planos e valores", documentos: "Documentos", historico: "Histórico", aceites: "Aceites" };
 const NIVEIS = { nenhum: "Sem acesso", ver: "Ver", editar: "Editar" };
@@ -90,7 +90,6 @@ function renderUsuarios() {
     linha.querySelector("[data-editar]").onclick = () => abrirGaveta(u);
     if (!linha.querySelector("[data-ativo]")) return;
     linha.querySelector("[data-ativo]").onclick = async () => {
-      msgUsuarios("");
       try {
         await api(`/api/usuarios/${encodeURIComponent(u.id)}`, { metodo: "PUT", json: { ativo: !u.ativo } });
         avisoCentral(u.ativo ? "Usuário desativado com sucesso" : "Usuário ativado com sucesso");
@@ -103,7 +102,6 @@ function renderUsuarios() {
     linha.querySelector("[data-excluir]").onclick = () => (confirma.hidden = false);
     confirma.querySelector("[data-nao]").onclick = () => (confirma.hidden = true);
     confirma.querySelector("[data-sim]").onclick = async () => {
-      msgUsuarios("");
       try {
         await api(`/api/usuarios/${encodeURIComponent(u.id)}`, { metodo: "DELETE" });
         avisoCentral("Usuário excluído com sucesso");
@@ -120,7 +118,6 @@ function abrirGaveta(u = null) {
   editando = u;
   const proprio = u?.id === eu?.id;
   $("#usr-form").reset();
-  $("#usr-gaveta-msg").textContent = "";
   $("#usr-titulo").textContent = u ? "Editar usuário" : "Novo usuário";
   $("#usr-salvar").textContent = u ? "Salvar alterações" : "Criar usuário";
   $("#usr-login").value = u?.login ?? "";
@@ -146,7 +143,6 @@ const mostrarAcesso = () => ($("#usr-acesso").hidden = perfilEscolhido() === "ad
 
 async function salvarGaveta(e) {
   e.preventDefault();
-  $("#usr-gaveta-msg").textContent = "";
   const perfil = perfilEscolhido(), email = $("#usr-email").value.trim(), senha = $("#usr-senha").value;
   const permissoes = perfil === "admin" ? {} : { permissoes: lerPermissoes() };
   // Resposta imediata na tela enquanto o servidor grava.
@@ -173,7 +169,7 @@ async function salvarGaveta(e) {
     $("#usr-gaveta").close();
     avisoCentral(editando ? "Alterações salvas com sucesso" : "Usuário criado com sucesso");
   } catch (erro) {
-    $("#usr-gaveta-msg").textContent = erro.message;
+    toast(erro.message, "erro");
   } finally {
     botao.disabled = false;
     botao.textContent = rotulo;
@@ -212,15 +208,14 @@ export function iniciarConfiguracoes() {
   $("#usr-form").onsubmit = salvarGaveta;
   $("#senha-form").onsubmit = async (e) => {
     e.preventDefault();
-    const nova = $("#senha-nova").value, aviso = (t) => ($("#senha-msg").textContent = t);
-    if (nova !== $("#senha-repete").value) { aviso("A nova senha e a repetição estão diferentes."); return; }
+    const nova = $("#senha-nova").value;
+    if (nova !== $("#senha-repete").value) { toast("A nova senha e a repetição estão diferentes.", "erro"); return; }
     try {
       await api("/api/eu/senha", { metodo: "PUT", json: { atual: $("#senha-atual").value, nova } });
       e.target.reset();
-      aviso("");
       avisoCentral("Senha alterada com sucesso");
     } catch (erro) {
-      aviso(erro.message);
+      toast(erro.message, "erro");
     }
   };
 
@@ -230,16 +225,17 @@ export function iniciarConfiguracoes() {
     msg("Procurando atualização…");
     try {
       const r = await api("/api/sistema/atualizar", { metodo: "POST", json: {} });
-      if (r.ocupado) msg("Já existe uma atualização em andamento.");
-      else if (!r.atualizado) msg("O sistema já está na versão mais recente.");
-      else if (!r.reiniciando) msg("Versão nova baixada. Feche a janela do cotador e abra o iniciar.bat de novo para concluir.");
+      if (r.ocupado) { msg(""); toast("Já existe uma atualização em andamento."); }
+      else if (!r.atualizado) { msg(""); toast("O sistema já está na versão mais recente.", "sucesso"); }
+      else if (!r.reiniciando) { msg("Versão nova baixada. Feche a janela do cotador e abra o iniciar.bat de novo para concluir."); toast("Versão nova baixada. Feche a janela do cotador e abra o iniciar.bat de novo para concluir."); }
       else {
         msg("Versão nova baixada. Reiniciando, o que pode levar alguns minutos…");
-        if (!(await esperarVoltar())) msg("O cotador não voltou. Verifique a janela do iniciar.bat no servidor.");
+        if (!(await esperarVoltar())) { msg("O cotador não voltou. Verifique a janela do iniciar.bat no servidor."); toast("O cotador não voltou. Verifique a janela do iniciar.bat no servidor.", "erro"); }
         return;
       }
     } catch (e) {
-      msg(`Não deu para atualizar: ${e.message}`);
+      msg("");
+      toast(`Não deu para atualizar: ${e.message}`, "erro");
     }
     botao.disabled = false;
   };

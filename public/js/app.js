@@ -67,13 +67,12 @@ $("#foto-arquivo").onchange = async () => {
   const arquivo = $("#foto-arquivo").files[0];
   $("#foto-arquivo").value = "";
   if (!arquivo) return;
-  $("#dados-msg").textContent = "";
   try {
     const { blob, previa } = await reduzirFoto(arquivo);
     fotoPendente = blob;
     pintarFoto(previa);
   } catch {
-    $("#dados-msg").textContent = "Não deu para ler esta imagem. Use um arquivo JPG, PNG ou WebP.";
+    toast("Não deu para ler esta imagem. Use um arquivo JPG, PNG ou WebP.", "erro");
   }
 };
 $("#foto-remover").onclick = () => {
@@ -94,9 +93,8 @@ async function salvarFoto() {
 addEventListener("beforeunload", (e) => { if (S.eu && dadosAlterados()) e.preventDefault(); });
 $("#dados-form").onsubmit = async (e) => {
   e.preventDefault();
-  const dados = lerDados(), msg = $("#dados-msg");
-  msg.textContent = "";
-  if (dados.email && !EMAIL_VALIDO.test(dados.email)) { msg.textContent = "Confira o e-mail: ele parece incompleto."; return; }
+  const dados = lerDados();
+  if (dados.email && !EMAIL_VALIDO.test(dados.email)) { toast("Confira o e-mail: ele parece incompleto.", "erro"); return; }
   $("#dados-salvar").disabled = true;
   try {
     await api("/api/config", { metodo: "PUT", json: dados });
@@ -113,14 +111,13 @@ $("#dados-form").onsubmit = async (e) => {
     // O cadastro de usuários mostra estes mesmos dados.
     if (S.eu.perfil === "admin") carregarUsuarios();
   } catch (erro) {
-    msg.textContent = `Não deu para salvar: ${erro.message}`;
+    toast(`Não deu para salvar: ${erro.message}`, "erro");
   }
   $("#dados-salvar").disabled = false;
 };
 
 /* ---------- restaurar backup ---------- */
 let arquivoBackup = null;
-const msgBackup = (t) => ($("#b-msg").textContent = t);
 document.querySelector('label[for="b-file"]').onkeydown = (e) => {
   if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("#b-file").click(); }
 };
@@ -130,7 +127,6 @@ $("#b-file").onchange = () => {
   if (!arquivoBackup) return;
   $("#b-nome").textContent = arquivoBackup.name;
   $("#b-confirm").hidden = false;
-  msgBackup("");
 };
 $("#b-nao").onclick = () => { arquivoBackup = null; $("#b-confirm").hidden = true; };
 $("#b-sim").onclick = async () => {
@@ -141,10 +137,9 @@ $("#b-sim").onclick = async () => {
     S.over = {};
     S.selected = [];
     await carregar();
-    msgBackup("Uma cópia dos dados anteriores ficou na pasta backups.");
-    avisoCentral("Backup restaurado com sucesso");
+    avisoCentral("Backup restaurado com sucesso. Uma cópia dos dados anteriores ficou na pasta backups.");
   } catch (e) {
-    msgBackup(e.message);
+    toast(e.message, "erro");
   }
   btn.disabled = false;
   arquivoBackup = null;
@@ -181,7 +176,7 @@ async function carregar() {
     show(viewDoHash());
     extras = Promise.all([
       carregarHistorico(),
-      pode("documentos") ? carregarDocumentos().catch((e) => toast(e.message)) : null,
+      pode("documentos") ? carregarDocumentos().catch((e) => toast(e.message, "erro")) : null,
       verificarAceites(),
     ]);
     const precisaDosPlanos = ["cotacao", "planos", "documentos"].some((t) => pode(t));
