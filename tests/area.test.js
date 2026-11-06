@@ -56,6 +56,7 @@ test("a Hapvida segue a tabela: total e parcial, área, coparticipação, carên
     assert.equal(p.faixasEnf.length, 10);
     assert.equal(p.faixasApto.length, 10);
     assert.ok(vendidoEm(p, "MG", "Uberlândia") && !vendidoEm(p, "MG", "Uberaba"));
+    assert.equal(p.taxa, 10);
   }
   const pedido = { vidas: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0], over: {}, cliente: "", opts: { copart: true, rede: true, acom: true }, municipio: "Uberlândia" };
   const corretor = { nome: "C", fone: "34999990000", empresa: "E" };
@@ -69,6 +70,25 @@ test("a Hapvida segue a tabela: total e parcial, área, coparticipação, carên
   assert.equal(linha("Internação")[0], "180 dias");
   assert.equal(linha("Parto")[0], "300 dias");
   assert.equal(linha("Preexistência")[0], "24 meses");
+  assert.deepEqual(redeDaCidade(total, "Uberlândia"), ["Hospital e Maternidade Madrecor", "Clínica e Diagnóstico Uberlândia", "Clínica Marechal Deodoro"]);
+  assert.deepEqual(redeDaCidade(parcial, "Uberlândia"), redeDaCidade(total, "Uberlândia"));
+  // Com a Amil, o Madrecor aparece numa linha só, marcado nos dois planos.
+  const amil = planos.find((p) => p.id === "amil-prata-mg1-total");
+  const lado = renderizarComparativo([total, amil].map((p) => montarSnapshot(p, pedido, corretor)));
+  assert.equal(lado.match(/Madrecor/g).length, 1);
+  // O banco da versão anterior recebe a rede, e a rede já cadastrada à mão não muda.
+  const pasta = mkdtempSync(join(tmpdir(), "cotador-hapvida-"));
+  t.after(() => rmSync(pasta, { recursive: true, force: true }));
+  const caminho = join(pasta, "c.db");
+  const antigo = new Banco(caminho, seed);
+  antigo.db.exec("UPDATE planos SET rede = '', taxa = NULL WHERE id = 'hapvida-nosso-plano-total'; UPDATE planos SET rede = 'Minha rede', taxa = 12 WHERE id = 'hapvida-nosso-plano-parcial'; PRAGMA user_version = 22");
+  antigo.fechar();
+  const novo = new Banco(caminho, seed);
+  assert.equal(novo.obterPlano("hapvida-nosso-plano-total").rede, "Hospital e Maternidade Madrecor\nClínica e Diagnóstico Uberlândia\nClínica Marechal Deodoro");
+  assert.equal(novo.obterPlano("hapvida-nosso-plano-parcial").rede, "Minha rede");
+  assert.equal(novo.obterPlano("hapvida-nosso-plano-total").taxa, 10);
+  assert.equal(novo.obterPlano("hapvida-nosso-plano-parcial").taxa, 12);
+  novo.fechar();
 });
 
 test("a Aurora segue a tabela: valores, área, rede por cidade e comparativo", (t) => {

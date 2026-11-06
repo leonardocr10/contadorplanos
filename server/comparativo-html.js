@@ -53,7 +53,7 @@ function linhaDeCarencia(regra, P) {
 }
 
 // O mesmo hospital aparece com nomes diferentes nas tabelas das operadoras.
-const APELIDOS = { "uberlandia medical center": "umc", "orthomed center": "orthomed", "clinicas do triangulo": "triangulo" };
+const APELIDOS = { "uberlandia medical center": "umc", "orthomed center": "orthomed", "clinicas do triangulo": "triangulo", "e maternidade madrecor": "madrecor" };
 const semCidade = (nome) => nome.replace(/\s+[–-]\s+(Uberlândia|Uberaba|Patos de Minas|Ituiutaba|Araguari|Tupaciguara|Araxá)$/i, "").trim();
 function chaveDaRede(nome) {
   const limpo = normalizar(semCidade(nome)).replace(/\bhospital\b/g, "").replace(/\s+/g, " ").trim().replace(/^(de|do|da) /, "");

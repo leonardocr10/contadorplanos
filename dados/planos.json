@@ -1070,7 +1070,7 @@
     "faixasModelo": "",
     "enfermaria": null,
     "apartamento": null,
-    "taxa": null,
+    "taxa": 10,
     "odonto": false,
     "fidelidade": false,
     "mostrarExtras": true,
@@ -1115,7 +1115,7 @@
       1181.89,
       1529.99
     ],
-    "rede": "",
+    "rede": "Hospital e Maternidade Madrecor\nClínica e Diagnóstico Uberlândia\nClínica Marechal Deodoro",
     "extras": "🏷️ 15% de desconto nas 3 primeiras mensalidades (vigências até dezembro de 2026)\n🦷 Plano odontológico +Odonto Premium Adesão vinculado ao plano"
   },
   {
@@ -1124,7 +1124,7 @@
     "faixasModelo": "",
     "enfermaria": null,
     "apartamento": null,
-    "taxa": null,
+    "taxa": 10,
     "odonto": false,
     "fidelidade": false,
     "mostrarExtras": true,
@@ -1169,7 +1169,7 @@
       1707.94,
       2213.85
     ],
-    "rede": "",
+    "rede": "Hospital e Maternidade Madrecor\nClínica e Diagnóstico Uberlândia\nClínica Marechal Deodoro",
     "extras": "🏷️ 15% de desconto nas 3 primeiras mensalidades (vigências até dezembro de 2026)\n🦷 Plano odontológico +Odonto Premium Adesão vinculado ao plano"
   }
 ]
