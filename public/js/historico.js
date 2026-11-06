@@ -110,7 +110,7 @@ function reopen(h) {
   render();
   renderHistCli();
   scrollTo({ top: 0, behavior: "auto" });
-  toast(S.selected.length < ids.length ? "Cotação reaberta (algum plano não existe mais)" : "Cotação reaberta com os valores atuais");
+  avisoCentral(S.selected.length < ids.length ? "Cotação reaberta, mas algum plano não existe mais" : "Cotação reaberta com os valores atuais");
 }
 
 export function renderHistCli() {
