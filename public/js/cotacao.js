@@ -174,6 +174,29 @@ function agendarSalvar() {
 // Para quem vai recarregar a página não perder a última alteração.
 export const salvarCotacaoPendente = () => (auto.timer ? salvar() : auto.fila);
 
+// Volta a tela ao estado de quando a página abre, guardando antes o que faltava salvar.
+export async function novaCotacao() {
+  await salvarCotacaoPendente();
+  if ($("#visor").open) $("#visor").close();
+  S.tipo = "PF";
+  for (const b of $("#tipo").children) b.setAttribute("aria-pressed", b.dataset.t === "PF");
+  S.uf = "MG";
+  S.municipio = "Uberlândia";
+  S.selected = [];
+  S.over = {};
+  S.vidas = Array(10).fill(0);
+  $("#cliente").value = "";
+  $("#fone").value = "";
+  $("#raw").open = false;
+  auto.id = null;
+  auto.fone = "";
+  S.recomecarHistorico = true;
+  render();
+  renderHistCli();
+  scrollTo(0, 0);
+  $("#cliente").focus();
+}
+
 // O que está na tela vira o ponto de partida: só uma alteração a partir daqui cria outra cotação.
 function recomecarHistorico() {
   clearTimeout(auto.timer);

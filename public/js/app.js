@@ -1,6 +1,6 @@
 // Ponto de entrada: navegação entre as abas, dados do usuário, backup e carga inicial.
 import { $, S, VIEWS, api, avisoCentral, carregarPlanos, definirRender, pode, render, show, toast } from "./estado.js";
-import { iniciarCotacao, renderCotacao, salvarCotacaoPendente } from "./cotacao.js";
+import { iniciarCotacao, novaCotacao, renderCotacao } from "./cotacao.js";
 import { iniciarPlanos, renderCat } from "./planos.js";
 import { carregarHistorico, iniciarHistorico, renderHist } from "./historico.js";
 import { carregarAceites, renderAceites } from "./aceites.js";
@@ -18,11 +18,12 @@ definirRender(() => {
 
 /* ---------- abas ---------- */
 document.querySelectorAll(".tabs button[data-view]").forEach((b) => (b.onclick = () => show(b.dataset.view)));
-// Nova cotação recomeça do zero: a página recarrega, sem perder o que ainda estava para salvar.
+// Nova cotação recomeça do zero na hora, sem recarregar a página; planos e histórico se atualizam ao fundo.
 $("#tab-cot").onclick = async () => {
-  await salvarCotacaoPendente();
-  history.replaceState(null, "", "#cotacao");
-  location.reload();
+  await novaCotacao();
+  show("cotacao");
+  if (["cotacao", "planos", "documentos"].some((t) => pode(t))) carregarPlanos().then(render).catch(() => {});
+  carregarHistorico();
 };
 const viewDoHash = () => (VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "cotacao");
 addEventListener("hashchange", () => show(viewDoHash()));
@@ -167,15 +168,25 @@ async function verificarLink() {
 }
 
 /* ---------- carga inicial ---------- */
+// Os pedidos saem juntos, em vez de um depois do outro: com o servidor longe, cada espera conta.
 async function carregar() {
+  let extras = null;
   try {
-    // As permissões vêm primeiro: elas decidem o que mais pode ser carregado.
+    // Status e planos já vão junto com as permissões; quem não pode ver os planos só ignora a resposta.
+    const statusP = api("/api/status");
+    const planosP = carregarPlanos().then(() => null, (e) => e);
     const eu = await api("/api/eu");
     S.eu = eu;
     aplicarPerfil(eu);
     show(viewDoHash());
+    extras = Promise.all([
+      carregarHistorico(),
+      pode("documentos") ? carregarDocumentos().catch((e) => toast(e.message)) : null,
+      verificarAceites(),
+    ]);
     const precisaDosPlanos = ["cotacao", "planos", "documentos"].some((t) => pode(t));
-    const [status] = await Promise.all([api("/api/status"), precisaDosPlanos ? carregarPlanos() : null]);
+    const [status, erroPlanos] = await Promise.all([statusP, planosP]);
+    if (erroPlanos && precisaDosPlanos) throw erroPlanos;
     S.leituraDisponivel = status.leituraDisponivel;
     S.linkAtivo = status.linkPublico.estado === "ativo";
     S.linkLocal = status.linkPublico.local;
@@ -187,9 +198,7 @@ async function carregar() {
     S.dbErr = e.message;
   }
   render();
-  await carregarHistorico();
-  if (pode("documentos")) await carregarDocumentos().catch((e) => toast(e.message));
-  await verificarAceites();
+  await extras;
 }
 
 // O aceite chega do link, fora desta tela, então a lista é conferida de tempos em tempos.
