@@ -1090,7 +1090,7 @@
     "id": "hapvida-nosso-plano-total",
     "nome": "HAPVIDA NOSSO PLANO",
     "ordem": 350,
-    "subtitulo": "Coparticipação total – Enfermaria e Apartamento, coletivo por adesão (Affix)",
+    "subtitulo": "Coparticipação total – Enfermaria e Apartamento, coletivo por adesão",
     "faixasEnf": [
       209,
       268.98,
@@ -1144,7 +1144,7 @@
     "id": "hapvida-nosso-plano-parcial",
     "nome": "HAPVIDA NOSSO PLANO PARCIAL",
     "ordem": 355,
-    "subtitulo": "Coparticipação parcial (só terapias) – Enfermaria e Apartamento, coletivo por adesão (Affix)",
+    "subtitulo": "Coparticipação parcial (só terapias) – Enfermaria e Apartamento, coletivo por adesão",
     "faixasEnf": [
       294.02,
       381.21,

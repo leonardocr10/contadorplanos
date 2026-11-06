@@ -187,6 +187,8 @@ const MIGRACOES = [
   () => {},
   // Rede credenciada e taxa associativa da Hapvida; o que já foi cadastrado à mão fica como está.
   "UPDATE planos SET taxa = 10 WHERE id IN ('hapvida-nosso-plano-total', 'hapvida-nosso-plano-parcial') AND taxa IS NULL; UPDATE planos SET rede = 'Hospital e Maternidade Madrecor' || char(10) || 'Clínica e Diagnóstico Uberlândia' || char(10) || 'Clínica Marechal Deodoro' WHERE id IN ('hapvida-nosso-plano-total', 'hapvida-nosso-plano-parcial') AND rede = ''",
+  // O nome da administradora sai do subtítulo dos planos da Hapvida.
+  "UPDATE planos SET subtitulo = REPLACE(subtitulo, ' (Affix)', '') WHERE id IN ('hapvida-nosso-plano-total', 'hapvida-nosso-plano-parcial')",
 ];
 
 const VERSAO_TEXTOS_COPARTICIPACAO = 11;

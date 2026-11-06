@@ -57,6 +57,7 @@ test("a Hapvida segue a tabela: total e parcial, área, coparticipação, carên
     assert.equal(p.faixasApto.length, 10);
     assert.ok(vendidoEm(p, "MG", "Uberlândia") && !vendidoEm(p, "MG", "Uberaba"));
     assert.equal(p.taxa, 10);
+    assert.ok(!p.subtitulo.includes("Affix"));
   }
   const pedido = { vidas: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0], over: {}, cliente: "", opts: { copart: true, rede: true, acom: true }, municipio: "Uberlândia" };
   const corretor = { nome: "C", fone: "34999990000", empresa: "E" };
@@ -81,12 +82,13 @@ test("a Hapvida segue a tabela: total e parcial, área, coparticipação, carên
   t.after(() => rmSync(pasta, { recursive: true, force: true }));
   const caminho = join(pasta, "c.db");
   const antigo = new Banco(caminho, seed);
-  antigo.db.exec("UPDATE planos SET rede = '', taxa = NULL WHERE id = 'hapvida-nosso-plano-total'; UPDATE planos SET rede = 'Minha rede', taxa = 12 WHERE id = 'hapvida-nosso-plano-parcial'; PRAGMA user_version = 22");
+  antigo.db.exec("UPDATE planos SET rede = '', taxa = NULL, subtitulo = subtitulo || ' (Affix)' WHERE id = 'hapvida-nosso-plano-total'; UPDATE planos SET rede = 'Minha rede', taxa = 12 WHERE id = 'hapvida-nosso-plano-parcial'; PRAGMA user_version = 22");
   antigo.fechar();
   const novo = new Banco(caminho, seed);
   assert.equal(novo.obterPlano("hapvida-nosso-plano-total").rede, "Hospital e Maternidade Madrecor\nClínica e Diagnóstico Uberlândia\nClínica Marechal Deodoro");
   assert.equal(novo.obterPlano("hapvida-nosso-plano-parcial").rede, "Minha rede");
   assert.equal(novo.obterPlano("hapvida-nosso-plano-total").taxa, 10);
+  assert.equal(novo.obterPlano("hapvida-nosso-plano-total").subtitulo, "Coparticipação total – Enfermaria e Apartamento, coletivo por adesão");
   assert.equal(novo.obterPlano("hapvida-nosso-plano-parcial").taxa, 12);
   novo.fechar();
 });
