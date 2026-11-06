@@ -20,8 +20,6 @@
 <link rel="modulepreload" href="js/documentos.js">
 <link rel="modulepreload" href="js/configuracoes.js">
 <link rel="modulepreload" href="js/filtro-select.js">
-<link rel="modulepreload" href="js/leitor.js">
-<link rel="modulepreload" href="js/documento-campos.js">
 </head>
 <body>
 <div class="wrap">
@@ -34,7 +32,6 @@
       <button id="tab-doc" role="tab" aria-selected="false" data-view="documentos">Documentos</button>
       <button id="tab-his" role="tab" aria-selected="false" data-view="historico">Histórico</button>
       <button id="tab-ace" role="tab" aria-selected="false" data-view="aceites">Aceites <span class="pill" id="ace-selo" hidden style="margin:0 0 0 4px"></span></button>
-      <button id="tab-lei" role="tab" aria-selected="false" data-view="leitor">Leitor de documentos</button>
       <button id="tab-cfg" role="tab" aria-selected="false" data-view="configuracoes">Configurações</button>
       <form method="post" action="/sair" style="display:contents"><button type="submit">Sair</button></form>
     </nav>
@@ -141,27 +138,6 @@
       </div>
       <div id="ace-list" class="cat"></div>
       <p class="note" style="margin:0">O botão abre a conversa com a lista de documentos pronta: confira e aperte enviar no WhatsApp.</p>
-    </div>
-  </section>
-
-  <!-- LEITOR DE DOCUMENTOS -->
-  <section id="v-leitor" hidden>
-    <div class="panel">
-      <h2>Leitor de documentos</h2>
-      <p class="note" style="margin:0">Envie o PDF ou a foto de um RG, CNH, CPF, comprovante ou outro documento. Os dados são lidos automaticamente, e cada um tem o botão Copiar. Para frente e verso, envie as duas fotos juntas. Use fotos retas, nítidas e bem iluminadas.</p>
-      <label class="lei-zona" id="lei-zona" for="lei-arquivo" tabindex="0">
-        <b>Escolher PDF ou fotos</b>
-        <span>ou arraste os arquivos para cá · até 6 páginas</span>
-      </label>
-      <input id="lei-arquivo" type="file" accept="application/pdf,image/*" multiple hidden>
-      <div class="lei-paginas" id="lei-paginas" hidden></div>
-      <div class="actions" id="lei-acoes" hidden>
-        <button class="btn primary" type="button" id="lei-ler">Ler documento</button>
-        <button class="btn" type="button" id="lei-limpar">Limpar</button>
-      </div>
-      <p class="note" id="lei-andamento" role="status" hidden></p>
-      <div class="lei-resultado" id="lei-resultado" hidden></div>
-      <p class="note" style="margin:0">A leitura é feita neste computador: o documento não é enviado para nenhum serviço e não fica guardado no cotador.</p>
     </div>
   </section>
 

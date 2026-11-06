@@ -7,7 +7,6 @@ import { carregarAceites, renderAceites } from "./aceites.js";
 import { carregarDocumentos, iniciarDocumentos, renderDocumentos } from "./documentos.js";
 import { abrirItem, aplicarPerfil, avatarDoUsuario, carregarUsuarios, iniciarConfiguracoes, mostrarUsuarioLogado } from "./configuracoes.js";
 import { iniciarFiltroSelects } from "./filtro-select.js";
-import { iniciarLeitor } from "./leitor.js";
 
 iniciarFiltroSelects();
 
@@ -212,7 +211,6 @@ iniciarPlanos();
 iniciarHistorico();
 iniciarDocumentos();
 iniciarConfiguracoes();
-iniciarLeitor();
 renderHist();
 renderAceites();
 render();

@@ -1,6 +1,6 @@
 // Tela "Nova cotação": formulário, cartões de planos, prévia do WhatsApp e imagens da proposta.
 import { FAIXAS, brl, hasFaixas, lerArea, locaisDosPlanos, normFone, parseBRL, planPrices, redeDaCidade, totalVidas, vendidoEm } from "./calculo.js";
-import { $, S, api, copiarTexto, esc, pode, render, toast } from "./estado.js";
+import { $, S, api, esc, pode, render, toast } from "./estado.js";
 import { buildMsg, linkConversaDireta, textoDosLinks, waHtml } from "./mensagem.js";
 import { paginaParaPng } from "./imagem-proposta.js";
 import { imagemParaPdf } from "./pdf-imagem.js";
@@ -364,6 +364,21 @@ async function abrirWhatsApp() {
 
 /* ---------- link da proposta ---------- */
 // Em endereço http, como o da VPS, o navegador não oferece a área de transferência moderna.
+async function copiarTexto(texto) {
+  try {
+    await navigator.clipboard.writeText(texto);
+    return true;
+  } catch {
+    const campo = document.createElement("textarea");
+    campo.value = texto;
+    campo.style.cssText = "position:fixed;opacity:0";
+    document.body.append(campo);
+    campo.select();
+    const ok = document.execCommand("copy");
+    campo.remove();
+    return ok;
+  }
+}
 
 // O link leva à página com o botão de aceite. Ele fica visível, caso o navegador recuse a cópia.
 async function copiarLink() {

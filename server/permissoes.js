@@ -1,10 +1,9 @@
 // O que cada login faz em cada tela. O administrador sempre pode tudo.
-export const TELAS = ["cotacao", "planos", "documentos", "historico", "aceites", "leitor"];
+export const TELAS = ["cotacao", "planos", "documentos", "historico", "aceites"];
 export const NIVEIS = ["nenhum", "ver", "editar"];
 
 // Vale para quem foi criado sem escolher, e repete o que os usuários já podiam fazer.
-// No leitor de documentos não há o que editar: qualquer acesso permite usar.
-export const PERMISSOES_PADRAO = { cotacao: "editar", planos: "ver", documentos: "ver", historico: "editar", aceites: "editar", leitor: "editar" };
+export const PERMISSOES_PADRAO = { cotacao: "editar", planos: "ver", documentos: "ver", historico: "editar", aceites: "editar" };
 
 export function permissoesDoUsuario(perfil, json) {
   if (perfil === "admin") return Object.fromEntries(TELAS.map((t) => [t, "editar"]));

@@ -426,9 +426,9 @@ async function comPermissoes(t, permissoes) {
 
 test("sem escolher, o usuário fica com o acesso padrão, e o administrador com tudo", async (t) => {
   const { pedir, admin, entrar } = await comPermissoes(t);
-  assert.deepEqual((await (await pedir(admin, "/api/eu")).json()).permissoes, { cotacao: "editar", planos: "editar", documentos: "editar", historico: "editar", aceites: "editar", leitor: "editar" });
+  assert.deepEqual((await (await pedir(admin, "/api/eu")).json()).permissoes, { cotacao: "editar", planos: "editar", documentos: "editar", historico: "editar", aceites: "editar" });
   const comum = (await entrar("corretor1", "senha-do-corretor")).cookie;
-  assert.deepEqual((await (await pedir(comum, "/api/eu")).json()).permissoes, { cotacao: "editar", planos: "ver", documentos: "ver", historico: "editar", aceites: "editar", leitor: "editar" });
+  assert.deepEqual((await (await pedir(comum, "/api/eu")).json()).permissoes, { cotacao: "editar", planos: "ver", documentos: "ver", historico: "editar", aceites: "editar" });
 });
 
 test("sem acesso a uma tela, as rotas dela ficam fechadas", async (t) => {

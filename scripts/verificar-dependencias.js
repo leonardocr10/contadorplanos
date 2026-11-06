@@ -14,8 +14,7 @@ function faltaAlgo() {
     if (!existsSync(instalado)) return true;
     if (lerJson(instalado).version !== lock[`node_modules/${nome}`]?.version) return true;
   }
-  const vendor = join(raiz, "public", "vendor");
-  return !existsSync(join(vendor, "pdfjs", "pdf.min.mjs")) || !existsSync(join(vendor, "tesseract", "lang", "por.traineddata.gz"));
+  return !existsSync(join(raiz, "public", "vendor", "pdfjs", "pdf.min.mjs"));
 }
 
 try {

@@ -77,10 +77,6 @@ PUBLIC_URL=https://propostas.seudominio.com.br
 
 Quem receber o link consegue ver o nome do cliente e os valores da proposta. Na publicação, exponha só a porta pública: o cotador, o histórico e o backup não têm senha.
 
-## Leitor de documentos
-
-A aba **Leitor de documentos** lê o PDF ou a foto de um RG, CNH, CPF, comprovante ou cartão CNPJ e mostra cada dado com o botão **Copiar**, além de **Copiar tudo** e do texto completo lido. Não precisa de chave da API: a leitura é feita no navegador, com o Tesseract, e o documento não é enviado para nenhum serviço nem fica guardado. PDF que já traz o texto é lido direto dele; foto passa pelo reconhecimento de texto, que acerta mais com imagem reta, nítida e bem iluminada. Confira os dados antes de usar. O acesso à aba é escolhido em **Configurações > Usuários**.
-
 ## Leitura automática de tabelas (opcional)
 
 Para o Claude ler o PDF ou a imagem de uma tabela nova, é preciso ter uma chave da API, criada em https://platform.claude.com. O uso da API é cobrado à parte.

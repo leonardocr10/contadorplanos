@@ -9,7 +9,7 @@ import { ErroLeitura, MODELO_PADRAO, lerTabela } from "./claude.js";
 import { criarLogin } from "./login.js";
 import { conferirSenha, gerarHashSemTravar } from "./senhas.js";
 import { criarEnviadorDeEmail } from "./email.js";
-import { NIVEIS, PERMISSOES_PADRAO, TELAS, atende } from "./permissoes.js";
+import { NIVEIS, TELAS, atende } from "./permissoes.js";
 import { montarSnapshot, renderizarProposta } from "./proposta-html.js";
 import { MAX_PLANOS_COMPARATIVO, renderizarComparativo } from "./comparativo-html.js";
 
@@ -147,9 +147,7 @@ function validarEmail(v, podeVazio = false) {
 
 function validarPermissoes(v) {
   if (!v || typeof v !== "object") throw new ErroEntrada("As permissões informadas são inválidas.");
-  // Tela que o pedido não cita, como uma criada depois, fica com o acesso padrão.
   return Object.fromEntries(TELAS.map((t) => {
-    if (v[t] === undefined) return [t, PERMISSOES_PADRAO[t]];
     if (!NIVEIS.includes(v[t])) throw new ErroEntrada("As permissões informadas são inválidas.");
     return [t, v[t]];
   }));

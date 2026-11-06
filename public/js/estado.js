@@ -45,28 +45,11 @@ export function avisoCentral(texto, tipo = "sucesso") {
 
 export const toast = (texto, tipo = "aviso") => avisoCentral(texto, tipo);
 
-// Sem HTTPS o navegador pode recusar a área de transferência: aí a cópia é feita pela seleção.
-export async function copiarTexto(texto) {
-  try {
-    await navigator.clipboard.writeText(texto);
-    return true;
-  } catch {
-    const campo = document.createElement("textarea");
-    campo.value = texto;
-    campo.style.cssText = "position:fixed;opacity:0";
-    document.body.append(campo);
-    campo.select();
-    const ok = document.execCommand("copy");
-    campo.remove();
-    return ok;
-  }
-}
-
 // Só para decidir o que aparece na tela: a permissão de verdade é conferida no servidor.
 export const eAdmin = () => S.eu?.perfil === "admin";
 const ORDEM_NIVEIS = ["nenhum", "ver", "editar"];
 export const pode = (tela, minimo = "ver") => ORDEM_NIVEIS.indexOf(S.eu?.permissoes?.[tela] ?? "nenhum") >= ORDEM_NIVEIS.indexOf(minimo);
-export const VIEWS = ["cotacao", "planos", "documentos", "historico", "aceites", "leitor", "configuracoes"];
+export const VIEWS = ["cotacao", "planos", "documentos", "historico", "aceites", "configuracoes"];
 export function show(telaPedida) {
   // Tela sem permissão abre a primeira permitida; Configurações é de todos.
   const permitida = (t) => !S.eu || t === "configuracoes" || pode(t);

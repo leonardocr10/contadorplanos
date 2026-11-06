@@ -5,24 +5,20 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 const msg = (t) => ($("#cfg-msg").textContent = t);
 const msgUsuarios = (t) => toast(t, "erro");
 const PERFIS = { admin: "Administrador", usuario: "Usuário" };
-const TELAS = { cotacao: "Nova cotação", planos: "Planos e valores", documentos: "Documentos", historico: "Histórico", aceites: "Aceites", leitor: "Leitor de documentos" };
+const TELAS = { cotacao: "Nova cotação", planos: "Planos e valores", documentos: "Documentos", historico: "Histórico", aceites: "Aceites" };
 const NIVEIS = { nenhum: "Sem acesso", ver: "Ver", editar: "Editar" };
 const NOMES_NIVEIS = { nenhum: "sem acesso", ver: "visualização", editar: "edição" };
-// No leitor não há o que editar: a escolha é só entre usar ou não.
-const NIVEIS_DA_TELA = { leitor: { nenhum: "Sem acesso", editar: "Usar" } };
-const nivelMostrado = (tela, nivel) => (NIVEIS_DA_TELA[tela] && nivel === "ver" ? "editar" : nivel);
-const PADRAO = { cotacao: "editar", planos: "ver", documentos: "ver", historico: "editar", aceites: "editar", leitor: "editar" };
+const PADRAO = { cotacao: "editar", planos: "ver", documentos: "ver", historico: "editar", aceites: "editar" };
 
 let eu = null, usuarios = [], editando = null;
 
-const camposDePermissao = (atuais) => Object.entries(TELAS).map(([tela, nome]) => `<div class="usr-tela"><span>${nome}</span><div class="usr-niveis" role="radiogroup" aria-label="Acesso a ${nome}">${Object.entries(NIVEIS_DA_TELA[tela] ?? NIVEIS).map(([n, rotulo]) => `<label><input type="radio" name="perm-${tela}" value="${n}" ${nivelMostrado(tela, atuais[tela] ?? PADRAO[tela]) === n ? "checked" : ""}><span>${rotulo}</span></label>`).join("")}</div></div>`).join("");
+const camposDePermissao = (atuais) => Object.entries(TELAS).map(([tela, nome]) => `<div class="usr-tela"><span>${nome}</span><div class="usr-niveis" role="radiogroup" aria-label="Acesso a ${nome}">${Object.entries(NIVEIS).map(([n, rotulo]) => `<label><input type="radio" name="perm-${tela}" value="${n}" ${atuais[tela] === n ? "checked" : ""}><span>${rotulo}</span></label>`).join("")}</div></div>`).join("");
 const lerPermissoes = () => Object.fromEntries([...$("#usr-permissoes").querySelectorAll("input:checked")].map((r) => [r.name.slice(5), r.value]));
 const perfilEscolhido = () => document.querySelector('[name="usr-perfil"]:checked').value;
 const nivelNaTela = (u, tela) => (u.perfil === "admin" ? "editar" : u.permissoes?.[tela] ?? "nenhum");
 const chipsDeAcesso = (u) => Object.entries(TELAS).map(([tela, nome]) => {
-  const nivel = nivelMostrado(tela, nivelNaTela(u, tela));
-  const descricao = NIVEIS_DA_TELA[tela] && nivel === "editar" ? "uso" : NOMES_NIVEIS[nivel];
-  return `<span class="chip-tela ${nivel}">${nome}<span class="so-leitor">: ${descricao}</span></span>`;
+  const nivel = nivelNaTela(u, tela);
+  return `<span class="chip-tela ${nivel}">${nome}<span class="so-leitor">: ${NOMES_NIVEIS[nivel]}</span></span>`;
 }).join("");
 
 // Foto do usuário ou, sem foto, a inicial do nome.
