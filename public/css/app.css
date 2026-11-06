@@ -316,6 +316,11 @@ html:has(.visor[open]){overflow:hidden}
 .hq-top{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center}
 .hq-date{font-size:13px;color:var(--muted);font-weight:600}
 .hq-plans{font-size:14px;font-variant-numeric:tabular-nums;line-height:1.55}
+.ace-docs{display:flex;flex-direction:column;gap:10px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.ace-docs-topo{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px}
+.ace-docs-lista{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px 16px}
+.ace-docs-lista .uchk{color:var(--ink);font-weight:500;font-size:14px}
+.ace-docs .actions{margin:0}
 .hq-st{width:auto;padding:5px 10px;font-size:13px;font-weight:700;border-radius:999px}
 .st-env{background:var(--bg);color:var(--muted)}
 .st-neg{background:var(--accent-soft);color:var(--pine)}
