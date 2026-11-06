@@ -7,7 +7,7 @@ import { completarCarencias, lerArea, normFone } from "../public/js/calculo.js";
 import { ErroBackup, STATUS, tipoImagem } from "./db.js";
 import { ErroLeitura, MODELO_PADRAO, lerTabela } from "./claude.js";
 import { criarLogin } from "./login.js";
-import { conferirSenha, gerarHash } from "./senhas.js";
+import { conferirSenha, gerarHashSemTravar } from "./senhas.js";
 import { criarEnviadorDeEmail } from "./email.js";
 import { NIVEIS, TELAS, atende } from "./permissoes.js";
 import { montarSnapshot, renderizarProposta } from "./proposta-html.js";
@@ -480,11 +480,11 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     res.status(204).end();
   });
 
-  app.put("/api/eu/senha", (req, res) => {
+  app.put("/api/eu/senha", async (req, res) => {
     if (!req.usuario) throw new ErroEntrada("Entre com o seu login para alterar a senha.");
     const hashAtual = banco.lerHashDaSenha(req.usuario.id);
     if (!conferirSenha(req.body?.atual ?? "", hashAtual)) throw new ErroEntrada("A senha atual está incorreta.");
-    const hash = gerarHash(validarSenha(req.body?.nova));
+    const hash = await gerarHashSemTravar(validarSenha(req.body?.nova));
     banco.alterarSenhaDoUsuario(req.usuario.id, hash);
     login.manterSessao(req.tokenDaSessao, hash);
     res.json({ ok: true });
@@ -499,31 +499,36 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
 
   app.get("/api/usuarios", soAdmin, (_req, res) => res.json(banco.listarUsuarios()));
 
-  app.post("/api/usuarios", soAdmin, (req, res) => {
+  app.post("/api/usuarios", soAdmin, async (req, res) => {
     const b = req.body ?? {};
     const novoLogin = validarLogin(b.login);
-    if (banco.obterUsuarioPorLogin(novoLogin)) throw new ErroEntrada("Já existe um usuário com este login.");
-    const email = emailLivre(b.email);
+    const loginLivre = () => { if (banco.obterUsuarioPorLogin(novoLogin)) throw new ErroEntrada("Já existe um usuário com este login."); };
+    loginLivre();
+    emailLivre(b.email);
     const perfil = b.perfil === undefined ? "usuario" : validarPerfil(b.perfil);
     const permissoes = b.permissoes === undefined ? undefined : validarPermissoes(b.permissoes);
-    res.status(201).json(banco.criarUsuario({ login: novoLogin, email, senhaHash: gerarHash(validarSenha(b.senha)), perfil, permissoes }));
+    const senhaHash = await gerarHashSemTravar(validarSenha(b.senha));
+    // Outro pedido pode ter usado o mesmo login ou e-mail enquanto a senha era calculada.
+    loginLivre();
+    const email = emailLivre(b.email);
+    res.status(201).json(banco.criarUsuario({ login: novoLogin, email, senhaHash, perfil, permissoes }));
   });
 
-  app.put("/api/usuarios/:id", soAdmin, (req, res) => {
+  app.put("/api/usuarios/:id", soAdmin, async (req, res) => {
+    const b = req.body ?? {};
+    // O cálculo da senha vem antes das conferências, que assim olham o banco já atualizado.
+    const hash = b.senha === undefined ? undefined : await gerarHashSemTravar(validarSenha(b.senha));
     const alvo = banco.obterUsuario(req.params.id);
     if (!alvo) throw new ErroNaoEncontrado("Usuário não encontrado.");
-    const b = req.body ?? {};
     const perfil = b.perfil === undefined ? undefined : validarPerfil(b.perfil);
     const ativo = b.ativo === undefined ? undefined : !!b.ativo;
     const perdeAdmin = alvo.perfil === "admin" && alvo.ativo && ((perfil && perfil !== "admin") || ativo === false);
     if (perdeAdmin && req.usuario?.id === alvo.id) throw new ErroEntrada("Você não pode tirar o seu próprio acesso de administrador.");
     if (perdeAdmin && banco.contarAdminsAtivos() <= 1) throw new ErroEntrada("O sistema precisa de pelo menos um administrador ativo.");
     // Valida tudo antes de gravar, para um erro não deixar a alteração pela metade.
-    const senha = b.senha === undefined ? undefined : validarSenha(b.senha);
     const email = b.email === undefined ? undefined : emailLivre(b.email, alvo.id);
     const permissoes = b.permissoes === undefined ? undefined : validarPermissoes(b.permissoes);
-    if (senha !== undefined) {
-      const hash = gerarHash(senha);
+    if (hash !== undefined) {
       banco.alterarSenhaDoUsuario(alvo.id, hash);
       if (req.usuario?.id === alvo.id) login.manterSessao(req.tokenDaSessao, hash);
     }

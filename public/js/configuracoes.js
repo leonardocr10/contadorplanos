@@ -1,5 +1,5 @@
 // Aba "Configurações": senha de cada login e, para o administrador, usuários e atualização do sistema.
-import { $, api, esc, pode, toast } from "./estado.js";
+import { $, api, avisoCentral, esc, pode, toast } from "./estado.js";
 
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 const msg = (t) => ($("#cfg-msg").textContent = t);
@@ -149,9 +149,14 @@ async function salvarGaveta(e) {
   $("#usr-gaveta-msg").textContent = "";
   const perfil = perfilEscolhido(), email = $("#usr-email").value.trim(), senha = $("#usr-senha").value;
   const permissoes = perfil === "admin" ? {} : { permissoes: lerPermissoes() };
+  // Resposta imediata na tela enquanto o servidor grava.
+  const botao = $("#usr-salvar"), rotulo = botao.textContent;
+  botao.disabled = true;
+  botao.textContent = "Salvando…";
   try {
+    let salvo;
     if (editando) {
-      await api(`/api/usuarios/${encodeURIComponent(editando.id)}`, { metodo: "PUT", json: {
+      salvo = await api(`/api/usuarios/${encodeURIComponent(editando.id)}`, { metodo: "PUT", json: {
         ...permissoes,
         ...(perfil !== editando.perfil ? { perfil } : {}),
         ...(email !== editando.email ? { email } : {}),
@@ -159,14 +164,19 @@ async function salvarGaveta(e) {
       } });
       if (editando.id === eu?.id) { eu.email = email.toLowerCase(); $("#c-email").value = eu.email; }
     } else {
-      await api("/api/usuarios", { metodo: "POST", json: { login: $("#usr-login").value, email, senha, perfil, ...permissoes } });
+      salvo = await api("/api/usuarios", { metodo: "POST", json: { login: $("#usr-login").value, email, senha, perfil, ...permissoes } });
     }
-    const aviso = editando ? "Usuário alterado" : "Usuário criado";
+    // O servidor já devolve o usuário salvo: a lista é atualizada sem pedir tudo de novo.
+    usuarios = [...usuarios.filter((u) => u.id !== salvo.id), salvo]
+      .sort((a, b) => a.login.localeCompare(b.login, "pt-BR", { sensitivity: "base" }));
+    renderUsuarios();
     $("#usr-gaveta").close();
-    toast(aviso);
-    await carregarUsuarios();
+    avisoCentral(editando ? "Alterações salvas com sucesso" : "Usuário criado com sucesso");
   } catch (erro) {
     $("#usr-gaveta-msg").textContent = erro.message;
+  } finally {
+    botao.disabled = false;
+    botao.textContent = rotulo;
   }
 }
 

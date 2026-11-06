@@ -1,7 +1,15 @@
 // Senhas dos usuários: o banco guarda só o resultado do scrypt, nunca a senha.
-import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { randomBytes, scrypt, scryptSync, timingSafeEqual } from "node:crypto";
+import { promisify } from "node:util";
 
 const TAMANHO = 64;
+const scryptEmSegundoPlano = promisify(scrypt);
+
+// Mesmo resultado de gerarHash, sem travar o servidor para os outros pedidos enquanto calcula.
+export async function gerarHashSemTravar(senha) {
+  const sal = randomBytes(16);
+  return `${sal.toString("hex")}:${(await scryptEmSegundoPlano(String(senha), sal, TAMANHO)).toString("hex")}`;
+}
 
 export function gerarHash(senha) {
   const sal = randomBytes(16);

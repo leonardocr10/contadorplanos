@@ -16,6 +16,20 @@ let renderizar = () => {};
 export const definirRender = (fn) => { renderizar = fn; };
 export const render = () => renderizar();
 
+// Confirmação em destaque, numa caixa no meio da tela, que some sozinha.
+export function avisoCentral(texto) {
+  const el = $("#aviso-central");
+  el.querySelector("b").textContent = texto;
+  el.hidden = false;
+  el.classList.remove("saindo");
+  clearTimeout(avisoCentral.t);
+  clearTimeout(avisoCentral.fim);
+  avisoCentral.t = setTimeout(() => {
+    el.classList.add("saindo");
+    avisoCentral.fim = setTimeout(() => (el.hidden = true), 250);
+  }, 1800);
+}
+
 export function toast(t) {
   const el = $("#toast");
   el.textContent = t;

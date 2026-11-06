@@ -310,6 +310,9 @@ test("novo usuário precisa de e-mail válido e que ainda não exista", async (t
   const u = await ok.json();
   assert.equal(u.email, "novo@exemplo.com");
   assert.equal((await pedir(admin, "/api/usuarios", "POST", { login: "novo.dois", email: "NOVO@exemplo.com", senha: "senha-boa-1234" })).status, 400);
+  // Dois pedidos iguais ao mesmo tempo: um cria, o outro recebe o aviso, sem erro no servidor.
+  const juntos = await Promise.all([1, 2].map(() => pedir(admin, "/api/usuarios", "POST", { login: "ao.mesmo.tempo", email: "juntos@exemplo.com", senha: "senha-boa-1234" })));
+  assert.deepEqual(juntos.map((r) => r.status).sort(), [201, 400]);
   // O usuário e o administrador alteram o e-mail, sem repetir o de outro.
   const comum = (await entrar("novo.um", "senha-boa-1234")).cookie;
   await pedir(comum, "/api/config", "PUT", { email: "outro@exemplo.com" });
