@@ -387,6 +387,14 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     res.json({ docsEnviadosEm: a.docsEnviadosEm });
   });
 
+  // Excluir apaga a proposta aceita: o link dela deixa de abrir, e a cotação continua no histórico.
+  app.delete("/api/aceites/:token", exige("aceites", "editar"), (req, res) => {
+    const proposta = banco.obterProposta(req.params.token);
+    if (!proposta || !proposta.aceitoEm || !podeVer(req, donoDaProposta(proposta))) return res.status(404).json({ erro: "Aceite não encontrado." });
+    banco.excluirAceite(req.params.token);
+    res.status(204).end();
+  });
+
   /* ---------- documentos por plano ---------- */
   const documentoDaRota = (req) => {
     const id = Number(req.params.id);

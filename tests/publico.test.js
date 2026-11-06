@@ -540,6 +540,23 @@ test("marca documentos enviados só em aceite existente", async (t) => {
   assert.ok((await listar(admin))[0].docsEnviadosEm);
 });
 
+test("exclui só proposta aceita, e o link dela deixa de abrir", async (t) => {
+  const { admin, publico } = await subir(t, ativo);
+  const url = await criarLink(admin, publico);
+  const token = url.split("/").pop();
+  const excluir = (tk) => fetch(`${admin}/api/aceites/${tk}`, { method: "DELETE" });
+  // Proposta ainda não aceita não sai por aqui.
+  assert.equal((await excluir(token)).status, 404);
+  assert.equal((await fetch(url)).status, 200);
+  await aceitar(url, { acomodacao: "Enfermaria", confirmo: "1" });
+  assert.equal((await listar(admin)).length, 1);
+  assert.equal((await excluir(token)).status, 204);
+  assert.equal((await listar(admin)).length, 0);
+  assert.equal((await fetch(url)).status, 404);
+  assert.equal((await excluir(token)).status, 404);
+  assert.equal((await fetch(publico + `/api/aceites/${token}`, { method: "DELETE" })).status, 404);
+});
+
 test("servidor público não expõe a lista de aceites", async (t) => {
   const { publico } = await subir(t, ativo);
   assert.equal((await fetch(publico + "/api/aceites")).status, 404);

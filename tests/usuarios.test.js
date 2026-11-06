@@ -458,7 +458,7 @@ test("com visualização, consulta e não altera", async (t) => {
   const proibidos = [
     ["/api/cotacoes", "POST", cotacao()], [`/api/cotacoes/${c.id}`, "PUT", cotacao()], [`/api/cotacoes/${c.id}`, "PATCH", { status: "Vendida" }], [`/api/cotacoes/${c.id}`, "DELETE"],
     ["/api/propostas", "POST", { ...pedido, fone: "34999990000" }], ["/api/propostas/comparativo", "POST", { ...pedido, planos: ["plam-saude-pf", "plamedh-pf"] }],
-    ["/api/planos", "POST", { nome: "X", categoria: "PF" }], ["/api/documentos", "POST", { nome: "Y" }], ["/api/aceites/qualquer/documentos", "POST", {}],
+    ["/api/planos", "POST", { nome: "X", categoria: "PF" }], ["/api/documentos", "POST", { nome: "Y" }], ["/api/aceites/qualquer/documentos", "POST", {}], ["/api/aceites/qualquer", "DELETE"],
   ];
   for (const [rota, metodo, json] of proibidos) assert.equal((await pedir(comum, rota, metodo, json)).status, 403, `${metodo} ${rota}`);
   // A permissão muda na hora, sem precisar entrar de novo.

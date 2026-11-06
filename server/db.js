@@ -491,6 +491,10 @@ export class Banco {
     return this.db.prepare("SELECT * FROM propostas WHERE aceito_em IS NOT NULL ORDER BY aceito_em DESC").all().map(linhaParaProposta);
   }
 
+  excluirAceite(token) {
+    return this.db.prepare("DELETE FROM propostas WHERE token = ? AND aceito_em IS NOT NULL").run(token).changes > 0;
+  }
+
   marcarDocumentosEnviados(token) {
     const r = this.db.prepare("UPDATE propostas SET docs_enviados_em = ? WHERE token = ? AND aceito_em IS NOT NULL").run(new Date().toISOString(), token);
     return r.changes > 0 ? this.obterProposta(token) : null;

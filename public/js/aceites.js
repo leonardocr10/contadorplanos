@@ -1,6 +1,6 @@
 // Tela "Aceites": clientes que aceitaram a proposta pelo link e o envio da lista de documentos.
 import { brl, fmtFone } from "./calculo.js";
-import { $, S, api, esc, pode, toast } from "./estado.js";
+import { $, S, api, avisoCentral, esc, pode, toast } from "./estado.js";
 import { linkConversaDireta, mensagemDocumentos } from "./mensagem.js";
 
 let aceites = [], assinatura = null;
@@ -33,9 +33,28 @@ export function renderAceites() {
     <div class="hq-date">${a.fone ? esc(fmtFone(a.fone)) : "Sem número"} · aceitou em ${esc(fmtData(a.aceitoEm))}${a.responsavel ? ` · Corretor: ${esc(a.responsavel)}` : ""}</div>
     <div class="hq-plans"><b>${esc(a.plano)}</b> · ${esc(a.acomodacao)} · R$ ${brl(a.valor)} · ${a.categoria === "CNPJ" ? "CNPJ" : "PF"}</div>
     ${a.docsEnviadosEm ? `<div class="note">Conversa aberta com a lista em ${esc(fmtData(a.docsEnviadosEm))}</div>` : ""}
-    ${pode("aceites", "editar") ? `<div class="actions"><button class="btn ${a.docsEnviadosEm ? "" : "primary"}" data-docs="1">${a.docsEnviadosEm ? "Enviar de novo" : "Enviar documentos no WhatsApp"}</button></div>` : ""}
+    ${pode("aceites", "editar") ? `<div class="actions"><button class="btn ${a.docsEnviadosEm ? "" : "primary"}" data-docs="1">${a.docsEnviadosEm ? "Enviar de novo" : "Enviar documentos no WhatsApp"}</button><button class="btn danger" data-excluir="1">Excluir</button></div>
+    <div class="status" data-confirma hidden>Excluir o aceite de <b>${esc(a.cliente || "Sem nome")}</b>? O link desta proposta deixa de abrir para o cliente. A cotação continua no histórico. <span class="actions" style="margin-top:8px"><button class="btn danger" data-sim>Sim, excluir</button><button class="btn" data-nao>Manter</button></span></div>` : ""}
   </div>`).join("");
-  box.querySelectorAll("[data-docs]").forEach((b) => (b.onclick = () => enviarDocumentos(aceites.find((a) => a.token === b.closest(".hq").dataset.token))));
+  const doCartao = (b) => aceites.find((a) => a.token === b.closest(".hq").dataset.token);
+  box.querySelectorAll("[data-docs]").forEach((b) => (b.onclick = () => enviarDocumentos(doCartao(b))));
+  box.querySelectorAll("[data-excluir]").forEach((b) => (b.onclick = () => (b.closest(".hq").querySelector("[data-confirma]").hidden = false)));
+  box.querySelectorAll("[data-nao]").forEach((b) => (b.onclick = () => (b.closest("[data-confirma]").hidden = true)));
+  box.querySelectorAll("[data-sim]").forEach((b) => (b.onclick = () => excluirAceite(doCartao(b), b)));
+}
+
+async function excluirAceite(a, botao) {
+  botao.disabled = true;
+  try {
+    await api(`/api/aceites/${encodeURIComponent(a.token)}`, { metodo: "DELETE" });
+    aceites = aceites.filter((x) => x.token !== a.token);
+    assinatura = JSON.stringify(aceites);
+    renderAceites();
+    avisoCentral("Aceite excluído com sucesso");
+  } catch (e) {
+    botao.disabled = false;
+    toast(`Não deu para excluir: ${e.message}`);
+  }
 }
 
 async function enviarDocumentos(a) {
