@@ -43,9 +43,17 @@ const ativo = () => ({ estado: "ativo", url: "https://teste.trycloudflare.com" }
 test("página traz valores, tabelas e rede, sem a observação do plano", () => {
   const p = plano("plam-saude-pf");
   const html = renderizarProposta(montarSnapshot(p, { vidas, over: {}, cliente: "Maria", opts }, corretor));
-  for (const trecho of ["PLAM SAÚDE", "Proposta para", "Maria", "3 vidas · 0 a 18, 29 a 33 e 34 a 38 anos", "R$ 769,76", "R$ 1.198,87", "R$ 7,00 de taxa associativa", "Consulta médica", "Carências", "Hospital Santa Marta", "Nexyum", "tel:349", "noindex"]) {
+  for (const trecho of ["PLAM SAÚDE", "Proposta para", "Maria", "3 vidas · 0 a 18, 29 a 33 e 34 a 38 anos", "R$ 769,76", "R$ 1.198,87", "R$ 7,00 de taxa associativa", "Consulta médica", "Carências", "Hospital Santa Marta", "Nexyum", "noindex"]) {
     assert.ok(html.includes(trecho), trecho);
   }
+  // O telefone do consultor abre a conversa no WhatsApp, não a ligação.
+  assert.ok(!html.includes('href="tel:'));
+  assert.match(html, /<a href="https:\/\/web\.whatsapp\.com\/send\?phone=55349[^"]*" target="_blank" rel="noopener"[^>]*>/);
+  const celular = renderizarProposta(montarSnapshot(p, { vidas, over: {}, cliente: "Maria", opts }, corretor), { agente: "Mozilla/5.0 (iPhone)" });
+  assert.match(celular, /href="https:\/\/(api\.whatsapp\.com\/send\/?\?phone=55349|wa\.me\/55349)/);
+  // Com telefone novo em Meus dados, a página mostra e chama o número atual.
+  const atual = renderizarProposta(montarSnapshot(p, { vidas, over: {}, cliente: "Maria", opts }, corretor), { foneCorretor: "(34) 90000-7777" });
+  assert.ok(atual.includes("phone=5534900007777") && atual.includes("(34) 90000-7777"));
   if (p.descricao) assert.ok(!html.includes(p.descricao));
 });
 

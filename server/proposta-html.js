@@ -230,9 +230,14 @@ export function logoDoPlano(nome) {
   return logo ? `<img class="logo-plano" src="/img/logo-${logo[1]}.png" alt="${logo[2]}">` : "";
 }
 
-function barraLateral(P) {
+function barraLateral(P, { foneCorretor, agente = "" } = {}) {
   const vidas = P.vidas ? `${P.vidas} ${P.vidas === 1 ? "vida" : "vidas"}${P.faixaEtaria ? ` · ${P.faixaEtaria}` : ""}` : "";
-  const fone = String(P.consultor.telefone || "").replace(/\D/g, "");
+  // Vale o telefone atual de Meus dados; o guardado na proposta só quando ele não estiver preenchido.
+  const atual = normFone(foneCorretor ?? "");
+  const usarAtual = atual.length >= 10 && atual !== normFone(P.consultor.telefone || "");
+  const fone = usarAtual ? atual : String(P.consultor.telefone || "").replace(/\D/g, "");
+  const foneNaTela = usarAtual ? foneCorretor : P.consultor.telefone;
+  const whatsapp = linkConversaDireta(normFone(fone), `Olá! Vi a proposta do plano ${P.plano} e gostaria de falar com você.`, agente);
   return `<aside class="side">
     <div class="stack" style="gap:4px">
       <span class="eyebrow blue">Proposta para</span>
@@ -248,7 +253,7 @@ function barraLateral(P) {
       <span class="eyebrow">Seu consultor</span>
       ${P.consultor.nome ? `<span style="font-size:16px;font-weight:800">${esc(P.consultor.nome)}</span>` : ""}
       ${P.consultor.corretora ? `<span style="font-size:13px;color:var(--sobre-navy)">${esc(P.consultor.corretora)}</span>` : ""}
-      ${fone ? `<a href="tel:${esc(fone)}">${SVG_TELEFONE}<span>${esc(P.consultor.telefone)}</span></a>` : ""}
+      ${fone ? `<a href="${esc(whatsapp)}" target="_blank" rel="noopener" title="Conversar pelo WhatsApp" aria-label="Conversar com ${esc(P.consultor.nome || "o consultor")} pelo WhatsApp: ${esc(foneNaTela)}">${SVG_TELEFONE}<span>${esc(foneNaTela)}</span></a>` : ""}
     </div>` : ""}
   </aside>`;
 }
@@ -440,7 +445,7 @@ export function renderizarProposta(s, aceitacao = {}, { paraImagem = false } = {
 </head>
 <body>
 <div class="page">
-  ${barraLateral(P)}
+  ${barraLateral(P, aceitacao)}
   <main class="main">
     ${avisoAceito(s, aceitacao)}
     <div class="hero">
