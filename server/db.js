@@ -367,12 +367,10 @@ export class Banco {
     return this.db.prepare("DELETE FROM planos WHERE id = ?").run(id).changes > 0;
   }
 
-  /* ---------- documentos por plano ---------- */
+  /* ---------- documentos ---------- */
+  // Cada documento vale para todos os planos do tipo dele, inclusive os cadastrados depois.
   listarDocumentos() {
-    const vinculos = this.db.prepare("SELECT documento_id, plano_id FROM documentos_planos").all();
-    return this.db.prepare("SELECT id, nome, tipo FROM documentos ORDER BY id").all().map((d) => ({
-      id: d.id, nome: d.nome, tipo: d.tipo, planos: vinculos.filter((v) => v.documento_id === d.id).map((v) => v.plano_id),
-    }));
+    return this.db.prepare("SELECT id, nome, tipo FROM documentos ORDER BY id").all().map((d) => ({ id: d.id, nome: d.nome, tipo: d.tipo }));
   }
 
   obterDocumento(id) {
@@ -383,9 +381,8 @@ export class Banco {
     return this.db.prepare("SELECT id FROM documentos WHERE nome = ? AND tipo = ?").get(nome, tipo)?.id ?? null;
   }
 
-  criarDocumento(nome, tipo, planoId) {
+  criarDocumento(nome, tipo) {
     const id = Number(this.db.prepare("INSERT INTO documentos (nome, tipo) VALUES (?, ?)").run(nome, tipo).lastInsertRowid);
-    if (planoId) this.definirDocumentoNoPlano(id, planoId, true);
     return this.obterDocumento(id);
   }
 
@@ -399,25 +396,9 @@ export class Banco {
     return this.db.prepare("DELETE FROM documentos WHERE id = ?").run(id).changes > 0;
   }
 
-  definirDocumentoNoPlano(id, planoId, ativo) {
-    const sql = ativo
-      ? "INSERT OR IGNORE INTO documentos_planos (documento_id, plano_id) VALUES (?, ?)"
-      : "DELETE FROM documentos_planos WHERE documento_id = ? AND plano_id = ?";
-    this.db.prepare(sql).run(id, planoId);
-    return this.obterDocumento(id);
-  }
-
-  definirDocumentoEmTodos(id, ativo) {
-    this.db.prepare("DELETE FROM documentos_planos WHERE documento_id = ?").run(id);
-    // "Todos" são os planos do mesmo tipo do documento.
-    if (ativo) this.db.prepare("INSERT INTO documentos_planos (documento_id, plano_id) SELECT d.id, p.id FROM documentos d JOIN planos p ON p.categoria = d.tipo WHERE d.id = ?").run(id);
-    return this.obterDocumento(id);
-  }
-
   documentosDoPlano(planoId) {
-    // Um plano que mudou de tipo não leva os documentos do tipo antigo.
     return this.db
-      .prepare("SELECT d.nome FROM documentos d JOIN documentos_planos v ON v.documento_id = d.id JOIN planos p ON p.id = v.plano_id AND p.categoria = d.tipo WHERE v.plano_id = ? ORDER BY d.id")
+      .prepare("SELECT d.nome FROM documentos d JOIN planos p ON p.categoria = d.tipo WHERE p.id = ? ORDER BY d.id")
       .all(planoId)
       .map((d) => d.nome);
   }

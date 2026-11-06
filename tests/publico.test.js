@@ -410,9 +410,9 @@ test("abrir o link não aceita; aceite exige acomodação válida e confirmaçã
 test("só o primeiro aceite vale e a página avisa que a lista de documentos virá depois", async (t) => {
   const { admin, publico, banco } = await subir(t, ativo);
   banco.gravarConfig({ fone: "(34) 90000-2222" });
-  banco.criarDocumento("RG e CPF", "PF", "plam-saude-pf");
-  banco.criarDocumento("Comprovante <de> residência", "PF", "plam-saude-pf");
-  banco.criarDocumento("Cartão CNPJ", "PF", "amil-ouro-total");
+  banco.criarDocumento("RG e CPF", "PF");
+  banco.criarDocumento("Comprovante <de> residência", "PF");
+  banco.criarDocumento("Cartão CNPJ", "CNPJ");
   const url = await criarLink(admin, publico);
   await aceitar(url, { acomodacao: "Enfermaria", confirmo: "1" });
   await aceitar(url, { acomodacao: "Apartamento", confirmo: "1" });
@@ -429,54 +429,38 @@ test("só o primeiro aceite vale e a página avisa que a lista de documentos vir
   assert.ok(pagina.includes("phone=5534900002222"));
 });
 
-test("cadastra documentos e ativa ou inativa por plano", async (t) => {
+test("cadastra documentos, que valem para todos os planos do tipo", async (t) => {
   const { admin, publico, banco } = await subir(t, ativo);
   const api = (caminho, metodo, corpo) => fetch(admin + caminho, { method: metodo, headers: { "Content-Type": "application/json" }, body: corpo && JSON.stringify(corpo) });
   assert.equal((await api("/api/documentos", "POST", { nome: "  " })).status, 400);
-  assert.equal((await api("/api/documentos", "POST", { nome: "RG", planoId: "nao-existe" })).status, 404);
 
-  const r = await api("/api/documentos", "POST", { nome: "RG", planoId: "plam-saude-pf" });
+  const r = await api("/api/documentos", "POST", { nome: "RG" });
   assert.equal(r.status, 201);
   const rg = await r.json();
-  assert.deepEqual(rg.planos, ["plam-saude-pf"]);
+  assert.equal(rg.tipo, "PF");
   assert.equal((await api("/api/documentos", "POST", { nome: "rg" })).status, 400);
-
-  const cpf = await (await api("/api/documentos", "POST", { nome: "CPF" })).json();
-  assert.deepEqual(cpf.planos, []);
-  assert.deepEqual(banco.documentosDoPlano("plam-saude-pf"), ["RG"]);
-
-  const ligado = await api(`/api/documentos/${cpf.id}/planos/plam-saude-pf`, "PUT", { ativo: true });
-  assert.deepEqual((await ligado.json()).planos, ["plam-saude-pf"]);
+  const cpf = await (await api("/api/documentos", "POST", { nome: "CPF", tipo: "PF" })).json();
+  // Vale em todo plano de pessoa física, inclusive num plano novo, e em nenhum de CNPJ.
   assert.deepEqual(banco.documentosDoPlano("plam-saude-pf"), ["RG", "CPF"]);
-  assert.deepEqual(banco.documentosDoPlano("amil-ouro-total"), []);
-  await api(`/api/documentos/${rg.id}/planos/plam-saude-pf`, "PUT", { ativo: false });
-  assert.deepEqual(banco.documentosDoPlano("plam-saude-pf"), ["CPF"]);
-  assert.equal((await api(`/api/documentos/${rg.id}/planos/plam-saude-pf`, "PUT", { ativo: "sim" })).status, 400);
-  assert.equal((await api(`/api/documentos/${rg.id}/planos/nao-existe`, "PUT", { ativo: true })).status, 404);
-
-  assert.equal((await (await api(`/api/documentos/${rg.id}/planos`, "PUT", { ativo: true })).json()).planos.length, banco.db.prepare("SELECT COUNT(*) AS n FROM planos WHERE categoria = 'PF'").get().n);
-  assert.equal((await (await api(`/api/documentos/${rg.id}/planos`, "PUT", { ativo: false })).json()).planos.length, 0);
+  assert.deepEqual(banco.documentosDoPlano("amil-ouro-total"), ["RG", "CPF"]);
+  assert.deepEqual(banco.documentosDoPlano("plam-total-cnpj"), []);
+  const novo = await (await api("/api/planos", "POST", { nome: "Plano novo", categoria: "PF" })).json();
+  assert.deepEqual(banco.documentosDoPlano(novo.id), ["RG", "CPF"]);
 
   assert.equal((await (await api(`/api/documentos/${cpf.id}`, "PUT", { nome: "CPF novo" })).json()).nome, "CPF novo");
   assert.equal((await api(`/api/documentos/${cpf.id}`, "PUT", { nome: "RG" })).status, 400);
   assert.equal((await api(`/api/documentos/${cpf.id}`, "PUT", { nome: "cpf NOVO" })).status, 200);
 
-  // A lista do aceite acompanha o plano e as mudanças feitas depois do aceite.
+  // A lista do aceite acompanha as mudanças feitas depois do aceite.
   const url = await criarLink(admin, publico);
   await aceitar(url, { acomodacao: "Enfermaria", confirmo: "1" });
-  assert.deepEqual((await listar(admin))[0].documentos, ["cpf NOVO"]);
+  assert.deepEqual((await listar(admin))[0].documentos, ["RG", "cpf NOVO"]);
 
   assert.equal((await api(`/api/documentos/${cpf.id}`, "DELETE")).status, 204);
   assert.equal((await api(`/api/documentos/${cpf.id}`, "DELETE")).status, 404);
-  assert.deepEqual((await listar(admin))[0].documentos, []);
+  assert.deepEqual((await listar(admin))[0].documentos, ["RG"]);
   assert.equal((await fetch(publico + "/api/documentos")).status, 404);
-});
-
-test("excluir plano remove os vínculos dele", async (t) => {
-  const { banco } = await subir(t, ativo);
-  const d = banco.criarDocumento("RG", "PF", "plam-saude-pf");
-  banco.excluirPlano("plam-saude-pf");
-  assert.deepEqual(banco.obterDocumento(d.id).planos, []);
+  assert.equal(banco.excluirDocumento(rg.id), true);
 });
 
 test("listas antigas de PF e CNPJ viram documentos dos planos do tipo", async (t) => {
@@ -496,27 +480,18 @@ test("listas antigas de PF e CNPJ viram documentos dos planos do tipo", async (t
 test("documento é de pessoa física ou de CNPJ, e só vale nos planos do mesmo tipo", async (t) => {
   const { admin, banco } = await subir(t, ativo);
   const api = (rota, metodo, json) => fetch(admin + rota, { method: metodo, headers: { "Content-Type": "application/json" }, body: json ? JSON.stringify(json) : undefined });
-  const cnpj = banco.db.prepare("SELECT id FROM planos WHERE categoria = 'CNPJ'").all().map((p) => p.id);
-  // O tipo vem do plano escolhido, e não pode contradizer o plano.
-  const contrato = await (await api("/api/documentos", "POST", { nome: "Contrato social", planoId: cnpj[0] })).json();
+  const contrato = await (await api("/api/documentos", "POST", { nome: "Contrato social", tipo: "CNPJ" })).json();
   assert.equal(contrato.tipo, "CNPJ");
-  assert.equal((await api("/api/documentos", "POST", { nome: "Outro", tipo: "PF", planoId: cnpj[0] })).status, 400);
   assert.equal((await api("/api/documentos", "POST", { nome: "Outro", tipo: "MEI" })).status, 400);
   // O mesmo nome pode existir uma vez em cada tipo.
   assert.equal((await api("/api/documentos", "POST", { nome: "RG", tipo: "PF" })).status, 201);
-  const rgCnpj = await api("/api/documentos", "POST", { nome: "rg", tipo: "CNPJ" });
-  assert.equal(rgCnpj.status, 201);
+  assert.equal((await api("/api/documentos", "POST", { nome: "rg", tipo: "CNPJ" })).status, 201);
   assert.equal((await api("/api/documentos", "POST", { nome: "RG", tipo: "CNPJ" })).status, 400);
-  // Ativar em todos só pega os planos do tipo, e um plano de outro tipo é recusado.
-  const todos = await (await api(`/api/documentos/${contrato.id}/planos`, "PUT", { ativo: true })).json();
-  assert.deepEqual(todos.planos.sort(), [...cnpj].sort());
-  assert.equal((await api(`/api/documentos/${contrato.id}/planos/plam-saude-pf`, "PUT", { ativo: true })).status, 400);
-  assert.equal((await api(`/api/documentos/${contrato.id}/planos/plam-saude-pf`, "PUT", { ativo: false })).status, 200);
-  assert.deepEqual(banco.documentosDoPlano("plam-saude-pf"), []);
-  assert.deepEqual(banco.documentosDoPlano(cnpj[0]), ["Contrato social"]);
-  // Se o plano mudar de tipo, os documentos do tipo antigo deixam de valer nele.
-  banco.db.prepare("UPDATE planos SET categoria = 'PF' WHERE id = ?").run(cnpj[0]);
-  assert.deepEqual(banco.documentosDoPlano(cnpj[0]), []);
+  assert.deepEqual(banco.documentosDoPlano("plam-saude-pf"), ["RG"]);
+  assert.deepEqual(banco.documentosDoPlano("plam-total-cnpj"), ["Contrato social", "rg"]);
+  // Se o plano mudar de tipo, passa a pedir os documentos do tipo novo.
+  banco.db.prepare("UPDATE planos SET categoria = 'PF' WHERE id = 'plam-total-cnpj'").run();
+  assert.deepEqual(banco.documentosDoPlano("plam-total-cnpj"), ["RG"]);
 });
 
 test("documento ativo nos dois tipos vira dois ao atualizar", async (t) => {
@@ -533,15 +508,13 @@ test("documento ativo nos dois tipos vira dois ao atualizar", async (t) => {
   banco.abrir();
   const docs = banco.listarDocumentos();
   assert.deepEqual(docs.map((d) => `${d.nome} ${d.tipo}`), ["Comprovante PF", "Contrato social CNPJ", "Sem plano PF", "Comprovante CNPJ"]);
-  const tipoDe = (id) => banco.db.prepare("SELECT categoria FROM planos WHERE id = ?").get(id).categoria;
-  for (const d of docs) assert.ok(d.planos.every((p) => tipoDe(p) === d.tipo), d.nome);
-  assert.deepEqual(banco.documentosDoPlano("plam-saude-pf"), ["Comprovante"]);
+  assert.deepEqual(banco.documentosDoPlano("plam-saude-pf"), ["Comprovante", "Sem plano"]);
   assert.deepEqual(banco.documentosDoPlano("plam-total-cnpj"), ["Contrato social", "Comprovante"]);
 });
 
 test("link antigo, sem o id do plano, encontra os documentos pelo nome", async (t) => {
   const { banco } = await subir(t, ativo);
-  banco.criarDocumento("RG", "PF", "plam-saude-pf");
+  banco.criarDocumento("RG", "PF");
   assert.deepEqual(banco.documentosDaProposta({ plano: { nome: "PLAM SAÚDE" } }), ["RG"]);
   assert.deepEqual(banco.documentosDaProposta({ plano: { nome: "Plano apagado" } }), []);
 });

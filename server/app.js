@@ -410,25 +410,14 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     if (existente != null && existente !== idAtual) throw new ErroEntrada(`Já existe um documento de ${NOME_DO_TIPO[tipo]} com esse nome.`);
     return nome;
   };
-  const tipoDoPlanoConfere = (d, plano) => {
-    if (plano.categoria !== d.tipo) throw new ErroEntrada(`Este documento é de ${NOME_DO_TIPO[d.tipo]} e não pode ser ativado num plano de ${NOME_DO_TIPO[plano.categoria]}.`);
-  };
-  const ativoDoPedido = (b) => {
-    if (typeof b?.ativo !== "boolean") throw new ErroEntrada("Informe se o documento fica ativo ou inativo.");
-    return b.ativo;
-  };
 
   app.get("/api/documentos", exige("documentos", "ver"), (_req, res) => res.json(banco.listarDocumentos()));
 
   app.post("/api/documentos", exige("documentos", "editar"), (req, res) => {
-    const planoId = req.body?.planoId ? String(req.body.planoId) : null;
-    const plano = planoId ? banco.obterPlano(planoId) : null;
-    if (planoId && !plano) throw new ErroNaoEncontrado("Plano não encontrado.");
-    // Sem tipo informado, vale o do plano escolhido; sem os dois, pessoa física.
-    const tipo = req.body?.tipo ?? plano?.categoria ?? "PF";
+    // O documento vale para todos os planos do tipo; sem tipo informado, é de pessoa física.
+    const tipo = req.body?.tipo ?? "PF";
     if (tipo !== "PF" && tipo !== "CNPJ") throw new ErroEntrada("O tipo do documento precisa ser PF ou CNPJ.");
-    if (plano) tipoDoPlanoConfere({ tipo }, plano);
-    res.status(201).json(banco.criarDocumento(nomeDeDocumento(req.body, tipo), tipo, planoId));
+    res.status(201).json(banco.criarDocumento(nomeDeDocumento(req.body, tipo), tipo));
   });
 
   app.put("/api/documentos/:id", exige("documentos", "editar"), (req, res) => {
@@ -439,19 +428,6 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
   app.delete("/api/documentos/:id", exige("documentos", "editar"), (req, res) => {
     banco.excluirDocumento(documentoDaRota(req).id);
     res.status(204).end();
-  });
-
-  app.put("/api/documentos/:id/planos", exige("documentos", "editar"), (req, res) => {
-    res.json(banco.definirDocumentoEmTodos(documentoDaRota(req).id, ativoDoPedido(req.body)));
-  });
-
-  app.put("/api/documentos/:id/planos/:planoId", exige("documentos", "editar"), (req, res) => {
-    const d = documentoDaRota(req);
-    const plano = banco.obterPlano(req.params.planoId);
-    if (!plano) throw new ErroNaoEncontrado("Plano não encontrado.");
-    const ativo = ativoDoPedido(req.body);
-    if (ativo) tipoDoPlanoConfere(d, plano);
-    res.json(banco.definirDocumentoNoPlano(d.id, plano.id, ativo));
   });
 
   /* ---------- configuração e backup ---------- */

@@ -63,7 +63,7 @@ A página guarda os valores do momento em que o link foi criado. Mudar o plano d
 A página da proposta tem o botão **Aceitar proposta**: o cliente escolhe a acomodação e confirma. Depois disso:
 
 - A página avisa o cliente que ele receberá a lista de documentos necessários para a contratação, e oferece o botão **Falar com o corretor no WhatsApp**.
-- O aceite aparece na aba **Aceites**. O botão **Enviar documentos no WhatsApp** mostra os documentos ativos do plano: desmarque o que não quer pedir, e a conversa abre com a mensagem pronta. Na aba **Documentos**, cadastre cada documento e escolha em quais planos ele fica ativo. Um plano novo começa sem documentos ativos.
+- O aceite aparece na aba **Aceites**. O botão **Enviar documentos no WhatsApp** mostra os documentos ativos do plano: desmarque o que não quer pedir, e a conversa abre com a mensagem pronta. Na aba **Documentos**, cadastre os documentos de pessoa física e os de CNPJ, cada um na sua aba: cada documento vale para todos os planos do tipo dele, inclusive os cadastrados depois.
 
 O aceite registra o interesse do cliente, mas não substitui a assinatura do contrato com a operadora.
 
