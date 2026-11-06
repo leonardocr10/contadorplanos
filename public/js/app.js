@@ -1,5 +1,5 @@
 // Ponto de entrada: navegação entre as abas, dados do usuário, backup e carga inicial.
-import { $, S, VIEWS, api, carregarPlanos, definirRender, pode, render, show, toast } from "./estado.js";
+import { $, S, VIEWS, api, avisoCentral, carregarPlanos, definirRender, pode, render, show, toast } from "./estado.js";
 import { iniciarCotacao, renderCotacao, salvarCotacaoPendente } from "./cotacao.js";
 import { iniciarPlanos, renderCat } from "./planos.js";
 import { carregarHistorico, iniciarHistorico, renderHist } from "./historico.js";
@@ -108,7 +108,7 @@ $("#dados-form").onsubmit = async (e) => {
     pintarFoto(S.eu.foto);
     mostrarUsuarioLogado(S.eu);
     render();
-    toast("Dados salvos");
+    avisoCentral("Dados salvos com sucesso");
     // O cadastro de usuários mostra estes mesmos dados.
     if (S.eu.perfil === "admin") carregarUsuarios();
   } catch (erro) {
@@ -140,7 +140,8 @@ $("#b-sim").onclick = async () => {
     S.over = {};
     S.selected = [];
     await carregar();
-    msgBackup("Backup restaurado. Uma cópia dos dados anteriores ficou na pasta backups.");
+    msgBackup("Uma cópia dos dados anteriores ficou na pasta backups.");
+    avisoCentral("Backup restaurado com sucesso");
   } catch (e) {
     msgBackup(e.message);
   }

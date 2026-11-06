@@ -1,6 +1,6 @@
 // Tela "Planos e valores" e o editor do plano em janela modal.
 import { ESTADOS, FAIXAS, brl, colarPlanilha, hasFaixas, lerArea, lines, parseBRL, redeDaCidade, resumoDaRede } from "./calculo.js";
-import { $, S, api, carregarPlanos, esc, pode, render, toast } from "./estado.js";
+import { $, S, api, avisoCentral, carregarPlanos, esc, pode, render, toast } from "./estado.js";
 import { wireUpdater } from "./atualizar.js";
 import { filtrarOpcoes } from "./filtro-select.js";
 
@@ -230,7 +230,7 @@ function openEditor(p) {
         await carregarPlanos();
         closeModal();
         render();
-        toast("Plano excluído");
+        avisoCentral("Plano excluído com sucesso");
       } catch (e) {
         $("#e-msg").textContent = "Não deu para excluir: " + e.message;
       }
@@ -261,7 +261,7 @@ function openEditor(p) {
       await carregarPlanos();
       closeModal();
       render();
-      toast("Plano salvo");
+      avisoCentral("Plano salvo com sucesso");
     } catch (e) {
       $("#e-msg").textContent = "Não deu para salvar: " + e.message;
       btn.disabled = false;

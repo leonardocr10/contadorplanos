@@ -93,7 +93,7 @@ function renderUsuarios() {
       msgUsuarios("");
       try {
         await api(`/api/usuarios/${encodeURIComponent(u.id)}`, { metodo: "PUT", json: { ativo: !u.ativo } });
-        toast(u.ativo ? "Usuário desativado" : "Usuário ativado");
+        avisoCentral(u.ativo ? "Usuário desativado com sucesso" : "Usuário ativado com sucesso");
         await carregarUsuarios();
       } catch (e) {
         msgUsuarios(e.message);
@@ -106,7 +106,7 @@ function renderUsuarios() {
       msgUsuarios("");
       try {
         await api(`/api/usuarios/${encodeURIComponent(u.id)}`, { metodo: "DELETE" });
-        toast("Usuário excluído");
+        avisoCentral("Usuário excluído com sucesso");
         await carregarUsuarios();
       } catch (e) {
         msgUsuarios(e.message);
@@ -218,7 +218,7 @@ export function iniciarConfiguracoes() {
       await api("/api/eu/senha", { metodo: "PUT", json: { atual: $("#senha-atual").value, nova } });
       e.target.reset();
       aviso("");
-      toast("Senha alterada");
+      avisoCentral("Senha alterada com sucesso");
     } catch (erro) {
       aviso(erro.message);
     }

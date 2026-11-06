@@ -1,6 +1,6 @@
 // Tela "Histórico" e o quadro "Histórico deste número" da cotação.
 import { brl, fmtFone, normFone } from "./calculo.js";
-import { $, S, api, esc, pode, render, show, toast } from "./estado.js";
+import { $, S, api, avisoCentral, esc, pode, render, show, toast } from "./estado.js";
 import { linkConversaDireta, waHtml } from "./mensagem.js";
 
 const STATUS = ["Enviada", "Em Negociação", "Vendida", "Negativa"];
@@ -69,7 +69,7 @@ function wireRows(box) {
       try {
         await api(`/api/cotacoes/${encodeURIComponent(h.id)}`, { metodo: "PATCH", json: { status: st.value } });
         await carregarHistorico();
-        toast("Situação atualizada");
+        avisoCentral("Situação salva com sucesso");
       } catch (e) {
         toast(`Não deu para atualizar: ${e.message}`);
       }
@@ -83,7 +83,7 @@ function wireRows(box) {
         try {
           await api(`/api/cotacoes/${encodeURIComponent(h.id)}`, { metodo: "DELETE" });
           await carregarHistorico();
-          toast("Cotação excluída");
+          avisoCentral("Cotação excluída com sucesso");
         } catch (e) {
           toast(`Não deu para excluir: ${e.message}`);
         }

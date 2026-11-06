@@ -1,5 +1,5 @@
 // Tela "Documentos": cadastro dos documentos e o que fica ativo em cada plano.
-import { $, S, api, esc, pode, toast } from "./estado.js";
+import { $, S, api, avisoCentral, esc, pode, toast } from "./estado.js";
 import { normalizar } from "./filtro-select.js";
 
 let docs = [], planoId = null, editando = null, excluindo = null, planosAberto = null, filtroPlanos = "";
@@ -155,7 +155,7 @@ function ligarLinha(row) {
     excluindo = null;
     if (planosAberto === id) planosAberto = null;
     await api(url, { metodo: "DELETE" });
-    toast("Documento excluído");
+    avisoCentral("Documento excluído com sucesso");
   }));
 }
 
