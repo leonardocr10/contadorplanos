@@ -1,7 +1,7 @@
 // Servidor das páginas das propostas: entrega só elas e os arquivos que usam. A API, o histórico e o
 // backup ficam no outro servidor, então só esta porta deve ser exposta quando houver um domínio.
 import express from "express";
-import compression from "compression";
+import { comprimir } from "./compressao.js";
 import { join } from "node:path";
 import { opcoesDeAceite, renderizarProposta } from "./proposta-html.js";
 import { cacheDoArquivo, cacheDoEnvio } from "./cache.js";
@@ -35,7 +35,7 @@ export function criarAppExterna({ publica, cotador }) {
 export function criarAppPublica({ banco, pastaPublica, pastaUploads }) {
   const app = express();
   app.disable("x-powered-by");
-  app.use(compression());
+  app.use(comprimir());
   app.use((_req, res, next) => {
     res.setHeader("X-Robots-Tag", "noindex, nofollow");
     res.setHeader("Referrer-Policy", "no-referrer");

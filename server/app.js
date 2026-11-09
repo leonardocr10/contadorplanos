@@ -7,8 +7,8 @@ import { completarCarencias, lerArea, normFone, planPrices } from "../public/js/
 import { ErroBackup, STATUS, tipoImagem } from "./db.js";
 import { ErroLeitura, MODELO_PADRAO, lerTabela } from "./claude.js";
 import { criarLogin } from "./login.js";
-import compression from "compression";
 import { cacheDoArquivo, cacheDoEnvio, naoGuardar } from "./cache.js";
+import { comprimir } from "./compressao.js";
 import { conferirSenha, gerarHashSemTravar } from "./senhas.js";
 import { criarEnviadorDeEmail } from "./email.js";
 import { NIVEIS, TELAS, atende } from "./permissoes.js";
@@ -212,7 +212,7 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
   const app = express();
   app.disable("x-powered-by");
   // Respostas comprimidas: a lista de planos tem centenas de KB de texto repetido (rede, área).
-  app.use(compression());
+  app.use(comprimir());
   mkdirSync(pastaUploads, { recursive: true });
 
   // O banco guarda dados de clientes: fora deste computador, só a versão externa atende, e sempre com login.

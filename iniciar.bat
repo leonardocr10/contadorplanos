@@ -27,9 +27,17 @@ node scripts\verificar-dependencias.js
 if not errorlevel 1 goto instalado
 echo Instalando as dependências do cotador. Isso pode levar alguns minutos.
 call npm ci --omit=dev --no-fund --no-audit
-if errorlevel 1 goto falhainstalar
+if errorlevel 1 goto avisoinstalar
 node scripts\verificar-dependencias.js
-if errorlevel 1 goto falhainstalar
+if errorlevel 1 goto avisoinstalar
+goto instalado
+
+rem Sem conseguir instalar tudo, o cotador abre assim mesmo se o essencial estiver instalado.
+:avisoinstalar
+if not exist node_modules\express\package.json goto falhainstalar
+echo ATENÇÃO: não consegui instalar todas as dependências. O cotador vai abrir assim mesmo.
+echo Verifique a internet e abra este arquivo de novo mais tarde.
+echo.
 :instalado
 
 if not exist .env copy .env.example .env >nul
