@@ -189,6 +189,8 @@ const MIGRACOES = [
   "UPDATE planos SET taxa = 10 WHERE id IN ('hapvida-nosso-plano-total', 'hapvida-nosso-plano-parcial') AND taxa IS NULL; UPDATE planos SET rede = 'Hospital e Maternidade Madrecor' || char(10) || 'Clínica e Diagnóstico Uberlândia' || char(10) || 'Clínica Marechal Deodoro' WHERE id IN ('hapvida-nosso-plano-total', 'hapvida-nosso-plano-parcial') AND rede = ''",
   // O nome da administradora sai do subtítulo dos planos da Hapvida.
   "UPDATE planos SET subtitulo = REPLACE(subtitulo, ' (Affix)', '') WHERE id IN ('hapvida-nosso-plano-total', 'hapvida-nosso-plano-parcial')",
+  // Sem mudança na estrutura: marca a chegada dos planos PME da Unimed (ver PLANOS_NOVOS).
+  () => {},
 ];
 
 const VERSAO_TEXTOS_COPARTICIPACAO = 11;
@@ -196,7 +198,7 @@ const VERSAO_AREA_COMERCIALIZACAO = 12;
 const VERSAO_REDE_POR_CIDADE = 13;
 
 // Planos lançados depois que o banco já existia: entram uma única vez, ao atualizar.
-const PLANOS_NOVOS = [{ id: "plamedh-basic-pme", versao: 6 }, { id: "plam-total-cnpj", versao: 7 }, ...["sulamerica-direto-nacional", "sulamerica-especial-100-rc", "sulamerica-especial-100-r1", "sulamerica-executivo-pleno"].map((id) => ({ id, versao: 10 })), { id: "aurora-saude-pf", versao: 14 }, ...["hapvida-nosso-plano-total", "hapvida-nosso-plano-parcial"].map((id) => ({ id, versao: 22 }))];
+const PLANOS_NOVOS = [{ id: "plamedh-basic-pme", versao: 6 }, { id: "plam-total-cnpj", versao: 7 }, ...["sulamerica-direto-nacional", "sulamerica-especial-100-rc", "sulamerica-especial-100-r1", "sulamerica-executivo-pleno"].map((id) => ({ id, versao: 10 })), { id: "aurora-saude-pf", versao: 14 }, ...["hapvida-nosso-plano-total", "hapvida-nosso-plano-parcial"].map((id) => ({ id, versao: 22 })), ...["unimed-pleno-on-pme", "unimed-udiplan-on-pme", "unimed-pontual-on-pme", "unimed-uniplan-on-pme"].map((id) => ({ id, versao: 25 }))];
 
 function migrar(db) {
   const versao = db.prepare("PRAGMA user_version").get().user_version;
