@@ -20,7 +20,8 @@ const CSS = `
 .fs-botao .fs-seta{transition:transform .15s}
 .fs-botao[aria-expanded="true"]{border-color:var(--pine,var(--accent));box-shadow:0 0 0 1px var(--pine,var(--accent))}
 .fs-botao[aria-expanded="true"] .fs-seta{transform:rotate(180deg)}
-.fs-oculto{position:absolute;width:1px;height:1px;margin:0;padding:0;border:0;opacity:0;pointer-events:none}
+/* O select original fica escondido; o !important vence classes da tela (ex.: hq-st com width:auto), que o fariam empurrar a linha. */
+.fs-oculto{position:absolute;width:1px!important;min-width:0!important;height:1px!important;margin:0;padding:0!important;border:0!important;opacity:0;pointer-events:none;overflow:hidden}
 .fs-painel{position:fixed;z-index:1000;display:flex;flex-direction:column;min-width:220px;background:var(--surface,#fff);color:var(--ink);border:1px solid var(--line);border-radius:14px;box-shadow:0 16px 40px rgba(0,0,0,.16);overflow:hidden;font-family:var(--body,inherit)}
 .fs-busca{position:relative;flex:none;margin:10px;padding-bottom:0}
 .fs-busca svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none}
