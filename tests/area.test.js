@@ -341,6 +341,8 @@ test("Amil PME: o preço muda com o total de vidas, de 2 a 99", () => {
   assert.ok(!redeDaCidade(prata, "Uberlândia").includes("Uberlândia Medical Center - UMC"));
   assert.ok(redeDaCidade(prata, "Uberlândia").includes("Hospital Santa Genoveva"));
   assert.ok(redeDaCidade(prata, "Uberaba").includes("Hospital São Marcos de Uberaba"));
+  // Carências: as mesmas do plano adesão da Amil.
+  assert.equal(prata.carenciaTabela, planos.find((p) => p.id === "amil-prata-mg1-total").carenciaTabela);
   // Coparticipação da Linha Amil: Platinum tem limites próprios.
   assert.ok(amil.find((p) => p.id === "amil-pme-platinum-r1-30").copartTabela.includes("Internação | – | 400,00"));
   // No comparativo, a Santa Clara da Amil e a da Unimed ficam numa linha só.
@@ -369,6 +371,15 @@ test("banco da versão anterior recebe as colunas de vidas e os planos Amil PME;
   assert.equal(prata.tabelasPorVidas[1].ate, 99);
   assert.equal(prata.tabelasPorVidas[0].faixasEnf[0], 184.01);
   assert.equal(banco.obterPlano("plam-saude-pf").vidasMinimas, null);
+  banco.fechar();
+  // Banco que recebeu a Amil PME com os prazos da lei troca pela tabela do plano adesão; a editada à mão fica.
+  const provisoria = "Cobertura | Prazo máximo (Lei 9.656/98)\nUrgência e emergência | 24 horas";
+  const v26 = new Banco(caminho, seed);
+  v26.db.exec(`UPDATE planos SET carencia_tabela = '${provisoria}' WHERE id LIKE 'amil-pme-%'; UPDATE planos SET carencia_tabela = 'Minha | tabela' WHERE id = 'amil-pme-ouro-30'; PRAGMA user_version = 26`);
+  v26.fechar();
+  banco.abrir();
+  assert.ok(banco.obterPlano("amil-pme-prata-40-mei").carenciaTabela.startsWith("Tipo de Carência | Sem plano anterior (PRC 607)"));
+  assert.equal(banco.obterPlano("amil-pme-ouro-30").carenciaTabela, "Minha | tabela");
   const app = criarApp({ banco, pastaPublica: join(raiz, "public"), pastaUploads: join(pasta, "u"), pastaBackups: join(pasta, "b"), env: {} });
   const servidor = await new Promise((ok) => { const s = app.listen(0, "127.0.0.1", () => ok(s)); });
   t.after(() => new Promise((fim) => { servidor.closeAllConnections(); servidor.close(() => { banco.fechar(); rmSync(pasta, { recursive: true, force: true }); fim(); }); }));
