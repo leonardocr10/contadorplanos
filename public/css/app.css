@@ -173,6 +173,13 @@ textarea{resize:vertical;min-height:72px;line-height:1.45}
 #v-cotacao .plan[aria-disabled="true"]{opacity:.6;cursor:not-allowed}
 #v-cotacao .plan b{font-size:13px;line-height:1.25}
 #v-cotacao .plan span{font-size:11.5px;line-height:1.3}
+/* Linha de planos (ex.: Amil Prata): uma seta no lugar da caixa de marcar, e as opções abrem logo abaixo. */
+#v-cotacao .plan.plan-linha::before{top:12px;left:11px;width:7px;height:7px;border-radius:0;border:solid var(--muted);border-width:0 2px 2px 0;background:none;box-shadow:none;transform:rotate(-45deg);transition:transform .15s}
+#v-cotacao .plan.plan-linha[aria-expanded="true"]::before{transform:rotate(45deg);top:10px}
+#v-cotacao .plan.plan-linha[aria-pressed="true"]::before{background:none;box-shadow:none;border-color:var(--accent)}
+#v-cotacao .plan.plan-linha[aria-expanded="true"]{border-color:var(--accent)}
+#v-cotacao .plan-linha .na-proposta{color:var(--accent);font-weight:700}
+.opcoes-plano{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px;padding:8px;margin:-2px 0 4px;border:1px dashed var(--accent);border-radius:12px;background:var(--bg)}
 .rotulo-acao{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .limpar-filtros{border:0;padding:0;background:none;color:var(--accent);font:600 13px var(--body);text-decoration:underline;white-space:nowrap;cursor:pointer}
 .limpar-filtros:disabled{color:var(--muted);text-decoration:none;opacity:.6;cursor:default}

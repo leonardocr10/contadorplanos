@@ -95,6 +95,46 @@ function tirarForaDoGrupo() {
   toast(fora.length === 1 ? `${fora[0].nome} saiu da cotação: não aceita grupos de ${grupo}` : `${fora.length} planos saíram da cotação: não aceitam grupos de ${grupo}`);
 }
 
+// Planos da mesma linha ("AMIL PRATA 30%", "AMIL PRATA 30% MEI", "AMIL PRATA PARCIAL"...) ficam num cartão só,
+// que abre as opções ao clicar. O nome sem a coparticipação e sem o MEI é o da linha.
+const SUFIXOS = /\s+(\d+%|PARCIAL|MEI)(?=\s|$)/gi;
+const linhaDoPlano = (p) => String(p.nome || "").replace(SUFIXOS, "").trim();
+const gruposAbertos = new Set();
+function rotuloDaOpcao(p) {
+  const partes = [...String(p.nome || "").matchAll(SUFIXOS)].map((m) => m[1].toUpperCase())
+    .map((t) => (t === "MEI" ? "MEI" : t === "PARCIAL" ? "Coparticipação parcial" : `Coparticipação ${t}`));
+  // Sem sufixo, o subtítulo diz qual é a opção (ex.: "Coparticipação total").
+  return partes.length ? partes.join(" · ") : String(p.subtitulo || "").split(" – ")[0] || p.nome;
+}
+
+function cartaoDoPlano(p, titulo = p.nome) {
+  const v = prices(p);
+  const semArea = S.uf && !lerArea(p.areaComercializacao).estados.length ? `<span>Área de comercialização não informada</span>` : "";
+  if (v.minimo || v.maximo) {
+    const limite = v.minimo ? `Para grupos a partir de ${v.minimo} vidas` : `Para grupos de até ${v.maximo} vidas`;
+    return `<button class="plan" aria-pressed="false" aria-disabled="true" data-id="${esc(p.id)}" data-limite="${esc(limite)}"><b>${esc(titulo)}</b><span>${limite}</span>${semArea}</button>`;
+  }
+  const grupo = v.tabelaVidas ? `<span>Preço de ${esc(v.tabelaVidas)}</span>` : "";
+  const pr = v.porFaixa ? `Enf. R$ ${brl(v.enf) || "—"} · Apto R$ ${brl(v.apto) || "—"}`
+    : hasFaixas(p) && !totalVidas(S.vidas) ? "Tabela por faixa etária: informe os beneficiários"
+    : v.enf || v.apto ? `Enf. R$ ${brl(v.enf) || "—"} · Apto R$ ${brl(v.apto) || "—"}` : "Valores sob consulta";
+  return `<button class="plan" aria-pressed="${S.selected.includes(p.id)}" aria-disabled="${!totalVidas(S.vidas)}" data-id="${esc(p.id)}"><b>${esc(titulo)}</b><span>${pr}</span>${grupo}${semArea}</button>`;
+}
+
+// Resumo da linha: quantas opções, o menor preço e quantas já estão na proposta.
+function cartaoDaLinha(nome, planos, aberto) {
+  const precos = planos.map(prices).filter((v) => v.porFaixa && !v.minimo && !v.maximo);
+  const menor = (k) => { const x = precos.map((v) => v[k]).filter((n) => n != null); return x.length ? Math.min(...x) : null; };
+  const limite = planos.map(prices).find((v) => v.minimo || v.maximo);
+  const resumo = !totalVidas(S.vidas) ? "Informe os beneficiários para ver os valores"
+    // Linha só de apartamento (ex.: Platinum) não mostra enfermaria.
+    : precos.length ? `A partir de ${[menor("enf") != null && `Enf. R$ ${brl(menor("enf"))}`, menor("apto") != null && `Apto R$ ${brl(menor("apto"))}`].filter(Boolean).join(" · ")}`
+    : limite?.minimo ? `Para grupos a partir de ${limite.minimo} vidas` : limite?.maximo ? `Para grupos de até ${limite.maximo} vidas` : "Valores sob consulta";
+  const tabela = precos.find((v) => v.tabelaVidas)?.tabelaVidas;
+  const marcados = planos.filter((p) => S.selected.includes(p.id)).length;
+  return `<button type="button" class="plan plan-linha" aria-expanded="${aberto}" aria-pressed="${marcados > 0}" data-linha="${esc(nome)}"><b>${esc(nome)}</b><span>${planos.length} opções · ${resumo}</span>${tabela ? `<span>Preço de ${esc(tabela)}</span>` : ""}${marcados ? `<span class="na-proposta">${marcados} na proposta</span>` : ""}</button>`;
+}
+
 function renderPlans() {
   const box = $("#plans");
   tirarForaDoGrupo();
@@ -113,20 +153,27 @@ function renderPlans() {
     $("#limpar-filtro-planos").onclick = limparFiltroPlanos;
     return;
   }
-  box.innerHTML = list.map((p) => {
-    const v = prices(p);
-    const semArea = S.uf && !lerArea(p.areaComercializacao).estados.length ? `<span>Área de comercialização não informada</span>` : "";
-    if (v.minimo || v.maximo) {
-      const limite = v.minimo ? `Para grupos a partir de ${v.minimo} vidas` : `Para grupos de até ${v.maximo} vidas`;
-      return `<button class="plan" aria-pressed="false" aria-disabled="true" data-id="${esc(p.id)}" data-limite="${esc(limite)}"><b>${esc(p.nome)}</b><span>${limite}</span>${semArea}</button>`;
-    }
-    const grupo = v.tabelaVidas ? `<span>Preço de ${esc(v.tabelaVidas)}</span>` : "";
-    const pr = v.porFaixa ? `Enf. R$ ${brl(v.enf) || "—"} · Apto R$ ${brl(v.apto) || "—"}`
-      : hasFaixas(p) && !totalVidas(S.vidas) ? "Tabela por faixa etária: informe os beneficiários"
-      : v.enf || v.apto ? `Enf. R$ ${brl(v.enf) || "—"} · Apto R$ ${brl(v.apto) || "—"}` : "Valores sob consulta";
-    return `<button class="plan" aria-pressed="${S.selected.includes(p.id)}" aria-disabled="${!totalVidas(S.vidas)}" data-id="${esc(p.id)}"><b>${esc(p.nome)}</b><span>${pr}</span>${grupo}${semArea}</button>`;
+  // Agrupa na ordem da lista: a linha aparece onde está o primeiro plano dela.
+  const linhas = new Map();
+  for (const p of list) {
+    const nome = linhaDoPlano(p);
+    if (!linhas.has(nome)) linhas.set(nome, []);
+    linhas.get(nome).push(p);
+  }
+  // Com uma busca digitada, as linhas já vêm abertas para mostrar o que foi achado.
+  const buscando = !!filtroPlanos.texto.trim();
+  box.innerHTML = [...linhas].map(([nome, planos]) => {
+    if (planos.length === 1) return cartaoDoPlano(planos[0]);
+    const aberto = buscando || gruposAbertos.has(nome);
+    return cartaoDaLinha(nome, planos, aberto)
+      + (aberto ? `<div class="opcoes-plano" role="group" aria-label="Opções de ${esc(nome)}">${planos.map((p) => cartaoDoPlano(p, rotuloDaOpcao(p))).join("")}</div>` : "");
   }).join("");
-  box.querySelectorAll(".plan").forEach((b) => (b.onclick = () => {
+  box.querySelectorAll(".plan-linha").forEach((b) => (b.onclick = () => {
+    const nome = b.dataset.linha;
+    if (gruposAbertos.has(nome)) gruposAbertos.delete(nome); else gruposAbertos.add(nome);
+    renderPlans();
+  }));
+  box.querySelectorAll(".plan[data-id]").forEach((b) => (b.onclick = () => {
     if (!totalVidas(S.vidas)) { toast("Informe a faixa etária dos beneficiários antes de marcar o plano"); return; }
     if (b.dataset.limite) { toast(`${b.dataset.limite}: ajuste os beneficiários para escolher este plano`); return; }
     const id = b.dataset.id;
