@@ -101,8 +101,8 @@ const SUFIXOS = /\s+(\d+%|PARCIAL|MEI)(?=\s|$)/gi;
 const linhaDoPlano = (p) => String(p.nome || "").replace(SUFIXOS, "").trim();
 const gruposAbertos = new Set();
 const eMei = (p) => [...String(p.nome || "").matchAll(SUFIXOS)].some((m) => m[1].toUpperCase() === "MEI");
-function rotuloDaOpcao(p, semMei = false) {
-  const partes = [...String(p.nome || "").matchAll(SUFIXOS)].map((m) => m[1].toUpperCase()).filter((t) => !(semMei && t === "MEI"))
+function rotuloDaOpcao(p) {
+  const partes = [...String(p.nome || "").matchAll(SUFIXOS)].map((m) => m[1].toUpperCase())
     .map((t) => (t === "MEI" ? "MEI" : t === "PARCIAL" ? "Coparticipação parcial" : `Coparticipação ${t}`));
   // Sem sufixo, o subtítulo diz qual é a opção (ex.: "Coparticipação total").
   return partes.length ? partes.join(" · ") : String(p.subtitulo || "").split(" – ")[0] || p.nome;
@@ -139,7 +139,7 @@ function cartaoDaLinha(nome, planos, aberto) {
 // Com opções para MEI, as demais empresas ficam numa linha e as de MEI em outra.
 function opcoesDaLinha(nome, planos) {
   const mei = planos.filter(eMei), demais = planos.filter((p) => !eMei(p));
-  const secao = (titulo, lista) => `<div class="opcoes-secao"><div class="opcoes-titulo">${titulo}</div><div class="opcoes-grade">${lista.map((p) => cartaoDoPlano(p, rotuloDaOpcao(p, true))).join("")}</div></div>`;
+  const secao = (titulo, lista) => `<div class="opcoes-secao"><div class="opcoes-titulo">${titulo}</div><div class="opcoes-grade">${lista.map((p) => cartaoDoPlano(p, rotuloDaOpcao(p))).join("")}</div></div>`;
   const corpo = mei.length && demais.length ? secao("Demais empresas", demais) + secao("MEI", mei)
     : `<div class="opcoes-grade">${planos.map((p) => cartaoDoPlano(p, rotuloDaOpcao(p))).join("")}</div>`;
   return `<div class="opcoes-plano" role="group" aria-label="Opções de ${esc(nome)}">${corpo}</div>`;
