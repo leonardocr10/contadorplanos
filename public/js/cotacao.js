@@ -174,7 +174,7 @@ function renderPlans() {
     $("#limpar-filtro-planos").onclick = limparFiltroPlanos;
     return;
   }
-  // Agrupa na ordem da lista: a linha aparece onde está o primeiro plano dela.
+  // Agrupa os planos da mesma linha.
   const linhas = new Map();
   for (const p of list) {
     const nome = linhaDoPlano(p);
@@ -183,7 +183,10 @@ function renderPlans() {
   }
   // Com uma busca digitada, as linhas já vêm abertas para mostrar o que foi achado.
   const buscando = !!filtroPlanos.texto.trim();
-  box.innerHTML = [...linhas].map(([nome, planos]) => {
+  // Cartões em ordem alfabética pelo nome que aparece; dentro da linha, as opções seguem a ordem do cadastro.
+  const nomeDoCartao = ([nome, planos]) => (planos.length === 1 ? planos[0].nome : nome);
+  const ordenadas = [...linhas].sort((a, b) => nomeDoCartao(a).localeCompare(nomeDoCartao(b), "pt-BR", { numeric: true, sensitivity: "base" }));
+  box.innerHTML = ordenadas.map(([nome, planos]) => {
     if (planos.length === 1) return cartaoDoPlano(planos[0]);
     const aberto = !limiteDaLinha(planos) && (buscando || gruposAbertos.has(nome));
     return cartaoDaLinha(nome, planos, aberto)
