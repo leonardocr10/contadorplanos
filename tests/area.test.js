@@ -440,6 +440,17 @@ test("banco da versão anterior recebe as colunas de vidas e os planos Amil PME;
   assert.ok(banco.obterPlano("amil-pme-prata-30").extras.includes("📱 Telemedicina"));
   assert.ok(banco.obterPlano("amil-pme-ouro-40").extras.includes("🌎 Abrangência nacional"));
   assert.equal(banco.obterPlano("amil-pme-ouro-30").extras, "Meu benefício");
+  banco.fechar();
+  // Banco da versão 29 recebe a área da Amil CNPJ na ordem da tabela; a editada à mão fica.
+  const v29 = new Banco(caminho, seed);
+  const areaAntiga = "MG: Araguari, Belo Horizonte, Belo Vale, Betim, Bonfim, Brumadinho, Cachoeira de Minas, Caeté, Confins, Congonhas, Conselheiro Lafaiete, Contagem, Cristiano Otoni, Esmeraldas, Espírito Santo do Dourado, Florestal, Ibirité, Igarapé, Indianópolis, Itabirito, Itaverava, Jaboticatubas, Juatuba, Juiz de Fora, Lagoa Santa, Mariana, Mário Campos, Mateus Leme, Matozinhos, Moeda, Monte Alegre de Minas, Montes Claros, Nova Lima, Nova União, Ouro Branco, Ouro Preto, Pedro Leopoldo, Pouso Alegre, Prata, Queluzito, Raposos, Ribeirão das Neves, Rio Acima, Rio Manso, Sabará, Santa Luzia, Santana dos Montes, São Joaquim de Bicas, São José da Lapa, Sarzedo, Taquaraçu de Minas, Tupaciguara, Uberaba, Uberlândia, Vespasiano, Janaúba, Bocaiúva";
+  v29.db.exec(`UPDATE planos SET area_comercializacao = '${areaAntiga}' WHERE id LIKE 'amil-pme-%'; UPDATE planos SET area_comercializacao = 'MG: Uberlândia' WHERE id = 'amil-pme-ouro-30'; PRAGMA user_version = 29`);
+  v29.fechar();
+  banco.abrir();
+  assert.equal(banco.obterPlano("amil-pme-prata-40-mei").areaComercializacao, planos.find((p) => p.id === "amil-pme-prata-40-mei").areaComercializacao);
+  assert.ok(banco.obterPlano("amil-pme-prata-40-mei").areaComercializacao.includes("Betim, Bocaiúva, Bonfim"));
+  assert.equal(banco.obterPlano("amil-pme-ouro-30").areaComercializacao, "MG: Uberlândia");
+  assert.ok(banco.obterPlano("amil-prata-mg1-total").areaComercializacao.endsWith("Janaúba, Bocaiúva"));
   const app = criarApp({ banco, pastaPublica: join(raiz, "public"), pastaUploads: join(pasta, "u"), pastaBackups: join(pasta, "b"), env: {} });
   const servidor = await new Promise((ok) => { const s = app.listen(0, "127.0.0.1", () => ok(s)); });
   t.after(() => new Promise((fim) => { servidor.closeAllConnections(); servidor.close(() => { banco.fechar(); rmSync(pasta, { recursive: true, force: true }); fim(); }); }));
