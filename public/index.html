@@ -59,6 +59,11 @@
 
       <div class="panel">
         <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center"><div class="label">Planos da proposta</div><button class="btn" id="limpar-planos" disabled>Limpar selecionados</button></div>
+        <div class="filtro-planos" id="filtro-planos" hidden>
+          <div class="busca-plano"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input id="busca-plano" type="search" placeholder="Buscar plano: Amil, 30%, MEI, parcial…" aria-label="Buscar plano" autocomplete="off"></div>
+          <select id="operadora-plano" aria-label="Operadora" data-icone="filtro" data-contagem="operadora|operadoras"></select>
+          <span class="note" id="contagem-planos" aria-live="polite"></span>
+        </div>
         <div id="plans" class="plans"></div>
         <div id="sel" class="sel"></div>
       </div>

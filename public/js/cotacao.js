@@ -55,6 +55,37 @@ function aplicarLocal() {
 }
 
 /* ---------- planos ---------- */
+// Filtro da lista de planos: busca no nome e no subtítulo e escolha da operadora. Só esconde cartões; a seleção fica.
+const filtroPlanos = { texto: "", operadora: "" };
+const normal = (s) => String(s ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const NOMES_OPERADORAS = { AMIL: "Amil", UNIMED: "Unimed", PLAM: "PLAM", PLAMEDH: "Plamedh", HAPVIDA: "Hapvida", AURORA: "Aurora Saúde" };
+function operadoraDe(p) {
+  if (/^sul\s?america/.test(normal(p.nome))) return "SulAmérica";
+  const primeira = String(p.nome || "").trim().split(/\s+/)[0].toUpperCase();
+  return NOMES_OPERADORAS[primeira] || primeira.charAt(0) + primeira.slice(1).toLowerCase();
+}
+function passaNoFiltro(p) {
+  if (filtroPlanos.operadora && operadoraDe(p) !== filtroPlanos.operadora) return false;
+  const alvo = normal(`${p.nome} ${p.subtitulo}`);
+  return normal(filtroPlanos.texto).split(/\s+/).filter(Boolean).every((t) => alvo.includes(t));
+}
+function limparFiltroPlanos() {
+  filtroPlanos.texto = "";
+  filtroPlanos.operadora = "";
+  $("#busca-plano").value = "";
+  renderPlans();
+}
+function renderFiltroPlanos(list) {
+  const operadoras = [...new Set(list.map(operadoraDe))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  if (!operadoras.includes(filtroPlanos.operadora)) filtroPlanos.operadora = "";
+  const sel = $("#operadora-plano");
+  const opcoes = `<option value="" data-icone="todos">Todas as operadoras</option><optgroup label="Operadoras">${operadoras.map((o) => `<option value="${esc(o)}" data-selo="${list.filter((p) => operadoraDe(p) === o).length}">${esc(o)}</option>`).join("")}</optgroup>`;
+  if (sel.dataset.opcoes !== opcoes) { sel.innerHTML = opcoes; sel.dataset.opcoes = opcoes; }
+  sel.value = filtroPlanos.operadora;
+  // Com poucos planos o filtro não ajuda: fica escondido.
+  $("#filtro-planos").hidden = list.length < 6 && !filtroPlanos.texto && !filtroPlanos.operadora;
+}
+
 // Plano fora do tamanho de grupo que aceita sai da proposta, para não ir sem preço.
 function tirarForaDoGrupo() {
   const fora = planosEscolhidos().filter((p) => { const v = prices(p); return v.minimo || v.maximo; });
@@ -71,8 +102,17 @@ function renderPlans() {
   const doTipo = S.plans.filter((p) => p.categoria === S.tipo && p.ativo !== false);
   const nomeTipo = S.tipo === "PF" ? "para pessoa física" : "CNPJ";
   if (!doTipo.length) { box.innerHTML = `<div class="status">Nenhum plano ${nomeTipo} cadastrado. Adicione na aba <b>Planos e valores</b>.</div>`; return; }
-  const list = doTipo.filter((p) => vendidoEm(p, S.uf, S.municipio));
-  if (!list.length) { box.innerHTML = `<div class="status">Nenhum plano ${nomeTipo} comercializado em ${esc(S.municipio)}.</div>`; return; }
+  const naArea = doTipo.filter((p) => vendidoEm(p, S.uf, S.municipio));
+  renderFiltroPlanos(naArea);
+  $("#contagem-planos").textContent = "";
+  if (!naArea.length) { box.innerHTML = `<div class="status">Nenhum plano ${nomeTipo} comercializado em ${esc(S.municipio)}.</div>`; return; }
+  const list = naArea.filter(passaNoFiltro);
+  if (list.length !== naArea.length) $("#contagem-planos").textContent = `${list.length} de ${naArea.length} planos`;
+  if (!list.length) {
+    box.innerHTML = `<div class="status">Nenhum plano encontrado com esse filtro. <button type="button" class="btn" id="limpar-filtro-planos">Mostrar todos</button></div>`;
+    $("#limpar-filtro-planos").onclick = limparFiltroPlanos;
+    return;
+  }
   box.innerHTML = list.map((p) => {
     const v = prices(p);
     const semArea = S.uf && !lerArea(p.areaComercializacao).estados.length ? `<span>Área de comercialização não informada</span>` : "";
@@ -472,10 +512,15 @@ export function iniciarCotacao() {
     $("#fone").value = "";
     // Dados apagados são o começo de outra cotação, e a anterior fica no histórico como estava.
     S.recomecarHistorico = true;
+    filtroPlanos.texto = "";
+    filtroPlanos.operadora = "";
+    $("#busca-plano").value = "";
     render();
     renderHistCli();
   };
   $("#limpar-planos").onclick = () => { S.selected = []; render(); };
+  $("#busca-plano").addEventListener("input", (e) => { filtroPlanos.texto = e.target.value; renderPlans(); });
+  $("#operadora-plano").addEventListener("change", (e) => { filtroPlanos.operadora = e.target.value; renderPlans(); });
   for (const id of ["cliente", "fone"]) $("#" + id).addEventListener("input", render);
   $("#limpar-vidas").onclick = () => { S.vidas = Array(10).fill(0); render(); };
   $("#rawtxt").addEventListener("input", () => { manual = true; paintChat($("#rawtxt").value); agendarSalvar(); });
