@@ -100,8 +100,9 @@ function tirarForaDoGrupo() {
 const SUFIXOS = /\s+(\d+%|PARCIAL|MEI)(?=\s|$)/gi;
 const linhaDoPlano = (p) => String(p.nome || "").replace(SUFIXOS, "").trim();
 const gruposAbertos = new Set();
-function rotuloDaOpcao(p) {
-  const partes = [...String(p.nome || "").matchAll(SUFIXOS)].map((m) => m[1].toUpperCase())
+const eMei = (p) => [...String(p.nome || "").matchAll(SUFIXOS)].some((m) => m[1].toUpperCase() === "MEI");
+function rotuloDaOpcao(p, semMei = false) {
+  const partes = [...String(p.nome || "").matchAll(SUFIXOS)].map((m) => m[1].toUpperCase()).filter((t) => !(semMei && t === "MEI"))
     .map((t) => (t === "MEI" ? "MEI" : t === "PARCIAL" ? "Coparticipação parcial" : `Coparticipação ${t}`));
   // Sem sufixo, o subtítulo diz qual é a opção (ex.: "Coparticipação total").
   return partes.length ? partes.join(" · ") : String(p.subtitulo || "").split(" – ")[0] || p.nome;
@@ -135,6 +136,15 @@ function cartaoDaLinha(nome, planos, aberto) {
   return `<button type="button" class="plan plan-linha" aria-expanded="${aberto}" aria-pressed="${marcados > 0}" data-linha="${esc(nome)}"><b>${esc(nome)}</b><span>${planos.length} opções · ${resumo}</span>${tabela ? `<span>Preço de ${esc(tabela)}</span>` : ""}${marcados ? `<span class="na-proposta">${marcados} na proposta</span>` : ""}</button>`;
 }
 
+// Com opções para MEI, as demais empresas ficam numa linha e as de MEI em outra.
+function opcoesDaLinha(nome, planos) {
+  const mei = planos.filter(eMei), demais = planos.filter((p) => !eMei(p));
+  const secao = (titulo, lista) => `<div class="opcoes-secao"><div class="opcoes-titulo">${titulo}</div><div class="opcoes-grade">${lista.map((p) => cartaoDoPlano(p, rotuloDaOpcao(p, true))).join("")}</div></div>`;
+  const corpo = mei.length && demais.length ? secao("Demais empresas", demais) + secao("MEI", mei)
+    : `<div class="opcoes-grade">${planos.map((p) => cartaoDoPlano(p, rotuloDaOpcao(p))).join("")}</div>`;
+  return `<div class="opcoes-plano" role="group" aria-label="Opções de ${esc(nome)}">${corpo}</div>`;
+}
+
 function renderPlans() {
   const box = $("#plans");
   tirarForaDoGrupo();
@@ -166,7 +176,7 @@ function renderPlans() {
     if (planos.length === 1) return cartaoDoPlano(planos[0]);
     const aberto = buscando || gruposAbertos.has(nome);
     return cartaoDaLinha(nome, planos, aberto)
-      + (aberto ? `<div class="opcoes-plano" role="group" aria-label="Opções de ${esc(nome)}">${planos.map((p) => cartaoDoPlano(p, rotuloDaOpcao(p))).join("")}</div>` : "");
+      + (aberto ? opcoesDaLinha(nome, planos) : "");
   }).join("");
   box.querySelectorAll(".plan-linha").forEach((b) => (b.onclick = () => {
     const nome = b.dataset.linha;

@@ -179,7 +179,10 @@ textarea{resize:vertical;min-height:72px;line-height:1.45}
 #v-cotacao .plan.plan-linha[aria-pressed="true"]::before{background:none;box-shadow:none;border-color:var(--accent)}
 #v-cotacao .plan.plan-linha[aria-expanded="true"]{border-color:var(--accent)}
 #v-cotacao .plan-linha .na-proposta{color:var(--accent);font-weight:700}
-.opcoes-plano{grid-column:1/-1;display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:6px;padding:8px;margin:-2px 0 4px;border:1px dashed var(--accent);border-radius:12px;background:var(--bg)}
+.opcoes-plano{grid-column:1/-1;display:flex;flex-direction:column;gap:8px;padding:8px;margin:-2px 0 4px;border:1px dashed var(--accent);border-radius:12px;background:var(--bg)}
+.opcoes-grade{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.opcoes-titulo{margin:0 0 4px 2px;font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+@media (max-width:640px){.opcoes-grade{grid-template-columns:minmax(0,1fr)}}
 .rotulo-acao{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
 .limpar-filtros{border:0;padding:0;background:none;color:var(--accent);font:600 13px var(--body);text-decoration:underline;white-space:nowrap;cursor:pointer}
 .limpar-filtros:disabled{color:var(--muted);text-decoration:none;opacity:.6;cursor:default}
