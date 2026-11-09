@@ -199,12 +199,15 @@ const MIGRACOES = [
   },
   // Sem mudança na estrutura: as carências da Amil PME passam a ser as do plano adesão (ver atualizarCarenciasAmilPme).
   () => {},
+  // Sem mudança na estrutura: benefícios exclusivos nos planos Amil PME (ver atualizarBeneficiosAmilPme).
+  () => {},
 ];
 
 const VERSAO_TEXTOS_COPARTICIPACAO = 11;
 const VERSAO_AREA_COMERCIALIZACAO = 12;
 const VERSAO_REDE_POR_CIDADE = 13;
 const VERSAO_CARENCIAS_AMIL_PME = 27;
+const VERSAO_BENEFICIOS_AMIL_PME = 28;
 // Prazos da lei que os planos Amil PME tiveram até a tabela da Amil chegar.
 const CARENCIA_PROVISORIA_AMIL_PME = "Cobertura | Prazo máximo (Lei 9.656/98)";
 
@@ -297,6 +300,17 @@ export class Banco {
     this.preencherAreaComercializacao(versaoAntes);
     this.atualizarRedePorCidade(versaoAntes);
     this.atualizarCarenciasAmilPme(versaoAntes);
+    this.atualizarBeneficiosAmilPme(versaoAntes);
+  }
+
+  // Só os benefícios que vieram com o plano (vazio ou só o reembolso): o que foi editado à mão fica.
+  atualizarBeneficiosAmilPme(versaoAntes) {
+    if (versaoAntes === 0 || versaoAntes >= VERSAO_BENEFICIOS_AMIL_PME) return;
+    if (!this.caminhoSeed || !existsSync(this.caminhoSeed)) return;
+    const atualizar = this.db.prepare("UPDATE planos SET extras = ?, mostrar_extras = 1 WHERE id = ? AND (extras = '' OR (extras LIKE '💳 Reembolso%' AND instr(extras, char(10)) = 0))");
+    for (const p of JSON.parse(readFileSync(this.caminhoSeed, "utf8"))) {
+      if (p.id.startsWith("amil-pme-")) atualizar.run(p.extras, p.id);
+    }
   }
 
   // Troca só a tabela provisória: carência editada à mão fica como está.

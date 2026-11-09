@@ -341,6 +341,13 @@ test("Amil PME: o preço muda com o total de vidas, de 2 a 99", () => {
   assert.ok(!redeDaCidade(prata, "Uberlândia").includes("Uberlândia Medical Center - UMC"));
   assert.ok(redeDaCidade(prata, "Uberlândia").includes("Hospital Santa Genoveva"));
   assert.ok(redeDaCidade(prata, "Uberaba").includes("Hospital São Marcos de Uberaba"));
+  // Benefícios exclusivos Amil em todos, e o reembolso só onde existe.
+  for (const p of amil) {
+    assert.ok(p.mostrarExtras && p.extras.startsWith("🦷 Plano odontológico sem custo por 12 meses"), p.id);
+    assert.ok(p.extras.includes("🚑 Amil Resgate sem custo por 12 meses"), p.id);
+    assert.equal(p.extras.includes("Reembolso"), !p.id.startsWith("amil-pme-prata"), p.id);
+  }
+  assert.ok(montarSnapshot(prata, pedido, { nome: "C", fone: "34999990000", empresa: "E" }).plano.beneficios.includes("📱 Telemedicina"));
   // Carências: as mesmas do plano adesão da Amil.
   assert.equal(prata.carenciaTabela, planos.find((p) => p.id === "amil-prata-mg1-total").carenciaTabela);
   // Coparticipação da Linha Amil: Platinum tem limites próprios.
@@ -380,6 +387,16 @@ test("banco da versão anterior recebe as colunas de vidas e os planos Amil PME;
   banco.abrir();
   assert.ok(banco.obterPlano("amil-pme-prata-40-mei").carenciaTabela.startsWith("Tipo de Carência | Sem plano anterior (PRC 607)"));
   assert.equal(banco.obterPlano("amil-pme-ouro-30").carenciaTabela, "Minha | tabela");
+  banco.fechar();
+  // Banco da versão 27 recebe os benefícios; benefício editado à mão fica.
+  const v27 = new Banco(caminho, seed);
+  v27.db.exec("UPDATE planos SET extras = '', mostrar_extras = 0 WHERE id = 'amil-pme-prata-30'; UPDATE planos SET extras = '💳 Reembolso por livre escolha' WHERE id = 'amil-pme-ouro-40'; UPDATE planos SET extras = 'Meu benefício' WHERE id = 'amil-pme-ouro-30'; PRAGMA user_version = 27");
+  v27.fechar();
+  banco.abrir();
+  assert.ok(banco.obterPlano("amil-pme-prata-30").mostrarExtras);
+  assert.ok(banco.obterPlano("amil-pme-prata-30").extras.includes("📱 Telemedicina"));
+  assert.ok(banco.obterPlano("amil-pme-ouro-40").extras.includes("🌎 Abrangência nacional"));
+  assert.equal(banco.obterPlano("amil-pme-ouro-30").extras, "Meu benefício");
   const app = criarApp({ banco, pastaPublica: join(raiz, "public"), pastaUploads: join(pasta, "u"), pastaBackups: join(pasta, "b"), env: {} });
   const servidor = await new Promise((ok) => { const s = app.listen(0, "127.0.0.1", () => ok(s)); });
   t.after(() => new Promise((fim) => { servidor.closeAllConnections(); servidor.close(() => { banco.fechar(); rmSync(pasta, { recursive: true, force: true }); fim(); }); }));
