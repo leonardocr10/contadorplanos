@@ -106,7 +106,8 @@ function rotuloDaOpcao(p) {
   const copart = tokens.filter((t) => t !== "MEI").map((t) => (t === "PARCIAL" ? "Coparticipação parcial" : `Coparticipação ${t}`)).join(" · ");
   // Sem sufixo, o subtítulo diz qual é a opção (ex.: "Coparticipação total").
   const texto = copart || (tokens.length ? "" : String(p.subtitulo || "").split(" – ")[0] || p.nome);
-  return `${esc(texto)}${tokens.includes("MEI") ? ` <span class="selo-mei">MEI</span>` : ""}`;
+  // O "· MEI" desce inteiro para a linha de baixo quando não cabe.
+  return `${esc(texto)}${tokens.includes("MEI") ? ` <span class="nw">· MEI</span>` : ""}`;
 }
 
 // Valores que não quebram no meio: se faltar espaço, o apartamento desce inteiro.
