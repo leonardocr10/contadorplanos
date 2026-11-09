@@ -292,9 +292,11 @@ export class Banco {
     this.abrir();
   }
 
-  abrir() {
+  // Num backup restaurado, a versão de antes é a do backup: a cópia já chega migrada, mas os planos novos e as
+  // correções de dados das versões seguintes ainda precisam entrar.
+  abrir(versaoDoBackup) {
     this.db = new DatabaseSync(this.caminho);
-    const versaoAntes = this.db.prepare("PRAGMA user_version").get().user_version;
+    const versaoAntes = versaoDoBackup ?? this.db.prepare("PRAGMA user_version").get().user_version;
     migrar(this.db);
     this.semear();
     this.incluirPlanosNovos(versaoAntes);
@@ -671,12 +673,14 @@ export class Banco {
     writeFileSync(temporario, dados);
     try {
       let imagens = [];
+      let versaoDoBackup;
       const teste = new DatabaseSync(temporario);
       try {
         const nomes = teste.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map((t) => t.name);
         if (!["planos", "cotacoes", "config"].every((t) => nomes.includes(t))) {
           throw new ErroBackup("Este arquivo não é um backup do cotador.");
         }
+        versaoDoBackup = teste.prepare("PRAGMA user_version").get().user_version;
         migrar(teste);
         // Backups antigos não têm imagens. As imagens saem do banco, que não precisa carregá-las.
         if (nomes.includes(TABELA_IMAGENS)) {
@@ -698,10 +702,12 @@ export class Banco {
         for (const i of imagens) writeFileSync(join(pastaImagens, i.nome), i.dados);
       }
       this.fechar();
+      let copiou = false;
       try {
         copyFileSync(temporario, this.caminho);
+        copiou = true;
       } finally {
-        this.abrir();
+        this.abrir(copiou ? versaoDoBackup : undefined);
       }
     } finally {
       rmSync(temporario, { force: true });

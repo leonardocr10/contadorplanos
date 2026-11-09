@@ -3,10 +3,11 @@ import express from "express";
 import { randomUUID } from "node:crypto";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
-import { completarCarencias, lerArea, normFone } from "../public/js/calculo.js";
+import { completarCarencias, lerArea, normFone, planPrices } from "../public/js/calculo.js";
 import { ErroBackup, STATUS, tipoImagem } from "./db.js";
 import { ErroLeitura, MODELO_PADRAO, lerTabela } from "./claude.js";
 import { criarLogin } from "./login.js";
+import compression from "compression";
 import { cacheDoArquivo, cacheDoEnvio, naoGuardar } from "./cache.js";
 import { conferirSenha, gerarHashSemTravar } from "./senhas.js";
 import { criarEnviadorDeEmail } from "./email.js";
@@ -210,6 +211,8 @@ function validarPedidoDeLinks(b) {
 export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env = process.env, exigirLogin = false, aceitarQualquerHost = false, sistema, clienteClaude, linkPublico = () => ({ estado: "indisponivel", url: null }), enviarEmail = criarEnviadorDeEmail(env) }) {
   const app = express();
   app.disable("x-powered-by");
+  // Respostas comprimidas: a lista de planos tem centenas de KB de texto repetido (rede, área).
+  app.use(compression());
   mkdirSync(pastaUploads, { recursive: true });
 
   // O banco guarda dados de clientes: fora deste computador, só a versão externa atende, e sempre com login.
@@ -283,6 +286,8 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
   // A cotação e os documentos também dependem da lista de planos.
   app.get("/api/planos", (req, res) => {
     if (!["cotacao", "planos", "documentos"].some((t) => pode(req, t, "ver"))) return res.status(403).json({ erro: "O seu usuário não tem permissão para fazer isso." });
+    // Sem dados de clientes: o navegador guarda e confere com o servidor, que responde 304 quando nada mudou.
+    res.setHeader("Cache-Control", "private, no-cache");
     res.json(banco.listarPlanos());
   });
 
@@ -333,14 +338,23 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
   });
 
   /* ---------- links públicos das propostas ---------- */
+  // Todos os planos são conferidos antes de salvar qualquer coisa: o que não existe mais ou não aceita o tamanho
+  // do grupo (ex.: Amil PME com 1 vida) é recusado, e nenhum link fica salvo pela metade.
+  const planosDoPedido = (pedido) => pedido.planos.map((id) => {
+    const plano = banco.obterPlano(String(id));
+    if (!plano) throw new ErroEntrada("Um dos planos escolhidos não existe mais.");
+    const v = planPrices(plano, pedido.vidas, pedido.over);
+    if (v.minimo) throw new ErroEntrada(`${plano.nome} é para grupos a partir de ${v.minimo} vidas.`);
+    if (v.maximo) throw new ErroEntrada(`${plano.nome} é para grupos de até ${v.maximo} vidas.`);
+    return plano;
+  });
+
   app.post("/api/propostas", exige("cotacao", "editar"), (req, res) => {
     const pedido = validarPedidoDeLinks(req.body);
     const { estado, url } = linkPublico();
     if (estado !== "ativo") return res.status(503).json({ erro: "Os links das propostas não estão disponíveis agora. Tente de novo em instantes.", codigo: "sem_link" });
     const corretor = corretorDaProposta(req);
-    const links = pedido.planos.map((id) => {
-      const plano = banco.obterPlano(String(id));
-      if (!plano) throw new ErroEntrada("Um dos planos escolhidos não existe mais.");
+    const links = planosDoPedido(pedido).map((plano) => {
       const token = banco.salvarProposta(montarSnapshot(plano, pedido, corretor), pedido.fone);
       return { id: plano.id, nome: plano.nome, url: `${url}/p/${token}` };
     });
@@ -352,11 +366,7 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     const pedido = validarPedidoDeLinks(req.body);
     const corretor = corretorDe(req);
     res.json({
-      paginas: pedido.planos.map((id) => {
-        const plano = banco.obterPlano(String(id));
-        if (!plano) throw new ErroEntrada("Um dos planos escolhidos não existe mais.");
-        return { id: plano.id, html: renderizarProposta(montarSnapshot(plano, pedido, corretor), {}, { paraImagem: true }) };
-      }),
+      paginas: planosDoPedido(pedido).map((plano) => ({ id: plano.id, html: renderizarProposta(montarSnapshot(plano, pedido, corretor), {}, { paraImagem: true }) })),
     });
   });
 
@@ -367,11 +377,7 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
       throw new ErroEntrada(`Escolha de 2 a ${MAX_PLANOS_COMPARATIVO} planos para comparar.`);
     }
     const corretor = corretorDe(req);
-    const snapshots = pedido.planos.map((id) => {
-      const plano = banco.obterPlano(String(id));
-      if (!plano) throw new ErroEntrada("Um dos planos escolhidos não existe mais.");
-      return montarSnapshot(plano, pedido, corretor);
-    });
+    const snapshots = planosDoPedido(pedido).map((plano) => montarSnapshot(plano, pedido, corretor));
     res.json({ html: renderizarComparativo(snapshots) });
   });
 

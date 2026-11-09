@@ -157,8 +157,10 @@ async function verificarLink() {
       S.linkLocal = linkPublico.local;
       render();
     }
+    return true;
   } catch {
     // O cotador pode estar sendo fechado; a próxima verificação tenta de novo.
+    return false;
   }
 }
 
@@ -215,4 +217,18 @@ renderHist();
 renderAceites();
 render();
 carregar();
-setInterval(() => { verificarLink(); verificarAceites(); }, 5000);
+// Link e aceites são conferidos a cada 5 s com a aba à vista. Escondida, a aba não consulta o servidor; fora do ar,
+// o servidor é consultado cada vez mais devagar (até 40 s), em vez de encher o console de erros.
+let falhas = 0;
+async function conferir() {
+  if (!document.hidden) {
+    const ok = await verificarLink();
+    if (ok) await verificarAceites();
+    falhas = ok ? 0 : falhas + 1;
+  }
+  setTimeout(conferir, 5000 * 2 ** Math.min(falhas, 3));
+}
+setTimeout(conferir, 5000);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) { verificarLink(); verificarAceites(); }
+});

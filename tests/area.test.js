@@ -363,6 +363,44 @@ test("Amil PME: o preço muda com o total de vidas, de 2 a 99", () => {
   assert.equal(lado.match(/Santa Clara/g).length, 1);
 });
 
+test("restaurar um backup antigo traz os planos e as correções das versões seguintes", (t) => {
+  const pasta = mkdtempSync(join(tmpdir(), "cotador-restaura-"));
+  t.after(() => rmSync(pasta, { recursive: true, force: true }));
+  // Um backup feito antes da Amil PME (versão 25): sem os planos e sem as colunas de vidas.
+  const antigo = new Banco(join(pasta, "antigo.db"), seed);
+  for (const p of planos.filter((x) => x.id.startsWith("amil-pme-"))) antigo.excluirPlano(p.id);
+  antigo.db.exec("UPDATE planos SET vidas_minimas = NULL WHERE id LIKE 'unimed-%-pme'; ALTER TABLE planos DROP COLUMN vidas_minimas; ALTER TABLE planos DROP COLUMN tabelas_por_vidas; PRAGMA user_version = 25");
+  const backup = antigo.gerarBackup();
+  antigo.fechar();
+  const banco = new Banco(join(pasta, "atual.db"), seed);
+  banco.restaurar(backup);
+  assert.equal(banco.listarPlanos().filter((p) => p.id.startsWith("amil-pme-")).length, 24);
+  assert.ok(banco.obterPlano("amil-pme-prata-30").carenciaTabela.startsWith("Tipo de Carência"));
+  assert.ok(banco.obterPlano("amil-pme-prata-30").extras.includes("📱 Telemedicina"));
+  assert.equal(banco.obterPlano("unimed-pleno-on-pme").vidasMinimas, 2);
+  banco.fechar();
+});
+
+test("proposta com plano que não aceita o tamanho do grupo é recusada, sem salvar link pela metade", async (t) => {
+  const pasta = mkdtempSync(join(tmpdir(), "cotador-minimo-"));
+  const banco = new Banco(join(pasta, "c.db"), seed);
+  const app = criarApp({ banco, pastaPublica: join(raiz, "public"), pastaUploads: join(pasta, "u"), pastaBackups: join(pasta, "b"), env: {}, linkPublico: () => ({ estado: "ativo", url: "http://exemplo" }) });
+  const servidor = await new Promise((ok) => { const s = app.listen(0, "127.0.0.1", () => ok(s)); });
+  t.after(() => new Promise((fim) => { servidor.closeAllConnections(); servidor.close(() => { banco.fechar(); rmSync(pasta, { recursive: true, force: true }); fim(); }); }));
+  const base = `http://127.0.0.1:${servidor.address().port}`;
+  const pedir = (rota, vidas, planosIds) => fetch(base + rota, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ planos: planosIds, vidas, fone: "34999990000", cliente: "Teste" }) });
+  const umaVida = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0], duas = [2, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+  const contar = () => banco.db.prepare("SELECT COUNT(*) AS n FROM propostas").get().n;
+  const antes = contar();
+  const r = await pedir("/api/propostas", umaVida, ["plam-total-cnpj", "amil-pme-prata-30"]);
+  assert.equal(r.status, 400);
+  assert.match((await r.json()).erro, /AMIL PRATA 30% é para grupos a partir de 2 vidas/);
+  assert.equal(contar(), antes);
+  assert.equal((await pedir("/api/propostas/previa", umaVida, ["unimed-pleno-on-pme"])).status, 400);
+  assert.equal((await pedir("/api/propostas", duas, ["plam-total-cnpj", "amil-pme-prata-30"])).status, 201);
+  assert.equal(contar(), antes + 2);
+});
+
 test("plano antigo, sem tabela por vidas, continua com o preço de família a partir de 3 vidas", () => {
   const p = { faixasEnf: [100, ...Array(9).fill(100)], faixasApto: Array(10).fill(null), faixasEnfFamilia: Array(10).fill(80) };
   assert.equal(planPrices(p, [2, 0, 0, 0, 0, 0, 0, 0, 0, 0]).enf, 200);

@@ -128,8 +128,27 @@ export const ESTADOS = {
   RJ: "Rio de Janeiro", RN: "Rio Grande do Norte", RO: "Rondônia", RR: "Roraima", RS: "Rio Grande do Sul", SC: "Santa Catarina", SE: "Sergipe", SP: "São Paulo", TO: "Tocantins",
 };
 
+// A cotação confere a área de todos os planos a cada clique: a leitura de cada texto é guardada (e congelada,
+// para ninguém alterar o resultado compartilhado), com as cidades já normalizadas para comparar.
+const areasLidas = new Map();
+function areaLida(texto) {
+  const chave = String(texto ?? "");
+  let r = areasLidas.get(chave);
+  if (!r) {
+    const { estados, invalidas } = lerAreaSemCache(chave);
+    r = {
+      area: Object.freeze({ estados: Object.freeze(estados.map((e) => Object.freeze({ uf: e.uf, cidades: Object.freeze(e.cidades) }))), invalidas: Object.freeze(invalidas) }),
+      normalizadas: new Map(estados.map((e) => [e.uf, new Set(e.cidades.map(semAcento))])),
+    };
+    if (areasLidas.size > 500) areasLidas.clear();
+    areasLidas.set(chave, r);
+  }
+  return r;
+}
+export const lerArea = (texto) => areaLida(texto).area;
+
 // "MG: Uberlândia, Araguari", com um estado por linha. Devolve também as linhas que não seguem o formato.
-export function lerArea(texto) {
+function lerAreaSemCache(texto) {
   const estados = [], invalidas = [];
   for (const linha of lines(texto)) {
     const m = linha.match(/^([A-Za-z]{2})\s*:\s*(.*)$/);
@@ -147,11 +166,11 @@ export function lerArea(texto) {
 // Plano sem área cadastrada continua aparecendo: não dá para afirmar que ele não é vendido na cidade.
 export function vendidoEm(plano, uf, cidade) {
   if (!uf) return true;
-  const { estados } = lerArea(plano.areaComercializacao);
-  if (!estados.length) return true;
-  const estado = estados.find((e) => e.uf === uf);
-  if (!estado) return false;
-  return !cidade || estado.cidades.some((c) => semAcento(c) === semAcento(cidade));
+  const { area, normalizadas } = areaLida(plano.areaComercializacao);
+  if (!area.estados.length) return true;
+  const cidades = normalizadas.get(uf);
+  if (!cidades) return false;
+  return !cidade || cidades.has(semAcento(cidade));
 }
 
 // A rede que vale na cidade. "Hospital – Araxá" é de Araxá; a linha sem cidade é da cidade do plano.
@@ -196,7 +215,15 @@ export function resumoDaRede(plano) {
 }
 
 // Estados e cidades que têm algum plano, em ordem alfabética.
+// Recalculada só quando a lista de planos muda (a cotação pede a cada clique).
+let locaisGuardados = { chave: null, valor: null };
 export function locaisDosPlanos(planos) {
+  const chave = planos.map((p) => `${p.id}|${p.atualizadoEm ?? p.areaComercializacao}`).join("\n");
+  if (locaisGuardados.chave !== chave) locaisGuardados = { chave, valor: calcularLocais(planos) };
+  return locaisGuardados.valor;
+}
+
+function calcularLocais(planos) {
   const porUf = new Map();
   for (const p of planos) {
     for (const { uf, cidades } of lerArea(p.areaComercializacao).estados) {
