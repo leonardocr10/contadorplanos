@@ -178,6 +178,11 @@ textarea{resize:vertical;min-height:72px;line-height:1.45}
 #v-cotacao .plan.plan-linha[aria-expanded="true"]::before{transform:rotate(45deg);top:10px}
 #v-cotacao .plan.plan-linha[aria-pressed="true"]::before{background:none;box-shadow:none;border-color:var(--accent)}
 #v-cotacao .plan.plan-linha[aria-expanded="true"]{border-color:var(--accent)}
+/* Plano marcado e linha aberta: preenchidos de verde, para ficar claro o que está na cotação. */
+#v-cotacao .plan[aria-pressed="true"],#v-cotacao .plan.plan-linha[aria-expanded="true"]{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 16%,var(--surface));box-shadow:inset 0 0 0 1px var(--accent)}
+#v-cotacao .plan[aria-pressed="true"] b,#v-cotacao .plan.plan-linha[aria-expanded="true"] b{color:var(--pine)}
+#v-cotacao .plan[aria-pressed="true"] span,#v-cotacao .plan.plan-linha[aria-expanded="true"] span{color:var(--ink)}
+#v-cotacao .plan[aria-pressed="true"]::before{box-shadow:inset 0 0 0 3px color-mix(in srgb,var(--accent) 16%,var(--surface))}
 #v-cotacao .plan-linha .na-proposta{color:var(--accent);font-weight:700}
 .opcoes-plano{grid-column:1/-1;display:flex;flex-direction:column;gap:8px;padding:8px;margin:-2px 0 4px;border:1px dashed var(--accent);border-radius:12px;background:var(--bg)}
 .opcoes-grade{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
