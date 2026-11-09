@@ -101,13 +101,18 @@ test("os planos PME da Unimed seguem a tabela: valores, área, coparticipação 
   assert.deepEqual(pme.map((p) => [soma(p.faixasEnf), soma(p.faixasApto)]), [[4454.1, 5690.99], [5530.65, 7160.18], [6626.61, 8587.55], [7155.24, 9251.24]]);
   for (const p of pme) {
     assert.equal(p.categoria, "CNPJ");
+    // Contratação a partir de 2 vidas.
+    assert.equal(p.vidasMinimas, 2);
+    assert.ok(p.subtitulo.includes("(2 a 99 vidas)"));
+    assert.equal(planPrices(p, [1, 0, 0, 0, 0, 0, 0, 0, 0, 0]).minimo, 2);
+    assert.equal(planPrices(p, [2, 0, 0, 0, 0, 0, 0, 0, 0, 0]).tabelaVidas, "");
     assert.ok(vendidoEm(p, "MG", "Uberlândia") && vendidoEm(p, "MG", "Centralina") && !vendidoEm(p, "MG", "Uberaba"));
   }
-  const pedido = { vidas: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0], over: {}, cliente: "", opts: { copart: true, rede: true, acom: true }, municipio: "Uberlândia" };
+  const pedido = { vidas: [2, 0, 0, 0, 0, 0, 0, 0, 0, 0], over: {}, cliente: "", opts: { copart: true, rede: true, acom: true }, municipio: "Uberlândia" };
   const corretor = { nome: "C", fone: "34999990000", empresa: "E" };
   const html = renderizarComparativo(pme.map((p) => montarSnapshot(p, pedido, corretor)));
   assert.ok(html.includes("/img/logo-unimed.png"));
-  assert.ok(html.includes("R$ 182,41") && html.includes("R$ 370,41"));
+  assert.ok(html.includes("R$ 364,82") && html.includes("R$ 740,82"));
   const linha = (titulo) => [...html.matchAll(new RegExp(`<th scope="row">${titulo}</th>((?:<td[^>]*>.*?</td>)+)`, "g"))][0]?.[1].match(/<td[^>]*>(.*?)<\/td>/g).map((c) => c.replace(/<[^>]+>/g, ""));
   assert.deepEqual(linha("Consulta"), Array(4).fill("R$ 40,00"));
   assert.deepEqual(linha("Pronto-socorro"), Array(4).fill("R$ 55,00"));

@@ -201,6 +201,8 @@ const MIGRACOES = [
   () => {},
   // Sem mudança na estrutura: benefícios exclusivos nos planos Amil PME (ver atualizarBeneficiosAmilPme).
   () => {},
+  // Unimed PME: contratação a partir de 2 vidas.
+  "UPDATE planos SET vidas_minimas = 2 WHERE id IN ('unimed-pleno-on-pme', 'unimed-udiplan-on-pme', 'unimed-pontual-on-pme', 'unimed-uniplan-on-pme') AND vidas_minimas IS NULL; UPDATE planos SET subtitulo = REPLACE(subtitulo, '(3 a 99 vidas)', '(2 a 99 vidas)'), descricao = REPLACE(descricao, 'Empresarial PME de 3 a 99 vidas', 'Empresarial PME de 2 a 99 vidas') WHERE id IN ('unimed-pleno-on-pme', 'unimed-udiplan-on-pme', 'unimed-pontual-on-pme', 'unimed-uniplan-on-pme')",
 ];
 
 const VERSAO_TEXTOS_COPARTICIPACAO = 11;

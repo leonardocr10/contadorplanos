@@ -123,6 +123,15 @@ function cartaoDoPlano(p, titulo = p.nome) {
 }
 
 // Resumo da linha: quantas opções, o menor preço e quantas já estão na proposta.
+// Linha em que nenhuma opção aceita o tamanho do grupo (ex.: Amil PME com 1 vida): fica apagada e fechada.
+function limiteDaLinha(planos) {
+  if (!totalVidas(S.vidas)) return "";
+  const precos = planos.map(prices);
+  if (!precos.every((v) => v.minimo || v.maximo)) return "";
+  const v = precos[0];
+  return v.minimo ? `Para grupos a partir de ${v.minimo} vidas` : `Para grupos de até ${v.maximo} vidas`;
+}
+
 function cartaoDaLinha(nome, planos, aberto) {
   const precos = planos.map(prices).filter((v) => v.porFaixa && !v.minimo && !v.maximo);
   const menor = (k) => { const x = precos.map((v) => v[k]).filter((n) => n != null); return x.length ? Math.min(...x) : null; };
@@ -133,7 +142,8 @@ function cartaoDaLinha(nome, planos, aberto) {
     : limite?.minimo ? `Para grupos a partir de ${limite.minimo} vidas` : limite?.maximo ? `Para grupos de até ${limite.maximo} vidas` : "Valores sob consulta";
   const tabela = precos.find((v) => v.tabelaVidas)?.tabelaVidas;
   const marcados = planos.filter((p) => S.selected.includes(p.id)).length;
-  return `<button type="button" class="plan plan-linha" aria-expanded="${aberto}" aria-pressed="${marcados > 0}" data-linha="${esc(nome)}"><b>${esc(nome)}</b><span>${planos.length} opções · ${resumo}</span>${tabela ? `<span>Preço de ${esc(tabela)}</span>` : ""}${marcados ? `<span class="na-proposta">${marcados} na proposta</span>` : ""}</button>`;
+  const fora = limiteDaLinha(planos);
+  return `<button type="button" class="plan plan-linha" aria-expanded="${aberto}" aria-pressed="${marcados > 0}"${fora ? ` aria-disabled="true" data-limite="${esc(fora)}"` : ""} data-linha="${esc(nome)}"><b>${esc(nome)}</b><span>${planos.length} opções · ${resumo}</span>${tabela ? `<span>Preço de ${esc(tabela)}</span>` : ""}${marcados ? `<span class="na-proposta">${marcados} na proposta</span>` : ""}</button>`;
 }
 
 // Com opções para MEI, as demais empresas ficam numa linha e as de MEI em outra.
@@ -174,11 +184,12 @@ function renderPlans() {
   const buscando = !!filtroPlanos.texto.trim();
   box.innerHTML = [...linhas].map(([nome, planos]) => {
     if (planos.length === 1) return cartaoDoPlano(planos[0]);
-    const aberto = buscando || gruposAbertos.has(nome);
+    const aberto = !limiteDaLinha(planos) && (buscando || gruposAbertos.has(nome));
     return cartaoDaLinha(nome, planos, aberto)
       + (aberto ? opcoesDaLinha(nome, planos) : "");
   }).join("");
   box.querySelectorAll(".plan-linha").forEach((b) => (b.onclick = () => {
+    if (b.dataset.limite) { toast(`${b.dataset.limite}: ajuste os beneficiários para ver as opções`); return; }
     const nome = b.dataset.linha;
     if (gruposAbertos.has(nome)) gruposAbertos.delete(nome); else gruposAbertos.add(nome);
     renderPlans();
