@@ -163,6 +163,19 @@ function opcoesDaLinha(nome, planos) {
   return `<div class="opcoes-plano" role="group" aria-label="Opções de ${esc(nome)}">${corpo}</div>`;
 }
 
+const CATEGORIAS_AMIL = ["PRATA", "OURO", "PLATINUM R1", "PLATINUM R2"];
+const categoriaAmil = (nome) => {
+  const n = normal(nome).toUpperCase();
+  if (!n.startsWith("AMIL ")) return -1;
+  const i = CATEGORIAS_AMIL.findIndex((c) => n.startsWith(`AMIL ${c}`));
+  return i < 0 ? CATEGORIAS_AMIL.length : i;
+};
+function compararCartoes(a, b) {
+  const ca = categoriaAmil(a), cb = categoriaAmil(b);
+  if (ca >= 0 && cb >= 0 && ca !== cb) return ca - cb;
+  return a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" });
+}
+
 function renderPlans() {
   const box = $("#plans");
   tirarForaDoGrupo();
@@ -190,9 +203,10 @@ function renderPlans() {
   }
   // Com uma busca digitada, as linhas já vêm abertas para mostrar o que foi achado.
   const buscando = !!filtroPlanos.texto.trim();
-  // Cartões em ordem alfabética pelo nome que aparece; dentro da linha, as opções seguem a ordem do cadastro.
+  // Cartões em ordem alfabética pelo nome que aparece; na Amil, pela categoria (Prata, Ouro, Platinum R1, R2).
+  // Dentro da linha, as opções seguem a ordem do cadastro.
   const nomeDoCartao = ([nome, planos]) => (planos.length === 1 ? planos[0].nome : nome);
-  const ordenadas = [...linhas].sort((a, b) => nomeDoCartao(a).localeCompare(nomeDoCartao(b), "pt-BR", { numeric: true, sensitivity: "base" }));
+  const ordenadas = [...linhas].sort((a, b) => compararCartoes(nomeDoCartao(a), nomeDoCartao(b)));
   box.innerHTML = ordenadas.map(([nome, planos]) => {
     if (planos.length === 1) return cartaoDoPlano(planos[0]);
     const aberto = !limiteDaLinha(planos) && (buscando || gruposAbertos.has(nome));
