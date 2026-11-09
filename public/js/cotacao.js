@@ -102,24 +102,30 @@ const linhaDoPlano = (p) => String(p.nome || "").replace(SUFIXOS, "").trim();
 const gruposAbertos = new Set();
 const eMei = (p) => [...String(p.nome || "").matchAll(SUFIXOS)].some((m) => m[1].toUpperCase() === "MEI");
 function rotuloDaOpcao(p) {
-  const partes = [...String(p.nome || "").matchAll(SUFIXOS)].map((m) => m[1].toUpperCase())
-    .map((t) => (t === "MEI" ? "MEI" : t === "PARCIAL" ? "Coparticipação parcial" : `Coparticipação ${t}`));
+  const tokens = [...String(p.nome || "").matchAll(SUFIXOS)].map((m) => m[1].toUpperCase());
+  const copart = tokens.filter((t) => t !== "MEI").map((t) => (t === "PARCIAL" ? "Coparticipação parcial" : `Coparticipação ${t}`)).join(" · ");
   // Sem sufixo, o subtítulo diz qual é a opção (ex.: "Coparticipação total").
-  return partes.length ? partes.join(" · ") : String(p.subtitulo || "").split(" – ")[0] || p.nome;
+  const texto = copart || (tokens.length ? "" : String(p.subtitulo || "").split(" – ")[0] || p.nome);
+  return `${esc(texto)}${tokens.includes("MEI") ? ` <span class="selo-mei">MEI</span>` : ""}`;
 }
 
-function cartaoDoPlano(p, titulo = p.nome) {
+// Valores que não quebram no meio: se faltar espaço, o apartamento desce inteiro.
+const valor = (rotulo, n) => `<span class="nw">${rotulo} R$ ${brl(n) || "—"}</span>`;
+const valores = (enf, apto) => `${valor("Enf.", enf)} · ${valor("Apto", apto)}`;
+
+// O título vem em HTML pronto (opção de uma linha) ou é o nome do plano.
+function cartaoDoPlano(p, titulo = esc(p.nome)) {
   const v = prices(p);
   const semArea = S.uf && !lerArea(p.areaComercializacao).estados.length ? `<span>Área de comercialização não informada</span>` : "";
   if (v.minimo || v.maximo) {
     const limite = v.minimo ? `Para grupos a partir de ${v.minimo} vidas` : `Para grupos de até ${v.maximo} vidas`;
-    return `<button class="plan" aria-pressed="false" aria-disabled="true" data-id="${esc(p.id)}" data-limite="${esc(limite)}"><b>${esc(titulo)}</b><span>${limite}</span>${semArea}</button>`;
+    return `<button class="plan" aria-pressed="false" aria-disabled="true" data-id="${esc(p.id)}" data-limite="${esc(limite)}"><b>${titulo}</b><span>${limite}</span>${semArea}</button>`;
   }
   const grupo = v.tabelaVidas ? `<span>Preço de ${esc(v.tabelaVidas)}</span>` : "";
-  const pr = v.porFaixa ? `Enf. R$ ${brl(v.enf) || "—"} · Apto R$ ${brl(v.apto) || "—"}`
+  const pr = v.porFaixa ? valores(v.enf, v.apto)
     : hasFaixas(p) && !totalVidas(S.vidas) ? "Tabela por faixa etária: informe os beneficiários"
-    : v.enf || v.apto ? `Enf. R$ ${brl(v.enf) || "—"} · Apto R$ ${brl(v.apto) || "—"}` : "Valores sob consulta";
-  return `<button class="plan" aria-pressed="${S.selected.includes(p.id)}" aria-disabled="${!totalVidas(S.vidas)}" data-id="${esc(p.id)}"><b>${esc(titulo)}</b><span>${pr}</span>${grupo}${semArea}</button>`;
+    : v.enf || v.apto ? valores(v.enf, v.apto) : "Valores sob consulta";
+  return `<button class="plan" aria-pressed="${S.selected.includes(p.id)}" aria-disabled="${!totalVidas(S.vidas)}" data-id="${esc(p.id)}"><b>${titulo}</b><span>${pr}</span>${grupo}${semArea}</button>`;
 }
 
 // Resumo da linha: quantas opções, o menor preço e quantas já estão na proposta.
@@ -139,7 +145,7 @@ function cartaoDaLinha(nome, planos, aberto) {
   const limite = planos.map(prices).find((v) => v.minimo || v.maximo);
   const resumo = !totalVidas(S.vidas) ? "Informe os beneficiários para ver os valores"
     // Linha só de apartamento (ex.: Platinum) não mostra enfermaria.
-    : precos.length ? `A partir de ${[menor("enf") != null && `Enf. R$ ${brl(menor("enf"))}`, menor("apto") != null && `Apto R$ ${brl(menor("apto"))}`].filter(Boolean).join(" · ")}`
+    : precos.length ? `A partir de ${[menor("enf") != null && valor("Enf.", menor("enf")), menor("apto") != null && valor("Apto", menor("apto"))].filter(Boolean).join(" · ")}`
     : limite?.minimo ? `Para grupos a partir de ${limite.minimo} vidas` : limite?.maximo ? `Para grupos de até ${limite.maximo} vidas` : "Valores sob consulta";
   const tabela = precos.find((v) => v.tabelaVidas)?.tabelaVidas;
   const marcados = planos.filter((p) => S.selected.includes(p.id)).length;
