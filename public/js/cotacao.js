@@ -55,8 +55,18 @@ function aplicarLocal() {
 }
 
 /* ---------- planos ---------- */
+// Plano fora do tamanho de grupo que aceita sai da proposta, para não ir sem preço.
+function tirarForaDoGrupo() {
+  const fora = planosEscolhidos().filter((p) => { const v = prices(p); return v.minimo || v.maximo; });
+  if (!fora.length) return;
+  S.selected = S.selected.filter((id) => !fora.some((p) => p.id === id));
+  const n = totalVidas(S.vidas), grupo = `${n} ${n === 1 ? "vida" : "vidas"}`;
+  toast(fora.length === 1 ? `${fora[0].nome} saiu da cotação: não aceita grupos de ${grupo}` : `${fora.length} planos saíram da cotação: não aceitam grupos de ${grupo}`);
+}
+
 function renderPlans() {
   const box = $("#plans");
+  tirarForaDoGrupo();
   if (!S.loaded) { box.innerHTML = `<div class="status">${S.dbErr ? esc(S.dbErr) : "Carregando planos…"}</div>`; return; }
   const doTipo = S.plans.filter((p) => p.categoria === S.tipo && p.ativo !== false);
   const nomeTipo = S.tipo === "PF" ? "para pessoa física" : "CNPJ";
@@ -66,13 +76,19 @@ function renderPlans() {
   box.innerHTML = list.map((p) => {
     const v = prices(p);
     const semArea = S.uf && !lerArea(p.areaComercializacao).estados.length ? `<span>Área de comercialização não informada</span>` : "";
+    if (v.minimo || v.maximo) {
+      const limite = v.minimo ? `Para grupos a partir de ${v.minimo} vidas` : `Para grupos de até ${v.maximo} vidas`;
+      return `<button class="plan" aria-pressed="false" aria-disabled="true" data-id="${esc(p.id)}" data-limite="${esc(limite)}"><b>${esc(p.nome)}</b><span>${limite}</span>${semArea}</button>`;
+    }
+    const grupo = v.tabelaVidas ? `<span>Preço de ${esc(v.tabelaVidas)}</span>` : "";
     const pr = v.porFaixa ? `Enf. R$ ${brl(v.enf) || "—"} · Apto R$ ${brl(v.apto) || "—"}`
       : hasFaixas(p) && !totalVidas(S.vidas) ? "Tabela por faixa etária: informe os beneficiários"
       : v.enf || v.apto ? `Enf. R$ ${brl(v.enf) || "—"} · Apto R$ ${brl(v.apto) || "—"}` : "Valores sob consulta";
-    return `<button class="plan" aria-pressed="${S.selected.includes(p.id)}" aria-disabled="${!totalVidas(S.vidas)}" data-id="${esc(p.id)}"><b>${esc(p.nome)}</b><span>${pr}</span>${semArea}</button>`;
+    return `<button class="plan" aria-pressed="${S.selected.includes(p.id)}" aria-disabled="${!totalVidas(S.vidas)}" data-id="${esc(p.id)}"><b>${esc(p.nome)}</b><span>${pr}</span>${grupo}${semArea}</button>`;
   }).join("");
   box.querySelectorAll(".plan").forEach((b) => (b.onclick = () => {
     if (!totalVidas(S.vidas)) { toast("Informe a faixa etária dos beneficiários antes de marcar o plano"); return; }
+    if (b.dataset.limite) { toast(`${b.dataset.limite}: ajuste os beneficiários para escolher este plano`); return; }
     const id = b.dataset.id;
     S.selected = S.selected.includes(id) ? S.selected.filter((x) => x !== id) : [...S.selected, id];
     render();

@@ -16,7 +16,7 @@ export function montarSnapshot(p, { vidas, over, cliente, opts, municipio = "" }
     data: agora.toLocaleDateString("pt-BR"),
     vidas: totalVidas(vidas),
     precos: {
-      porFaixa: v.porFaixa, enf: v.enf ?? null, apto: v.apto ?? null,
+      porFaixa: v.porFaixa, enf: v.enf ?? null, apto: v.apto ?? null, tabelaVidas: v.tabelaVidas || "",
       linhas: v.linhas.map((l) => ({
         faixa: l.faixa, n: l.n,
         enf: l.enf != null ? r2(l.enf * l.n) : null,
@@ -118,6 +118,7 @@ export function paraProposta(s) {
     cliente: s.cliente,
     vidas: s.vidas,
     faixaEtaria: listaFaixas(s.precos.linhas),
+    tabelaVidas: s.precos.tabelaVidas || "",
     // Subtotal de cada faixa. Acomodação sem valor em alguma faixa fica de fora, como nos totais.
     faixas: {
       temEnf: s.precos.enf != null,
@@ -232,7 +233,7 @@ export function logoDoPlano(nome) {
 }
 
 function barraLateral(P, { foneCorretor, agente = "" } = {}) {
-  const vidas = P.vidas ? `${P.vidas} ${P.vidas === 1 ? "vida" : "vidas"}${P.faixaEtaria ? ` · ${P.faixaEtaria}` : ""}` : "";
+  const vidas = P.vidas ? `${P.vidas} ${P.vidas === 1 ? "vida" : "vidas"}${P.faixaEtaria ? ` · ${P.faixaEtaria}` : ""}${P.tabelaVidas ? ` · preço de ${P.tabelaVidas}` : ""}` : "";
   // Vale o telefone atual de Meus dados; o guardado na proposta só quando ele não estiver preenchido.
   const atual = normFone(foneCorretor ?? "");
   const usarAtual = atual.length >= 10 && atual !== normFone(P.consultor.telefone || "");

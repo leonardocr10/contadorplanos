@@ -1,5 +1,5 @@
 // Tela "Planos e valores" e o editor do plano em janela modal.
-import { ESTADOS, FAIXAS, brl, colarPlanilha, hasFaixas, lerArea, lines, parseBRL, redeDaCidade, resumoDaRede } from "./calculo.js";
+import { ESTADOS, FAIXAS, brl, colarPlanilha, gruposDeVidas, hasFaixas, lerArea, lines, parseBRL, redeDaCidade, resumoDaRede } from "./calculo.js";
 import { $, S, api, avisoCentral, carregarPlanos, esc, pode, render, toast } from "./estado.js";
 import { wireUpdater } from "./atualizar.js";
 import { filtrarOpcoes } from "./filtro-select.js";
@@ -70,7 +70,11 @@ function valoresDoPlano(p) {
   }
   // Com 3 faixas, a linha de 19 a 23 anos vale para todas as idades até 58.
   const faixas = p.faixasModelo === "3" ? [[0, "0 a 18"], [1, "19 a 58"], [9, "59 ou mais"]] : FAIXAS.map((f, i) => [i, f]);
-  const colunas = [["Enfermaria", p.faixasEnf], ["Apartamento", p.faixasApto], ["Enf. 3+ vidas", p.faixasEnfFamilia], ["Apto 3+ vidas", p.faixasAptoFamilia]].filter(([, c]) => c?.some((x) => x != null));
+  // Com preço por tamanho do grupo, cada grupo de vidas tem as suas colunas.
+  const grupos = gruposDeVidas(p);
+  const colunas = (grupos.length
+    ? grupos.flatMap((g) => [[`Enf. ${g.nome}`, g.faixasEnf], [`Apto ${g.nome}`, g.faixasApto]])
+    : [["Enfermaria", p.faixasEnf], ["Apartamento", p.faixasApto], ["Enf. 3+ vidas", p.faixasEnfFamilia], ["Apto 3+ vidas", p.faixasAptoFamilia]]).filter(([, c]) => c?.some((x) => x != null));
   return `<div class="cat-rolagem"><table class="ftab"><thead><tr><th>Faixa etária</th>${colunas.map(([t]) => `<th>${t}</th>`).join("")}</tr></thead><tbody>${faixas.map(([i, f]) => `<tr><td>${f} anos</td>${colunas.map(([, c]) => `<td>${c[i] != null ? `R$ ${brl(c[i])}` : "—"}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
 }
 
@@ -104,6 +108,7 @@ function detalheDoPlano(p) {
   const dados = [
     p.categoria === "CNPJ" ? "CNPJ" : "Pessoa física",
     p.cidade && `Cidade principal: ${p.cidade}`,
+    p.vidasMinimas && `A partir de ${p.vidasMinimas} vidas`,
     p.taxa ? `Taxa associativa: R$ ${brl(p.taxa)}` : "Sem taxa associativa",
     p.fidelidade ? "Fidelidade de 12 meses" : "Sem fidelidade",
     p.odonto && "Odontológico incluso",
@@ -161,7 +166,8 @@ function openEditor(p) {
     <div class="field"><label for="e-cat">Tipo</label><select id="e-cat"><option value="PF" ${p.categoria === "PF" ? "selected" : ""}>Pessoa física</option><option value="CNPJ" ${p.categoria === "CNPJ" ? "selected" : ""}>CNPJ</option></select></div>
     <div class="field"><label for="e-sub">Subtítulo</label><input id="e-sub" type="text" value="${esc(p.subtitulo || "")}"></div>
   </div>
-  <div class="label">Tabela por faixa etária (valor por pessoa)</div>
+  <div class="label">Tabela por faixa etária (valor por pessoa)${p.tabelasPorVidas?.length ? ` para ${esc(gruposDeVidas(p)[0].nome)}` : ""}</div>
+  ${p.tabelasPorVidas?.length ? `<p class="note" style="margin:0">Os preços dos grupos maiores (${gruposDeVidas(p).slice(1).map((g) => esc(g.nome)).join(", ")}) ficam como estão; eles aparecem nos detalhes do plano.</p>` : ""}
   <label ${p.id === "plamedh-basic-pme" ? "" : "style=\"display:none\""}><input type="checkbox" id="e-fx3" ${p.faixasModelo === "3" ? "checked" : ""}> Tabela de 3 faixas (0 a 18, 19 a 58 e 59 ou mais)</label>
   <div class="field"><label for="e-paste">Colar da planilha: copie as 10 linhas do Excel (faixa, enfermaria, apartamento) e cole aqui</label>
     <textarea id="e-paste" style="min-height:56px" placeholder="De 0 a 18 anos	R$ 171,20	R$ 190,04"></textarea></div>
@@ -170,6 +176,7 @@ function openEditor(p) {
   </tbody></table></div>
   <div class="row">
     <div class="field"><label for="e-taxa">Taxa associativa R$</label><input class="money" id="e-taxa" type="text" inputmode="decimal" value="${brl(p.taxa)}"></div>
+    <div class="field"><label for="e-minvidas">Mínimo de vidas (opcional)</label><input id="e-minvidas" type="text" inputmode="numeric" value="${esc(p.vidasMinimas ?? "")}" placeholder="Sem mínimo"></div>
   </div>
   <div class="checks">
 
@@ -250,6 +257,7 @@ function openEditor(p) {
       imgCopart: $("#e-imgcop").value, imgCarencia: $("#e-imgcar").value,
       faixasModelo: $("#e-fx3").checked ? "3" : "",
       faixasEnfFamilia: p.faixasEnfFamilia ?? null, faixasAptoFamilia: p.faixasAptoFamilia ?? null,
+      tabelasPorVidas: p.tabelasPorVidas ?? null, vidasMinimas: Math.round(parseBRL($("#e-minvidas").value) ?? 0) || null,
       faixasEnf: FAIXAS.map((_, i) => parseBRL($("#e-fe-" + ($("#e-fx3").checked && i >= 1 && i <= 8 ? 1 : i)).value)), faixasApto: FAIXAS.map((_, i) => parseBRL($("#e-fa-" + ($("#e-fx3").checked && i >= 1 && i <= 8 ? 1 : i)).value)),
     };
     const btn = $("#e-save");

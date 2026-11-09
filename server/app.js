@@ -40,6 +40,27 @@ const faixasOpc = (v, campo) => {
   return v.map((x) => numeroOpc(x, campo));
 };
 
+// Até 5 tabelas que valem a partir de um número de vidas, em ordem crescente.
+function tabelasPorVidasOpc(v) {
+  if (v == null) return null;
+  if (!Array.isArray(v) || v.length > 5) throw new ErroEntrada("As tabelas por número de vidas são inválidas.");
+  let anterior = 1;
+  return v.map((t) => {
+    const aPartirDe = t?.aPartirDe;
+    if (!Number.isInteger(aPartirDe) || aPartirDe <= anterior || aPartirDe > 9999) throw new ErroEntrada("Cada tabela por número de vidas precisa começar num número de vidas maior que a anterior.");
+    anterior = aPartirDe;
+    const ate = t.ate == null ? undefined : t.ate;
+    if (ate !== undefined && (!Number.isInteger(ate) || ate < aPartirDe || t !== v.at(-1))) throw new ErroEntrada("Só a última tabela por número de vidas pode ter limite, e ele não pode ser menor que o início dela.");
+    return { aPartirDe, ...(ate !== undefined && { ate }), faixasEnf: faixasOpc(t.faixasEnf, `enfermaria a partir de ${aPartirDe} vidas`), faixasApto: faixasOpc(t.faixasApto, `apartamento a partir de ${aPartirDe} vidas`) };
+  });
+}
+
+const vidasMinimasOpc = (v) => {
+  if (v == null || v === "") return null;
+  if (!Number.isInteger(v) || v < 1 || v > 9999) throw new ErroEntrada("O mínimo de vidas precisa ser um número inteiro.");
+  return v === 1 ? null : v;
+};
+
 const corOpc = (v, campo) => {
   const c = textoOpc(v, campo, 7);
   if (c && !/^#[0-9a-f]{6}$/i.test(c)) throw new ErroEntrada(`A cor de ${campo} é inválida.`);
@@ -76,6 +97,8 @@ function validarPlano(b) {
     faixasApto: faixasOpc(b.faixasApto, "apartamento"),
     faixasEnfFamilia: faixasOpc(b.faixasEnfFamilia, "enfermaria com 3 ou mais vidas"),
     faixasAptoFamilia: faixasOpc(b.faixasAptoFamilia, "apartamento com 3 ou mais vidas"),
+    tabelasPorVidas: tabelasPorVidasOpc(b.tabelasPorVidas),
+    vidasMinimas: vidasMinimasOpc(b.vidasMinimas),
     enfermaria: numeroOpc(b.enfermaria, "enfermaria"),
     apartamento: numeroOpc(b.apartamento, "apartamento"),
     taxa: numeroOpc(b.taxa, "taxa associativa"),

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { completarCarencias, lerArea, locaisDosPlanos, redeDaCidade, resumoDaRede, vendidoEm } from "../public/js/calculo.js";
+import { completarCarencias, gruposDeVidas, lerArea, planPrices, locaisDosPlanos, redeDaCidade, resumoDaRede, vendidoEm } from "../public/js/calculo.js";
 import { buildMsg } from "../public/js/mensagem.js";
 import { montarSnapshot, renderizarProposta } from "../server/proposta-html.js";
 import { renderizarComparativo } from "../server/comparativo-html.js";
@@ -309,6 +309,79 @@ test("ao atualizar e ao salvar, a tabela recebe as duas linhas", async (t) => {
   const r = await fetch(`http://127.0.0.1:${servidor.address().port}/api/planos`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nome: "NOVO CAR", categoria: "PF", carenciaTabela: "Item | Prazo\nParto | 300 dias" }) });
   assert.ok(r.ok);
   assert.ok(banco.listarPlanos().find((p) => p.nome === "NOVO CAR").carenciaTabela.includes("Terapias | 180 dias"));
+});
+
+test("Amil PME: o preço muda com o total de vidas, de 2 a 99", () => {
+  const amil = planos.filter((p) => p.id.startsWith("amil-pme-"));
+  assert.equal(amil.length, 24);
+  assert.equal(new Set(amil.map((p) => p.nome)).size, 24);
+  const prata = amil.find((p) => p.id === "amil-pme-prata-30");
+  const grupo = (n, faixa = 0) => { const vidas = Array(10).fill(0); vidas[faixa] = n; return planPrices(prata, vidas); };
+  assert.deepEqual(gruposDeVidas(prata).map((g) => g.nome), ["2 a 4 vidas", "5 a 29 vidas", "30 a 99 vidas"]);
+  // Valores do PDF, 0 a 18 anos: 188,99 (2 a 4), 169,98 (5 a 29) e 164,99 (30 a 99, compulsório).
+  assert.deepEqual([2, 4, 5, 29, 30, 99].map((n) => [grupo(n).enf, grupo(n).tabelaVidas]), [[377.98, "2 a 4 vidas"], [755.96, "2 a 4 vidas"], [849.9, "5 a 29 vidas"], [4929.42, "5 a 29 vidas"], [4949.7, "30 a 99 vidas"], [16334.01, "30 a 99 vidas"]]);
+  assert.deepEqual([grupo(1).minimo, grupo(1).enf], [2, null]);
+  assert.deepEqual([grupo(100).maximo, grupo(100).apto], [99, null]);
+  // MEI tem preço próprio; o Platinum é só apartamento.
+  const mei = amil.find((p) => p.id === "amil-pme-prata-30-mei");
+  assert.equal(planPrices(mei, [2, 0, 0, 0, 0, 0, 0, 0, 0, 0]).enf, 451.7);
+  const r2 = amil.find((p) => p.id === "amil-pme-platinum-r2-parcial");
+  const v = planPrices(r2, [0, 0, 0, 0, 0, 0, 0, 0, 0, 5]);
+  assert.deepEqual([v.enf, v.apto], [null, 11576.1]);
+  // A mensagem e a proposta dizem qual tabela de vidas foi usada.
+  const pedido = { vidas: [5, 0, 0, 0, 0, 0, 0, 0, 0, 0], over: {}, cliente: "", opts: { copart: true, rede: true, acom: true }, municipio: "Uberlândia" };
+  const msg = buildMsg({ items: [prata], vidas: pedido.vidas, over: {}, nome: "", corretor: { nome: "C", fone: "", empresa: "" }, opts: pedido.opts });
+  assert.ok(msg.includes("5 vidas · preço para empresas de 5 a 29 vidas"));
+  const snap = montarSnapshot(prata, pedido, { nome: "C", fone: "34999990000", empresa: "E" });
+  assert.equal(snap.precos.tabelaVidas, "5 a 29 vidas");
+  assert.ok(renderizarProposta(snap, { token: "x".repeat(24) }).includes("preço de 5 a 29 vidas"));
+  // Rede dos PDFs da Amil: o UMC atende Ouro e Platinum, mas não Prata.
+  const ouro = amil.find((p) => p.id === "amil-pme-ouro-30");
+  assert.ok(redeDaCidade(ouro, "Uberlândia").includes("Uberlândia Medical Center - UMC"));
+  assert.ok(!redeDaCidade(prata, "Uberlândia").includes("Uberlândia Medical Center - UMC"));
+  assert.ok(redeDaCidade(prata, "Uberlândia").includes("Hospital Santa Genoveva"));
+  assert.ok(redeDaCidade(prata, "Uberaba").includes("Hospital São Marcos de Uberaba"));
+  // Coparticipação da Linha Amil: Platinum tem limites próprios.
+  assert.ok(amil.find((p) => p.id === "amil-pme-platinum-r1-30").copartTabela.includes("Internação | – | 400,00"));
+  // No comparativo, a Santa Clara da Amil e a da Unimed ficam numa linha só.
+  const unimed = planos.find((p) => p.id === "unimed-pleno-on-pme");
+  const lado = renderizarComparativo([ouro, unimed].map((p) => montarSnapshot(p, pedido, { nome: "C", fone: "34999990000", empresa: "E" })));
+  assert.equal(lado.match(/Santa Clara/g).length, 1);
+});
+
+test("plano antigo, sem tabela por vidas, continua com o preço de família a partir de 3 vidas", () => {
+  const p = { faixasEnf: [100, ...Array(9).fill(100)], faixasApto: Array(10).fill(null), faixasEnfFamilia: Array(10).fill(80) };
+  assert.equal(planPrices(p, [2, 0, 0, 0, 0, 0, 0, 0, 0, 0]).enf, 200);
+  assert.equal(planPrices(p, [3, 0, 0, 0, 0, 0, 0, 0, 0, 0]).enf, 240);
+  assert.equal(planPrices(p, [3, 0, 0, 0, 0, 0, 0, 0, 0, 0]).tabelaVidas, "");
+});
+
+test("banco da versão anterior recebe as colunas de vidas e os planos Amil PME; a API valida as tabelas", async (t) => {
+  const pasta = mkdtempSync(join(tmpdir(), "cotador-vidas-"));
+  const caminho = join(pasta, "c.db");
+  const antigo = new Banco(caminho, seed);
+  for (const p of planos.filter((x) => x.id.startsWith("amil-pme-"))) antigo.excluirPlano(p.id);
+  antigo.db.exec("ALTER TABLE planos DROP COLUMN vidas_minimas; ALTER TABLE planos DROP COLUMN tabelas_por_vidas; PRAGMA user_version = 25");
+  antigo.fechar();
+  const banco = new Banco(caminho, seed);
+  const prata = banco.obterPlano("amil-pme-prata-40-mei");
+  assert.equal(prata.vidasMinimas, 2);
+  assert.equal(prata.tabelasPorVidas[1].ate, 99);
+  assert.equal(prata.tabelasPorVidas[0].faixasEnf[0], 184.01);
+  assert.equal(banco.obterPlano("plam-saude-pf").vidasMinimas, null);
+  const app = criarApp({ banco, pastaPublica: join(raiz, "public"), pastaUploads: join(pasta, "u"), pastaBackups: join(pasta, "b"), env: {} });
+  const servidor = await new Promise((ok) => { const s = app.listen(0, "127.0.0.1", () => ok(s)); });
+  t.after(() => new Promise((fim) => { servidor.closeAllConnections(); servidor.close(() => { banco.fechar(); rmSync(pasta, { recursive: true, force: true }); fim(); }); }));
+  const url = `http://127.0.0.1:${servidor.address().port}/api/planos/amil-pme-prata-40-mei`;
+  const salvar = (mudanca) => fetch(url, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...prata, ...mudanca }) });
+  // Salvar o plano sem mexer nas tabelas mantém tudo como estava.
+  assert.ok((await salvar({ subtitulo: "Novo" })).ok);
+  assert.deepEqual(banco.obterPlano("amil-pme-prata-40-mei").tabelasPorVidas, prata.tabelasPorVidas);
+  assert.equal((await salvar({ tabelasPorVidas: [{ aPartirDe: 5, faixasEnf: [1], faixasApto: null }] })).status, 400);
+  assert.equal((await salvar({ tabelasPorVidas: [{ aPartirDe: 30, faixasEnf: null, faixasApto: null }, { aPartirDe: 5, faixasEnf: null, faixasApto: null }] })).status, 400);
+  assert.equal((await salvar({ vidasMinimas: 2.5 })).status, 400);
+  assert.ok((await salvar({ vidasMinimas: 1 })).ok);
+  assert.equal(banco.obterPlano("amil-pme-prata-40-mei").vidasMinimas, null);
 });
 
 test("plano sem área cadastrada continua aparecendo", () => {

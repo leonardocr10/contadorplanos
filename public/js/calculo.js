@@ -43,12 +43,48 @@ function agruparLinhas(linhas, modelo) {
   });
 }
 
+/* ---------- preço pelo total de vidas ---------- */
+// Alguns planos de empresa mudam de preço com o tamanho do grupo (ex.: 2 a 4, 5 a 29 e 30 vidas ou mais).
+// A tabela principal vale até a primeira de tabelasPorVidas; cada uma vale a partir do seu número de vidas.
+const tabelasPorVidasDe = (p) => (Array.isArray(p.tabelasPorVidas) ? [...p.tabelasPorVidas].sort((a, b) => a.aPartirDe - b.aPartirDe) : []);
+
+export function tabelaPorVidas(p, total) {
+  return tabelasPorVidasDe(p).filter((t) => total >= t.aPartirDe).pop() ?? null;
+}
+
+const faixaDeVidas = (de, ate) => (ate == null ? `${de} vidas ou mais` : de === ate ? `${de} ${de === 1 ? "vida" : "vidas"}` : `${de} a ${ate} vidas`);
+
+// Os grupos de vidas do plano, na ordem: [{ de, ate, faixasEnf, faixasApto }].
+export function gruposDeVidas(p) {
+  const tabelas = tabelasPorVidasDe(p);
+  if (!tabelas.length) return [];
+  const grupos = [{ de: p.vidasMinimas || 1, faixasEnf: p.faixasEnf, faixasApto: p.faixasApto }, ...tabelas.map((t) => ({ de: t.aPartirDe, faixasEnf: t.faixasEnf, faixasApto: t.faixasApto }))];
+  // A última tabela pode ter um limite de vidas (ex.: 30 a 99 vidas).
+  const limite = tabelas.at(-1).ate ?? null;
+  return grupos.map((g, i) => {
+    const ate = grupos[i + 1] ? grupos[i + 1].de - 1 : limite;
+    return { ...g, ate, nome: faixaDeVidas(g.de, ate) };
+  });
+}
+
+// Nome do grupo de vidas usado no preço, como "5 a 29 vidas". Vazio quando o plano tem uma tabela só.
+export function nomeDoGrupoDeVidas(p, total) {
+  return gruposDeVidas(p).filter((g) => total >= g.de).pop()?.nome ?? "";
+}
+
 export function planPrices(p, vidas, over = {}) {
   if (hasFaixas(p) && totalVidas(vidas) > 0) {
+    const total = totalVidas(vidas);
+    // Abaixo do mínimo de vidas o plano não tem preço.
+    if (p.vidasMinimas && total < p.vidasMinimas) return { porFaixa: true, linhas: [], enf: null, apto: null, minimo: p.vidasMinimas, tabelaVidas: "" };
+    // Acima do limite da última tabela também não: o preço é negociado direto com a operadora.
+    const maximo = gruposDeVidas(p).at(-1)?.ate;
+    if (maximo && total > maximo) return { porFaixa: true, linhas: [], enf: null, apto: null, maximo, tabelaVidas: "" };
+    const porVidas = tabelaPorVidas(p, total);
     // Alguns planos têm preço menor para titular com 2 ou mais dependentes (3 vidas ou mais).
-    const familia = totalVidas(vidas) >= 3;
-    const tabelaEnf = familia && p.faixasEnfFamilia ? p.faixasEnfFamilia : p.faixasEnf;
-    const tabelaApto = familia && p.faixasAptoFamilia ? p.faixasAptoFamilia : p.faixasApto;
+    const familia = !porVidas && total >= 3;
+    const tabelaEnf = porVidas ? porVidas.faixasEnf : familia && p.faixasEnfFamilia ? p.faixasEnfFamilia : p.faixasEnf;
+    const tabelaApto = porVidas ? porVidas.faixasApto : familia && p.faixasAptoFamilia ? p.faixasAptoFamilia : p.faixasApto;
     const linhas = [];
     let enf = 0, apto = 0, eOk = true, aOk = true;
     vidas.forEach((n, i) => {
@@ -58,7 +94,7 @@ export function planPrices(p, vidas, over = {}) {
       if (a == null) aOk = false; else apto += a * n;
       linhas.push({ i, n, enf: e, apto: a, faixa: FAIXAS[i] });
     });
-    return { porFaixa: true, linhas: agruparLinhas(linhas, p.faixasModelo), enf: eOk ? r2(enf) : null, apto: aOk ? r2(apto) : null };
+    return { porFaixa: true, linhas: agruparLinhas(linhas, p.faixasModelo), enf: eOk ? r2(enf) : null, apto: aOk ? r2(apto) : null, tabelaVidas: nomeDoGrupoDeVidas(p, total) };
   }
   const o = over[p.id] || {};
   return { porFaixa: false, linhas: [], enf: o.enf !== undefined ? o.enf : p.enfermaria, apto: o.apto !== undefined ? o.apto : p.apartamento };

@@ -11,7 +11,7 @@ const listaDeNomes = (nomes) => (nomes.length > 1 ? nomes.slice(0, -1).join(", "
 
 function blocoValores(L, v, vidas) {
   const tv = totalVidas(vidas);
-  L.push("", `💰 *Valor da mensalidade* (${tv} ${tv === 1 ? "vida" : "vidas"})`);
+  L.push("", `💰 *Valor da mensalidade* (${tv} ${tv === 1 ? "vida" : "vidas"}${v.tabelaVidas ? ` · preço para empresas de ${v.tabelaVidas}` : ""})`);
   if (v.porFaixa) {
     for (const l of v.linhas) {
       const valores = [l.enf != null && `Enf. R$ ${brl(l.enf * l.n)}`, l.apto != null && `Apto R$ ${brl(l.apto * l.n)}`].filter(Boolean).join(" · ");
