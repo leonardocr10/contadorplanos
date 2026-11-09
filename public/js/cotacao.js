@@ -163,16 +163,21 @@ function opcoesDaLinha(nome, planos) {
   return `<div class="opcoes-plano" role="group" aria-label="Opções de ${esc(nome)}">${corpo}</div>`;
 }
 
-const CATEGORIAS_AMIL = ["PRATA", "OURO", "PLATINUM R1", "PLATINUM R2"];
-const categoriaAmil = (nome) => {
+// Operadoras com a ordem das categorias definida pela corretora; as demais ficam em ordem alfabética.
+const CATEGORIAS = {
+  AMIL: ["PRATA", "OURO", "PLATINUM R1", "PLATINUM R2"],
+  UNIMED: ["PLENO", "UDIPLAN", "PONTUAL", "UNIPLAN"],
+};
+const categoriaDo = (nome) => {
   const n = normal(nome).toUpperCase();
-  if (!n.startsWith("AMIL ")) return -1;
-  const i = CATEGORIAS_AMIL.findIndex((c) => n.startsWith(`AMIL ${c}`));
-  return i < 0 ? CATEGORIAS_AMIL.length : i;
+  const operadora = Object.keys(CATEGORIAS).find((o) => n.startsWith(`${o} `));
+  if (!operadora) return null;
+  const i = CATEGORIAS[operadora].findIndex((c) => n.startsWith(`${operadora} ${c}`));
+  return { operadora, posicao: i < 0 ? CATEGORIAS[operadora].length : i };
 };
 function compararCartoes(a, b) {
-  const ca = categoriaAmil(a), cb = categoriaAmil(b);
-  if (ca >= 0 && cb >= 0 && ca !== cb) return ca - cb;
+  const ca = categoriaDo(a), cb = categoriaDo(b);
+  if (ca && cb && ca.operadora === cb.operadora && ca.posicao !== cb.posicao) return ca.posicao - cb.posicao;
   return a.localeCompare(b, "pt-BR", { numeric: true, sensitivity: "base" });
 }
 
@@ -203,7 +208,7 @@ function renderPlans() {
   }
   // Com uma busca digitada, as linhas já vêm abertas para mostrar o que foi achado.
   const buscando = !!filtroPlanos.texto.trim();
-  // Cartões em ordem alfabética pelo nome que aparece; na Amil, pela categoria (Prata, Ouro, Platinum R1, R2).
+  // Cartões em ordem alfabética pelo nome que aparece; na Amil e na Unimed, pela categoria (ver CATEGORIAS).
   // Dentro da linha, as opções seguem a ordem do cadastro.
   const nomeDoCartao = ([nome, planos]) => (planos.length === 1 ? planos[0].nome : nome);
   const ordenadas = [...linhas].sort((a, b) => compararCartoes(nomeDoCartao(a), nomeDoCartao(b)));
