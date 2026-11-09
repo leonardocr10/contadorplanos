@@ -123,9 +123,10 @@ function cartaoDoPlano(p, titulo = p.nome) {
 }
 
 // Resumo da linha: quantas opções, o menor preço e quantas já estão na proposta.
-// Linha em que nenhuma opção aceita o tamanho do grupo (ex.: Amil PME com 1 vida): fica apagada e fechada.
+// Linha sem beneficiários informados, ou em que nenhuma opção aceita o tamanho do grupo (ex.: Amil PME com 1 vida),
+// fica apagada e fechada, como os outros cartões.
 function limiteDaLinha(planos) {
-  if (!totalVidas(S.vidas)) return "";
+  if (!totalVidas(S.vidas)) return "Informe a faixa etária dos beneficiários";
   const precos = planos.map(prices);
   if (!precos.every((v) => v.minimo || v.maximo)) return "";
   const v = precos[0];
@@ -189,6 +190,7 @@ function renderPlans() {
       + (aberto ? opcoesDaLinha(nome, planos) : "");
   }).join("");
   box.querySelectorAll(".plan-linha").forEach((b) => (b.onclick = () => {
+    if (!totalVidas(S.vidas)) { toast("Informe a faixa etária dos beneficiários antes de marcar o plano"); return; }
     if (b.dataset.limite) { toast(`${b.dataset.limite}: ajuste os beneficiários para ver as opções`); return; }
     const nome = b.dataset.linha;
     if (gruposAbertos.has(nome)) gruposAbertos.delete(nome); else gruposAbertos.add(nome);
