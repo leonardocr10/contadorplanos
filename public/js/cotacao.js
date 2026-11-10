@@ -99,7 +99,7 @@ function tirarForaDoGrupo() {
 // que abre as opções ao clicar. O nome sem a coparticipação e sem o MEI é o da linha.
 const SUFIXOS = /\s+(\d+%|PARCIAL|MEI)(?=\s|$)/gi;
 // Operadoras cujos planos (de nomes diferentes) ficam todos num cartão só, com o produto como opção.
-const UMA_LINHA_POR_OPERADORA = [{ nome: "SULAMÉRICA", prefixo: /^SUL\s?AM[ÉE]RICA\s+/i }];
+const UMA_LINHA_POR_OPERADORA = [{ nome: "SULAMÉRICA", prefixo: /^SUL\s?AM[ÉE]RICA\s+/i }, { nome: "UNIMED", prefixo: /^UNIMED\s+/i }];
 const operadoraEmLinha = (p) => UMA_LINHA_POR_OPERADORA.find((o) => o.prefixo.test(String(p.nome || "")));
 const linhaDoPlano = (p) => operadoraEmLinha(p)?.nome ?? String(p.nome || "").replace(SUFIXOS, "").trim();
 // "ESPECIAL 100 RC" vira "Especial 100 RC": siglas e números ficam como estão.
@@ -242,6 +242,9 @@ function renderPlans() {
   }));
 }
 
+// Sem valor: o plano não tem essa acomodação (ex.: SulAmérica Especial só apartamento) ou falta preencher alguma faixa.
+const semValor = (faixas, fixo) => ((faixas ?? []).some((x) => x != null) || fixo != null ? "falta valor" : "Não oferece");
+
 function renderSel() {
   const box = $("#sel"), items = planosEscolhidos();
   if (!items.length) { box.innerHTML = ""; return; }
@@ -257,8 +260,8 @@ function renderSel() {
     const v = prices(p);
     const remover = `<button class="iconbtn" title="Tirar da proposta" aria-label="Tirar ${esc(p.nome)} da proposta" data-rm="1">×</button>`;
     if (v.porFaixa) return `<div class="selitem" data-id="${esc(p.id)}"><div class="name">${esc(p.nome)}<small>${tipoDe(p)}${esc(p.subtitulo || "")} · ${tv} ${tv === 1 ? "vida" : "vidas"}</small></div>
-      <div class="tot"><small>Enfermaria total</small>${v.enf != null ? "R$ " + brl(v.enf) : "falta valor"}</div>
-      <div class="tot"><small>Apartamento total</small>${v.apto != null ? "R$ " + brl(v.apto) : "falta valor"}</div>
+      <div class="tot"><small>Enfermaria total</small>${v.enf != null ? "R$ " + brl(v.enf) : semValor(p.faixasEnf, p.enfermaria)}</div>
+      <div class="tot"><small>Apartamento total</small>${v.apto != null ? "R$ " + brl(v.apto) : semValor(p.faixasApto, p.apartamento)}</div>
       ${remover}</div>`;
     return `<div class="selitem" data-id="${esc(p.id)}"><div class="name">${esc(p.nome)}<small>${tipoDe(p)}${esc(p.subtitulo || "")}</small></div>
       <div class="field"><label for="enf-${esc(p.id)}">Enfermaria R$</label><input class="money" type="text" inputmode="decimal" id="enf-${esc(p.id)}" data-k="enf" value="${brl(v.enf)}"></div>
