@@ -134,6 +134,32 @@ test("os planos PME da Hapvida seguem as cotações de Uberlândia e Uberaba", (
   novoBanco.fechar();
 });
 
+test("o Hapvida pessoa física de Uberaba segue a tabela: valores, área, taxa e coparticipação", (t) => {
+  const total = planos.find((p) => p.id === "hapvida-nosso-plano-uberaba-total");
+  const parcial = planos.find((p) => p.id === "hapvida-nosso-plano-uberaba-parcial");
+  const soma = (v) => Math.round(v.reduce((a, b) => a + b, 0) * 100) / 100;
+  // Total do PDF com uma pessoa em cada faixa.
+  assert.deepEqual([soma(total.faixasEnf), soma(total.faixasApto), soma(parcial.faixasEnf), soma(parcial.faixasApto)], [3780.26, 5103.31, 5704.89, 7702.31]);
+  for (const p of [total, parcial]) {
+    assert.equal(p.categoria, "PF");
+    assert.equal(p.taxa, 7);
+    assert.ok(vendidoEm(p, "MG", "Uberaba") && !vendidoEm(p, "MG", "Uberlândia"));
+    assert.ok(p.carenciaTabela.includes("Cobertura Parcial Temporária (doenças e lesões preexistentes) | 24 meses"));
+  }
+  assert.ok(total.copartTabela.includes("Consultas eletivas | R$ 27,83"));
+  assert.ok(!parcial.copartTabela.includes("Consultas"));
+  // O banco da versão anterior recebe os dois planos.
+  const pasta = mkdtempSync(join(tmpdir(), "cotador-hapvida-pf-uba-"));
+  t.after(() => rmSync(pasta, { recursive: true, force: true }));
+  const caminho = join(pasta, "c.db");
+  const antigo = new Banco(caminho, seed);
+  antigo.db.exec("DELETE FROM planos WHERE id LIKE 'hapvida-nosso-plano-uberaba-%'; PRAGMA user_version = 33");
+  antigo.fechar();
+  const novo = new Banco(caminho, seed);
+  assert.equal(novo.obterPlano("hapvida-nosso-plano-uberaba-parcial").faixasApto[9], 1882.53);
+  novo.fechar();
+});
+
 test("os planos PME da Unimed seguem a tabela: valores, área, coparticipação e carências", (t) => {
   const ids = ["unimed-pleno-on-pme", "unimed-udiplan-on-pme", "unimed-pontual-on-pme", "unimed-uniplan-on-pme"];
   const pme = ids.map((id) => planos.find((p) => p.id === id));
@@ -521,7 +547,7 @@ test("todos os planos da base têm área válida", () => {
 
 test("as tabelas definem quais planos aparecem em cada cidade", () => {
   // Uberlândia está na área de todos os planos, menos da Aurora e dos planos de Uberaba da Hapvida.
-  assert.deepEqual(planos.filter((p) => !vendidoEm(p, "MG", "Uberlândia")).map((p) => p.id), ["aurora-saude-pf", "hapvida-nosso-plano-pme-uberaba-total", "hapvida-nosso-plano-pme-uberaba-parcial"]);
+  assert.deepEqual(planos.filter((p) => !vendidoEm(p, "MG", "Uberlândia")).map((p) => p.id), ["aurora-saude-pf", "hapvida-nosso-plano-pme-uberaba-total", "hapvida-nosso-plano-pme-uberaba-parcial", "hapvida-nosso-plano-uberaba-total", "hapvida-nosso-plano-uberaba-parcial"]);
   // Só a tabela Union da Plamedh chega a Goiás.
   assert.deepEqual(nomesEm("GO", ""), ["plamedh-pf", "plamedh-kids-pf"]);
   assert.deepEqual(nomesEm("GO", "Catalão"), ["plamedh-pf", "plamedh-kids-pf"]);
