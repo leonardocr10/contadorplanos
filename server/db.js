@@ -207,6 +207,8 @@ const MIGRACOES = [
   "UPDATE planos SET area_comercializacao = 'MG: Araguari, Belo Horizonte, Belo Vale, Betim, Bocaiúva, Bonfim, Brumadinho, Cachoeira de Minas, Caeté, Confins, Congonhas, Conselheiro Lafaiete, Contagem, Cristiano Otoni, Esmeraldas, Espírito Santo do Dourado, Florestal, Ibirité, Igarapé, Indianópolis, Itabirito, Itaverava, Jaboticatubas, Janaúba, Juatuba, Juiz de Fora, Lagoa Santa, Mariana, Mário Campos, Mateus Leme, Matozinhos, Moeda, Monte Alegre de Minas, Montes Claros, Nova Lima, Nova União, Ouro Branco, Ouro Preto, Pedro Leopoldo, Pouso Alegre, Prata, Queluzito, Raposos, Ribeirão das Neves, Rio Acima, Rio Manso, Sabará, Santa Luzia, Santana dos Montes, São Joaquim de Bicas, São José da Lapa, Sarzedo, Taquaraçu de Minas, Tupaciguara, Uberaba, Uberlândia, Vespasiano' WHERE id LIKE 'amil-pme-%' AND area_comercializacao = 'MG: Araguari, Belo Horizonte, Belo Vale, Betim, Bonfim, Brumadinho, Cachoeira de Minas, Caeté, Confins, Congonhas, Conselheiro Lafaiete, Contagem, Cristiano Otoni, Esmeraldas, Espírito Santo do Dourado, Florestal, Ibirité, Igarapé, Indianópolis, Itabirito, Itaverava, Jaboticatubas, Juatuba, Juiz de Fora, Lagoa Santa, Mariana, Mário Campos, Mateus Leme, Matozinhos, Moeda, Monte Alegre de Minas, Montes Claros, Nova Lima, Nova União, Ouro Branco, Ouro Preto, Pedro Leopoldo, Pouso Alegre, Prata, Queluzito, Raposos, Ribeirão das Neves, Rio Acima, Rio Manso, Sabará, Santa Luzia, Santana dos Montes, São Joaquim de Bicas, São José da Lapa, Sarzedo, Taquaraçu de Minas, Tupaciguara, Uberaba, Uberlândia, Vespasiano, Janaúba, Bocaiúva'",
   // Sem mudança na estrutura: marca a chegada dos planos PME da Hapvida (ver PLANOS_NOVOS).
   () => {},
+  // Sem mudança na estrutura: tabelas promocionais da Hapvida PME, com Uberaba (ver atualizarHapvidaPme).
+  () => {},
 ];
 
 const VERSAO_TEXTOS_COPARTICIPACAO = 11;
@@ -214,11 +216,14 @@ const VERSAO_AREA_COMERCIALIZACAO = 12;
 const VERSAO_REDE_POR_CIDADE = 13;
 const VERSAO_CARENCIAS_AMIL_PME = 27;
 const VERSAO_BENEFICIOS_AMIL_PME = 28;
+const VERSAO_HAPVIDA_PME_PROMO = 32;
+// Primeira faixa da tabela antiga da Hapvida PME (cotação de 1 a 99 vidas), trocada pela tabela promocional.
+const HAPVIDA_PME_ANTIGA = { "hapvida-nosso-plano-pme-total": 170.72, "hapvida-nosso-plano-pme-parcial": 252.94 };
 // Prazos da lei que os planos Amil PME tiveram até a tabela da Amil chegar.
 const CARENCIA_PROVISORIA_AMIL_PME = "Cobertura | Prazo máximo (Lei 9.656/98)";
 
 // Planos lançados depois que o banco já existia: entram uma única vez, ao atualizar.
-const PLANOS_NOVOS = [{ id: "plamedh-basic-pme", versao: 6 }, { id: "plam-total-cnpj", versao: 7 }, ...["sulamerica-direto-nacional", "sulamerica-especial-100-rc", "sulamerica-especial-100-r1", "sulamerica-executivo-pleno"].map((id) => ({ id, versao: 10 })), { id: "aurora-saude-pf", versao: 14 }, ...["hapvida-nosso-plano-total", "hapvida-nosso-plano-parcial"].map((id) => ({ id, versao: 22 })), ...["unimed-pleno-on-pme", "unimed-udiplan-on-pme", "unimed-pontual-on-pme", "unimed-uniplan-on-pme"].map((id) => ({ id, versao: 25 })), ...["amil-pme-prata-30", "amil-pme-prata-30-mei", "amil-pme-prata-40", "amil-pme-prata-40-mei", "amil-pme-prata-parcial", "amil-pme-prata-parcial-mei", "amil-pme-ouro-30", "amil-pme-ouro-30-mei", "amil-pme-ouro-40", "amil-pme-ouro-40-mei", "amil-pme-ouro-parcial", "amil-pme-ouro-parcial-mei", "amil-pme-platinum-r1-30", "amil-pme-platinum-r1-30-mei", "amil-pme-platinum-r1-40", "amil-pme-platinum-r1-40-mei", "amil-pme-platinum-r1-parcial", "amil-pme-platinum-r1-parcial-mei", "amil-pme-platinum-r2-30", "amil-pme-platinum-r2-30-mei", "amil-pme-platinum-r2-40", "amil-pme-platinum-r2-40-mei", "amil-pme-platinum-r2-parcial", "amil-pme-platinum-r2-parcial-mei"].map((id) => ({ id, versao: 26 })), ...["hapvida-nosso-plano-pme-total", "hapvida-nosso-plano-pme-parcial"].map((id) => ({ id, versao: 31 }))];
+const PLANOS_NOVOS = [{ id: "plamedh-basic-pme", versao: 6 }, { id: "plam-total-cnpj", versao: 7 }, ...["sulamerica-direto-nacional", "sulamerica-especial-100-rc", "sulamerica-especial-100-r1", "sulamerica-executivo-pleno"].map((id) => ({ id, versao: 10 })), { id: "aurora-saude-pf", versao: 14 }, ...["hapvida-nosso-plano-total", "hapvida-nosso-plano-parcial"].map((id) => ({ id, versao: 22 })), ...["unimed-pleno-on-pme", "unimed-udiplan-on-pme", "unimed-pontual-on-pme", "unimed-uniplan-on-pme"].map((id) => ({ id, versao: 25 })), ...["amil-pme-prata-30", "amil-pme-prata-30-mei", "amil-pme-prata-40", "amil-pme-prata-40-mei", "amil-pme-prata-parcial", "amil-pme-prata-parcial-mei", "amil-pme-ouro-30", "amil-pme-ouro-30-mei", "amil-pme-ouro-40", "amil-pme-ouro-40-mei", "amil-pme-ouro-parcial", "amil-pme-ouro-parcial-mei", "amil-pme-platinum-r1-30", "amil-pme-platinum-r1-30-mei", "amil-pme-platinum-r1-40", "amil-pme-platinum-r1-40-mei", "amil-pme-platinum-r1-parcial", "amil-pme-platinum-r1-parcial-mei", "amil-pme-platinum-r2-30", "amil-pme-platinum-r2-30-mei", "amil-pme-platinum-r2-40", "amil-pme-platinum-r2-40-mei", "amil-pme-platinum-r2-parcial", "amil-pme-platinum-r2-parcial-mei"].map((id) => ({ id, versao: 26 })), ...["hapvida-nosso-plano-pme-total", "hapvida-nosso-plano-pme-parcial"].map((id) => ({ id, versao: 31 })), ...["hapvida-nosso-plano-pme-uberaba-total", "hapvida-nosso-plano-pme-uberaba-parcial"].map((id) => ({ id, versao: 32 }))];
 
 function migrar(db) {
   const versao = db.prepare("PRAGMA user_version").get().user_version;
@@ -309,6 +314,19 @@ export class Banco {
     this.atualizarRedePorCidade(versaoAntes);
     this.atualizarCarenciasAmilPme(versaoAntes);
     this.atualizarBeneficiosAmilPme(versaoAntes);
+    this.atualizarHapvidaPme(versaoAntes);
+  }
+
+  // Os dois planos da tabela antiga passam para a tabela promocional; plano com valores editados à mão fica como está.
+  atualizarHapvidaPme(versaoAntes) {
+    if (versaoAntes === 0 || versaoAntes >= VERSAO_HAPVIDA_PME_PROMO) return;
+    if (!this.caminhoSeed || !existsSync(this.caminhoSeed)) return;
+    const planos = JSON.parse(readFileSync(this.caminhoSeed, "utf8"));
+    for (const [id, primeiraFaixa] of Object.entries(HAPVIDA_PME_ANTIGA)) {
+      const atual = this.obterPlano(id);
+      const novo = planos.find((p) => p.id === id);
+      if (atual && novo && atual.faixasEnf?.[0] === primeiraFaixa) this.gravarPlano(id, novo);
+    }
   }
 
   // Só os benefícios que vieram com o plano (vazio ou só o reembolso): o que foi editado à mão fica.

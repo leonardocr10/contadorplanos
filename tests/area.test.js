@@ -93,32 +93,51 @@ test("a Hapvida segue a tabela: total e parcial, área, coparticipação, carên
   novo.fechar();
 });
 
-test("os planos PME da Hapvida seguem a tabela: valores, área, coparticipação e carências", (t) => {
-  const total = planos.find((p) => p.id === "hapvida-nosso-plano-pme-total");
-  const parcial = planos.find((p) => p.id === "hapvida-nosso-plano-pme-parcial");
-  // Total do PDF com uma pessoa em cada faixa.
+test("os planos PME da Hapvida seguem as tabelas promocionais de Uberlândia e Uberaba", (t) => {
+  const plano = (id) => planos.find((p) => p.id === id);
   const soma = (v) => Math.round(v.reduce((a, b) => a + b, 0) * 100) / 100;
-  assert.deepEqual([soma(total.faixasEnf), soma(total.faixasApto), soma(parcial.faixasEnf), soma(parcial.faixasApto)], [4288.57, 5776.38, 6353.57, 8564.27]);
-  for (const p of [total, parcial]) {
-    assert.equal(p.categoria, "CNPJ");
-    assert.equal(p.vidasMinimas, undefined);
-    assert.ok(vendidoEm(p, "MG", "Uberlândia") && !vendidoEm(p, "MG", "Uberaba"));
-    assert.ok(p.carenciaTabela.includes("Parto a termo | 300 dias"));
+  // 2 a 29 vidas e 30 a 99 vidas (em Uberlândia, a coluna de valor normal).
+  const udi = plano("hapvida-nosso-plano-pme-total");
+  assert.equal(udi.nome, "HAPVIDA NOSSO PLANO UBERLÂNDIA");
+  assert.deepEqual([udi.faixasEnf[0], udi.faixasApto[9], udi.tabelasPorVidas[0].faixasEnf[0], udi.tabelasPorVidas[0].faixasApto[9]], [114.32, 745.15, 151.91, 993.91]);
+  const parcial = plano("hapvida-nosso-plano-pme-parcial");
+  assert.deepEqual([soma(parcial.faixasEnf), parcial.tabelasPorVidas[0].faixasApto[9]], [4225.55, 1462.97]);
+  const uba = plano("hapvida-nosso-plano-pme-uberaba-total");
+  assert.deepEqual([uba.faixasEnf[0], uba.faixasApto[9], uba.tabelasPorVidas[0].faixasEnf[9]], [120.59, 786.18, 684.87]);
+  // Só o Nosso Plano: o Nosso Médico das tabelas não foi cadastrado.
+  assert.ok(!planos.some((p) => p.id.startsWith("hapvida-nosso-medico")));
+  const ids = ["plano-pme", "plano-pme-uberaba"].flatMap((m) => ["total", "parcial"].map((c) => `hapvida-nosso-${m}-${c}`));
+  for (const id of ids) {
+    const p = plano(id);
+    assert.equal(p.categoria, "CNPJ", id);
+    assert.equal(p.vidasMinimas, 2, id);
+    assert.deepEqual(gruposDeVidas(p).map((g) => g.nome), ["2 a 29 vidas", "30 a 99 vidas"], id);
+    const cidade = id.includes("uberaba") ? "Uberaba" : "Uberlândia";
+    assert.ok(vendidoEm(p, "MG", cidade) && !vendidoEm(p, "MG", cidade === "Uberaba" ? "Uberlândia" : "Uberaba"), id);
+    assert.ok(p.carenciaTabela.includes("Parto a termo | 300 dias"), id);
   }
-  assert.ok(total.copartTabela.includes("Consultas eletivas | R$ 47,77"));
-  assert.ok(!parcial.copartTabela.includes("Consultas"));
-  // Um plano de 1 vida já tem preço.
-  const preco = planPrices(total, [1, 0, 0, 0, 0, 0, 0, 0, 0, 0], {});
-  assert.equal(preco.enf, 170.72);
-  // O banco da versão anterior recebe os dois planos uma única vez.
+  // A coparticipação muda com a cidade e o produto.
+  assert.ok(udi.copartTabela.includes("Consultas eletivas | R$ 43,63"));
+  assert.ok(uba.copartTabela.includes("Consultas eletivas | 30% limitado a R$ 20,00"));
+  assert.ok(!plano("hapvida-nosso-plano-pme-parcial").copartTabela.includes("Consultas"));
+  // Abaixo de 2 vidas não tem preço; com 30 vidas, vale a outra tabela.
+  assert.equal(planPrices(udi, [1, 0, 0, 0, 0, 0, 0, 0, 0, 0], {}).enf, null);
+  assert.equal(planPrices(udi, [2, 0, 0, 0, 0, 0, 0, 0, 0, 0], {}).enf, 228.64);
+  assert.equal(planPrices(udi, [30, 0, 0, 0, 0, 0, 0, 0, 0, 0], {}).enf, 4557.3);
+  // O banco da versão anterior recebe os planos novos e a tabela nova; plano editado à mão fica como está.
   const pasta = mkdtempSync(join(tmpdir(), "cotador-hapvida-pme-"));
   t.after(() => rmSync(pasta, { recursive: true, force: true }));
   const caminho = join(pasta, "c.db");
   const antigo = new Banco(caminho, seed);
-  antigo.db.exec("DELETE FROM planos WHERE id LIKE 'hapvida-nosso-plano-pme-%'; PRAGMA user_version = 30");
+  antigo.db.exec("DELETE FROM planos WHERE id LIKE 'hapvida-nosso-plano-pme%' AND id NOT IN ('hapvida-nosso-plano-pme-total', 'hapvida-nosso-plano-pme-parcial'); PRAGMA user_version = 31");
+  antigo.gravarPlano("hapvida-nosso-plano-pme-total", { ...udi, faixasEnf: [170.72, ...udi.faixasEnf.slice(1)], tabelasPorVidas: null, nome: "HAPVIDA NOSSO PLANO" });
+  antigo.gravarPlano("hapvida-nosso-plano-pme-parcial", { ...plano("hapvida-nosso-plano-pme-parcial"), faixasEnf: [999, ...udi.faixasEnf.slice(1)] });
   antigo.fechar();
   const novoBanco = new Banco(caminho, seed);
-  assert.equal(novoBanco.obterPlano("hapvida-nosso-plano-pme-parcial").faixasApto[9], 2002.4);
+  assert.equal(novoBanco.obterPlano("hapvida-nosso-plano-pme-total").nome, "HAPVIDA NOSSO PLANO UBERLÂNDIA");
+  assert.equal(novoBanco.obterPlano("hapvida-nosso-plano-pme-total").faixasEnf[0], 114.32);
+  assert.equal(novoBanco.obterPlano("hapvida-nosso-plano-pme-parcial").faixasEnf[0], 999);
+  assert.equal(novoBanco.obterPlano("hapvida-nosso-plano-pme-uberaba-parcial").tabelasPorVidas[0].faixasApto[0], 171.1);
   novoBanco.fechar();
 });
 
@@ -508,8 +527,8 @@ test("todos os planos da base têm área válida", () => {
 });
 
 test("as tabelas definem quais planos aparecem em cada cidade", () => {
-  // Uberlândia está na área de todos os planos, menos da Aurora.
-  assert.deepEqual(planos.filter((p) => !vendidoEm(p, "MG", "Uberlândia")).map((p) => p.id), ["aurora-saude-pf"]);
+  // Uberlândia está na área de todos os planos, menos da Aurora e dos planos de Uberaba da Hapvida.
+  assert.deepEqual(planos.filter((p) => !vendidoEm(p, "MG", "Uberlândia")).map((p) => p.id), ["aurora-saude-pf", "hapvida-nosso-plano-pme-uberaba-total", "hapvida-nosso-plano-pme-uberaba-parcial"]);
   // Só a tabela Union da Plamedh chega a Goiás.
   assert.deepEqual(nomesEm("GO", ""), ["plamedh-pf", "plamedh-kids-pf"]);
   assert.deepEqual(nomesEm("GO", "Catalão"), ["plamedh-pf", "plamedh-kids-pf"]);
