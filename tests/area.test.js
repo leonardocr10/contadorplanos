@@ -93,51 +93,44 @@ test("a Hapvida segue a tabela: total e parcial, área, coparticipação, carên
   novo.fechar();
 });
 
-test("os planos PME da Hapvida seguem as tabelas promocionais de Uberlândia e Uberaba", (t) => {
+test("os planos PME da Hapvida seguem as cotações de Uberlândia e Uberaba", (t) => {
   const plano = (id) => planos.find((p) => p.id === id);
   const soma = (v) => Math.round(v.reduce((a, b) => a + b, 0) * 100) / 100;
-  // 2 a 29 vidas e 30 a 99 vidas (em Uberlândia, a coluna de valor normal).
-  const udi = plano("hapvida-nosso-plano-pme-total");
-  assert.equal(udi.nome, "HAPVIDA NOSSO PLANO UBERLÂNDIA");
-  assert.deepEqual([udi.faixasEnf[0], udi.faixasApto[9], udi.tabelasPorVidas[0].faixasEnf[0], udi.tabelasPorVidas[0].faixasApto[9]], [114.32, 745.15, 151.91, 993.91]);
-  const parcial = plano("hapvida-nosso-plano-pme-parcial");
-  assert.deepEqual([soma(parcial.faixasEnf), parcial.tabelasPorVidas[0].faixasApto[9]], [4225.55, 1462.97]);
-  const uba = plano("hapvida-nosso-plano-pme-uberaba-total");
-  assert.deepEqual([uba.faixasEnf[0], uba.faixasApto[9], uba.tabelasPorVidas[0].faixasEnf[9]], [120.59, 786.18, 684.87]);
-  // Só o Nosso Plano: o Nosso Médico das tabelas não foi cadastrado.
-  assert.ok(!planos.some((p) => p.id.startsWith("hapvida-nosso-medico")));
-  const ids = ["plano-pme", "plano-pme-uberaba"].flatMap((m) => ["total", "parcial"].map((c) => `hapvida-nosso-${m}-${c}`));
+  const ids = ["hapvida-nosso-plano-pme-total", "hapvida-nosso-plano-pme-parcial", "hapvida-nosso-plano-pme-uberaba-total", "hapvida-nosso-plano-pme-uberaba-parcial"];
+  // Total de cada PDF com uma pessoa em cada faixa: enfermaria e apartamento.
+  assert.deepEqual(ids.map((id) => [soma(plano(id).faixasEnf), soma(plano(id).faixasApto)]), [[4288.57, 5776.38], [6353.57, 8564.27], [4281.32, 5766.67], [6273.81, 8461.8]]);
+  assert.deepEqual(ids.map((id) => plano(id).nome), ["HAPVIDA NOSSO PLANO UBERLÂNDIA", "HAPVIDA NOSSO PLANO UBERLÂNDIA PARCIAL", "HAPVIDA NOSSO PLANO UBERABA", "HAPVIDA NOSSO PLANO UBERABA PARCIAL"]);
   for (const id of ids) {
     const p = plano(id);
     assert.equal(p.categoria, "CNPJ", id);
-    assert.equal(p.vidasMinimas, 2, id);
-    assert.deepEqual(gruposDeVidas(p).map((g) => g.nome), ["2 a 29 vidas", "30 a 99 vidas"], id);
+    // PME de 1 a 99 vidas, com uma tabela só.
+    assert.equal(p.vidasMinimas, undefined, id);
+    assert.equal(p.tabelasPorVidas, undefined, id);
     const cidade = id.includes("uberaba") ? "Uberaba" : "Uberlândia";
     assert.ok(vendidoEm(p, "MG", cidade) && !vendidoEm(p, "MG", cidade === "Uberaba" ? "Uberlândia" : "Uberaba"), id);
     assert.ok(p.carenciaTabela.includes("Parto a termo | 300 dias"), id);
+    assert.ok(p.extras.includes("R$ 15,00"), id);
+    assert.ok(p.copartTabela.includes(id.endsWith("total") ? "Consultas eletivas | R$ 47,77" : "Terapias neurológicas especiais | R$ 86,36"), id);
   }
-  // A coparticipação muda com a cidade e o produto.
-  assert.ok(udi.copartTabela.includes("Consultas eletivas | R$ 43,63"));
-  assert.ok(uba.copartTabela.includes("Consultas eletivas | 30% limitado a R$ 20,00"));
   assert.ok(!plano("hapvida-nosso-plano-pme-parcial").copartTabela.includes("Consultas"));
-  // Abaixo de 2 vidas não tem preço; com 30 vidas, vale a outra tabela.
-  assert.equal(planPrices(udi, [1, 0, 0, 0, 0, 0, 0, 0, 0, 0], {}).enf, null);
-  assert.equal(planPrices(udi, [2, 0, 0, 0, 0, 0, 0, 0, 0, 0], {}).enf, 228.64);
-  assert.equal(planPrices(udi, [30, 0, 0, 0, 0, 0, 0, 0, 0, 0], {}).enf, 4557.3);
-  // O banco da versão anterior recebe os planos novos e a tabela nova; plano editado à mão fica como está.
+  assert.equal(plano("hapvida-nosso-plano-pme-uberaba-total").rede, "");
+  assert.equal(planPrices(plano("hapvida-nosso-plano-pme-uberaba-total"), [1, 0, 0, 0, 0, 0, 0, 0, 0, 0], {}).enf, 174.44);
+  // O banco das versões anteriores recebe a tabela atual; plano editado à mão fica como está.
   const pasta = mkdtempSync(join(tmpdir(), "cotador-hapvida-pme-"));
   t.after(() => rmSync(pasta, { recursive: true, force: true }));
   const caminho = join(pasta, "c.db");
   const antigo = new Banco(caminho, seed);
-  antigo.db.exec("DELETE FROM planos WHERE id LIKE 'hapvida-nosso-plano-pme%' AND id NOT IN ('hapvida-nosso-plano-pme-total', 'hapvida-nosso-plano-pme-parcial'); PRAGMA user_version = 31");
-  antigo.gravarPlano("hapvida-nosso-plano-pme-total", { ...udi, faixasEnf: [170.72, ...udi.faixasEnf.slice(1)], tabelasPorVidas: null, nome: "HAPVIDA NOSSO PLANO" });
-  antigo.gravarPlano("hapvida-nosso-plano-pme-parcial", { ...plano("hapvida-nosso-plano-pme-parcial"), faixasEnf: [999, ...udi.faixasEnf.slice(1)] });
+  const promo = (id, primeira, extra = {}) => antigo.gravarPlano(id, { ...plano(id), faixasEnf: [primeira, ...plano(id).faixasEnf.slice(1)], vidasMinimas: 2, tabelasPorVidas: [{ aPartirDe: 30, ate: 99, faixasEnf: plano(id).faixasEnf, faixasApto: plano(id).faixasApto }], ...extra });
+  promo("hapvida-nosso-plano-pme-total", 114.32, { nome: "HAPVIDA NOSSO PLANO" });
+  promo("hapvida-nosso-plano-pme-parcial", 999);
+  promo("hapvida-nosso-plano-pme-uberaba-total", 120.59);
+  antigo.db.exec("PRAGMA user_version = 32");
   antigo.fechar();
   const novoBanco = new Banco(caminho, seed);
-  assert.equal(novoBanco.obterPlano("hapvida-nosso-plano-pme-total").nome, "HAPVIDA NOSSO PLANO UBERLÂNDIA");
-  assert.equal(novoBanco.obterPlano("hapvida-nosso-plano-pme-total").faixasEnf[0], 114.32);
+  const udi = novoBanco.obterPlano("hapvida-nosso-plano-pme-total");
+  assert.deepEqual([udi.nome, udi.faixasEnf[0], udi.vidasMinimas ?? null, udi.tabelasPorVidas ?? null], ["HAPVIDA NOSSO PLANO UBERLÂNDIA", 170.72, null, null]);
   assert.equal(novoBanco.obterPlano("hapvida-nosso-plano-pme-parcial").faixasEnf[0], 999);
-  assert.equal(novoBanco.obterPlano("hapvida-nosso-plano-pme-uberaba-parcial").tabelasPorVidas[0].faixasApto[0], 171.1);
+  assert.equal(novoBanco.obterPlano("hapvida-nosso-plano-pme-uberaba-total").faixasEnf[0], 174.44);
   novoBanco.fechar();
 });
 

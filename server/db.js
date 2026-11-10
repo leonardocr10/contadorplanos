@@ -209,6 +209,8 @@ const MIGRACOES = [
   () => {},
   // Sem mudança na estrutura: tabelas promocionais da Hapvida PME, com Uberaba (ver atualizarHapvidaPme).
   () => {},
+  // Sem mudança na estrutura: Hapvida PME volta à cotação de 1 a 99 vidas, com Uberaba (ver atualizarHapvidaPme).
+  () => {},
 ];
 
 const VERSAO_TEXTOS_COPARTICIPACAO = 11;
@@ -216,9 +218,9 @@ const VERSAO_AREA_COMERCIALIZACAO = 12;
 const VERSAO_REDE_POR_CIDADE = 13;
 const VERSAO_CARENCIAS_AMIL_PME = 27;
 const VERSAO_BENEFICIOS_AMIL_PME = 28;
-const VERSAO_HAPVIDA_PME_PROMO = 32;
-// Primeira faixa da tabela antiga da Hapvida PME (cotação de 1 a 99 vidas), trocada pela tabela promocional.
-const HAPVIDA_PME_ANTIGA = { "hapvida-nosso-plano-pme-total": 170.72, "hapvida-nosso-plano-pme-parcial": 252.94 };
+const VERSAO_HAPVIDA_PME = 33;
+// Primeira faixa das tabelas que a Hapvida PME já teve: plano com outro valor foi editado à mão.
+const HAPVIDA_PME_ANTIGA = { "hapvida-nosso-plano-pme-total": [170.72, 114.32], "hapvida-nosso-plano-pme-parcial": [252.94, 168.22], "hapvida-nosso-plano-pme-uberaba-total": [120.59], "hapvida-nosso-plano-pme-uberaba-parcial": [158.93] };
 // Prazos da lei que os planos Amil PME tiveram até a tabela da Amil chegar.
 const CARENCIA_PROVISORIA_AMIL_PME = "Cobertura | Prazo máximo (Lei 9.656/98)";
 
@@ -317,15 +319,15 @@ export class Banco {
     this.atualizarHapvidaPme(versaoAntes);
   }
 
-  // Os dois planos da tabela antiga passam para a tabela promocional; plano com valores editados à mão fica como está.
+  // Os planos das tabelas anteriores passam para a tabela atual; plano com valores editados à mão fica como está.
   atualizarHapvidaPme(versaoAntes) {
-    if (versaoAntes === 0 || versaoAntes >= VERSAO_HAPVIDA_PME_PROMO) return;
+    if (versaoAntes === 0 || versaoAntes >= VERSAO_HAPVIDA_PME) return;
     if (!this.caminhoSeed || !existsSync(this.caminhoSeed)) return;
     const planos = JSON.parse(readFileSync(this.caminhoSeed, "utf8"));
-    for (const [id, primeiraFaixa] of Object.entries(HAPVIDA_PME_ANTIGA)) {
+    for (const [id, primeiras] of Object.entries(HAPVIDA_PME_ANTIGA)) {
       const atual = this.obterPlano(id);
       const novo = planos.find((p) => p.id === id);
-      if (atual && novo && atual.faixasEnf?.[0] === primeiraFaixa) this.gravarPlano(id, novo);
+      if (atual && novo && primeiras.includes(atual.faixasEnf?.[0])) this.gravarPlano(id, novo);
     }
   }
 
