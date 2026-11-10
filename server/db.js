@@ -213,6 +213,8 @@ const MIGRACOES = [
   () => {},
   // Sem mudança na estrutura: Hapvida PME volta à cotação de 1 a 99 vidas, com Uberaba (ver atualizarHapvidaPme).
   () => {},
+  // Sem mudança na estrutura: Hapvida PME de Uberlândia com a tabela nova, taxa de R$ 20,00 e odonto novo (ver atualizarHapvidaPme).
+  () => {},
 ];
 
 const VERSAO_TEXTOS_COPARTICIPACAO = 11;
@@ -220,9 +222,9 @@ const VERSAO_AREA_COMERCIALIZACAO = 12;
 const VERSAO_REDE_POR_CIDADE = 13;
 const VERSAO_CARENCIAS_AMIL_PME = 27;
 const VERSAO_BENEFICIOS_AMIL_PME = 28;
-const VERSAO_HAPVIDA_PME = 33;
+const VERSAO_HAPVIDA_PME = 35;
 // Primeira faixa das tabelas que a Hapvida PME já teve: plano com outro valor foi editado à mão.
-const HAPVIDA_PME_ANTIGA = { "hapvida-nosso-plano-pme-total": [170.72, 114.32], "hapvida-nosso-plano-pme-parcial": [252.94, 168.22], "hapvida-nosso-plano-pme-uberaba-total": [120.59], "hapvida-nosso-plano-pme-uberaba-parcial": [158.93] };
+const HAPVIDA_PME_ANTIGA = { "hapvida-nosso-plano-pme-total": [170.72, 114.32], "hapvida-nosso-plano-pme-parcial": [252.94, 168.22], "hapvida-nosso-plano-pme-uberaba-total": [174.44, 120.59], "hapvida-nosso-plano-pme-uberaba-parcial": [255.75, 158.93] };
 // Prazos da lei que os planos Amil PME tiveram até a tabela da Amil chegar.
 const CARENCIA_PROVISORIA_AMIL_PME = "Cobertura | Prazo máximo (Lei 9.656/98)";
 

@@ -98,7 +98,7 @@ test("os planos PME da Hapvida seguem as cotações de Uberlândia e Uberaba", (
   const soma = (v) => Math.round(v.reduce((a, b) => a + b, 0) * 100) / 100;
   const ids = ["hapvida-nosso-plano-pme-total", "hapvida-nosso-plano-pme-parcial", "hapvida-nosso-plano-pme-uberaba-total", "hapvida-nosso-plano-pme-uberaba-parcial"];
   // Total de cada PDF com uma pessoa em cada faixa: enfermaria e apartamento.
-  assert.deepEqual(ids.map((id) => [soma(plano(id).faixasEnf), soma(plano(id).faixasApto)]), [[4288.57, 5776.38], [6353.57, 8564.27], [4281.32, 5766.67], [6273.81, 8461.8]]);
+  assert.deepEqual(ids.map((id) => [soma(plano(id).faixasEnf), soma(plano(id).faixasApto)]), [[2871.61, 3187.04], [4225.55, 4690.03], [4281.32, 5766.67], [6273.81, 8461.8]]);
   assert.deepEqual(ids.map((id) => plano(id).nome), ["HAPVIDA NOSSO PLANO UBERLÂNDIA", "HAPVIDA NOSSO PLANO UBERLÂNDIA PARCIAL", "HAPVIDA NOSSO PLANO UBERABA", "HAPVIDA NOSSO PLANO UBERABA PARCIAL"]);
   for (const id of ids) {
     const p = plano(id);
@@ -109,7 +109,7 @@ test("os planos PME da Hapvida seguem as cotações de Uberlândia e Uberaba", (
     const cidade = id.includes("uberaba") ? "Uberaba" : "Uberlândia";
     assert.ok(vendidoEm(p, "MG", cidade) && !vendidoEm(p, "MG", cidade === "Uberaba" ? "Uberlândia" : "Uberaba"), id);
     assert.ok(p.carenciaTabela.includes("Parto a termo | 300 dias"), id);
-    assert.ok(p.extras.includes("R$ 15,00"), id);
+    assert.ok(p.extras.includes(cidade === "Uberaba" ? "R$ 15,00" : "Taxa de cadastro de R$ 20,00"), id);
     assert.ok(p.copartTabela.includes(id.endsWith("total") ? "Consultas eletivas | R$ 47,77" : "Terapias neurológicas especiais | R$ 86,36"), id);
   }
   assert.ok(!plano("hapvida-nosso-plano-pme-parcial").copartTabela.includes("Consultas"));
@@ -121,14 +121,14 @@ test("os planos PME da Hapvida seguem as cotações de Uberlândia e Uberaba", (
   const caminho = join(pasta, "c.db");
   const antigo = new Banco(caminho, seed);
   const promo = (id, primeira, extra = {}) => antigo.gravarPlano(id, { ...plano(id), faixasEnf: [primeira, ...plano(id).faixasEnf.slice(1)], vidasMinimas: 2, tabelasPorVidas: [{ aPartirDe: 30, ate: 99, faixasEnf: plano(id).faixasEnf, faixasApto: plano(id).faixasApto }], ...extra });
-  promo("hapvida-nosso-plano-pme-total", 114.32, { nome: "HAPVIDA NOSSO PLANO" });
+  promo("hapvida-nosso-plano-pme-total", 170.72, { nome: "HAPVIDA NOSSO PLANO" });
   promo("hapvida-nosso-plano-pme-parcial", 999);
   promo("hapvida-nosso-plano-pme-uberaba-total", 120.59);
-  antigo.db.exec("PRAGMA user_version = 32");
+  antigo.db.exec("PRAGMA user_version = 34");
   antigo.fechar();
   const novoBanco = new Banco(caminho, seed);
   const udi = novoBanco.obterPlano("hapvida-nosso-plano-pme-total");
-  assert.deepEqual([udi.nome, udi.faixasEnf[0], udi.vidasMinimas ?? null, udi.tabelasPorVidas ?? null], ["HAPVIDA NOSSO PLANO UBERLÂNDIA", 170.72, null, null]);
+  assert.deepEqual([udi.nome, udi.faixasEnf[0], udi.vidasMinimas ?? null, udi.tabelasPorVidas ?? null], ["HAPVIDA NOSSO PLANO UBERLÂNDIA", 114.32, null, null]);
   assert.equal(novoBanco.obterPlano("hapvida-nosso-plano-pme-parcial").faixasEnf[0], 999);
   assert.equal(novoBanco.obterPlano("hapvida-nosso-plano-pme-uberaba-total").faixasEnf[0], 174.44);
   novoBanco.fechar();
