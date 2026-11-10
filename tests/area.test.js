@@ -93,6 +93,35 @@ test("a Hapvida segue a tabela: total e parcial, área, coparticipação, carên
   novo.fechar();
 });
 
+test("os planos PME da Hapvida seguem a tabela: valores, área, coparticipação e carências", (t) => {
+  const total = planos.find((p) => p.id === "hapvida-nosso-plano-pme-total");
+  const parcial = planos.find((p) => p.id === "hapvida-nosso-plano-pme-parcial");
+  // Total do PDF com uma pessoa em cada faixa.
+  const soma = (v) => Math.round(v.reduce((a, b) => a + b, 0) * 100) / 100;
+  assert.deepEqual([soma(total.faixasEnf), soma(total.faixasApto), soma(parcial.faixasEnf), soma(parcial.faixasApto)], [4288.57, 5776.38, 6353.57, 8564.27]);
+  for (const p of [total, parcial]) {
+    assert.equal(p.categoria, "CNPJ");
+    assert.equal(p.vidasMinimas, undefined);
+    assert.ok(vendidoEm(p, "MG", "Uberlândia") && !vendidoEm(p, "MG", "Uberaba"));
+    assert.ok(p.carenciaTabela.includes("Parto a termo | 300 dias"));
+  }
+  assert.ok(total.copartTabela.includes("Consultas eletivas | R$ 47,77"));
+  assert.ok(!parcial.copartTabela.includes("Consultas"));
+  // Um plano de 1 vida já tem preço.
+  const preco = planPrices(total, [1, 0, 0, 0, 0, 0, 0, 0, 0, 0], {});
+  assert.equal(preco.enf, 170.72);
+  // O banco da versão anterior recebe os dois planos uma única vez.
+  const pasta = mkdtempSync(join(tmpdir(), "cotador-hapvida-pme-"));
+  t.after(() => rmSync(pasta, { recursive: true, force: true }));
+  const caminho = join(pasta, "c.db");
+  const antigo = new Banco(caminho, seed);
+  antigo.db.exec("DELETE FROM planos WHERE id LIKE 'hapvida-nosso-plano-pme-%'; PRAGMA user_version = 30");
+  antigo.fechar();
+  const novoBanco = new Banco(caminho, seed);
+  assert.equal(novoBanco.obterPlano("hapvida-nosso-plano-pme-parcial").faixasApto[9], 2002.4);
+  novoBanco.fechar();
+});
+
 test("os planos PME da Unimed seguem a tabela: valores, área, coparticipação e carências", (t) => {
   const ids = ["unimed-pleno-on-pme", "unimed-udiplan-on-pme", "unimed-pontual-on-pme", "unimed-uniplan-on-pme"];
   const pme = ids.map((id) => planos.find((p) => p.id === id));
