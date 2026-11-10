@@ -98,10 +98,17 @@ function tirarForaDoGrupo() {
 // Planos da mesma linha ("AMIL PRATA 30%", "AMIL PRATA 30% MEI", "AMIL PRATA PARCIAL"...) ficam num cartão só,
 // que abre as opções ao clicar. O nome sem a coparticipação e sem o MEI é o da linha.
 const SUFIXOS = /\s+(\d+%|PARCIAL|MEI)(?=\s|$)/gi;
-const linhaDoPlano = (p) => String(p.nome || "").replace(SUFIXOS, "").trim();
+// Operadoras cujos planos (de nomes diferentes) ficam todos num cartão só, com o produto como opção.
+const UMA_LINHA_POR_OPERADORA = [{ nome: "SULAMÉRICA", prefixo: /^SUL\s?AM[ÉE]RICA\s+/i }];
+const operadoraEmLinha = (p) => UMA_LINHA_POR_OPERADORA.find((o) => o.prefixo.test(String(p.nome || "")));
+const linhaDoPlano = (p) => operadoraEmLinha(p)?.nome ?? String(p.nome || "").replace(SUFIXOS, "").trim();
+// "ESPECIAL 100 RC" vira "Especial 100 RC": siglas e números ficam como estão.
+const nomeDoProduto = (s) => s.toLowerCase().split(/\s+/).map((w, i) => (/\d|^r[c\d]$/.test(w) ? w.toUpperCase() : i > 0 && /^(de|da|do|e)$/.test(w) ? w : w.charAt(0).toUpperCase() + w.slice(1))).join(" ");
 const gruposAbertos = new Set();
 const eMei = (p) => [...String(p.nome || "").matchAll(SUFIXOS)].some((m) => m[1].toUpperCase() === "MEI");
 function rotuloDaOpcao(p) {
+  const operadora = operadoraEmLinha(p);
+  if (operadora) return esc(nomeDoProduto(String(p.nome).replace(operadora.prefixo, "")));
   const tokens = [...String(p.nome || "").matchAll(SUFIXOS)].map((m) => m[1].toUpperCase());
   const copart = tokens.filter((t) => t !== "MEI").map((t) => (t === "PARCIAL" ? "Coparticipação parcial" : `Coparticipação ${t}`)).join(" · ");
   // Sem sufixo, o subtítulo diz qual é a opção (ex.: "Coparticipação total").
@@ -112,7 +119,8 @@ function rotuloDaOpcao(p) {
 
 // Valores que não quebram no meio: se faltar espaço, o apartamento desce inteiro.
 const valor = (rotulo, n) => `<span class="nw">${rotulo} R$ ${brl(n) || "—"}</span>`;
-const valores = (enf, apto) => `${valor("Enf.", enf)} · ${valor("Apto", apto)}`;
+// Plano só de apartamento (ou só de enfermaria) mostra apenas o valor que tem.
+const valores = (enf, apto) => (enf == null && apto != null ? valor("Apto", apto) : apto == null && enf != null ? valor("Enf.", enf) : `${valor("Enf.", enf)} · ${valor("Apto", apto)}`);
 
 // O título vem em HTML pronto (opção de uma linha) ou é o nome do plano.
 function cartaoDoPlano(p, titulo = esc(p.nome)) {
