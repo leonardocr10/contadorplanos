@@ -497,6 +497,41 @@ test("contratos vendidos: cada usuário vê e altera só os próprios, inclusive
   assert.deepEqual(await (await pedir(comum, "/api/contratos")).json(), []);
 });
 
+test("contratos vendidos: documentos do cliente só para o dono do contrato", async (t) => {
+  const { base, banco, pedir, admin, comum } = await comPermissoes(t);
+  const c = await (await pedir(comum, "/api/contratos", "POST", contrato())).json();
+  assert.deepEqual(c.arquivos, []);
+  const enviar = (cookie, dados, nome) => fetch(`${base}/api/contratos/${c.id}/arquivos`, { method: "POST", headers: { cookie, "Content-Type": "application/octet-stream", "X-Nome-Arquivo": encodeURIComponent(nome) }, body: dados });
+  const pdf = Buffer.from("%PDF-1.4\nconteudo de teste");
+  const r = await enviar(comum, pdf, "RG da Maria.pdf");
+  assert.equal(r.status, 201);
+  const arquivo = await r.json();
+  assert.equal(arquivo.nome, "RG da Maria.pdf");
+  assert.equal(arquivo.tipo, "application/pdf");
+  assert.equal(arquivo.tamanho, pdf.length);
+  // Só PDF e imagem, conferidos pelo conteúdo; o nome não leva pastas.
+  assert.equal((await enviar(comum, Buffer.from("MZ executavel"), "virus.pdf")).status, 400);
+  const png = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]);
+  assert.equal((await (await enviar(comum, png, "C:\\fotos\\..\\cnh.png")).json()).nome, "cnh.png");
+  const lista = await (await pedir(comum, "/api/contratos")).json();
+  assert.deepEqual(lista[0].arquivos.map((a) => a.nome), ["RG da Maria.pdf", "cnh.png"]);
+  const baixado = await pedir(comum, `/api/contratos/${c.id}/arquivos/${arquivo.id}?baixar=1`);
+  assert.equal(baixado.status, 200);
+  assert.equal(baixado.headers.get("content-type"), "application/pdf");
+  assert.match(baixado.headers.get("content-disposition"), /^attachment; filename\*=UTF-8''RG%20da%20Maria\.pdf$/);
+  assert.equal(baixado.headers.get("cache-control")?.includes("no-store"), true);
+  assert.deepEqual(Buffer.from(await baixado.arrayBuffer()), pdf);
+  // Outro login, mesmo o administrador, não vê, não envia e não apaga.
+  assert.equal((await pedir(admin, `/api/contratos/${c.id}/arquivos/${arquivo.id}`)).status, 404);
+  assert.equal((await enviar(admin, pdf, "x.pdf")).status, 404);
+  assert.equal((await pedir(admin, `/api/contratos/${c.id}/arquivos/${arquivo.id}`, "DELETE")).status, 404);
+  assert.equal((await pedir(comum, `/api/contratos/${c.id}/arquivos/${arquivo.id}`, "DELETE")).status, 204);
+  assert.equal((await pedir(comum, `/api/contratos/${c.id}/arquivos/${arquivo.id}`)).status, 404);
+  // Excluir o contrato apaga os documentos dele.
+  assert.equal((await pedir(comum, `/api/contratos/${c.id}`, "DELETE")).status, 204);
+  assert.equal(banco.db.prepare("SELECT COUNT(*) AS n FROM contratos_arquivos").get().n, 0);
+});
+
 test("contratos vendidos: dados obrigatórios conferidos no servidor", async (t) => {
   const { pedir, comum } = await comPermissoes(t);
   for (const errado of [{ nome: "" }, { fone: "3499" }, { plano: " " }, { valor: 0 }, { valor: "450" }, { ativacao: "" }, { ativacao: "2026-02-30" }, { ativacao: "20/11/2026" }]) {

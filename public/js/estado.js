@@ -59,7 +59,7 @@ export function show(telaPedida) {
   if (location.hash.slice(1) !== v) history.replaceState(null, "", "#" + v);
 }
 
-export async function api(url, { metodo = "GET", json, corpo, tipo } = {}) {
+export async function api(url, { metodo = "GET", json, corpo, tipo, cabecalhos } = {}) {
   const opcoes = { method: metodo };
   if (json !== undefined) {
     opcoes.headers = { "Content-Type": "application/json" };
@@ -68,6 +68,7 @@ export async function api(url, { metodo = "GET", json, corpo, tipo } = {}) {
     opcoes.headers = { "Content-Type": tipo };
     opcoes.body = corpo;
   }
+  if (cabecalhos) opcoes.headers = { ...opcoes.headers, ...cabecalhos };
   let r;
   try {
     r = await fetch(url, opcoes);

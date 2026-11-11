@@ -238,6 +238,17 @@ const MIGRACOES = [
      contato_em TEXT,
      criado_em TEXT NOT NULL
    );`,
+  // Documentos que o cliente enviou, guardados no próprio banco: entram no backup e nunca ficam num link público.
+  `CREATE TABLE IF NOT EXISTS contratos_arquivos (
+     id TEXT PRIMARY KEY,
+     contrato_id TEXT NOT NULL,
+     nome TEXT NOT NULL,
+     tipo TEXT NOT NULL,
+     tamanho INTEGER NOT NULL,
+     dados BLOB NOT NULL,
+     criado_em TEXT NOT NULL
+   );
+   CREATE INDEX IF NOT EXISTS contratos_arquivos_contrato ON contratos_arquivos (contrato_id);`,
 ];
 
 // Troca os documentos dos planos CNPJ pela lista empresarial; com unimed, a Unimed PME recebe a lista dela.
@@ -783,7 +794,33 @@ export class Banco {
   }
 
   excluirContrato(id) {
+    this.db.prepare("DELETE FROM contratos_arquivos WHERE contrato_id = ?").run(id);
     return this.db.prepare("DELETE FROM contratos WHERE id = ?").run(id).changes > 0;
+  }
+
+  // Lista sem o conteúdo: só o que a tela mostra.
+  arquivosDosContratos(ids) {
+    const porContrato = new Map(ids.map((id) => [id, []]));
+    if (!ids.length) return porContrato;
+    const linhas = this.db.prepare(`SELECT id, contrato_id, nome, tipo, tamanho, criado_em FROM contratos_arquivos WHERE contrato_id IN (${ids.map(() => "?").join(",")}) ORDER BY criado_em, rowid`).all(...ids);
+    for (const l of linhas) porContrato.get(l.contrato_id)?.push({ id: l.id, nome: l.nome, tipo: l.tipo, tamanho: l.tamanho, criadoEm: l.criado_em });
+    return porContrato;
+  }
+
+  guardarArquivoDoContrato(contratoId, { nome, tipo, dados }) {
+    const id = randomBytes(9).toString("base64url");
+    this.db.prepare("INSERT INTO contratos_arquivos (id, contrato_id, nome, tipo, tamanho, dados, criado_em) VALUES (?,?,?,?,?,?,?)")
+      .run(id, contratoId, nome, tipo, dados.length, dados, new Date().toISOString());
+    return this.arquivosDosContratos([contratoId]).get(contratoId).find((a) => a.id === id);
+  }
+
+  lerArquivoDoContrato(contratoId, id) {
+    const l = this.db.prepare("SELECT nome, tipo, dados FROM contratos_arquivos WHERE contrato_id = ? AND id = ?").get(contratoId, id);
+    return l ? { nome: l.nome, tipo: l.tipo, dados: Buffer.from(l.dados) } : null;
+  }
+
+  excluirArquivoDoContrato(contratoId, id) {
+    return this.db.prepare("DELETE FROM contratos_arquivos WHERE contrato_id = ? AND id = ?").run(contratoId, id).changes > 0;
   }
 
   /* ---------- páginas públicas das propostas ---------- */

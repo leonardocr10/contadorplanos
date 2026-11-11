@@ -8,6 +8,8 @@ const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julh
 const nomeDoMes = (aaaamm) => `${MESES[Number(aaaamm.slice(5, 7)) - 1]} de ${aaaamm.slice(0, 4)}`;
 // Mensagem do WhatsApp aberta para edição: { id do contrato, texto }.
 let mensagem = null;
+// Contrato com a lista de documentos aberta.
+let docsAbertos = null;
 // O aviso aparece uma vez por dia, e de novo só quando surge outro contrato para contatar.
 let avisados = -1, diaDoAviso = "";
 
@@ -100,13 +102,15 @@ export function renderContratos() {
       <div class="hq-top"><span class="hg-name">${esc(c.nome)}</span><span class="pill ${st.classe}">${esc(st.rotulo)}</span></div>
       <div class="hq-date">${esc(fmtFone(c.fone))} · ativação em ${esc(fmtDia(c.ativacao))}${c.contatoEm ? ` · contato feito em ${esc(new Date(c.contatoEm).toLocaleDateString("pt-BR"))}` : ""}</div>
       <div class="hq-plans"><b>${esc(c.plano)}</b> · R$ ${brl(c.valor)}</div>
-      ${edita ? `<div class="actions">
-        <button class="btn ${st.chave === "pendente" ? "primary" : ""}" data-mensagem aria-expanded="${mensagem?.id === c.id}">Mensagem no WhatsApp</button>
-        ${st.chave === "aguardando" ? "" : `<button class="btn" data-contato="${c.contatoEm ? "0" : "1"}">${c.contatoEm ? "Desfazer contato" : "Marcar contato feito"}</button>`}
-        <button class="btn" data-editar>Editar</button>
-        <button class="btn danger" data-excluir>Excluir</button>
+      <div class="actions">
+        ${edita ? `<button class="btn ${st.chave === "pendente" ? "primary" : ""}" data-mensagem aria-expanded="${mensagem?.id === c.id}">Mensagem no WhatsApp</button>
+        ${st.chave === "aguardando" ? "" : `<button class="btn" data-contato="${c.contatoEm ? "0" : "1"}">${c.contatoEm ? "Desfazer contato" : "Marcar contato feito"}</button>`}` : ""}
+        <button class="btn" data-documentos aria-expanded="${docsAbertos === c.id}">Documentos${c.arquivos.length ? ` <span class="ctr-qtd">${c.arquivos.length}</span>` : ""}</button>
+        ${edita ? `<button class="btn" data-editar>Editar</button>
+        <button class="btn danger" data-excluir>Excluir</button>` : ""}
       </div>
-      ${mensagem?.id === c.id ? `<div class="ctr-msg" data-painel-msg>
+      ${docsAbertos === c.id ? painelDeDocumentos(c, edita) : ""}
+      ${edita ? `${mensagem?.id === c.id ? `<div class="ctr-msg" data-painel-msg>
         <label class="label" for="ctr-msg-texto">Mensagem para ${esc(c.nome)}</label>
         <textarea id="ctr-msg-texto" rows="8" spellcheck="true">${esc(mensagem.texto)}</textarea>
         <div class="actions">
@@ -147,10 +151,91 @@ export function renderContratos() {
     };
     painel.querySelector("[data-msg-fechar]").onclick = () => { mensagem = null; renderContratos(); };
   }
+  box.querySelectorAll("[data-documentos]").forEach((b) => (b.onclick = () => { docsAbertos = docsAbertos === doItem(b).id ? null : doItem(b).id; renderContratos(); }));
+  const docs = box.querySelector("[data-painel-docs]");
+  if (docs) ligarDocumentos(docs, doItem(docs));
   box.querySelectorAll("[data-editar]").forEach((b) => (b.onclick = () => editar(doItem(b))));
   box.querySelectorAll("[data-excluir]").forEach((b) => (b.onclick = () => (b.closest(".hq").querySelector("[data-confirma]").hidden = false)));
   box.querySelectorAll("[data-nao]").forEach((b) => (b.onclick = () => (b.closest("[data-confirma]").hidden = true)));
   box.querySelectorAll("[data-sim]").forEach((b) => (b.onclick = () => excluir(doItem(b), b)));
+}
+
+/* ---------- documentos enviados pelo cliente ---------- */
+const ACEITOS = ".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp";
+const MAX_ARQUIVO = 20 * 1024 * 1024;
+const fmtTamanho = (n) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
+const urlDoArquivo = (c, a, baixar) => `/api/contratos/${encodeURIComponent(c.id)}/arquivos/${encodeURIComponent(a.id)}${baixar ? "?baixar=1" : ""}`;
+
+function painelDeDocumentos(c, edita) {
+  const lista = c.arquivos.length
+    ? `<ul class="ctr-docs-lista">${c.arquivos.map((a) => `<li data-arquivo="${esc(a.id)}">
+        <span class="ctr-doc-tipo">${a.tipo === "application/pdf" ? "PDF" : "IMG"}</span>
+        <a class="ctr-doc-nome" href="${esc(urlDoArquivo(c, a))}" target="_blank" rel="noopener" title="${esc(a.nome)}">${esc(a.nome)}</a>
+        <span class="note">${fmtTamanho(a.tamanho)} · ${esc(new Date(a.criadoEm).toLocaleDateString("pt-BR"))}</span>
+        <span class="ctr-doc-acoes">
+          <a class="limpar-filtros" href="${esc(urlDoArquivo(c, a, true))}">Baixar</a>
+          ${edita ? `<button type="button" class="limpar-filtros" data-tirar>Excluir</button>` : ""}
+        </span>
+        <span class="doc-confirma ctr-doc-confirma" hidden>Excluir? <button type="button" class="limpar-filtros" data-tirar-sim>Sim</button><button type="button" class="limpar-filtros" data-tirar-nao>Não</button></span>
+      </li>`).join("")}</ul>`
+    : `<p class="note" style="margin:0">Nenhum documento salvo ainda.</p>`;
+  return `<div class="ctr-docs" data-painel-docs>
+    <div class="ctr-docs-topo"><span class="label">Documentos do cliente</span>${edita ? `<span class="note">PDF, JPG, PNG ou WebP, até 20 MB cada. Pode arrastar os arquivos para cá.</span>` : ""}</div>
+    ${lista}
+    ${edita ? `<div class="actions"><label class="btn primary" tabindex="0" data-escolher>Adicionar documentos<input type="file" multiple accept="${ACEITOS}" hidden data-arquivos></label><span class="note" data-progresso aria-live="polite"></span></div>` : ""}
+  </div>`;
+}
+
+function ligarDocumentos(painel, c) {
+  painel.querySelectorAll("[data-tirar]").forEach((b) => (b.onclick = () => (b.closest("li").querySelector(".ctr-doc-confirma").hidden = false)));
+  painel.querySelectorAll("[data-tirar-nao]").forEach((b) => (b.onclick = () => (b.closest(".ctr-doc-confirma").hidden = true)));
+  painel.querySelectorAll("[data-tirar-sim]").forEach((b) => (b.onclick = () => tirarDocumento(c, b.closest("li").dataset.arquivo, b)));
+  const entrada = painel.querySelector("[data-arquivos]");
+  if (!entrada) return;
+  const escolher = painel.querySelector("[data-escolher]");
+  escolher.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); entrada.click(); } };
+  entrada.onchange = () => { const arquivos = [...entrada.files]; entrada.value = ""; enviarDocumentos(c, arquivos, painel); };
+  painel.ondragover = (e) => { e.preventDefault(); painel.classList.add("arrastando"); };
+  painel.ondragleave = (e) => { if (!painel.contains(e.relatedTarget)) painel.classList.remove("arrastando"); };
+  painel.ondrop = (e) => { e.preventDefault(); painel.classList.remove("arrastando"); enviarDocumentos(c, [...e.dataTransfer.files], painel); };
+}
+
+// Um arquivo por vez, para mostrar o andamento e não perder os que já foram se um falhar.
+async function enviarDocumentos(c, arquivos, painel) {
+  if (!arquivos.length) return;
+  const grandes = arquivos.filter((a) => a.size > MAX_ARQUIVO);
+  const enviar = arquivos.filter((a) => a.size <= MAX_ARQUIVO);
+  const progresso = painel.querySelector("[data-progresso]");
+  const escolher = painel.querySelector("[data-escolher]");
+  escolher.classList.add("desativado");
+  const erros = grandes.map((a) => `${a.name}: maior que 20 MB`);
+  let salvos = 0;
+  for (const [i, arquivo] of enviar.entries()) {
+    progresso.textContent = `Salvando ${i + 1} de ${enviar.length}…`;
+    try {
+      const novo = await api(`/api/contratos/${encodeURIComponent(c.id)}/arquivos`, { metodo: "POST", corpo: arquivo, tipo: arquivo.type || "application/octet-stream", cabecalhos: { "X-Nome-Arquivo": encodeURIComponent(arquivo.name) } });
+      c.arquivos.push(novo);
+      salvos++;
+    } catch (e) {
+      erros.push(`${arquivo.name}: ${e.message}`);
+    }
+  }
+  renderContratos();
+  if (erros.length) toast(`${salvos ? `${salvos} salvo${salvos === 1 ? "" : "s"}. ` : ""}Não deu para salvar ${erros.join("; ")}`, "erro");
+  else avisoCentral(salvos === 1 ? "Documento salvo com sucesso" : `${salvos} documentos salvos com sucesso`);
+}
+
+async function tirarDocumento(c, id, botao) {
+  botao.disabled = true;
+  try {
+    await api(`/api/contratos/${encodeURIComponent(c.id)}/arquivos/${encodeURIComponent(id)}`, { metodo: "DELETE" });
+    c.arquivos = c.arquivos.filter((a) => a.id !== id);
+    renderContratos();
+    avisoCentral("Documento excluído com sucesso");
+  } catch (e) {
+    botao.disabled = false;
+    toast(`Não deu para excluir: ${e.message}`, "erro");
+  }
 }
 
 const textoOriginal = (c) => mensagemAtivacao({ cliente: c.nome, plano: c.plano, corretor: S.cor });

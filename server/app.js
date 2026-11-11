@@ -125,7 +125,16 @@ function validarPlano(b) {
   };
 }
 
-const DATA_ISO = /^(\d{4})-(\d{2})-(\d{2})$/;
+// Documentos dos contratos: até 20 MB cada, conferidos pelo conteúdo e não pela extensão.
+const MAX_ARQUIVO_CONTRATO = 20 * 1024 * 1024;
+const EXTENSOES = { "application/pdf": "pdf", "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
+function tipoDoDocumento(b) {
+  if (b.length > 5 && b.toString("latin1", 0, 5) === "%PDF-") return "application/pdf";
+  const imagem = tipoImagem(b);
+  return imagem ? { jpg: "image/jpeg", png: "image/png", webp: "image/webp" }[imagem] ?? null : null;
+}
+
+const DATA_ISO =/^(\d{4})-(\d{2})-(\d{2})$/;
 function validarContrato(b) {
   if (!b || typeof b !== "object") throw new ErroEntrada("Dados do contrato inválidos.");
   const nome = textoOpc(b.nome, "nome", 200), plano = textoOpc(b.plano, "plano", 200), fone = normFone(b.fone);
@@ -361,10 +370,41 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     return c && c.usuarioId === donoDoLogin(req) ? c : null;
   };
   const NAO_ACHOU_CONTRATO = { erro: "Contrato não encontrado." };
-  const semDono = ({ usuarioId, ...c }) => c;
+  // A tela recebe o contrato sem o dono e com a lista dos documentos (sem o conteúdo deles).
+  const paraTela = (contratos) => {
+    const arquivos = banco.arquivosDosContratos(contratos.map((c) => c.id));
+    return contratos.map(({ usuarioId, ...c }) => ({ ...c, arquivos: arquivos.get(c.id) ?? [] }));
+  };
+  const semDono = (c) => paraTela([c])[0];
 
   app.get("/api/contratos", exige("contratos", "ver"), (req, res) => {
-    res.json(banco.listarContratos({ usuarioId: donoDoLogin(req) }).map(semDono));
+    res.json(paraTela(banco.listarContratos({ usuarioId: donoDoLogin(req) })));
+  });
+
+  // Documentos do cliente: PDF ou imagem, um por envio, com o nome do arquivo no cabeçalho.
+  app.post("/api/contratos/:id/arquivos", exige("contratos", "editar"), express.raw({ type: () => true, limit: MAX_ARQUIVO_CONTRATO }), (req, res) => {
+    if (!contratoDoLogin(req)) return res.status(404).json(NAO_ACHOU_CONTRATO);
+    const dados = req.body;
+    const tipo = Buffer.isBuffer(dados) ? tipoDoDocumento(dados) : null;
+    if (!tipo) throw new ErroEntrada("Envie um arquivo PDF, JPG, PNG ou WebP.");
+    let nome = "";
+    try { nome = decodeURIComponent(String(req.get("X-Nome-Arquivo") || "")); } catch { /* nome inválido: usa o padrão */ }
+    nome = basename(nome.replace(/\\/g, "/")).replace(/[\u0000-\u001f]/g, "").trim().slice(0, 150) || `documento.${EXTENSOES[tipo]}`;
+    res.status(201).json(banco.guardarArquivoDoContrato(req.params.id, { nome, tipo, dados }));
+  });
+
+  app.get("/api/contratos/:id/arquivos/:arquivo", exige("contratos", "ver"), (req, res) => {
+    const a = contratoDoLogin(req) && banco.lerArquivoDoContrato(req.params.id, req.params.arquivo);
+    if (!a) return res.status(404).json({ erro: "Documento não encontrado." });
+    res.setHeader("Content-Type", a.tipo);
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Content-Disposition", `${req.query.baixar ? "attachment" : "inline"}; filename*=UTF-8''${encodeURIComponent(a.nome)}`);
+    res.send(a.dados);
+  });
+
+  app.delete("/api/contratos/:id/arquivos/:arquivo", exige("contratos", "editar"), (req, res) => {
+    if (!contratoDoLogin(req) || !banco.excluirArquivoDoContrato(req.params.id, req.params.arquivo)) return res.status(404).json({ erro: "Documento não encontrado." });
+    res.status(204).end();
   });
 
   app.post("/api/contratos", exige("contratos", "editar"), (req, res) => {
