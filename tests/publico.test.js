@@ -506,6 +506,35 @@ test("listas antigas de PF e CNPJ viram documentos dos planos do tipo", async (t
   assert.deepEqual(Object.keys(banco.lerConfig()).sort(), ["empresa", "fone", "nome"]);
 });
 
+test("documento pode valer só numa opção do plano, como o CCMEI nos planos MEI", async (t) => {
+  const { admin, banco } = await subir(t, ativo);
+  const api = (rota, metodo, json) => fetch(admin + rota, { method: metodo, headers: { "Content-Type": "application/json" }, body: json ? JSON.stringify(json) : undefined });
+  const ouro = { tipo: "CNPJ", cartao: "AMIL OURO" };
+  assert.equal((await api("/api/documentos", "POST", { ...ouro, nome: "Cartão CNPJ" })).status, 201);
+  const mei = ["amil-pme-ouro-30-mei", "amil-pme-ouro-40-mei", "amil-pme-ouro-parcial-mei"];
+  for (const plano of mei) assert.equal((await api("/api/documentos", "POST", { ...ouro, plano, nome: "CCMEI" })).status, 201);
+  // Já cadastrado na opção: recusa; opção de outro plano: recusa.
+  assert.equal((await api("/api/documentos", "POST", { ...ouro, plano: mei[0], nome: "ccmei" })).status, 400);
+  assert.equal((await api("/api/documentos", "POST", { ...ouro, plano: "plam-total-cnpj", nome: "RG" })).status, 400);
+  assert.deepEqual(banco.documentosDoPlano("amil-pme-ouro-30-mei"), ["Cartão CNPJ", "CCMEI"]);
+  assert.deepEqual(banco.documentosDoPlano("amil-pme-ouro-30"), ["Cartão CNPJ"]);
+  const cartao = (await (await api("/api/documentos")).json()).find((c) => c.tipo === "CNPJ" && c.nome === "AMIL OURO");
+  assert.equal(cartao.planos.length, 6);
+  assert.deepEqual(cartao.documentos.find((d) => d.nome === "CCMEI").planos, mei);
+  // Excluir numa opção tira só dela.
+  const ccmei = cartao.documentos.find((d) => d.nome === "CCMEI");
+  assert.equal((await api(`/api/documentos/${ccmei.id}?${new URLSearchParams({ ...ouro, plano: mei[2] })}`, "DELETE")).status, 204);
+  assert.deepEqual(banco.documentosDoPlano("amil-pme-ouro-parcial-mei"), ["Cartão CNPJ"]);
+  assert.deepEqual(banco.documentosDoPlano("amil-pme-ouro-40-mei"), ["Cartão CNPJ", "CCMEI"]);
+  // Renomear numa opção muda só nela.
+  assert.equal((await (await api(`/api/documentos/${ccmei.id}`, "PUT", { ...ouro, plano: mei[1], nome: "CCMEI atualizado" })).json()).nome, "CCMEI atualizado");
+  assert.deepEqual(banco.documentosDoPlano("amil-pme-ouro-40-mei"), ["Cartão CNPJ", "CCMEI atualizado"]);
+  assert.deepEqual(banco.documentosDoPlano("amil-pme-ouro-30-mei"), ["Cartão CNPJ", "CCMEI"]);
+  // Cadastrar em todas as opções completa as que ainda não tinham.
+  assert.equal((await api("/api/documentos", "POST", { ...ouro, nome: "CCMEI" })).status, 201);
+  assert.deepEqual(banco.documentosDoPlano("amil-pme-ouro-30"), ["Cartão CNPJ", "CCMEI"]);
+});
+
 test("documento é de pessoa física ou de CNPJ, conforme o plano", async (t) => {
   const { admin, banco } = await subir(t, ativo);
   const api = (rota, metodo, json) => fetch(admin + rota, { method: metodo, headers: { "Content-Type": "application/json" }, body: json ? JSON.stringify(json) : undefined });

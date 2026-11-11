@@ -6,7 +6,7 @@ import { copiarTexto } from "./cotacao.js";
 import { normalizar } from "./filtro-select.js";
 
 const TIPOS = { PF: "Pessoa física", CNPJ: "CNPJ" };
-let cartoes = [], aba = "PF", busca = "", aberto = null, editando = null, excluindo = null;
+let cartoes = [], aba = "PF", busca = "", aberto = null, opcao = "", editando = null, excluindo = null;
 const cartoesDaAba = () => cartoes.filter((c) => c.tipo === aba);
 // O plano aberto some se for renomeado ou apagado em Planos e valores: a tela volta para a lista.
 const cartaoAberto = () => (aberto ? cartoes.find((c) => c.tipo === aberto.tipo && c.nome === aberto.nome) ?? null : null);
@@ -37,46 +37,48 @@ export function renderDocumentos() {
 /* ---------- lista dos planos ---------- */
 function renderAbas() {
   $("#doc-abas").innerHTML = Object.entries(TIPOS).map(([tipo, nome]) =>
-    `<button type="button" class="cfg-item" data-tipo="${tipo}" aria-current="${tipo === aba}">${nome} <span class="cat-qtd">${cartoes.filter((c) => c.tipo === tipo).length}</span></button>`).join("");
+    `<button type="button" class="cfg-item" data-tipo="${tipo}" aria-current="${tipo === aba}">${nome} <span class="cat-qtd">${cartoes.filter((c) => c.tipo === tipo).reduce((n, c) => n + c.planos.length, 0)}</span></button>`).join("");
   $("#doc-abas").querySelectorAll("[data-tipo]").forEach((b) => (b.onclick = () => {
     aba = b.dataset.tipo;
     renderDocumentos();
   }));
 }
 
-// A busca olha o nome do cartão e o das opções dele (ex.: "pontual" acha UNIMED).
+// Cada plano aparece na lista, como em Planos e valores (ex.: AMIL OURO 30%, AMIL OURO 30% MEI),
+// na mesma ordem; o cartão dele só serve para cadastrar o mesmo documento nas outras opções.
+const planosDaAba = () => cartoesDaAba()
+  .flatMap((c) => c.planos.map((p) => ({ c, p, n: c.documentos.filter((d) => d.planos.includes(p.id)).length })))
+  .sort((a, b) => a.p.ordem - b.p.ordem);
 const achados = () => {
   const termo = normalizar(busca);
-  const todos = cartoesDaAba();
-  return termo ? todos.filter((c) => [c.nome, ...c.planos].some((n) => normalizar(n).includes(termo))) : todos;
+  const todos = planosDaAba();
+  return termo ? todos.filter(({ c, p }) => [p.nome, c.nome].some((n) => normalizar(n).includes(termo))) : todos;
 };
 
 function renderLista() {
   renderAbas();
-  const todos = cartoesDaAba(), lista = achados(), edita = pode("documentos", "editar");
+  const todos = planosDaAba(), lista = achados(), edita = pode("documentos", "editar");
   $("#doc-planos-qtd").textContent = busca.trim() ? `${lista.length} de ${todos.length} planos` : `${todos.length} ${todos.length === 1 ? "plano" : "planos"} de ${TIPOS[aba].toLowerCase()}`;
   const box = $("#doc-planos");
   if (!lista.length) {
     box.innerHTML = `<div class="status">${todos.length ? "Nenhum plano encontrado com essa busca." : `Nenhum plano de ${TIPOS[aba].toLowerCase()} cadastrado.`}</div>`;
     return;
   }
-  box.innerHTML = lista.map((c, i) => {
-    const opcoes = c.planos.length > 1 ? ` · ${c.planos.length} opções` : "";
-    const rotulo = edita ? "Editar documentos" : "Ver documentos";
-    return `<div class="catrow doc-plano-linha" data-i="${i}">
-      <button type="button" class="doc-plano-nome" data-abrir><b>${esc(c.nome)}</b><span>${qtdDocs(c.documentos.length)}${opcoes}</span></button>
-      <div class="actions">${botaoIcone(edita ? "editar" : "ver", rotulo, "data-abrir")}</div>
-    </div>`;
-  }).join("");
+  const rotulo = edita ? "Editar documentos" : "Ver documentos";
+  box.innerHTML = lista.map(({ p, n }, i) => `<div class="catrow doc-plano-linha" data-i="${i}" data-plano="${esc(p.id)}">
+      <button type="button" class="doc-plano-nome"><b>${esc(p.nome)}</b><span>${qtdDocs(n)}</span></button>
+      <div class="actions">${botaoIcone(edita ? "editar" : "ver", rotulo, "")}</div>
+    </div>`).join("");
   box.querySelectorAll(".doc-plano-linha").forEach((row) => {
-    const c = lista[Number(row.dataset.i)];
+    const { c, p } = lista[Number(row.dataset.i)];
     // A linha inteira abre o plano; os botões dentro dela chegam aqui pelo clique.
-    row.onclick = () => abrirPlano(c);
+    row.onclick = () => abrirPlano(c, p.id);
   });
 }
 
-function abrirPlano(c) {
+function abrirPlano(c, planoId) {
   aberto = { tipo: c.tipo, nome: c.nome };
+  opcao = planoId;
   editando = excluindo = null;
   renderDocumentos();
   $("#v-documentos").scrollIntoView({ block: "start" });
@@ -84,46 +86,76 @@ function abrirPlano(c) {
 }
 
 function voltarParaLista() {
-  const nome = aberto?.nome;
+  const id = opcao;
   aberto = null;
+  opcao = "";
   editando = excluindo = null;
   renderDocumentos();
   // Volta com o plano que estava aberto à vista.
-  const linha = [...$("#doc-planos").querySelectorAll(".doc-plano-linha")].find((r) => r.querySelector("b")?.textContent === nome);
+  const linha = [...$("#doc-planos").querySelectorAll(".doc-plano-linha")].find((r) => r.dataset.plano === id);
   linha?.scrollIntoView({ block: "center" });
   linha?.querySelector(".doc-plano-nome")?.focus({ preventScroll: true });
 }
 
 /* ---------- tela do plano ---------- */
+// Opção escolhida dentro do cartão; vazia, as ações valem para todas as opções.
+const opcaoDe = (c) => c.planos.find((p) => p.id === opcao) ?? null;
+const nomeDaVisao = (c) => opcaoDe(c)?.nome ?? c.nome;
+const docsDaVisao = (c) => (opcaoDe(c) ? c.documentos.filter((d) => d.planos.includes(opcao)) : c.documentos);
+// Na visão de todas as opções, a mensagem leva só o que todas pedem; o resto depende da opção.
+const docsDaMensagem = (c) => (opcaoDe(c) ? docsDaVisao(c) : c.documentos.filter((d) => d.planos.length === c.planos.length));
+const alvo = (c) => ({ tipo: c.tipo, cartao: c.nome, ...(opcaoDe(c) ? { plano: opcao } : {}) });
+// Na visão de todas as opções, o documento que não vale para todas diz onde vale.
+const ondeVale = (c, d) => {
+  if (opcaoDe(c) || d.planos.length === c.planos.length) return "";
+  const nomes = c.planos.filter((p) => d.planos.includes(p.id)).map((p) => p.nome);
+  return `<span class="doc-so-em">Só em: ${esc(nomes.join(", "))}</span>`;
+};
+
+function renderOpcoes(c) {
+  const campo = $("#doc-opcao-campo"), sel = $("#doc-opcao");
+  campo.hidden = c.planos.length < 2;
+  if (!opcaoDe(c)) opcao = "";
+  if (campo.hidden) return;
+  const html = `<option value="">Todas as opções de ${esc(c.nome)} (${c.planos.length})</option>${c.planos.map((p) => {
+    const n = c.documentos.filter((d) => d.planos.includes(p.id)).length;
+    return `<option value="${esc(p.id)}">${esc(p.nome)} · ${n} ${n === 1 ? "documento" : "documentos"}</option>`;
+  }).join("")}`;
+  if (sel.dataset.opcoes !== html) { sel.innerHTML = html; sel.dataset.opcoes = html; }
+  sel.value = opcao;
+}
+
 function renderPlano(c) {
-  const lista = c.documentos, edita = pode("documentos", "editar");
-  $("#doc-titulo").textContent = `${c.nome} · ${TIPOS[c.tipo]}`;
-  $("#doc-opcoes").textContent = c.planos.length > 1 ? `Vale para as ${c.planos.length} opções deste cartão: ${c.planos.join(", ")}.` : "";
+  renderOpcoes(c);
+  const lista = docsDaVisao(c), edita = pode("documentos", "editar"), nome = nomeDaVisao(c);
+  $("#doc-titulo").textContent = `${nome} · ${TIPOS[c.tipo]}`;
+  $("#doc-opcoes").textContent = c.planos.length < 2 ? ""
+    : opcaoDe(c) ? `Para cadastrar o mesmo documento nas ${c.planos.length} opções de ${c.nome} de uma vez, escolha "Todas as opções" abaixo.` : `Documentos de todas as ${c.planos.length} opções. O que for cadastrado ou excluído aqui vale para todas elas.`;
   $("#doc-form").hidden = !edita;
-  $("#doc-nome-rotulo").textContent = `Novo documento para ${c.nome}`;
+  $("#doc-nome-rotulo").textContent = `Novo documento para ${nome}${!opcaoDe(c) && c.planos.length > 1 ? " (todas as opções)" : ""}`;
   $("#doc-nome").placeholder = c.tipo === "CNPJ" ? "Ex.: Contrato social" : "Ex.: Comprovante de residência";
-  $("#doc-count").textContent = `${lista.length} ${lista.length === 1 ? "documento pedido" : "documentos pedidos"} em ${c.nome}`;
+  $("#doc-count").textContent = `${lista.length} ${lista.length === 1 ? "documento pedido" : "documentos pedidos"} em ${nome}`;
   renderMensagem(c);
   const box = $("#doc-list");
   if (!lista.length) {
-    box.innerHTML = `<div class="status">Nenhum documento cadastrado para ${esc(c.nome)}.${edita ? " Escreva o nome acima e clique em <b>Adicionar</b>." : ""}</div>`;
+    box.innerHTML = `<div class="status">Nenhum documento cadastrado para ${esc(nome)}.${edita ? " Escreva o nome acima e clique em <b>Adicionar</b>." : ""}</div>`;
     return;
   }
   if (!edita) {
-    box.innerHTML = lista.map((d) => `<div class="catrow"><div class="t"><b>${esc(d.nome)}</b></div></div>`).join("");
+    box.innerHTML = lista.map((d) => `<div class="catrow"><div class="t"><b>${esc(d.nome)}</b>${ondeVale(c, d)}</div></div>`).join("");
     return;
   }
   box.innerHTML = lista.map((d) => {
     const nome = editando === d.id
       ? `<input type="text" data-nome value="${esc(d.nome)}" aria-label="Nome do documento"><div class="actions" style="margin-top:8px"><button class="btn primary" data-salvar>Salvar</button><button class="btn" data-cancelar>Cancelar</button></div>`
-      : `<b>${esc(d.nome)}</b>`;
+      : `<b>${esc(d.nome)}</b>${ondeVale(c, d)}`;
     return `<div class="catrow" data-id="${d.id}">
       <div class="t" style="flex:1 1 240px">${nome}</div>
       <div class="actions">
         ${botaoIcone("editar", "Editar nome", "data-editar")}
         ${botaoIcone("excluir", "Excluir documento", "data-excluir", "perigo")}
       </div>
-      ${excluindo === d.id ? `<div class="status" style="flex:1 1 100%">Tirar <b>${esc(d.nome)}</b> dos documentos de ${esc(c.nome)}? <div class="actions" style="margin-top:8px"><button class="btn danger" data-excluir-sim>Sim, excluir</button><button class="btn" data-excluir-nao>Manter</button></div></div>` : ""}
+      ${excluindo === d.id ? `<div class="status" style="flex:1 1 100%">Tirar <b>${esc(d.nome)}</b> dos documentos de ${esc(nomeDaVisao(c))}? <div class="actions" style="margin-top:8px"><button class="btn danger" data-excluir-sim>Sim, excluir</button><button class="btn" data-excluir-nao>Manter</button></div></div>` : ""}
     </div>`;
   }).join("");
   box.querySelectorAll(".catrow[data-id]").forEach((row) => ligarLinha(row, c));
@@ -131,13 +163,13 @@ function renderPlano(c) {
 }
 
 const textoDaMensagem = (c) => mensagemDocumentosDoPlano({
-  plano: c.nome, tipo: c.tipo, documentos: c.documentos.map((d) => d.nome),
+  plano: nomeDaVisao(c), tipo: c.tipo, documentos: docsDaMensagem(c).map((d) => d.nome),
   corretor: { nome: S.cor.nome.trim(), fone: S.cor.fone.trim(), empresa: S.cor.empresa.trim() },
 });
 
 function renderMensagem(c) {
   const caixa = $("#doc-msg");
-  caixa.hidden = !c.documentos.length;
+  caixa.hidden = !docsDaMensagem(c).length;
   if (!caixa.hidden) $("#doc-msg-previa").innerHTML = waHtml(textoDaMensagem(c));
 }
 
@@ -157,7 +189,7 @@ function ligarLinha(row, c) {
   on("[data-editar]", () => { editando = id; excluindo = null; renderDocumentos(); });
   on("[data-cancelar]", () => { editando = null; renderDocumentos(); });
   const salvarNome = () => executar(async () => {
-    await api(url, { metodo: "PUT", json: { nome: row.querySelector("[data-nome]").value, tipo: c.tipo, cartao: c.nome } });
+    await api(url, { metodo: "PUT", json: { nome: row.querySelector("[data-nome]").value, ...alvo(c) } });
     editando = null;
     avisoCentral("Documento salvo com sucesso");
   });
@@ -168,7 +200,7 @@ function ligarLinha(row, c) {
   on("[data-excluir-nao]", () => { excluindo = null; renderDocumentos(); });
   on("[data-excluir-sim]", () => executar(async () => {
     excluindo = null;
-    await api(`${url}?${new URLSearchParams({ tipo: c.tipo, cartao: c.nome })}`, { metodo: "DELETE" });
+    await api(`${url}?${new URLSearchParams(alvo(c))}`, { metodo: "DELETE" });
     avisoCentral("Documento excluído com sucesso");
   }));
 }
@@ -179,12 +211,17 @@ export function iniciarDocumentos() {
     renderDocumentos();
   };
   $("#doc-voltar").onclick = voltarParaLista;
+  $("#doc-opcao").onchange = (e) => {
+    opcao = e.target.value;
+    editando = excluindo = null;
+    renderDocumentos();
+  };
   $("#doc-form").onsubmit = async (e) => {
     e.preventDefault();
     const campo = $("#doc-nome"), c = cartaoAberto();
     if (!c) return;
     try {
-      await api("/api/documentos", { metodo: "POST", json: { nome: campo.value, tipo: c.tipo, cartao: c.nome } });
+      await api("/api/documentos", { metodo: "POST", json: { nome: campo.value, ...alvo(c) } });
       campo.value = "";
       await carregarDocumentos();
       avisoCentral("Documento cadastrado com sucesso");
@@ -195,7 +232,7 @@ export function iniciarDocumentos() {
   };
   $("#doc-copiar").onclick = async () => {
     const c = cartaoAberto();
-    if (!c?.documentos.length) return;
+    if (!c || !docsDaMensagem(c).length) return;
     if (await copiarTexto(textoDaMensagem(c))) toast("Mensagem copiada: cole na conversa do cliente no WhatsApp", "sucesso");
     else toast("Não deu para copiar: selecione o texto da mensagem e use Ctrl+C", "erro");
   };

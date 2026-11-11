@@ -440,20 +440,24 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     if (tipo !== "PF" && tipo !== "CNPJ") throw new ErroEntrada("O tipo do plano precisa ser PF ou CNPJ.");
     const cartao = textoOpc(dados?.cartao, "plano", 300);
     if (!cartao || !banco.planosDoCartao(tipo, cartao).length) throw new ErroEntrada("Escolha o plano dos documentos.");
-    return { tipo, cartao };
+    // Opção do cartão (ex.: AMIL OURO 30% MEI); sem ela, vale para o cartão inteiro.
+    const plano = textoOpc(dados?.plano, "opção do plano", 200) || "";
+    if (plano && !banco.planosDoCartao(tipo, cartao).includes(plano)) throw new ErroEntrada("A opção escolhida não é deste plano.");
+    const escopo = banco.escopoDoCartao(tipo, cartao, plano);
+    return { tipo, cartao, plano, escopo, nomeEscopo: plano ? banco.obterPlano(plano).nome : cartao };
   };
-  const nomeDeDocumento = (b, { tipo, cartao }, idAtual) => {
+  const nomeDeDocumento = (b, c, idAtual) => {
     const nome = textoOpc(b?.nome, "documento", 300);
     if (!nome) throw new ErroEntrada("Escreva o nome do documento.");
-    const existente = banco.documentoComNome(nome, tipo);
-    if (existente != null && existente !== idAtual && banco.documentosDoCartao(tipo, cartao).some((d) => d.id === existente)) {
-      throw new ErroEntrada(`${cartao} já pede um documento com esse nome.`);
-    }
+    const existente = banco.documentoComNome(nome, c.tipo);
+    const doc = existente != null && existente !== idAtual ? banco.documentosDoCartao(c.tipo, c.cartao).find((d) => d.id === existente) : null;
+    if (doc && c.escopo.every((p) => doc.planos.includes(p))) throw new ErroEntrada(`${c.nomeEscopo} já pede um documento com esse nome.`);
     return nome;
   };
   const documentoDoCartao = (req, c) => {
     const d = documentoDaRota(req);
-    if (!banco.documentosDoCartao(c.tipo, c.cartao).some((x) => x.id === d.id)) throw new ErroNaoEncontrado("Documento não encontrado.");
+    const doc = banco.documentosDoCartao(c.tipo, c.cartao).find((x) => x.id === d.id);
+    if (!doc || !c.escopo.some((p) => doc.planos.includes(p))) throw new ErroNaoEncontrado("Documento não encontrado.");
     return d;
   };
 
@@ -461,18 +465,18 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
 
   app.post("/api/documentos", exige("documentos", "editar"), (req, res) => {
     const c = cartaoDoPedido(req.body);
-    res.status(201).json(banco.adicionarDocumentoAoCartao(c.tipo, c.cartao, nomeDeDocumento(req.body, c)));
+    res.status(201).json(banco.adicionarDocumentoAoCartao(c.tipo, c.cartao, nomeDeDocumento(req.body, c), c.plano));
   });
 
   app.put("/api/documentos/:id", exige("documentos", "editar"), (req, res) => {
     const c = cartaoDoPedido(req.body);
     const d = documentoDoCartao(req, c);
-    res.json(banco.renomearDocumentoNoCartao(d.id, c.tipo, c.cartao, nomeDeDocumento(req.body, c, d.id)));
+    res.json(banco.renomearDocumentoNoCartao(d.id, c.tipo, c.cartao, nomeDeDocumento(req.body, c, d.id), c.plano));
   });
 
   app.delete("/api/documentos/:id", exige("documentos", "editar"), (req, res) => {
     const c = cartaoDoPedido(req.query);
-    banco.tirarDocumentoDoCartao(documentoDoCartao(req, c).id, c.tipo, c.cartao);
+    banco.tirarDocumentoDoCartao(documentoDoCartao(req, c).id, c.tipo, c.cartao, c.plano);
     res.status(204).end();
   });
 

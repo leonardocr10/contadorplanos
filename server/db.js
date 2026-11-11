@@ -515,66 +515,90 @@ export class Banco {
     return this.listarPlanos().filter((p) => p.categoria === tipo && linhaDoPlano(p) === cartao).map((p) => p.id);
   }
 
+  // Planos que a ação alcança: uma opção do cartão (ex.: AMIL OURO 30% MEI) ou, sem ela, o cartão inteiro.
+  escopoDoCartao(tipo, cartao, plano = "") {
+    const ids = this.planosDoCartao(tipo, cartao);
+    return plano ? ids.filter((id) => id === plano) : ids;
+  }
+
+  // Documentos do cartão, cada um com as opções (ids dos planos) em que está.
   documentosDoCartao(tipo, cartao) {
     const ids = this.planosDoCartao(tipo, cartao);
     if (!ids.length) return [];
-    return this.db
-      .prepare(`SELECT DISTINCT d.id, d.nome FROM documentos d JOIN documentos_planos v ON v.documento_id = d.id
+    const docs = new Map();
+    for (const l of this.db
+      .prepare(`SELECT d.id, d.nome, v.plano_id FROM documentos d JOIN documentos_planos v ON v.documento_id = d.id
         WHERE d.tipo = ? AND v.plano_id IN (${ids.map(() => "?").join(",")}) ORDER BY d.id`)
-      .all(tipo, ...ids)
-      .map((d) => ({ id: d.id, nome: d.nome }));
+      .all(tipo, ...ids)) {
+      if (!docs.has(l.id)) docs.set(l.id, { id: l.id, nome: l.nome, planos: [] });
+      docs.get(l.id).planos.push(l.plano_id);
+    }
+    // As opções seguem a ordem do cartão.
+    for (const d of docs.values()) d.planos.sort((a, b) => ids.indexOf(a) - ids.indexOf(b));
+    return [...docs.values()];
   }
 
   cartoesDeDocumentos() {
     const cartoes = new Map();
-    for (const p of this.listarPlanos()) {
+    for (const [ordem, p] of this.listarPlanos().entries()) {
       const nome = linhaDoPlano(p), chave = `${p.categoria}|${nome}`;
       if (!cartoes.has(chave)) cartoes.set(chave, { tipo: p.categoria, nome, planos: [] });
-      cartoes.get(chave).planos.push(p.nome);
+      cartoes.get(chave).planos.push({ id: p.id, nome: p.nome, ordem });
     }
     return [...cartoes.values()]
       .map((c) => ({ ...c, documentos: this.documentosDoCartao(c.tipo, c.nome) }))
       .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
   }
 
-  // Liga o documento (pelo nome, sem diferença de maiúsculas) a todos os planos do cartão.
-  adicionarDocumentoAoCartao(tipo, cartao, nome) {
+  // Liga o documento (pelo nome, sem diferença de maiúsculas) aos planos do cartão, ou só à opção escolhida.
+  adicionarDocumentoAoCartao(tipo, cartao, nome, plano = "") {
     const id = this.documentoComNome(nome, tipo) ?? this.criarDocumento(nome, tipo).id;
     const ligar = this.db.prepare("INSERT OR IGNORE INTO documentos_planos (documento_id, plano_id) VALUES (?, ?)");
-    for (const planoId of this.planosDoCartao(tipo, cartao)) ligar.run(id, planoId);
+    for (const planoId of this.escopoDoCartao(tipo, cartao, plano)) ligar.run(id, planoId);
     return this.obterDocumento(id);
   }
 
-  // Tira o documento só deste cartão; documento que não sobra em nenhum plano é apagado.
-  tirarDocumentoDoCartao(id, tipo, cartao) {
-    const ids = this.planosDoCartao(tipo, cartao);
+  // Tira o documento só deste cartão (ou da opção); documento que não sobra em nenhum plano é apagado.
+  tirarDocumentoDoCartao(id, tipo, cartao, plano = "") {
+    const ids = this.escopoDoCartao(tipo, cartao, plano);
     if (!ids.length) return false;
     const r = this.db.prepare(`DELETE FROM documentos_planos WHERE documento_id = ? AND plano_id IN (${ids.map(() => "?").join(",")})`).run(id, ...ids);
     this.apagarDocumentosSemPlano();
     return r.changes > 0;
   }
 
-  // Renomear no cartão troca o documento só nele: os outros cartões continuam com o nome antigo.
-  renomearDocumentoNoCartao(id, tipo, cartao, nome) {
+  // Renomear no cartão (ou na opção) troca o documento só ali: os outros continuam com o nome antigo.
+  renomearDocumentoNoCartao(id, tipo, cartao, nome, plano = "") {
     const outro = this.documentoComNome(nome, tipo);
     if (outro === id) return this.renomearDocumento(id, nome);
-    // Documento só deste cartão, com nome livre: muda no lugar e mantém o id.
-    const ids = this.planosDoCartao(tipo, cartao);
-    const foraDoCartao = this.db
+    // Documento só destes planos, com nome livre: muda no lugar e mantém o id.
+    const ids = this.escopoDoCartao(tipo, cartao, plano);
+    const fora = this.db
       .prepare(`SELECT COUNT(*) AS n FROM documentos_planos WHERE documento_id = ? AND plano_id NOT IN (${ids.map(() => "?").join(",")})`)
       .get(id, ...ids).n;
-    if (outro == null && !foraDoCartao) return this.renomearDocumento(id, nome);
-    this.tirarDocumentoDoCartao(id, tipo, cartao);
-    return this.adicionarDocumentoAoCartao(tipo, cartao, nome);
+    if (outro == null && !fora) return this.renomearDocumento(id, nome);
+    const ligados = this.db.prepare("SELECT plano_id FROM documentos_planos WHERE documento_id = ?").all(id).map((l) => l.plano_id);
+    const alvo = ids.filter((p) => ligados.includes(p));
+    this.tirarDocumentoDoCartao(id, tipo, cartao, plano);
+    const novo = this.documentoComNome(nome, tipo) ?? this.criarDocumento(nome, tipo).id;
+    const ligar = this.db.prepare("INSERT OR IGNORE INTO documentos_planos (documento_id, plano_id) VALUES (?, ?)");
+    for (const p of alvo) ligar.run(novo, p);
+    return this.obterDocumento(novo);
   }
 
   apagarDocumentosSemPlano() {
     this.db.exec("DELETE FROM documentos WHERE id NOT IN (SELECT documento_id FROM documentos_planos)");
   }
 
+  // Documentos de uma opção. Opção nova, ainda sem documentos, pede os que todas as outras opções do cartão pedem.
   documentosDoPlano(planoId) {
     const p = this.obterPlano(planoId);
-    return p ? this.documentosDoCartao(p.categoria, linhaDoPlano(p)).map((d) => d.nome) : [];
+    if (!p) return [];
+    const docs = this.documentosDoCartao(p.categoria, linhaDoPlano(p));
+    const proprios = docs.filter((d) => d.planos.includes(p.id));
+    if (proprios.length) return proprios.map((d) => d.nome);
+    const outros = new Set(docs.flatMap((d) => d.planos));
+    return outros.size ? docs.filter((d) => [...outros].every((o) => d.planos.includes(o))).map((d) => d.nome) : [];
   }
 
   // Links criados antes dos documentos por plano guardam só o nome do plano.
