@@ -9,6 +9,8 @@ const TIPOS = { PF: "Pessoa física", CNPJ: "CNPJ" };
 let cartoes = [], aba = "PF", busca = "", aberto = null, opcao = "", editando = null, excluindo = null;
 // Documentos desmarcados: ficam fora da mensagem. Ao abrir outro plano ou opção, todos voltam marcados.
 let fora = new Set();
+// Plano marcado na lista (o painel pode estar mostrando todas as opções do cartão dele).
+let visto = "";
 const cartoesDaAba = () => cartoes.filter((c) => c.tipo === aba);
 // O plano aberto some se for renomeado ou apagado em Planos e valores: a tela volta para a lista.
 const cartaoAberto = () => (aberto ? cartoes.find((c) => c.tipo === aberto.tipo && c.nome === aberto.nome) ?? null : null);
@@ -27,13 +29,14 @@ export async function carregarDocumentos() {
   renderDocumentos();
 }
 
+// Como em Planos e valores: a lista dos planos à esquerda e o plano escolhido à direita.
 export function renderDocumentos() {
   const c = cartaoAberto();
-  if (aberto && !c) aberto = null;
-  $("#doc-planos-tela").hidden = !!c;
+  if (aberto && !c) { aberto = null; visto = ""; }
+  renderLista();
+  $("#doc-vazio").hidden = !!c;
   $("#doc-plano-tela").hidden = !c;
   if (c) renderPlano(c);
-  else renderLista();
 }
 
 /* ---------- lista dos planos ---------- */
@@ -41,7 +44,11 @@ function renderAbas() {
   $("#doc-abas").innerHTML = Object.entries(TIPOS).map(([tipo, nome]) =>
     `<button type="button" class="cfg-item" data-tipo="${tipo}" aria-current="${tipo === aba}">${nome} <span class="cat-qtd">${cartoes.filter((c) => c.tipo === tipo).reduce((n, c) => n + c.planos.length, 0)}</span></button>`).join("");
   $("#doc-abas").querySelectorAll("[data-tipo]").forEach((b) => (b.onclick = () => {
+    if (aba === b.dataset.tipo) return;
     aba = b.dataset.tipo;
+    aberto = null;
+    visto = opcao = "";
+    editando = excluindo = null;
     renderDocumentos();
   }));
 }
@@ -60,44 +67,30 @@ const achados = () => {
 function renderLista() {
   renderAbas();
   const todos = planosDaAba(), lista = achados(), edita = pode("documentos", "editar");
-  $("#doc-planos-qtd").textContent = busca.trim() ? `${lista.length} de ${todos.length} planos` : `${todos.length} ${todos.length === 1 ? "plano" : "planos"} de ${TIPOS[aba].toLowerCase()}`;
   const box = $("#doc-planos");
   if (!lista.length) {
     box.innerHTML = `<div class="status">${todos.length ? "Nenhum plano encontrado com essa busca." : `Nenhum plano de ${TIPOS[aba].toLowerCase()} cadastrado.`}</div>`;
     return;
   }
-  const rotulo = edita ? "Editar documentos" : "Ver documentos";
-  box.innerHTML = lista.map(({ p, n }, i) => `<div class="catrow doc-plano-linha" data-i="${i}" data-plano="${esc(p.id)}">
-      <button type="button" class="doc-plano-nome"><b>${esc(p.nome)}</b><span>${qtdDocs(n)}</span></button>
-      <div class="actions">${botaoIcone(edita ? "editar" : "ver", rotulo, "")}</div>
+  box.innerHTML = lista.map(({ p, n }, i) => `<div class="catrow${p.id === visto ? " visto" : ""}" data-i="${i}">
+      <button type="button" class="cat-nome" aria-current="${p.id === visto}">${esc(p.nome)}<span class="doc-qtd">${qtdDocs(n)}</span></button>
+      <button type="button" class="btn">${edita ? "Editar" : "Ver"}</button>
     </div>`).join("");
-  box.querySelectorAll(".doc-plano-linha").forEach((row) => {
+  box.querySelectorAll(".catrow[data-i]").forEach((row) => {
     const { c, p } = lista[Number(row.dataset.i)];
-    // A linha inteira abre o plano; os botões dentro dela chegam aqui pelo clique.
-    row.onclick = () => abrirPlano(c, p.id);
+    row.querySelectorAll("button").forEach((b) => (b.onclick = () => abrirPlano(c, p.id)));
   });
 }
 
 function abrirPlano(c, planoId) {
   aberto = { tipo: c.tipo, nome: c.nome };
-  opcao = planoId;
+  visto = opcao = planoId;
   fora = new Set();
   editando = excluindo = null;
   renderDocumentos();
-  $("#v-documentos").scrollIntoView({ block: "start" });
-  if (pode("documentos", "editar")) $("#doc-nome").focus({ preventScroll: true });
-}
-
-function voltarParaLista() {
-  const id = opcao;
-  aberto = null;
-  opcao = "";
-  editando = excluindo = null;
-  renderDocumentos();
-  // Volta com o plano que estava aberto à vista.
-  const linha = [...$("#doc-planos").querySelectorAll(".doc-plano-linha")].find((r) => r.dataset.plano === id);
-  linha?.scrollIntoView({ block: "center" });
-  linha?.querySelector(".doc-plano-nome")?.focus({ preventScroll: true });
+  // Em tela estreita o painel fica embaixo da lista: leva até ele.
+  if (matchMedia("(max-width:900px)").matches) $(".doc-detalhe").scrollIntoView({ block: "start" });
+  else if (pode("documentos", "editar")) $("#doc-nome").focus({ preventScroll: true });
 }
 
 /* ---------- tela do plano ---------- */
@@ -232,7 +225,6 @@ export function iniciarDocumentos() {
     busca = e.target.value;
     renderDocumentos();
   };
-  $("#doc-voltar").onclick = voltarParaLista;
   $("#doc-marcar-todos").onclick = () => {
     const c = cartaoAberto();
     if (!c) return;
