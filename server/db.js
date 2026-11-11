@@ -223,21 +223,29 @@ const MIGRACOES = [
   `DELETE FROM documentos_planos;
    INSERT INTO documentos_planos (documento_id, plano_id) SELECT d.id, p.id FROM documentos d JOIN planos p ON p.categoria = d.tipo;`,
   // Documentos dos planos CNPJ: a Unimed PME com a lista da Unimed e os demais com a lista empresarial. Troca a lista anterior.
-  (db) => {
-    const cnpj = db.prepare("SELECT id FROM planos WHERE categoria = 'CNPJ'").all().map((p) => p.id);
-    if (!cnpj.length) return;
-    db.prepare(`DELETE FROM documentos_planos WHERE plano_id IN (${cnpj.map(() => "?").join(",")})`).run(...cnpj);
-    const ligar = db.prepare("INSERT OR IGNORE INTO documentos_planos (documento_id, plano_id) VALUES (?, ?)");
-    const documento = (nome) => db.prepare("SELECT id FROM documentos WHERE nome = ? AND tipo = 'CNPJ'").get(nome)?.id
-      ?? Number(db.prepare("INSERT INTO documentos (nome, tipo) VALUES (?, 'CNPJ')").run(nome).lastInsertRowid);
-    const unimed = cnpj.filter((id) => UNIMED_PME.includes(id)), outros = cnpj.filter((id) => !UNIMED_PME.includes(id));
-    for (const [lista, planos] of [[DOCUMENTOS_CNPJ, outros], [DOCUMENTOS_UNIMED_PME, unimed]]) {
-      if (!planos.length) continue;
-      for (const nome of lista) { const id = documento(nome); for (const plano of planos) ligar.run(id, plano); }
-    }
-    db.exec("DELETE FROM documentos WHERE id NOT IN (SELECT documento_id FROM documentos_planos)");
-  },
+  (db) => trocarDocumentosCnpj(db, { unimed: true }),
+  // Lista empresarial com os nomes mais curtos (sem "cópia"); a Unimed PME fica com a lista dela.
+  (db) => trocarDocumentosCnpj(db, { unimed: false }),
 ];
+
+// Troca os documentos dos planos CNPJ pela lista empresarial; com unimed, a Unimed PME recebe a lista dela.
+function trocarDocumentosCnpj(db, { unimed }) {
+  const todos = db.prepare("SELECT id FROM planos WHERE categoria = 'CNPJ'").all().map((p) => p.id);
+  const outros = todos.filter((id) => !UNIMED_PME.includes(id)), daUnimed = unimed ? todos.filter((id) => UNIMED_PME.includes(id)) : [];
+  const trocar = [...outros, ...daUnimed];
+  if (!trocar.length) return;
+  db.prepare(`DELETE FROM documentos_planos WHERE plano_id IN (${trocar.map(() => "?").join(",")})`).run(...trocar);
+  // Some antes o que não sobrou em nenhum plano: a lista nova é criada na ordem certa.
+  db.exec("DELETE FROM documentos WHERE id NOT IN (SELECT documento_id FROM documentos_planos)");
+  const ligar = db.prepare("INSERT OR IGNORE INTO documentos_planos (documento_id, plano_id) VALUES (?, ?)");
+  const documento = (nome) => db.prepare("SELECT id FROM documentos WHERE nome = ? AND tipo = 'CNPJ'").get(nome)?.id
+    ?? Number(db.prepare("INSERT INTO documentos (nome, tipo) VALUES (?, 'CNPJ')").run(nome).lastInsertRowid);
+  for (const [lista, planos] of [[DOCUMENTOS_CNPJ, outros], [DOCUMENTOS_UNIMED_PME, daUnimed]]) {
+    if (!planos.length) continue;
+    for (const nome of lista) { const id = documento(nome); for (const plano of planos) ligar.run(id, plano); }
+  }
+  db.exec("DELETE FROM documentos WHERE id NOT IN (SELECT documento_id FROM documentos_planos)");
+}
 
 const VERSAO_TEXTOS_COPARTICIPACAO = 11;
 const VERSAO_AREA_COMERCIALIZACAO = 12;
@@ -250,12 +258,12 @@ const VERSAO_REDE_UNIMED_PME = 37;
 // Relação de documentos do plano empresarial/PJ: da empresa, depois do titular e dos dependentes.
 const DOCUMENTOS_CNPJ = [
   "CARTÃO CNPJ",
-  "CÓPIA DO CONTRATO SOCIAL DA EMPRESA OU CCMEI",
-  "CÓPIA DA DOCUMENTAÇÃO DOS RESPONSÁVEIS DA EMPRESA (CPF E RG OU CNH)",
+  "CONTRATO SOCIAL DA EMPRESA OU CCMEI",
+  "DOCUMENTAÇÃO DOS RESPONSÁVEIS DA EMPRESA (CPF E RG OU CNH)",
   "COMPROVANTE DE ENDEREÇO DOS RESPONSÁVEIS",
   "E-MAIL E TELEFONES DE CONTATO DA EMPRESA",
-  "CÓPIA DO CPF E RG OU CNH DO TITULAR E DOS DEPENDENTES",
-  "E-MAIL E TELEFONES DE CONTATO DO TITULAR E DOS DEPENDENTES",
+  "CPF E RG OU CNH DO TITULAR E DEPENDENTES",
+  "E-MAIL E TELEFONES DE CONTATO DO TITULAR E DEPENDENTES",
 ];
 const UNIMED_PME = ["unimed-pleno-on-pme", "unimed-udiplan-on-pme", "unimed-pontual-on-pme", "unimed-uniplan-on-pme"];
 // Documentação comprobatória da Unimed PME, na ordem da lista: empresa, titulares e dependentes.

@@ -492,16 +492,30 @@ test("cadastra documentos por cartão de plano, que valem para todas as opções
   assert.equal((await fetch(publico + "/api/documentos")).status, 404);
 });
 
-// Lista que a versão 39 põe em todo plano CNPJ fora da Unimed PME.
+// Lista que as versões 39 e 40 põem em todo plano CNPJ fora da Unimed PME.
 const DOCUMENTOS_CNPJ = [
   "CARTÃO CNPJ",
-  "CÓPIA DO CONTRATO SOCIAL DA EMPRESA OU CCMEI",
-  "CÓPIA DA DOCUMENTAÇÃO DOS RESPONSÁVEIS DA EMPRESA (CPF E RG OU CNH)",
+  "CONTRATO SOCIAL DA EMPRESA OU CCMEI",
+  "DOCUMENTAÇÃO DOS RESPONSÁVEIS DA EMPRESA (CPF E RG OU CNH)",
   "COMPROVANTE DE ENDEREÇO DOS RESPONSÁVEIS",
   "E-MAIL E TELEFONES DE CONTATO DA EMPRESA",
-  "CÓPIA DO CPF E RG OU CNH DO TITULAR E DOS DEPENDENTES",
-  "E-MAIL E TELEFONES DE CONTATO DO TITULAR E DOS DEPENDENTES",
+  "CPF E RG OU CNH DO TITULAR E DEPENDENTES",
+  "E-MAIL E TELEFONES DE CONTATO DO TITULAR E DEPENDENTES",
 ];
+
+test("a versão 40 troca a lista empresarial pelos nomes novos e não mexe na Unimed PME", async (t) => {
+  const { banco } = await subir(t, ativo);
+  // Banco que já tinha recebido a lista da versão 39, com uma mudança feita à mão na Unimed.
+  banco.adicionarDocumentoAoCartao("CNPJ", "UNIMED", "Documento extra da Unimed");
+  banco.adicionarDocumentoAoCartao("CNPJ", "PLAM TOTAL", "CÓPIA DO CPF E RG OU CNH DO TITULAR E DOS DEPENDENTES");
+  banco.db.exec("PRAGMA user_version = 39");
+  banco.fechar();
+  banco.abrir();
+  assert.deepEqual(banco.documentosDoPlano("plam-total-cnpj"), DOCUMENTOS_CNPJ);
+  assert.deepEqual(banco.documentosDoPlano("amil-pme-ouro-30-mei"), DOCUMENTOS_CNPJ);
+  assert.ok(banco.documentosDoPlano("unimed-pleno-on-pme").includes("Documento extra da Unimed"));
+  assert.ok(!banco.listarDocumentos().some((d) => d.nome.startsWith("CÓPIA DO CPF")));
+});
 
 test("listas antigas de PF e CNPJ viram documentos dos planos do tipo", async (t) => {
   const { banco } = await subir(t, ativo);
