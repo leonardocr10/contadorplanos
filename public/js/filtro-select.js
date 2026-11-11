@@ -24,8 +24,7 @@ const CSS = `
 .fs-oculto{position:absolute;width:1px!important;min-width:0!important;height:1px!important;margin:0;padding:0!important;border:0!important;opacity:0;pointer-events:none;overflow:hidden}
 .fs-painel{position:fixed;z-index:1000;display:flex;flex-direction:column;min-width:220px;background:var(--surface,#fff);color:var(--ink);border:1px solid var(--line);border-radius:14px;box-shadow:0 16px 40px rgba(0,0,0,.16);overflow:hidden;font-family:var(--body,inherit)}
 .fs-busca{position:relative;flex:none;margin:10px;padding-bottom:0}
-.fs-busca svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none}
-.fs-painel .fs-busca input{display:block;width:100%;margin:0;padding:10px 12px 10px 36px;border:1px solid var(--line);border-radius:10px;background:var(--surface,#fff);color:var(--ink);font:inherit;font-size:14px}
+.fs-painel .fs-busca input{display:block;width:100%;margin:0;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg,#fff);color:var(--ink);font:500 15px var(--body,inherit)}
 .fs-painel .fs-busca input:focus{outline:none;border-color:var(--pine,var(--accent));box-shadow:0 0 0 1px var(--pine,var(--accent))}
 .fs-lista{flex:1;min-height:0;margin:0;padding:4px 6px 6px;overflow-y:auto;list-style:none;font-size:14px;border-top:1px solid var(--line)}
 .fs-sem-busca .fs-lista{border-top:0}
@@ -49,7 +48,6 @@ const CSS = `
 const icone = (corpo, tamanho = 16, classe = "fs-icone") => `<svg class="${classe}" width="${tamanho}" height="${tamanho}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${corpo}</svg>`;
 const SETA = icone('<path d="m6 9 6 6 6-6"/>', 14, "fs-seta");
 const MARCA = icone('<path d="M20 6 9 17l-5-5"/>', 16, "fs-marca");
-const LUPA = icone('<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>', 16, "");
 // Ícones que a tela pode pedir: no botão (data-icone no select) ou numa opção (data-icone na option).
 const ICONES = {
   local: '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
@@ -79,7 +77,6 @@ function abrir(select, botao) {
   const caixaBusca = document.createElement("div");
   caixaBusca.className = "fs-busca";
   caixaBusca.hidden = !comBusca;
-  caixaBusca.innerHTML = LUPA;
   const filtro = document.createElement("input");
   filtro.type = "text";
   filtro.placeholder = select.dataset.busca || "Buscar…";
