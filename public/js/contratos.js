@@ -3,7 +3,7 @@ import { brl, fmtFone, normFone, parseBRL } from "./calculo.js";
 import { $, S, api, avisoCentral, esc, pode, show, toast } from "./estado.js";
 import { linkConversaDireta, mensagemAtivacao } from "./mensagem.js";
 
-let contratos = [], carregados = false, erro = null, editando = null, filtro = "todos", mes = "todos";
+let contratos = [], carregados = false, erro = null, filtro = "todos", mes = "todos";
 const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 const nomeDoMes = (aaaamm) => `${MESES[Number(aaaamm.slice(5, 7)) - 1]} de ${aaaamm.slice(0, 4)}`;
 // Mensagem do WhatsApp aberta para edição: { id do contrato, texto }.
@@ -96,7 +96,7 @@ export function renderContratos() {
     const st = situacao(c, dia);
     return `<div class="hq ctr-item${st.chave === "pendente" ? " ctr-pendente" : ""}" data-id="${esc(c.id)}">
       <div class="hq-top"><span class="hg-name">${esc(c.nome)}</span><span class="pill ${st.classe}">${esc(st.rotulo)}</span></div>
-      <div class="hq-date">${esc(fmtFone(c.fone))} · ativação em ${esc(fmtDia(c.ativacao))}${c.contatoEm ? ` · contato feito em ${esc(new Date(c.contatoEm).toLocaleDateString("pt-BR"))}` : ""}</div>
+      ${edita && edicao?.id === c.id ? formularioDeEdicao(c) : `<div class="hq-date">${esc(fmtFone(c.fone))} · ativação em ${esc(fmtDia(c.ativacao))}${c.contatoEm ? ` · contato feito em ${esc(new Date(c.contatoEm).toLocaleDateString("pt-BR"))}` : ""}</div>
       <div class="hq-plans"><b>${esc(c.plano)}</b> · R$ ${brl(c.valor)}</div>
       <div class="actions">
         ${edita ? `<button class="btn ${st.chave === "pendente" ? "primary" : ""}" data-mensagem aria-expanded="${mensagem?.id === c.id}">Mensagem no WhatsApp</button>
@@ -104,7 +104,7 @@ export function renderContratos() {
         <button class="btn" data-documentos aria-expanded="${docsAbertos === c.id}">Documentos${c.arquivos.length ? ` <span class="ctr-qtd">${c.arquivos.length}</span>` : ""}</button>
         ${edita ? `<button class="btn" data-editar>Editar</button>
         <button class="btn danger" data-excluir>Excluir</button>` : ""}
-      </div>
+      </div>`}
       ${docsAbertos === c.id ? painelDeDocumentos(c, edita) : ""}
       ${edita ? `${mensagem?.id === c.id ? `<div class="ctr-msg" data-painel-msg>
         <label class="label" for="ctr-msg-texto">Mensagem para ${esc(c.nome)}</label>
@@ -151,6 +151,8 @@ export function renderContratos() {
   const docs = box.querySelector("[data-painel-docs]");
   if (docs) ligarDocumentos(docs, doItem(docs));
   box.querySelectorAll("[data-editar]").forEach((b) => (b.onclick = () => editar(doItem(b))));
+  const formEdicao = box.querySelector("[data-edicao]");
+  if (formEdicao) ligarEdicao(formEdicao, doItem(formEdicao));
   box.querySelectorAll("[data-excluir]").forEach((b) => (b.onclick = () => (b.closest(".hq").querySelector("[data-confirma]").hidden = false)));
   box.querySelectorAll("[data-nao]").forEach((b) => (b.onclick = () => (b.closest("[data-confirma]").hidden = true)));
   box.querySelectorAll("[data-sim]").forEach((b) => (b.onclick = () => excluir(doItem(b), b)));
@@ -354,20 +356,23 @@ function abrirMensagem(c) {
   if (campo) { campo.focus(); campo.setSelectionRange(0, 0); campo.scrollTop = 0; }
 }
 
-// Sugestões do campo plano: os nomes dos planos cadastrados, sem impedir outro nome.
-// Plano do contrato em edição que não existe mais na lista: entra como opção para não se perder.
-let planoAntigo = "";
-export function atualizarPlanosDoContrato() {
+// Opções do campo plano, separadas em pessoa física e CNPJ. O plano de um contrato que não existe mais
+// na lista entra como opção, para a edição não perdê-lo.
+function opcoesDePlanos(planoDoContrato = "") {
   const ordem = (a, b) => a.localeCompare(b, "pt-BR");
   const grupo = (cat) => [...new Set(S.plans.filter((p) => p.categoria === cat).map((p) => p.nome))].sort(ordem);
   const todos = new Set(S.plans.map((p) => p.nome));
   const opcao = (n) => `<option value="${esc(n)}">${esc(n)}</option>`;
-  const html = `<option value="">Selecionar plano</option>`
-    + (planoAntigo && !todos.has(planoAntigo) ? `<optgroup label="Plano do contrato">${opcao(planoAntigo)}</optgroup>` : "")
+  return `<option value="">Selecionar plano</option>`
+    + (planoDoContrato && !todos.has(planoDoContrato) ? `<optgroup label="Plano do contrato">${opcao(planoDoContrato)}</optgroup>` : "")
     + [["PF", "Pessoa física"], ["CNPJ", "CNPJ"]].map(([cat, rotulo]) => {
       const nomes = grupo(cat);
       return nomes.length ? `<optgroup label="${rotulo}">${nomes.map(opcao).join("")}</optgroup>` : "";
     }).join("");
+}
+
+export function atualizarPlanosDoContrato() {
+  const html = opcoesDePlanos();
   const sel = $("#ctr-plano");
   if (sel.dataset.html === html) return;
   const valor = sel.value;
@@ -376,59 +381,37 @@ export function atualizarPlanosDoContrato() {
   sel.value = valor;
 }
 
-function lerFormulario() {
-  return {
+// Confere os dados antes de mandar ao servidor; devolve a mensagem do primeiro problema.
+function problemaNoContrato(d) {
+  if (!d.nome) return "Informe o nome do cliente.";
+  if (d.fone.length < 10) return "Informe o telefone do cliente com DDD.";
+  if (!d.plano) return "Selecione o plano contratado.";
+  if (!(d.valor > 0)) return "Informe o valor do contrato.";
+  if (!d.ativacao) return "Informe a data de ativação do plano.";
+  return "";
+}
+
+function limparFormulario() {
+  for (const id of ["nome", "fone", "plano", "valor", "ativacao"]) $("#ctr-" + id).value = "";
+}
+
+// Cadastro de contrato novo, no formulário do topo.
+async function salvar(e) {
+  e.preventDefault();
+  const d = {
     nome: $("#ctr-nome").value.trim(),
     fone: normFone($("#ctr-fone").value),
     plano: $("#ctr-plano").value.trim(),
     valor: parseBRL($("#ctr-valor").value),
     ativacao: $("#ctr-ativacao").value,
   };
-}
-
-function limparFormulario() {
-  editando = null;
-  for (const id of ["nome", "fone", "plano", "valor", "ativacao"]) $("#ctr-" + id).value = "";
-  planoAntigo = "";
-  atualizarPlanosDoContrato();
-  $("#ctr-salvar").textContent = "Cadastrar contrato";
-  $("#ctr-cancelar").hidden = true;
-}
-
-function editar(c) {
-  editando = c.id;
-  $("#ctr-nome").value = c.nome;
-  $("#ctr-fone").value = fmtFone(c.fone);
-  planoAntigo = c.plano;
-  atualizarPlanosDoContrato();
-  $("#ctr-plano").value = c.plano;
-  $("#ctr-valor").value = brl(c.valor);
-  $("#ctr-ativacao").value = c.ativacao;
-  $("#ctr-salvar").textContent = "Salvar alterações";
-  $("#ctr-cancelar").hidden = false;
-  $("#ctr-form").scrollIntoView({ behavior: "smooth", block: "center" });
-  $("#ctr-nome").focus({ preventScroll: true });
-}
-
-async function salvar(e) {
-  e.preventDefault();
-  const d = lerFormulario();
-  if (!d.nome) return toast("Informe o nome do cliente.", "erro");
-  if (d.fone.length < 10) return toast("Informe o telefone do cliente com DDD.", "erro");
-  if (!d.plano) return toast("Selecione o plano contratado.", "erro");
-  if (!(d.valor > 0)) return toast("Informe o valor do contrato.", "erro");
-  if (!d.ativacao) return toast("Informe a data de ativação do plano.", "erro");
+  const problema = problemaNoContrato(d);
+  if (problema) return toast(problema, "erro");
   const botao = $("#ctr-salvar");
   botao.disabled = true;
   try {
-    if (editando) {
-      const c = await api(`/api/contratos/${encodeURIComponent(editando)}`, { metodo: "PUT", json: d });
-      contratos = contratos.map((x) => (x.id === c.id ? c : x));
-      avisoCentral("Contrato salvo com sucesso");
-    } else {
-      contratos = [await api("/api/contratos", { metodo: "POST", json: d }), ...contratos];
-      avisoCentral(d.ativacao <= hoje() ? "Contrato cadastrado. O plano já está ativo: entre em contato com o cliente" : `Contrato cadastrado. No dia ${fmtDia(d.ativacao)} o sistema avisa para entrar em contato`);
-    }
+    contratos = [await api("/api/contratos", { metodo: "POST", json: d }), ...contratos];
+    avisoCentral(d.ativacao <= hoje() ? "Contrato cadastrado. O plano já está ativo: entre em contato com o cliente" : `Contrato cadastrado. No dia ${fmtDia(d.ativacao)} o sistema avisa para entrar em contato`);
     limparFormulario();
     // O aviso do cadastro já basta: não repete a caixa por causa deste contrato.
     avisados = Math.max(avisados, pendentes().length);
@@ -437,6 +420,63 @@ async function salvar(e) {
     toast(`Não deu para salvar: ${erro.message}`, "erro");
   }
   botao.disabled = false;
+}
+
+/* ---------- edição dentro do card ---------- */
+// O que está sendo digitado fica guardado: redesenhar a lista não perde a edição.
+let edicao = null;
+
+function editar(c) {
+  edicao = { id: c.id, nome: c.nome, fone: fmtFone(c.fone), plano: c.plano, valor: brl(c.valor), ativacao: c.ativacao, planoOriginal: c.plano };
+  mensagem = mensagem?.id === c.id ? null : mensagem;
+  renderContratos();
+  const form = document.querySelector(`[data-edicao="${CSS.escape(c.id)}"]`);
+  form?.querySelector('[data-campo="nome"]').focus();
+}
+
+function formularioDeEdicao(c) {
+  const campo = (nome, rotulo, extra) => `<div class="field"><label for="ctr-ed-${nome}">${rotulo}</label><input id="ctr-ed-${nome}" data-campo="${nome}" value="${esc(edicao[nome])}" autocomplete="off" ${extra}></div>`;
+  return `<form class="ctr-form ctr-edicao" data-edicao="${esc(c.id)}" novalidate>
+    ${campo("nome", "Nome do cliente", 'type="text"')}
+    ${campo("fone", "Telefone", 'type="tel"')}
+    <div class="field"><label for="ctr-ed-plano">Plano contratado</label><select id="ctr-ed-plano" data-campo="plano" data-busca="Buscar plano…" data-contagem="plano|planos" data-grupos-destaque>${opcoesDePlanos(edicao.planoOriginal)}</select></div>
+    ${campo("valor", "Valor (R$)", 'type="text" inputmode="decimal"')}
+    ${campo("ativacao", "Data de ativação", 'type="date"')}
+    <div class="actions ctr-botoes"><button class="btn primary" type="submit" data-ed-salvar>Salvar</button><button class="btn" type="button" data-ed-cancelar>Cancelar</button></div>
+  </form>`;
+}
+
+function ligarEdicao(form, c) {
+  const sel = form.querySelector('[data-campo="plano"]');
+  sel.value = edicao.plano;
+  for (const el of form.querySelectorAll("[data-campo]")) {
+    el.addEventListener(el.tagName === "SELECT" ? "change" : "input", () => (edicao[el.dataset.campo] = el.value));
+  }
+  const fone = form.querySelector('[data-campo="fone"]'), valor = form.querySelector('[data-campo="valor"]');
+  fone.addEventListener("blur", () => { const f = normFone(fone.value); if (f.length >= 10) edicao.fone = fone.value = fmtFone(f); });
+  valor.addEventListener("blur", () => { const v = parseBRL(valor.value); if (v != null) edicao.valor = valor.value = brl(v); });
+  const cancelar = () => { edicao = null; renderContratos(); };
+  form.querySelector("[data-ed-cancelar]").onclick = cancelar;
+  form.onkeydown = (e) => { if (e.key === "Escape") cancelar(); };
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const d = { nome: edicao.nome.trim(), fone: normFone(edicao.fone), plano: edicao.plano.trim(), valor: parseBRL(edicao.valor), ativacao: edicao.ativacao };
+    const problema = problemaNoContrato(d);
+    if (problema) return toast(problema, "erro");
+    const botao = form.querySelector("[data-ed-salvar]");
+    botao.disabled = true;
+    try {
+      const novo = await api(`/api/contratos/${encodeURIComponent(c.id)}`, { metodo: "PUT", json: d });
+      contratos = contratos.map((x) => (x.id === novo.id ? novo : x));
+      edicao = null;
+      avisados = Math.min(avisados, pendentes().length);
+      renderContratos();
+      avisoCentral("Contrato salvo com sucesso");
+    } catch (erro) {
+      botao.disabled = false;
+      toast(`Não deu para salvar: ${erro.message}`, "erro");
+    }
+  };
 }
 
 async function marcarContato(c, feito, botao) {
@@ -458,7 +498,7 @@ async function excluir(c, botao) {
   try {
     await api(`/api/contratos/${encodeURIComponent(c.id)}`, { metodo: "DELETE" });
     contratos = contratos.filter((x) => x.id !== c.id);
-    if (editando === c.id) limparFormulario();
+    if (edicao?.id === c.id) edicao = null;
     if (mensagem?.id === c.id) mensagem = null;
     if (docsAbertos === c.id) docsAbertos = null;
     for (const a of c.arquivos) esquecerArquivo(a.id);
@@ -482,7 +522,6 @@ export function conferirDiaDosContratos() {
 
 export function iniciarContratos() {
   $("#ctr-form").onsubmit = salvar;
-  $("#ctr-cancelar").onclick = limparFormulario;
   $("#ctr-filtro").onchange = () => { filtro = $("#ctr-filtro").value; renderContratos(); };
   $("#ctr-mes").onchange = () => { mes = $("#ctr-mes").value; renderContratos(); };
   $("#ctr-limpar").onclick = () => { filtro = "todos"; mes = "todos"; renderContratos(); };

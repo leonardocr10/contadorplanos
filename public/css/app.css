@@ -489,6 +489,7 @@ body{margin:0}
 .ctr-form .field{gap:4px}
 .ctr-form input,.ctr-form .fs-botao{height:40px;min-height:0;box-sizing:border-box}
 .ctr-botoes{margin:0;flex-wrap:nowrap;gap:8px}
+.ctr-edicao{padding-top:4px}
 .ctr-botoes .btn{height:40px;white-space:nowrap}
 @media (max-width:1250px){.ctr-form{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)}}
 /* Os filtros ficam separados do cadastro por uma linha, num bloco próprio. */
