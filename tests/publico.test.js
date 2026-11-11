@@ -492,6 +492,17 @@ test("cadastra documentos por cartão de plano, que valem para todas as opções
   assert.equal((await fetch(publico + "/api/documentos")).status, 404);
 });
 
+// Lista que a versão 39 põe em todo plano CNPJ fora da Unimed PME.
+const DOCUMENTOS_CNPJ = [
+  "CARTÃO CNPJ",
+  "CÓPIA DO CONTRATO SOCIAL DA EMPRESA OU CCMEI",
+  "CÓPIA DA DOCUMENTAÇÃO DOS RESPONSÁVEIS DA EMPRESA (CPF E RG OU CNH)",
+  "COMPROVANTE DE ENDEREÇO DOS RESPONSÁVEIS",
+  "E-MAIL E TELEFONES DE CONTATO DA EMPRESA",
+  "CÓPIA DO CPF E RG OU CNH DO TITULAR E DOS DEPENDENTES",
+  "E-MAIL E TELEFONES DE CONTATO DO TITULAR E DOS DEPENDENTES",
+];
+
 test("listas antigas de PF e CNPJ viram documentos dos planos do tipo", async (t) => {
   const { banco } = await subir(t, ativo);
   banco.db.exec("DROP TABLE documentos; DROP TABLE documentos_planos; PRAGMA user_version = 3;");
@@ -499,10 +510,10 @@ test("listas antigas de PF e CNPJ viram documentos dos planos do tipo", async (t
   banco.db.prepare("UPDATE planos SET categoria = 'CNPJ' WHERE id = 'amil-ouro-total'").run();
   banco.fechar();
   banco.abrir();
-  // O RG das duas listas vira um documento de pessoa física e outro de CNPJ.
-  assert.deepEqual(banco.listarDocumentos().map((d) => `${d.nome} ${d.tipo}`), ["RG PF", "CPF PF", "Contrato social CNPJ", "RG CNPJ"]);
+  // A lista de pessoa física vira documentos dos planos PF; os de CNPJ depois dão lugar à lista empresarial (versão 39).
+  assert.deepEqual(banco.listarDocumentos().filter((d) => d.tipo === "PF").map((d) => d.nome), ["RG", "CPF"]);
   assert.deepEqual(banco.documentosDoPlano("plam-saude-pf"), ["RG", "CPF"]);
-  assert.deepEqual(banco.documentosDoPlano("amil-ouro-total"), ["Contrato social", "RG"]);
+  assert.deepEqual(banco.documentosDoPlano("amil-ouro-total"), DOCUMENTOS_CNPJ);
   assert.deepEqual(Object.keys(banco.lerConfig()).sort(), ["empresa", "fone", "nome"]);
 });
 
@@ -562,8 +573,42 @@ test("documentos que valiam para todo o tipo ficam em todos os planos dele ao at
   banco.abrir();
   assert.deepEqual(banco.documentosDoPlano("plam-saude-pf"), ["RG"]);
   assert.deepEqual(banco.documentosDoPlano("amil-ouro-total"), ["RG"]);
-  assert.deepEqual(banco.documentosDoPlano("unimed-pleno-on-pme"), ["Contrato social"]);
-  assert.ok(banco.cartoesDeDocumentos().filter((c) => c.tipo === "CNPJ").every((c) => c.documentos.map((d) => d.nome).join() === "Contrato social"));
+  // Os planos CNPJ recebem logo depois a lista empresarial (versão 39); a Unimed PME, a lista dela.
+  assert.ok(banco.cartoesDeDocumentos().filter((c) => c.tipo === "CNPJ" && c.nome !== "UNIMED").every((c) => c.documentos.map((d) => d.nome).join() === DOCUMENTOS_CNPJ.join()));
+});
+
+test("ao atualizar, a Unimed PME recebe a lista da Unimed e os outros planos CNPJ a lista empresarial", async (t) => {
+  const { banco } = await subir(t, ativo);
+  banco.db.exec("DELETE FROM documentos_planos; DELETE FROM documentos;");
+  banco.adicionarDocumentoAoCartao("CNPJ", "UNIMED", "Documento antigo");
+  banco.adicionarDocumentoAoCartao("CNPJ", "UNIMED", "Cartão CNPJ");
+  banco.adicionarDocumentoAoCartao("CNPJ", "PLAM TOTAL", "Cartão CNPJ");
+  banco.db.exec("PRAGMA user_version = 38");
+  banco.fechar();
+  banco.abrir();
+  const lista = [
+    "Cartão CNPJ",
+    "Contrato Social registrado no órgão competente ou requerimento de empresário, registrado na junta comercial",
+    "Última alteração contratual (se houver)",
+    "Cópia do RG/CNH do responsável pela assinatura do contrato",
+    "Inscrição Municipal ou Alvará de Funcionamento",
+    "DCTFweb com demonstrativo CLT e recibo de transmissão",
+    "Relatório S2200 e E-social completo",
+    "RG/CNH dos titulares",
+    "Comprovante de endereço atualizado (sócio ou administrador)",
+    "Cartão Nacional do SUS dos titulares",
+    "RG/CNH dos dependentes (cônjuge e filhos/enteados)",
+    "Cartão Nacional do SUS dos dependentes",
+    "Certidão de Casamento ou União Estável",
+    "Certidão de Escolaridade (filhos/enteados de 19 a 23 anos e 11 meses)",
+  ];
+  for (const id of ["unimed-pleno-on-pme", "unimed-udiplan-on-pme", "unimed-pontual-on-pme", "unimed-uniplan-on-pme"]) {
+    assert.deepEqual(banco.documentosDoPlano(id), lista, id);
+  }
+  // Os outros planos CNPJ ficam com a lista empresarial; o documento que não sobra em nenhum plano some.
+  assert.deepEqual(banco.documentosDoPlano("plam-total-cnpj"), DOCUMENTOS_CNPJ);
+  assert.deepEqual(banco.documentosDoPlano("amil-pme-ouro-30-mei"), DOCUMENTOS_CNPJ);
+  assert.ok(!banco.listarDocumentos().some((d) => d.nome === "Documento antigo"));
 });
 
 test("documento ativo nos dois tipos vira dois ao atualizar", async (t) => {
@@ -579,10 +624,10 @@ test("documento ativo nos dois tipos vira dois ao atualizar", async (t) => {
     PRAGMA user_version = ${versao - 1};`);
   banco.fechar();
   banco.abrir();
-  const docs = banco.listarDocumentos();
-  assert.deepEqual(docs.map((d) => `${d.nome} ${d.tipo}`), ["Comprovante PF", "Contrato social CNPJ", "Sem plano PF", "Comprovante CNPJ"]);
+  // Os de pessoa física continuam; os de CNPJ dão lugar à lista empresarial (versão 39).
+  assert.deepEqual(banco.listarDocumentos().filter((d) => d.tipo === "PF").map((d) => d.nome), ["Comprovante", "Sem plano"]);
   assert.deepEqual(banco.documentosDoPlano("plam-saude-pf"), ["Comprovante", "Sem plano"]);
-  assert.deepEqual(banco.documentosDoPlano("plam-total-cnpj"), ["Contrato social", "Comprovante"]);
+  assert.deepEqual(banco.documentosDoPlano("plam-total-cnpj"), DOCUMENTOS_CNPJ);
 });
 
 test("link antigo, sem o id do plano, encontra os documentos pelo nome", async (t) => {

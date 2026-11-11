@@ -222,6 +222,21 @@ const MIGRACOES = [
   // Documentos passam a ser de cada cartão de plano: os que valiam para todo o tipo ficam em todos os planos dele.
   `DELETE FROM documentos_planos;
    INSERT INTO documentos_planos (documento_id, plano_id) SELECT d.id, p.id FROM documentos d JOIN planos p ON p.categoria = d.tipo;`,
+  // Documentos dos planos CNPJ: a Unimed PME com a lista da Unimed e os demais com a lista empresarial. Troca a lista anterior.
+  (db) => {
+    const cnpj = db.prepare("SELECT id FROM planos WHERE categoria = 'CNPJ'").all().map((p) => p.id);
+    if (!cnpj.length) return;
+    db.prepare(`DELETE FROM documentos_planos WHERE plano_id IN (${cnpj.map(() => "?").join(",")})`).run(...cnpj);
+    const ligar = db.prepare("INSERT OR IGNORE INTO documentos_planos (documento_id, plano_id) VALUES (?, ?)");
+    const documento = (nome) => db.prepare("SELECT id FROM documentos WHERE nome = ? AND tipo = 'CNPJ'").get(nome)?.id
+      ?? Number(db.prepare("INSERT INTO documentos (nome, tipo) VALUES (?, 'CNPJ')").run(nome).lastInsertRowid);
+    const unimed = cnpj.filter((id) => UNIMED_PME.includes(id)), outros = cnpj.filter((id) => !UNIMED_PME.includes(id));
+    for (const [lista, planos] of [[DOCUMENTOS_CNPJ, outros], [DOCUMENTOS_UNIMED_PME, unimed]]) {
+      if (!planos.length) continue;
+      for (const nome of lista) { const id = documento(nome); for (const plano of planos) ligar.run(id, plano); }
+    }
+    db.exec("DELETE FROM documentos WHERE id NOT IN (SELECT documento_id FROM documentos_planos)");
+  },
 ];
 
 const VERSAO_TEXTOS_COPARTICIPACAO = 11;
@@ -232,6 +247,34 @@ const VERSAO_BENEFICIOS_AMIL_PME = 28;
 const VERSAO_HAPVIDA_PME = 35;
 const VERSAO_CARENCIAS_UNIMED_PME = 36;
 const VERSAO_REDE_UNIMED_PME = 37;
+// Relação de documentos do plano empresarial/PJ: da empresa, depois do titular e dos dependentes.
+const DOCUMENTOS_CNPJ = [
+  "CARTÃO CNPJ",
+  "CÓPIA DO CONTRATO SOCIAL DA EMPRESA OU CCMEI",
+  "CÓPIA DA DOCUMENTAÇÃO DOS RESPONSÁVEIS DA EMPRESA (CPF E RG OU CNH)",
+  "COMPROVANTE DE ENDEREÇO DOS RESPONSÁVEIS",
+  "E-MAIL E TELEFONES DE CONTATO DA EMPRESA",
+  "CÓPIA DO CPF E RG OU CNH DO TITULAR E DOS DEPENDENTES",
+  "E-MAIL E TELEFONES DE CONTATO DO TITULAR E DOS DEPENDENTES",
+];
+const UNIMED_PME = ["unimed-pleno-on-pme", "unimed-udiplan-on-pme", "unimed-pontual-on-pme", "unimed-uniplan-on-pme"];
+// Documentação comprobatória da Unimed PME, na ordem da lista: empresa, titulares e dependentes.
+const DOCUMENTOS_UNIMED_PME = [
+  "Cartão CNPJ",
+  "Contrato Social registrado no órgão competente ou requerimento de empresário, registrado na junta comercial",
+  "Última alteração contratual (se houver)",
+  "Cópia do RG/CNH do responsável pela assinatura do contrato",
+  "Inscrição Municipal ou Alvará de Funcionamento",
+  "DCTFweb com demonstrativo CLT e recibo de transmissão",
+  "Relatório S2200 e E-social completo",
+  "RG/CNH dos titulares",
+  "Comprovante de endereço atualizado (sócio ou administrador)",
+  "Cartão Nacional do SUS dos titulares",
+  "RG/CNH dos dependentes (cônjuge e filhos/enteados)",
+  "Cartão Nacional do SUS dos dependentes",
+  "Certidão de Casamento ou União Estável",
+  "Certidão de Escolaridade (filhos/enteados de 19 a 23 anos e 11 meses)",
+];
 // Rede que a Unimed PME tinha antes da tabela de rede: outra rede foi editada à mão.
 const REDE_ANTIGA_UNIMED_PME = { "unimed-pleno-on-pme": "Hospital Santa Clara\nHospital Santa Marta\nHospital UMC\nHospital Orthomed", "unimed-udiplan-on-pme": "Hospital Santa Genoveva\nHospital Santa Marta\nHospital Santa Clara\nHospital UMC\nOrthomed Center", "unimed-pontual-on-pme": "", "unimed-uniplan-on-pme": "" };
 // Tabela de carências que a Unimed PME tinha só com a coluna PRC 10: outra tabela foi editada à mão.
