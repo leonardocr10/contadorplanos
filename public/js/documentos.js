@@ -66,7 +66,7 @@ const achados = () => {
 
 function renderLista() {
   renderAbas();
-  const todos = planosDaAba(), lista = achados(), edita = pode("documentos", "editar");
+  const todos = planosDaAba(), lista = achados();
   const box = $("#doc-planos");
   if (!lista.length) {
     box.innerHTML = `<div class="status">${todos.length ? "Nenhum plano encontrado com essa busca." : `Nenhum plano de ${TIPOS[aba].toLowerCase()} cadastrado.`}</div>`;
@@ -74,7 +74,6 @@ function renderLista() {
   }
   box.innerHTML = lista.map(({ p, n }, i) => `<div class="catrow${p.id === visto ? " visto" : ""}" data-i="${i}">
       <button type="button" class="cat-nome" aria-current="${p.id === visto}">${esc(p.nome)}<span class="doc-qtd">${qtdDocs(n)}</span></button>
-      <button type="button" class="btn">${edita ? "Editar" : "Ver"}</button>
     </div>`).join("");
   box.querySelectorAll(".catrow[data-i]").forEach((row) => {
     const { c, p } = lista[Number(row.dataset.i)];
