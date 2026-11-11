@@ -219,6 +219,8 @@ textarea{resize:vertical;min-height:72px;line-height:1.45}
 .selitem .field{gap:2px}
 .selitem .field label{font-size:9.75px}
 .selitem input{padding:4px 8px;border-radius:7px;font-size:11.25px}
+.selitem .car{grid-column:1/-1;flex-direction:row;align-items:center;gap:8px}
+.selitem .car select{width:auto;max-width:100%;padding:4px 8px;border-radius:7px;font-size:11.25px}
 .selitem .iconbtn{width:24px;height:24px;border-radius:7px;font-size:14px;align-self:center}
 @media (max-width:560px){.selitem{grid-template-columns:1fr 1fr}.selitem .name{grid-column:1/-1}}
 .iconbtn{border:1px solid var(--line);background:var(--surface);color:var(--muted);width:38px;height:38px;border-radius:10px;cursor:pointer;font-size:18px;line-height:1}

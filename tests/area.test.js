@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { completarCarencias, gruposDeVidas, lerArea, planPrices, locaisDosPlanos, redeDaCidade, resumoDaRede, vendidoEm } from "../public/js/calculo.js";
+import { carenciaDaColuna, colunasDeCarencia, completarCarencias, gruposDeVidas, lerArea, planPrices, locaisDosPlanos, redeDaCidade, resumoDaRede, vendidoEm } from "../public/js/calculo.js";
 import { buildMsg } from "../public/js/mensagem.js";
 import { montarSnapshot, renderizarProposta } from "../server/proposta-html.js";
 import { renderizarComparativo } from "../server/comparativo-html.js";
@@ -508,6 +508,35 @@ test("proposta com plano que não aceita o tamanho do grupo é recusada, sem sal
   assert.equal((await pedir("/api/propostas/previa", umaVida, ["unimed-pleno-on-pme"])).status, 400);
   assert.equal((await pedir("/api/propostas", duas, ["plam-total-cnpj", "amil-pme-prata-30"])).status, 201);
   assert.equal(contar(), antes + 2);
+});
+
+test("o corretor escolhe qual coluna de carência vai na proposta", async (t) => {
+  const unimed = planos.find((p) => p.id === "unimed-pleno-on-pme");
+  assert.deepEqual(colunasDeCarencia(unimed.carenciaTabela), ["PRC 10 – contratual", "PRC 20 – 3 a 11 meses", "PRC 50 – mais de 12 meses"]);
+  assert.deepEqual(colunasDeCarencia("Item | Prazo\nParto | 300 dias"), []);
+  const so50 = carenciaDaColuna(unimed.carenciaTabela, 3).split("\n");
+  assert.equal(so50[0], "Procedimentos | PRC 50 – mais de 12 meses");
+  assert.ok(so50.includes("Exames Especializados | 24 horas"));
+  // Sem escolha (ou coluna que não existe), a tabela vai inteira e o cliente escolhe na página.
+  assert.equal(carenciaDaColuna(unimed.carenciaTabela, 0), unimed.carenciaTabela);
+  assert.equal(carenciaDaColuna(unimed.carenciaTabela, 9), unimed.carenciaTabela);
+  const pedido = (over) => ({ vidas: [2, 0, 0, 0, 0, 0, 0, 0, 0, 0], over, cliente: "", opts: { copart: true, rede: true, acom: true }, municipio: "Uberlândia" });
+  const corretor = { nome: "C", fone: "34999990000", empresa: "E" };
+  assert.equal(montarSnapshot(unimed, pedido({}), corretor).plano.carenciaTabela, unimed.carenciaTabela);
+  const escolhida = montarSnapshot(unimed, pedido({ [unimed.id]: { carencia: 2 } }), corretor);
+  assert.equal(escolhida.plano.carenciaTabela.split("\n")[0], "Procedimentos | PRC 20 – 3 a 11 meses");
+  const html = renderizarProposta(escolhida, {});
+  assert.ok(!html.includes('id="situacao"') && html.includes("120 dias"));
+  // A escolha chega pelo link da proposta.
+  const pasta = mkdtempSync(join(tmpdir(), "cotador-car-coluna-"));
+  const banco = new Banco(join(pasta, "c.db"), seed);
+  const app = criarApp({ banco, pastaPublica: join(raiz, "public"), pastaUploads: join(pasta, "u"), pastaBackups: join(pasta, "b"), env: {}, linkPublico: () => ({ estado: "ativo", url: "http://exemplo" }) });
+  const servidor = await new Promise((ok) => { const s = app.listen(0, "127.0.0.1", () => ok(s)); });
+  t.after(() => new Promise((fim) => { servidor.closeAllConnections(); servidor.close(() => { banco.fechar(); rmSync(pasta, { recursive: true, force: true }); fim(); }); }));
+  const r = await fetch(`http://127.0.0.1:${servidor.address().port}/api/propostas`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ planos: [unimed.id], vidas: [2, 0, 0, 0, 0, 0, 0, 0, 0, 0], over: { [unimed.id]: { carencia: 3 } }, fone: "34999990000", cliente: "Teste" }) });
+  assert.equal(r.status, 201);
+  const token = (await r.json()).links[0].url.split("/p/")[1];
+  assert.equal(banco.obterProposta(token).dados.plano.carenciaTabela.split("\n")[0], "Procedimentos | PRC 50 – mais de 12 meses");
 });
 
 test("plano antigo, sem tabela por vidas, continua com o preço de família a partir de 3 vidas", () => {

@@ -1,5 +1,5 @@
 // Tela "Nova cotação": formulário, cartões de planos, prévia do WhatsApp e imagens da proposta.
-import { FAIXAS, brl, hasFaixas, lerArea, locaisDosPlanos, normFone, parseBRL, planPrices, redeDaCidade, totalVidas, vendidoEm } from "./calculo.js";
+import { FAIXAS, brl, colunasDeCarencia, hasFaixas, lerArea, locaisDosPlanos, normFone, parseBRL, planPrices, redeDaCidade, totalVidas, vendidoEm } from "./calculo.js";
 import { $, S, api, esc, pode, render, toast } from "./estado.js";
 import { buildMsg, linkConversaDireta, textoDosLinks, waHtml } from "./mensagem.js";
 import { paginaParaPng } from "./imagem-proposta.js";
@@ -256,17 +256,26 @@ function renderSel() {
     const semRede = S.municipio && !redeDaCidade(p, S.municipio).length ? `Sem rede cadastrada em ${esc(S.municipio)} · ` : "";
     return `${misturados ? `${p.categoria === "CNPJ" ? "CNPJ" : "Pessoa física"} · ` : ""}${semRede}`;
   };
+  // Plano com várias colunas de carência: o corretor escolhe qual vai na proposta.
+  const escolhaCarencia = (p) => {
+    const colunas = colunasDeCarencia(p.carenciaTabela);
+    if (!colunas.length) return "";
+    const atual = S.over[p.id]?.carencia ?? 0;
+    return `<div class="field car"><label for="car-${esc(p.id)}">Carência na proposta</label><select id="car-${esc(p.id)}" data-car="1">
+      <option value="0"${atual ? "" : " selected"}>Todas as tabelas (o cliente escolhe)</option>
+      ${colunas.map((c, i) => `<option value="${i + 1}"${atual === i + 1 ? " selected" : ""}>${esc(c)}</option>`).join("")}</select></div>`;
+  };
   box.innerHTML = `<div class="note">Valores desta cotação:</div>` + items.map((p) => {
     const v = prices(p);
     const remover = `<button class="iconbtn" title="Tirar da proposta" aria-label="Tirar ${esc(p.nome)} da proposta" data-rm="1">×</button>`;
     if (v.porFaixa) return `<div class="selitem" data-id="${esc(p.id)}"><div class="name">${esc(p.nome)}<small>${tipoDe(p)}${esc(p.subtitulo || "")} · ${tv} ${tv === 1 ? "vida" : "vidas"}</small></div>
       <div class="tot"><small>Enfermaria total</small>${v.enf != null ? "R$ " + brl(v.enf) : semValor(p.faixasEnf, p.enfermaria)}</div>
       <div class="tot"><small>Apartamento total</small>${v.apto != null ? "R$ " + brl(v.apto) : semValor(p.faixasApto, p.apartamento)}</div>
-      ${remover}</div>`;
+      ${remover}${escolhaCarencia(p)}</div>`;
     return `<div class="selitem" data-id="${esc(p.id)}"><div class="name">${esc(p.nome)}<small>${tipoDe(p)}${esc(p.subtitulo || "")}</small></div>
       <div class="field"><label for="enf-${esc(p.id)}">Enfermaria R$</label><input class="money" type="text" inputmode="decimal" id="enf-${esc(p.id)}" data-k="enf" value="${brl(v.enf)}"></div>
       <div class="field"><label for="apto-${esc(p.id)}">Apartamento R$</label><input class="money" type="text" inputmode="decimal" id="apto-${esc(p.id)}" data-k="apto" value="${brl(v.apto)}"></div>
-      ${remover}</div>`;
+      ${remover}${escolhaCarencia(p)}</div>`;
   }).join("");
   box.querySelectorAll(".selitem").forEach((row) => {
     const id = row.dataset.id;
@@ -276,6 +285,13 @@ function renderSel() {
       inp.value = brl(S.over[id][inp.dataset.k]);
       render();
     }));
+    const car = row.querySelector("[data-car]");
+    if (car) car.onchange = () => {
+      S.over[id] = S.over[id] || {};
+      if (Number(car.value)) S.over[id].carencia = Number(car.value);
+      else delete S.over[id].carencia;
+      render();
+    };
     row.querySelector("[data-rm]").onclick = () => { S.selected = S.selected.filter((x) => x !== id); render(); };
   });
 }

@@ -102,6 +102,24 @@ export function planPrices(p, vidas, over = {}) {
 
 /* ---------- carências ---------- */
 // Toda tabela de carências traz terapias e preexistência; as linhas que já existem não mudam.
+/* ---------- colunas de carência ---------- */
+// Tabelas com mais de uma coluna de prazos (ex.: PRC 10, 20 e 50): o corretor pode mandar só uma delas.
+const linhasDaTabela = (t) => String(t ?? "").split("\n").map((l) => l.split("|").map((x) => x.trim())).filter((r) => r.some(Boolean));
+
+export function colunasDeCarencia(tabela) {
+  const linhas = linhasDaTabela(tabela);
+  if (linhas.length < 2) return [];
+  const n = Math.max(...linhas.map((r) => r.length));
+  return n > 2 ? Array.from({ length: n - 1 }, (_, i) => linhas[0][i + 1] || `Coluna ${i + 1}`) : [];
+}
+
+// Coluna 1, 2, ... dos prazos; fora da tabela (ou 0) devolve a tabela inteira.
+export function carenciaDaColuna(tabela, coluna) {
+  const k = Number(coluna);
+  if (!Number.isInteger(k) || k < 1 || k > colunasDeCarencia(tabela).length) return tabela;
+  return linhasDaTabela(tabela).map((r) => `${r[0]} | ${r[k] ?? ""}`).join("\n");
+}
+
 export function completarCarencias(tabela) {
   const linhas = lines(tabela);
   if (linhas.length < 2) return String(tabela ?? "").trim();

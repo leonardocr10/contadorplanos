@@ -199,6 +199,7 @@ function validarPedidoDeLinks(b) {
     over[id] = {};
     if (o?.enf !== undefined) over[id].enf = numeroOpc(o.enf, "enfermaria");
     if (o?.apto !== undefined) over[id].apto = numeroOpc(o.apto, "apartamento");
+    if (Number.isInteger(o?.carencia) && o.carencia > 0) over[id].carencia = o.carencia;
   }
   const o = b.opts ?? {};
   return {

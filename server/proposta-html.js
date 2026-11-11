@@ -1,5 +1,5 @@
 // Página HTML da proposta, aberta pelo cliente: layout com painel lateral, sem rolagem no computador.
-import { brl, lines, normFone, parseBRL, planPrices, r2, redeDaCidade, totalVidas } from "../public/js/calculo.js";
+import { brl, carenciaDaColuna, lines, normFone, parseBRL, planPrices, r2, redeDaCidade, totalVidas } from "../public/js/calculo.js";
 import { linkConversaDireta } from "../public/js/mensagem.js";
 import { hex2rgb, lumRGB, mixRGB, toHex } from "../public/js/cores.js";
 
@@ -10,6 +10,8 @@ export const moeda = (v) => `R$ ${brl(v)}`;
 
 export function montarSnapshot(p, { vidas, over, cliente, opts, municipio = "" }, corretor, agora = new Date()) {
   const v = planPrices(p, vidas, over);
+  // O corretor pode ter escolhido uma só coluna da tabela de carências.
+  const carenciaTabela = carenciaDaColuna(p.carenciaTabela, over?.[p.id]?.carencia);
   return {
     cliente,
     corretor: { nome: corretor.nome, fone: corretor.fone, empresa: corretor.empresa, usuarioId: corretor.usuarioId },
@@ -30,7 +32,7 @@ export function montarSnapshot(p, { vidas, over, cliente, opts, municipio = "" }
       observacao: p.mostrarObservacao ? p.descricao : "",
       copartTexto: opts.copart ? p.copartTexto : "",
       copartTabela: temTabela(p.copartTabela) ? p.copartTabela : "", copartNota: p.copartNota,
-      carenciaTabela: temTabela(p.carenciaTabela) ? p.carenciaTabela : "", carenciaNota: p.carenciaNota,
+      carenciaTabela: temTabela(carenciaTabela) ? carenciaTabela : "", carenciaNota: p.carenciaNota,
       imgCopart: temTabela(p.copartTabela) ? "" : p.imgCopart,
       imgCarencia: temTabela(p.carenciaTabela) ? "" : p.imgCarencia,
       rede: opts.rede ? redeDaCidade(p, municipio) : [],
