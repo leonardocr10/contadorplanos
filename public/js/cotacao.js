@@ -191,7 +191,7 @@ function renderPlans() {
   if (!S.loaded) { box.innerHTML = `<div class="status">${S.dbErr ? esc(S.dbErr) : "Carregando planos…"}</div>`; return; }
   const doTipo = S.plans.filter((p) => p.categoria === S.tipo && p.ativo !== false);
   const nomeTipo = S.tipo === "PF" ? "para pessoa física" : "CNPJ";
-  if (!doTipo.length) { box.innerHTML = `<div class="status">Nenhum plano ${nomeTipo} cadastrado. Adicione na aba <b>Planos e valores</b>.</div>`; return; }
+  if (!doTipo.length) { box.innerHTML = `<div class="status">Nenhum plano ${nomeTipo} cadastrado. Adicione na tela <b>Planos e Valores</b>.</div>`; return; }
   const naArea = doTipo.filter((p) => vendidoEm(p, S.uf, S.municipio));
   renderFiltroPlanos(naArea);
   $("#contagem-planos").textContent = "";

@@ -32,7 +32,7 @@ Se o administrador esquecer a senha, coloque a nova senha em `LOGIN_SENHA`, acre
 
 ### Acesso às telas
 
-Em **Configurações > Usuários**, o administrador escolhe, para cada usuário e cada tela (Nova cotação, Planos e valores, Documentos, Histórico, Aceites e Contratos vendidos), entre **Sem acesso**, **Visualização** e **Edição**. O administrador sempre tem acesso a tudo. Quem só visualiza a Nova cotação pode simular, mas não envia nem salva.
+Em **Configurações > Usuários**, o administrador escolhe, para cada usuário e cada tela (Nova Cotação, Planos e Valores, Documentos, Histórico, Aceites e Contratos Vendidos), entre **Sem acesso**, **Visualização** e **Edição**. O administrador sempre tem acesso a tudo. Quem só visualiza a Nova Cotação pode simular, mas não envia nem salva.
 
 Usuários não são excluídos: o administrador **desativa** quem não deve mais entrar. O login fica bloqueado, e as cotações, os contratos vendidos e os documentos dos clientes continuam guardados. **Ativar** devolve o acesso com tudo como estava.
 
@@ -73,7 +73,7 @@ O aceite registra o interesse do cliente, mas não substitui a assinatura do con
 
 Na tela **Documentos**, escolha o plano na lista para cadastrar ou excluir os documentos dele. Nos planos com várias opções (ex.: AMIL OURO 30%, 40%, MEI, PARCIAL), escolha em qual opção cadastrar. Marque os documentos que quer pedir e copie a mensagem pronta para o WhatsApp.
 
-## Contratos vendidos
+## Contratos Vendidos
 
 Cadastre cada venda com o nome e o telefone do cliente, o plano contratado, o valor e a data de ativação. A partir da data de ativação, até você marcar **Contato feito**, o sistema avisa que é preciso falar com o cliente: um número na tela, uma faixa no topo e um aviso ao abrir o cotador. O botão **Mensagem no WhatsApp** abre um texto pronto, que pode ser editado antes de enviar.
 

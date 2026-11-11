@@ -28,12 +28,12 @@
     <h1>Cotador de Planos<small>Monte a proposta e envie pelo WhatsApp em poucos cliques</small></h1>
     <button type="button" class="usuario-logado" id="usuario-logado" title="Abrir Meus dados" hidden></button>
     <nav class="tabs" role="tablist">
-      <button id="tab-cot" role="tab" aria-selected="true" data-view="cotacao">Nova cotação</button>
-      <button role="tab" aria-selected="false" data-view="planos">Planos e valores</button>
+      <button id="tab-cot" role="tab" aria-selected="true" data-view="cotacao">Nova Cotação</button>
+      <button role="tab" aria-selected="false" data-view="planos">Planos e Valores</button>
       <button role="tab" aria-selected="false" data-view="documentos">Documentos</button>
       <button role="tab" aria-selected="false" data-view="historico">Histórico</button>
       <button role="tab" aria-selected="false" data-view="aceites">Aceites <span class="pill" id="ace-selo" hidden style="margin:0 0 0 4px"></span></button>
-      <button role="tab" aria-selected="false" data-view="contratos">Contratos vendidos <span class="pill st-off" id="ctr-selo" hidden style="margin:0 0 0 4px"></span></button>
+      <button role="tab" aria-selected="false" data-view="contratos">Contratos Vendidos <span class="pill st-off" id="ctr-selo" hidden style="margin:0 0 0 4px"></span></button>
       <button role="tab" aria-selected="false" data-view="configuracoes">Configurações</button>
       <form method="post" action="/sair" style="display:contents"><button type="submit">Sair</button></form>
     </nav>
@@ -97,7 +97,7 @@
   <section id="v-planos" hidden>
     <div class="panel">
       <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center">
-        <h2>Planos e valores</h2>
+        <h2>Planos e Valores</h2>
         <button class="btn primary" id="novo" data-edita="planos" hidden>Novo plano</button>
       </div>
       <p class="note" style="margin:0" data-edita="planos" hidden>Os valores ficam salvos para todas as próximas cotações.</p>
@@ -175,7 +175,7 @@
   <section id="v-contratos" hidden>
     <div class="panel">
       <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center">
-        <h2>Contratos vendidos</h2>
+        <h2>Contratos Vendidos</h2>
         <span class="note" id="ctr-count"></span>
       </div>
       <form id="ctr-form" class="ctr-form" autocomplete="off" data-edita="contratos" hidden>
