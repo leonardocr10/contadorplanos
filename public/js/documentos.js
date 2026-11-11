@@ -22,7 +22,6 @@ const ICONES = {
   ver: icone('<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>'),
 };
 const botaoIcone = (nome, rotulo, atributos, extra = "") => `<button type="button" class="iconbtn doc-acao ${extra}" title="${esc(rotulo)}" aria-label="${esc(rotulo)}" ${atributos}>${ICONES[nome]}</button>`;
-const qtdDocs = (n) => (n ? `${n} ${n === 1 ? "documento" : "documentos"}` : "Nenhum documento");
 
 export async function carregarDocumentos() {
   cartoes = await api("/api/documentos");
@@ -56,7 +55,7 @@ function renderAbas() {
 // Cada plano aparece na lista, como em Planos e valores (ex.: AMIL OURO 30%, AMIL OURO 30% MEI),
 // na mesma ordem; o cartão dele só serve para cadastrar o mesmo documento nas outras opções.
 const planosDaAba = () => cartoesDaAba()
-  .flatMap((c) => c.planos.map((p) => ({ c, p, n: c.documentos.filter((d) => d.planos.includes(p.id)).length })))
+  .flatMap((c) => c.planos.map((p) => ({ c, p })))
   .sort((a, b) => a.p.ordem - b.p.ordem);
 const achados = () => {
   const termo = normalizar(busca);
@@ -72,8 +71,8 @@ function renderLista() {
     box.innerHTML = `<div class="status">${todos.length ? "Nenhum plano encontrado com essa busca." : `Nenhum plano de ${TIPOS[aba].toLowerCase()} cadastrado.`}</div>`;
     return;
   }
-  box.innerHTML = lista.map(({ p, n }, i) => `<div class="catrow${p.id === visto ? " visto" : ""}" data-i="${i}">
-      <button type="button" class="cat-nome" aria-current="${p.id === visto}">${esc(p.nome)}<span class="doc-qtd">${qtdDocs(n)}</span></button>
+  box.innerHTML = lista.map(({ p }, i) => `<div class="catrow${p.id === visto ? " visto" : ""}" data-i="${i}">
+      <button type="button" class="cat-nome" aria-current="${p.id === visto}">${esc(p.nome)}</button>
     </div>`).join("");
   box.querySelectorAll(".catrow[data-i]").forEach((row) => {
     const { c, p } = lista[Number(row.dataset.i)];
