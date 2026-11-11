@@ -16,15 +16,24 @@ let renderizar = () => {};
 export const definirRender = (fn) => { renderizar = fn; };
 export const render = () => renderizar();
 
-// Toda mensagem do sistema aparece numa caixa no meio da tela, que some sozinha ou com um clique.
+// Toda mensagem do sistema aparece numa caixa no canto de cima, com uma barra que mostra o tempo até ela sumir.
+// Some sozinha, no × ou com um clique; com o mouse em cima, a barra para e a mensagem fica.
 // O tipo muda o ícone e a cor: sucesso, aviso (o que fazer a seguir) ou erro.
-const ICONES_DO_AVISO = { sucesso: "✓", aviso: "i", erro: "!" };
+const ICONE_SVG = (desenho) => `<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">${desenho}</svg>`;
+const ICONES_DO_AVISO = {
+  sucesso: ICONE_SVG('<circle cx="12" cy="12" r="11" fill="currentColor"/><path d="m7 12.5 3.2 3.2L17 9" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>'),
+  aviso: ICONE_SVG('<circle cx="12" cy="12" r="11" fill="currentColor"/><path d="M12 11v6" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="7.3" r="1.5" fill="#fff"/>'),
+  erro: ICONE_SVG('<circle cx="12" cy="12" r="11" fill="currentColor"/><path d="M12 6.5v7" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="17" r="1.5" fill="#fff"/>'),
+};
 // Toda mensagem fica o mesmo tempo na tela.
 const TEMPO_DO_AVISO = 2500;
+let barraDoAviso = null;
 function esconderAviso() {
   const el = $("#aviso-central");
-  clearTimeout(avisoCentral.t);
+  barraDoAviso?.cancel();
+  barraDoAviso = null;
   el.classList.add("saindo");
+  clearTimeout(avisoCentral.fim);
   avisoCentral.fim = setTimeout(() => (el.hidden = true), 250);
 }
 export function avisoCentral(texto, tipo = "sucesso") {
@@ -33,14 +42,18 @@ export function avisoCentral(texto, tipo = "sucesso") {
   if (el.parentElement !== destino) destino.append(el);
   el.dataset.tipo = tipo;
   el.setAttribute("role", tipo === "erro" ? "alert" : "status");
-  el.querySelector(".aviso-central-icone").textContent = ICONES_DO_AVISO[tipo];
+  el.querySelector(".aviso-central-icone").innerHTML = ICONES_DO_AVISO[tipo];
   el.querySelector("b").textContent = texto;
   el.hidden = false;
   el.classList.remove("saindo");
-  el.onclick = esconderAviso;
-  clearTimeout(avisoCentral.t);
   clearTimeout(avisoCentral.fim);
-  avisoCentral.t = setTimeout(esconderAviso, TEMPO_DO_AVISO);
+  el.onclick = esconderAviso;
+  // A barra diminui até zero e, ao terminar, a mensagem some; o mouse em cima pausa as duas coisas.
+  barraDoAviso?.cancel();
+  barraDoAviso = el.querySelector(".aviso-central-tempo").animate([{ transform: "scaleX(1)" }, { transform: "scaleX(0)" }], { duration: TEMPO_DO_AVISO, fill: "forwards" });
+  barraDoAviso.onfinish = esconderAviso;
+  el.onmouseenter = () => barraDoAviso?.pause();
+  el.onmouseleave = () => barraDoAviso?.play();
 }
 
 export const toast = (texto, tipo = "aviso") => avisoCentral(texto, tipo);
