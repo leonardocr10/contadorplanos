@@ -4,6 +4,7 @@ import { $, S, api, avisoCentral, esc, pode, toast } from "./estado.js";
 import { mensagemDocumentosDoPlano, waHtml } from "./mensagem.js";
 import { copiarTexto } from "./cotacao.js";
 import { normalizar } from "./filtro-select.js";
+import { SUFIXOS } from "./calculo.js";
 
 const TIPOS = { PF: "Pessoa física", CNPJ: "CNPJ" };
 let cartoes = [], aba = "PF", busca = "", aberto = null, opcao = "", editando = null, excluindo = null;
@@ -162,8 +163,9 @@ function renderPlano(c) {
   if (editando != null) box.querySelector("[data-nome]")?.focus();
 }
 
+// O cliente não precisa ver a coparticipação nem o MEI: "AMIL OURO 30% MEI" vai como "AMIL OURO".
 const textoDaMensagem = (c) => mensagemDocumentosDoPlano({
-  plano: nomeDaVisao(c), tipo: c.tipo, documentos: marcados(c).map((d) => d.nome),
+  plano: nomeDaVisao(c).replace(SUFIXOS, "").trim(), tipo: c.tipo, documentos: marcados(c).map((d) => d.nome),
   corretor: { nome: S.cor.nome.trim(), fone: S.cor.fone.trim(), empresa: S.cor.empresa.trim() },
 });
 
