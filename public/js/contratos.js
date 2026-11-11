@@ -120,7 +120,7 @@ export function renderContratos() {
           <button class="btn" data-msg-fechar>Fechar</button>
         </div>
       </div>` : ""}
-      <div class="status" data-confirma hidden>Excluir o contrato de <b>${esc(c.nome)}</b>? <span class="actions" style="margin-top:8px"><button class="btn danger" data-sim>Sim, excluir</button><button class="btn" data-nao>Manter</button></span></div>` : ""}
+      <div class="status" data-confirma hidden>Excluir o contrato de <b>${esc(c.nome)}</b>${c.arquivos.length ? ` e ${c.arquivos.length === 1 ? "o documento salvo" : `os ${c.arquivos.length} documentos salvos`}` : ""}? Não dá para desfazer. <span class="actions" style="margin-top:8px"><button class="btn danger" data-sim>Sim, excluir</button><button class="btn" data-nao>Manter</button></span></div>` : ""}
     </div>`;
   }).join("");
   const doItem = (el) => contratos.find((c) => c.id === el.closest(".hq").dataset.id);
@@ -464,9 +464,12 @@ async function excluir(c, botao) {
     contratos = contratos.filter((x) => x.id !== c.id);
     if (editando === c.id) limparFormulario();
     if (mensagem?.id === c.id) mensagem = null;
+    if (docsAbertos === c.id) docsAbertos = null;
+    for (const a of c.arquivos) esquecerArquivo(a.id);
+    emEnvio.delete(c.id);
     avisados = Math.min(avisados, pendentes().length);
     renderContratos();
-    avisoCentral("Contrato excluído com sucesso");
+    avisoCentral(c.arquivos.length ? "Contrato e documentos excluídos com sucesso" : "Contrato excluído com sucesso");
   } catch (e) {
     botao.disabled = false;
     toast(`Não deu para excluir: ${e.message}`, "erro");

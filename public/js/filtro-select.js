@@ -29,6 +29,8 @@ const CSS = `
 .fs-lista{flex:1;min-height:0;margin:0;padding:4px 6px 6px;overflow-y:auto;list-style:none;font-size:14px;border-top:1px solid var(--line)}
 .fs-sem-busca .fs-lista{border-top:0}
 .fs-grupo{padding:10px 10px 4px;font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.fs-grupos-destaque .fs-grupo{position:sticky;top:-4px;z-index:1;margin:6px 0 2px;padding:7px 10px;border-radius:8px;background:var(--pine,#1f4d3a);color:var(--pine-ink,#fff);font-size:12.5px;letter-spacing:.08em}
+.fs-grupos-destaque .fs-grupo:first-child{margin-top:2px}
 .fs-opcao{display:flex;align-items:center;gap:10px;min-height:36px;padding:7px 10px;border-radius:8px;cursor:pointer}
 .fs-opcao>.fs-texto{flex:1;min-width:0;overflow-wrap:anywhere}
 .fs-opcao[data-ativa="1"]{background:var(--bg,#f3f6f3)}
@@ -75,6 +77,8 @@ function abrir(select, botao) {
   painel.className = "fs-painel";
   const comBusca = select.dataset.busca !== undefined || select.options.length >= MINIMO_PARA_BUSCAR;
   if (!comBusca) painel.classList.add("fs-sem-busca");
+  // A tela pode pedir os títulos dos grupos em destaque (ex.: Pessoa física e CNPJ nos planos).
+  if (select.dataset.gruposDestaque !== undefined) painel.classList.add("fs-grupos-destaque");
   const caixaBusca = document.createElement("div");
   caixaBusca.className = "fs-busca";
   caixaBusca.hidden = !comBusca;

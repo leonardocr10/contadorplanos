@@ -527,9 +527,17 @@ test("contratos vendidos: documentos do cliente só para o dono do contrato", as
   assert.equal((await pedir(admin, `/api/contratos/${c.id}/arquivos/${arquivo.id}`, "DELETE")).status, 404);
   assert.equal((await pedir(comum, `/api/contratos/${c.id}/arquivos/${arquivo.id}`, "DELETE")).status, 204);
   assert.equal((await pedir(comum, `/api/contratos/${c.id}/arquivos/${arquivo.id}`)).status, 404);
-  // Excluir o contrato apaga os documentos dele.
+  // Excluir o contrato apaga os documentos dele do banco, e o espaço volta para o disco.
+  const marca = "DOCUMENTO-PESSOAL-DO-CLIENTE";
+  const grande = Buffer.concat([Buffer.from(`%PDF-1.4\n${marca}\n`), Buffer.alloc(2 * 1024 * 1024, 7)]);
+  assert.equal((await enviar(comum, grande, "grande.pdf")).status, 201);
+  const paginas = () => banco.db.prepare("PRAGMA page_count").get().page_count * banco.db.prepare("PRAGMA page_size").get().page_size;
+  const antes = paginas();
   assert.equal((await pedir(comum, `/api/contratos/${c.id}`, "DELETE")).status, 204);
   assert.equal(banco.db.prepare("SELECT COUNT(*) AS n FROM contratos_arquivos").get().n, 0);
+  assert.equal(banco.db.prepare("PRAGMA freelist_count").get().freelist_count, 0);
+  assert.ok(antes - paginas() >= 2 * 1024 * 1024,`o banco não encolheu: ${antes} -> ${paginas()}`);
+  assert.ok(!readFileSync(banco.caminho).includes(marca), "o conteúdo do documento ficou no arquivo do banco");
 });
 
 test("contratos vendidos: dados obrigatórios conferidos no servidor", async (t) => {

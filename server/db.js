@@ -249,6 +249,8 @@ const MIGRACOES = [
      criado_em TEXT NOT NULL
    );
    CREATE INDEX IF NOT EXISTS contratos_arquivos_contrato ON contratos_arquivos (contrato_id);`,
+  // Documento que tenha ficado sem contrato é apagado.
+  "DELETE FROM contratos_arquivos WHERE contrato_id NOT IN (SELECT id FROM contratos)",
 ];
 
 // Troca os documentos dos planos CNPJ pela lista empresarial; com unimed, a Unimed PME recebe a lista dela.
@@ -405,6 +407,10 @@ export class Banco {
   // correções de dados das versões seguintes ainda precisam entrar.
   abrir(versaoDoBackup) {
     this.db = new DatabaseSync(this.caminho);
+    // O que é apagado (como os documentos dos clientes) é sobrescrito com zeros, e o espaço volta para o disco:
+    // com o auto_vacuum incremental, o arquivo do banco encolhe depois de cada exclusão.
+    this.db.exec("PRAGMA secure_delete = ON");
+    if (this.db.prepare("PRAGMA auto_vacuum").get().auto_vacuum !== 2) this.db.exec("PRAGMA auto_vacuum = INCREMENTAL; VACUUM");
     const versaoAntes = versaoDoBackup ?? this.db.prepare("PRAGMA user_version").get().user_version;
     migrar(this.db);
     this.semear();
@@ -793,9 +799,25 @@ export class Banco {
     return this.obterContrato(id);
   }
 
+  // O contrato e os documentos dele saem juntos: nunca fica documento sem contrato no banco.
   excluirContrato(id) {
-    this.db.prepare("DELETE FROM contratos_arquivos WHERE contrato_id = ?").run(id);
-    return this.db.prepare("DELETE FROM contratos WHERE id = ?").run(id).changes > 0;
+    let apagou = false;
+    this.db.exec("BEGIN");
+    try {
+      this.db.prepare("DELETE FROM contratos_arquivos WHERE contrato_id = ?").run(id);
+      apagou = this.db.prepare("DELETE FROM contratos WHERE id = ?").run(id).changes > 0;
+      this.db.exec("COMMIT");
+    } catch (e) {
+      this.db.exec("ROLLBACK");
+      throw e;
+    }
+    this.liberarEspaco();
+    return apagou;
+  }
+
+  // Devolve ao disco o espaço do que foi apagado.
+  liberarEspaco() {
+    this.db.exec("PRAGMA incremental_vacuum");
   }
 
   // Lista sem o conteúdo: só o que a tela mostra.
@@ -820,7 +842,9 @@ export class Banco {
   }
 
   excluirArquivoDoContrato(contratoId, id) {
-    return this.db.prepare("DELETE FROM contratos_arquivos WHERE contrato_id = ? AND id = ?").run(contratoId, id).changes > 0;
+    const apagou = this.db.prepare("DELETE FROM contratos_arquivos WHERE contrato_id = ? AND id = ?").run(contratoId, id).changes > 0;
+    if (apagou) this.liberarEspaco();
+    return apagou;
   }
 
   /* ---------- páginas públicas das propostas ---------- */
