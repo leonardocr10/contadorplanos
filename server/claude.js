@@ -3,7 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { parseBRL, r2 } from "../public/js/calculo.js";
 
 export const MODELO_PADRAO = "claude-sonnet-5-5";
-export const MAX_IMAGENS = 20;
+const MAX_IMAGENS = 20;
 const MAX_BASE64 = 6_900_000; // cerca de 5 MB depois de decodificado, o limite da API por imagem
 
 // Modelos que aceitam o desvio automático para outro modelo quando um pedido é recusado.

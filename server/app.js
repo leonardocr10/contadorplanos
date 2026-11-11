@@ -11,7 +11,7 @@ import { cacheDoArquivo, cacheDoEnvio, naoGuardar } from "./cache.js";
 import { comprimir } from "./compressao.js";
 import { conferirSenha, gerarHashSemTravar } from "./senhas.js";
 import { criarEnviadorDeEmail } from "./email.js";
-import { NIVEIS, TELAS, atende } from "./permissoes.js";
+import { NIVEIS, TELAS, TELAS_COM_PLANOS, atende } from "./permissoes.js";
 import { montarSnapshot, renderizarProposta } from "./proposta-html.js";
 import { MAX_PLANOS_COMPARATIVO, renderizarComparativo } from "./comparativo-html.js";
 
@@ -308,9 +308,9 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
   app.use("/api", express.json({ limit: "4mb" }));
 
   /* ---------- planos ---------- */
-  // A cotação e os documentos também dependem da lista de planos.
+  // A cotação, os documentos e os contratos vendidos também dependem da lista de planos.
   app.get("/api/planos", (req, res) => {
-    if (!["cotacao", "planos", "documentos"].some((t) => pode(req, t, "ver"))) return res.status(403).json({ erro: "O seu usuário não tem permissão para fazer isso." });
+    if (!TELAS_COM_PLANOS.some((t) => pode(req, t, "ver"))) return res.status(403).json({ erro: "O seu usuário não tem permissão para fazer isso." });
     // Sem dados de clientes: o navegador guarda e confere com o servidor, que responde 304 quando nada mudou.
     res.setHeader("Cache-Control", "private, no-cache");
     res.json(banco.listarPlanos());

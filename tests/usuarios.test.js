@@ -9,6 +9,10 @@ import { conferirSenha, gerarHash } from "../server/senhas.js";
 import { criarEnviadorDeEmail } from "../server/email.js";
 import net from "node:net";
 
+// Todos os documentos cadastrados, na ordem em que foram criados (só para conferir nos testes).
+const listarDocumentos = (banco) => banco.db.prepare("SELECT id, nome, tipo FROM documentos ORDER BY id").all().map((d) => ({ ...d }));
+
+
 const raiz = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
 const seed = join(raiz, "dados", "planos.json");
 const SENHA_ADMIN = "senha-do-admin-1";
@@ -277,7 +281,7 @@ test("planos e documentos: todos consultam, só o administrador altera", async (
   const { banco, pedir, admin, um } = await doisCorretores(t);
   const plano = { nome: "PLANO NOVO", categoria: "PF" };
   const doc = (await (await pedir(admin, "/api/documentos", "POST", { nome: "RG", tipo: "PF", cartao: "PLAM SAÚDE" })).json());
-  const docId = doc.id ?? banco.listarDocumentos()[0].id;
+  const docId = doc.id ?? listarDocumentos(banco)[0].id;
   const proibidos = [
     ["/api/planos", "POST", plano], ["/api/planos/plam-saude-pf", "PUT", plano], ["/api/planos/plam-saude-pf", "DELETE"],
     ["/api/documentos", "POST", { nome: "CPF" }], [`/api/documentos/${docId}`, "PUT", { nome: "Outro" }], [`/api/documentos/${docId}`, "DELETE"],
@@ -286,7 +290,7 @@ test("planos e documentos: todos consultam, só o administrador altera", async (
   for (const [rota, metodo, json] of proibidos) assert.equal((await pedir(um, rota, metodo, json)).status, 403, `${metodo} ${rota}`);
   // Nada mudou, e a consulta segue aberta.
   assert.ok(banco.obterPlano("plam-saude-pf"));
-  assert.equal(banco.listarDocumentos().length, 1);
+  assert.equal(listarDocumentos(banco).length, 1);
   assert.equal((await pedir(um, "/api/planos")).status, 200);
   assert.deepEqual((await (await pedir(um, "/api/documentos")).json()).find((c) => c.nome === "PLAM SAÚDE").documentos.map((d) => d.nome), ["RG"]);
   // O administrador continua alterando.
@@ -446,6 +450,12 @@ test("sem nenhuma tela, a pessoa só acessa os próprios dados", async (t) => {
   assert.equal((await pedir(comum, "/api/propostas/previa", "POST", pedido)).status, 403);
   assert.equal((await pedir(comum, "/api/eu")).status, 200);
   assert.equal((await pedir(comum, "/api/config")).status, 200);
+});
+
+test("só com Contratos vendidos, a pessoa recebe a lista de planos para o campo plano", async (t) => {
+  const { pedir, comum } = await comPermissoes(t, { cotacao: "nenhum", planos: "nenhum", documentos: "nenhum", historico: "nenhum", aceites: "nenhum", contratos: "editar" });
+  assert.equal((await pedir(comum, "/api/planos")).status, 200);
+  assert.equal((await pedir(comum, "/api/documentos")).status, 403);
 });
 
 test("com visualização, consulta e não altera", async (t) => {

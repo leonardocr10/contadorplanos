@@ -68,7 +68,7 @@ export function gruposDeVidas(p) {
 }
 
 // Nome do grupo de vidas usado no preço, como "5 a 29 vidas". Vazio quando o plano tem uma tabela só.
-export function nomeDoGrupoDeVidas(p, total) {
+function nomeDoGrupoDeVidas(p, total) {
   return gruposDeVidas(p).filter((g) => total >= g.de).pop()?.nome ?? "";
 }
 

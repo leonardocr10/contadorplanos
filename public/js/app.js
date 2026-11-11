@@ -11,6 +11,9 @@ import { iniciarFiltroSelects } from "./filtro-select.js";
 
 iniciarFiltroSelects();
 
+// Telas que usam a lista de planos (a mesma regra do servidor).
+const TELAS_COM_PLANOS = ["cotacao", "planos", "documentos", "contratos"];
+
 definirRender(() => {
   renderCotacao();
   renderCat();
@@ -24,7 +27,7 @@ document.querySelectorAll(".tabs button[data-view]").forEach((b) => (b.onclick =
 $("#tab-cot").onclick = async () => {
   await novaCotacao();
   show("cotacao");
-  if (["cotacao", "planos", "documentos"].some((t) => pode(t))) carregarPlanos().then(render).catch(() => {});
+  if (TELAS_COM_PLANOS.some((t) => pode(t))) carregarPlanos().then(render).catch(() => {});
   carregarHistorico();
 };
 const viewDoHash = () => (VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "cotacao");
@@ -184,7 +187,7 @@ async function carregar() {
       verificarAceites(),
       carregarContratos(),
     ]);
-    const precisaDosPlanos = ["cotacao", "planos", "documentos"].some((t) => pode(t));
+    const precisaDosPlanos = TELAS_COM_PLANOS.some((t) => pode(t));
     const [status, erroPlanos] = await Promise.all([statusP, planosP]);
     if (erroPlanos && precisaDosPlanos) throw erroPlanos;
     S.leituraDisponivel = status.leituraDisponivel;

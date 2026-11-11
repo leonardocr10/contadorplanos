@@ -63,12 +63,12 @@ function avisar() {
   if (!carregados) return;
   if (dia !== diaDoAviso) { diaDoAviso = dia; avisados = -1; }
   if (n > avisados && n > 0) {
-    avisoCentral(n === 1 ? `Hoje é dia de entrar em contato com ${lista[0].nome}: o plano foi ativado` : `Hoje é dia de entrar em contato com ${n} clientes: os planos foram ativados`, "aviso");
+    avisoCentral(n === 1 ? `Entre em contato com ${lista[0].nome}: o plano já foi ativado` : `Entre em contato com ${n} clientes: os planos já foram ativados`, "aviso");
   }
   avisados = n;
 }
 
-export function renderContratos() {
+function renderContratos() {
   if (!pode("contratos")) return;
   avisar();
   const dia = hoje();

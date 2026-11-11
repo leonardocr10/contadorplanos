@@ -350,7 +350,7 @@ function agendarSalvar() {
 }
 
 // Para quem vai recarregar a página não perder a última alteração.
-export const salvarCotacaoPendente = () => (auto.timer ? salvar() : auto.fila);
+const salvarCotacaoPendente = () => (auto.timer ? salvar() : auto.fila);
 
 // Volta a tela ao estado de quando a página abre, guardando antes o que faltava salvar.
 export async function novaCotacao() {

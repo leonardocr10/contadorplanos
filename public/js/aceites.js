@@ -84,10 +84,10 @@ async function excluirAceite(a, botao) {
   }
 }
 
-// Abre a lista dos documentos ativos do plano, todos marcados, para escolher o que pedir.
+// Abre a lista dos documentos do plano, todos marcados, para escolher o que pedir.
 function escolherDocumentos(a) {
   if (!a.documentos.length) {
-    toast(pode("documentos", "editar") ? `Nenhum documento ativo para ${a.plano}: ative na aba Documentos` : `Nenhum documento ativo para ${a.plano}: peça ao administrador para ativar`);
+    toast(pode("documentos", "editar") ? `Nenhum documento cadastrado para ${a.plano}: cadastre na tela Documentos` : `Nenhum documento cadastrado para ${a.plano}: peça ao administrador para cadastrar`);
     return;
   }
   if (!a.fone) {

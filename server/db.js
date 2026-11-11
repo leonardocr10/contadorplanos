@@ -393,7 +393,7 @@ function linhaParaContrato(l) {
   };
 }
 
-export const slug = (s) =>
+const slug = (s) =>
   String(s).normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "plano";
 
 export class Banco {
@@ -567,13 +567,8 @@ export class Banco {
   }
 
   /* ---------- documentos ---------- */
-  // Cada documento vale para todos os planos do tipo dele, inclusive os cadastrados depois.
-  listarDocumentos() {
-    return this.db.prepare("SELECT id, nome, tipo FROM documentos ORDER BY id").all().map((d) => ({ id: d.id, nome: d.nome, tipo: d.tipo }));
-  }
-
   obterDocumento(id) {
-    return this.listarDocumentos().find((d) => d.id === id) ?? null;
+    return this.db.prepare("SELECT id, nome, tipo FROM documentos WHERE id = ?").get(id) ?? null;
   }
 
   documentoComNome(nome, tipo) {
@@ -588,11 +583,6 @@ export class Banco {
   renomearDocumento(id, nome) {
     this.db.prepare("UPDATE documentos SET nome = ? WHERE id = ?").run(nome, id);
     return this.obterDocumento(id);
-  }
-
-  excluirDocumento(id) {
-    this.db.prepare("DELETE FROM documentos_planos WHERE documento_id = ?").run(id);
-    return this.db.prepare("DELETE FROM documentos WHERE id = ?").run(id).changes > 0;
   }
 
   /* Documentos por cartão: cada documento fica ligado aos planos do cartão (como na Nova cotação, ex.: UNIMED,
