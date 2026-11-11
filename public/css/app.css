@@ -483,7 +483,7 @@ body{margin:0}
 
 /* ---------- contratos vendidos ---------- */
 /* Cadastro numa linha só: campos compactos e o botão logo depois da data de ativação. */
-.ctr-form{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(150px,170px) minmax(0,1.7fr) minmax(100px,120px) minmax(150px,165px) auto;gap:10px;align-items:end}
+.ctr-form{display:grid;grid-template-columns:repeat(5,minmax(0,1fr)) auto;gap:10px;align-items:end}
 .ctr-form .field{gap:4px}
 .ctr-form input,.ctr-form .fs-botao{height:40px;min-height:0;box-sizing:border-box}
 .ctr-botoes{margin:0;flex-wrap:nowrap;gap:8px}
