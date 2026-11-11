@@ -29,12 +29,12 @@
     <button type="button" class="usuario-logado" id="usuario-logado" title="Abrir Meus dados" hidden></button>
     <nav class="tabs" role="tablist">
       <button id="tab-cot" role="tab" aria-selected="true" data-view="cotacao">Nova cotação</button>
-      <button id="tab-cat" role="tab" aria-selected="false" data-view="planos">Planos e valores</button>
-      <button id="tab-doc" role="tab" aria-selected="false" data-view="documentos">Documentos</button>
-      <button id="tab-his" role="tab" aria-selected="false" data-view="historico">Histórico</button>
-      <button id="tab-ace" role="tab" aria-selected="false" data-view="aceites">Aceites <span class="pill" id="ace-selo" hidden style="margin:0 0 0 4px"></span></button>
-      <button id="tab-ctr" role="tab" aria-selected="false" data-view="contratos">Contratos vendidos <span class="pill st-off" id="ctr-selo" hidden style="margin:0 0 0 4px"></span></button>
-      <button id="tab-cfg" role="tab" aria-selected="false" data-view="configuracoes">Configurações</button>
+      <button role="tab" aria-selected="false" data-view="planos">Planos e valores</button>
+      <button role="tab" aria-selected="false" data-view="documentos">Documentos</button>
+      <button role="tab" aria-selected="false" data-view="historico">Histórico</button>
+      <button role="tab" aria-selected="false" data-view="aceites">Aceites <span class="pill" id="ace-selo" hidden style="margin:0 0 0 4px"></span></button>
+      <button role="tab" aria-selected="false" data-view="contratos">Contratos vendidos <span class="pill st-off" id="ctr-selo" hidden style="margin:0 0 0 4px"></span></button>
+      <button role="tab" aria-selected="false" data-view="configuracoes">Configurações</button>
       <form method="post" action="/sair" style="display:contents"><button type="submit">Sair</button></form>
     </nav>
   </header>
@@ -48,7 +48,7 @@
           <div class="field"><label for="cliente">Nome do cliente</label><input id="cliente" type="text" placeholder="Ex.: Maria" autocomplete="off"></div>
           <div class="field"><label for="fone">WhatsApp do cliente</label><input id="fone" type="tel" placeholder="(34) 99999-0000" autocomplete="off"></div>
           <div class="field"><label>Tipo de contratação</label>
-            <div class="seg" id="tipo"><button id="t-pf" aria-pressed="true" data-t="PF">Pessoa física</button><button id="t-cnpj" aria-pressed="false" data-t="CNPJ">CNPJ</button></div>
+            <div class="seg" id="tipo"><button aria-pressed="true" data-t="PF">Pessoa física</button><button aria-pressed="false" data-t="CNPJ">CNPJ</button></div>
           </div>
           <div class="field"><div class="rotulo-acao"><label for="municipio">Cidade</label><button type="button" class="btn btn-limpar compacto" id="limpar-local" title="Limpar filtros" disabled><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg><span>Limpar filtros</span></button></div><select id="municipio" data-icone="local" data-busca="Buscar cidade…" data-contagem="cidade|cidades" data-selo-no-botao></select></div>
         </div>
@@ -100,7 +100,7 @@
         <h2>Planos e valores</h2>
         <button class="btn primary" id="novo" data-edita="planos" hidden>Novo plano</button>
       </div>
-      <p class="note" style="margin:0" id="cat-hint" data-edita="planos" hidden>Os valores ficam salvos para todas as próximas cotações.</p>
+      <p class="note" style="margin:0" data-edita="planos" hidden>Os valores ficam salvos para todas as próximas cotações.</p>
       <p class="note" style="margin:0" data-so-ve="planos" hidden>Consulte aqui as informações dos planos. O seu usuário não altera planos e valores.</p>
       <input id="cat-busca" type="text" placeholder="Buscar plano pelo nome ou pela descrição" aria-label="Buscar plano" autocomplete="off">
       <div id="cat" class="cat"></div>
@@ -130,7 +130,7 @@
       <p class="note" style="margin:0" data-edita="documentos" hidden>Escolha o plano na lista para cadastrar ou excluir os documentos dele e montar a mensagem para o WhatsApp.</p>
       <p class="note" style="margin:0" data-so-ve="documentos" hidden>Escolha o plano na lista para ver os documentos pedidos ao cliente e copiar a mensagem para o WhatsApp. O seu usuário não altera esta lista.</p>
       <input id="doc-busca" type="text" placeholder="Buscar plano pelo nome" aria-label="Buscar plano" autocomplete="off">
-      <div class="cat" id="doc-tela">
+      <div class="cat">
         <nav class="cfg-abas" id="doc-abas" aria-label="Tipo de plano"></nav>
         <div class="cat-mestre">
           <div id="doc-planos" class="cat cat-lista"></div>

@@ -32,7 +32,9 @@ Se o administrador esquecer a senha, coloque a nova senha em `LOGIN_SENHA`, acre
 
 ### Acesso às telas
 
-Em **Configurações > Usuários**, o administrador escolhe, para cada usuário e cada tela (Nova cotação, Planos e valores, Documentos, Histórico e Aceites), entre **Sem acesso**, **Visualização** e **Edição**. O administrador sempre tem acesso a tudo. Quem só visualiza a Nova cotação pode simular, mas não envia nem salva.
+Em **Configurações > Usuários**, o administrador escolhe, para cada usuário e cada tela (Nova cotação, Planos e valores, Documentos, Histórico, Aceites e Contratos vendidos), entre **Sem acesso**, **Visualização** e **Edição**. O administrador sempre tem acesso a tudo. Quem só visualiza a Nova cotação pode simular, mas não envia nem salva.
+
+Usuários não são excluídos: o administrador **desativa** quem não deve mais entrar. O login fica bloqueado, e as cotações, os contratos vendidos e os documentos dos clientes continuam guardados. **Ativar** devolve o acesso com tudo como estava.
 
 ### Recuperar a senha por e-mail
 
@@ -63,9 +65,19 @@ A página guarda os valores do momento em que o link foi criado. Mudar o plano d
 A página da proposta tem o botão **Aceitar proposta**: o cliente escolhe a acomodação e confirma. Depois disso:
 
 - A página avisa o cliente que ele receberá a lista de documentos necessários para a contratação, e oferece o botão **Falar com o corretor no WhatsApp**.
-- O aceite aparece na aba **Aceites**. O botão **Enviar documentos no WhatsApp** mostra os documentos ativos do plano: desmarque o que não quer pedir, e a conversa abre com a mensagem pronta. Na aba **Documentos**, cadastre os documentos de pessoa física e os de CNPJ, cada um na sua aba: cada documento vale para todos os planos do tipo dele, inclusive os cadastrados depois.
+- O aceite aparece na tela **Aceites**. O botão **Enviar documentos no WhatsApp** mostra os documentos do plano: desmarque o que não quer pedir, e a conversa abre com a mensagem pronta.
 
 O aceite registra o interesse do cliente, mas não substitui a assinatura do contrato com a operadora.
+
+## Documentos
+
+Na tela **Documentos**, escolha o plano na lista para cadastrar ou excluir os documentos dele. Nos planos com várias opções (ex.: AMIL OURO 30%, 40%, MEI, PARCIAL), escolha em qual opção cadastrar. Marque os documentos que quer pedir e copie a mensagem pronta para o WhatsApp.
+
+## Contratos vendidos
+
+Cadastre cada venda com o nome e o telefone do cliente, o plano contratado, o valor e a data de ativação. A partir da data de ativação, até você marcar **Contato feito**, o sistema avisa que é preciso falar com o cliente: um número na tela, uma faixa no topo e um aviso ao abrir o cotador. O botão **Mensagem no WhatsApp** abre um texto pronto, que pode ser editado antes de enviar.
+
+Em **Documentos**, cada contrato guarda os arquivos que o cliente enviou (PDF, JPG, PNG ou WebP), sem limite de quantidade. As fotos são reduzidas antes do envio. Os arquivos ficam dentro do banco: entram no backup e não têm link público. Cada usuário vê só os contratos que cadastrou, inclusive o administrador. Excluir um contrato apaga também os documentos dele.
 
 ### Publicação
 
@@ -89,7 +101,7 @@ Sem a chave, todo o resto funciona normalmente, inclusive sem internet. Para atu
 
 ## Backup
 
-Seus planos e seu histórico ficam em `dados\cotador.db`, e as imagens enviadas ficam em `dados\uploads`.
+Os planos, o histórico, os contratos vendidos e os documentos dos clientes ficam em `dados\cotador.db`, e as imagens enviadas ficam em `dados\uploads`.
 
 - **Configurações > Backup**: **Fazer backup** baixa um único arquivo com o banco e as imagens de `dados\uploads`, inclusive as fotos dos usuários. **Restaurar backup** troca os dados atuais pelos do arquivo e devolve as imagens dele. Antes de trocar, o cotador guarda uma cópia dos dados atuais em `backups`. Backups antigos, feitos sem as imagens, continuam funcionando e deixam as imagens atuais como estão.
 - **`backup.bat`**: copia o banco e a pasta de imagens para `backups`, com data e hora no nome. Para voltar essa cópia, devolva os dois para a pasta `dados` com o cotador fechado.
