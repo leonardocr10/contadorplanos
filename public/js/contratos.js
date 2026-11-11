@@ -83,6 +83,7 @@ export function renderContratos() {
   const opcoesMes = `<option value="todos" data-icone="todos">Todos os meses</option>${meses.length ? `<optgroup label="Meses">${meses.map((m) => `<option value="${m}" data-selo="${contratos.filter((c) => c.ativacao.startsWith(m)).length}">${nomeDoMes(m)}</option>`).join("")}</optgroup>` : ""}`;
   if (selMes.dataset.opcoes !== opcoesMes) { selMes.innerHTML = opcoesMes; selMes.dataset.opcoes = opcoesMes; }
   selMes.value = mes;
+  $("#ctr-limpar").disabled = filtro === "todos" && mes === "todos";
   const box = $("#ctr-list");
   if (!carregados) { box.innerHTML = `<div class="status">${erro ? esc(erro) : "Carregando contratos…"}</div>`; return; }
   $("#ctr-count").textContent = `${contratos.length} ${contratos.length === 1 ? "contrato" : "contratos"} · ${quantos("pendente")} para contatar`;
@@ -484,6 +485,7 @@ export function iniciarContratos() {
   $("#ctr-cancelar").onclick = limparFormulario;
   $("#ctr-filtro").onchange = () => { filtro = $("#ctr-filtro").value; renderContratos(); };
   $("#ctr-mes").onchange = () => { mes = $("#ctr-mes").value; renderContratos(); };
+  $("#ctr-limpar").onclick = () => { filtro = "todos"; mes = "todos"; renderContratos(); };
   $("#ctr-fone").addEventListener("blur", () => {
     const f = normFone($("#ctr-fone").value);
     if (f.length >= 10) $("#ctr-fone").value = fmtFone(f);
