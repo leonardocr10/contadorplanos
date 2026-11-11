@@ -4,7 +4,7 @@ import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync,
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { completarCarencias, redeDaCidade } from "../public/js/calculo.js";
+import { completarCarencias, linhaDoPlano, redeDaCidade } from "../public/js/calculo.js";
 import { permissoesDoUsuario } from "./permissoes.js";
 
 export const STATUS = ["Enviada", "Em Negociação", "Vendida", "Negativa"];
@@ -219,6 +219,9 @@ const MIGRACOES = [
   () => {},
   // Sem mudança na estrutura: rede da Unimed PME com hospitais e laboratórios de cada plano (ver atualizarRedeUnimedPme).
   () => {},
+  // Documentos passam a ser de cada cartão de plano: os que valiam para todo o tipo ficam em todos os planos dele.
+  `DELETE FROM documentos_planos;
+   INSERT INTO documentos_planos (documento_id, plano_id) SELECT d.id, p.id FROM documentos d JOIN planos p ON p.categoria = d.tipo;`,
 ];
 
 const VERSAO_TEXTOS_COPARTICIPACAO = 11;
@@ -505,11 +508,73 @@ export class Banco {
     return this.db.prepare("DELETE FROM documentos WHERE id = ?").run(id).changes > 0;
   }
 
-  documentosDoPlano(planoId) {
+  /* Documentos por cartão: cada documento fica ligado aos planos do cartão (como na Nova cotação, ex.: UNIMED,
+     AMIL PRATA MG I). O cartão pede os documentos ligados a qualquer plano dele, então uma opção nova do
+     cartão já entra pedindo os mesmos documentos. */
+  planosDoCartao(tipo, cartao) {
+    return this.listarPlanos().filter((p) => p.categoria === tipo && linhaDoPlano(p) === cartao).map((p) => p.id);
+  }
+
+  documentosDoCartao(tipo, cartao) {
+    const ids = this.planosDoCartao(tipo, cartao);
+    if (!ids.length) return [];
     return this.db
-      .prepare("SELECT d.nome FROM documentos d JOIN planos p ON p.categoria = d.tipo WHERE p.id = ? ORDER BY d.id")
-      .all(planoId)
-      .map((d) => d.nome);
+      .prepare(`SELECT DISTINCT d.id, d.nome FROM documentos d JOIN documentos_planos v ON v.documento_id = d.id
+        WHERE d.tipo = ? AND v.plano_id IN (${ids.map(() => "?").join(",")}) ORDER BY d.id`)
+      .all(tipo, ...ids)
+      .map((d) => ({ id: d.id, nome: d.nome }));
+  }
+
+  cartoesDeDocumentos() {
+    const cartoes = new Map();
+    for (const p of this.listarPlanos()) {
+      const nome = linhaDoPlano(p), chave = `${p.categoria}|${nome}`;
+      if (!cartoes.has(chave)) cartoes.set(chave, { tipo: p.categoria, nome, planos: [] });
+      cartoes.get(chave).planos.push(p.nome);
+    }
+    return [...cartoes.values()]
+      .map((c) => ({ ...c, documentos: this.documentosDoCartao(c.tipo, c.nome) }))
+      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+  }
+
+  // Liga o documento (pelo nome, sem diferença de maiúsculas) a todos os planos do cartão.
+  adicionarDocumentoAoCartao(tipo, cartao, nome) {
+    const id = this.documentoComNome(nome, tipo) ?? this.criarDocumento(nome, tipo).id;
+    const ligar = this.db.prepare("INSERT OR IGNORE INTO documentos_planos (documento_id, plano_id) VALUES (?, ?)");
+    for (const planoId of this.planosDoCartao(tipo, cartao)) ligar.run(id, planoId);
+    return this.obterDocumento(id);
+  }
+
+  // Tira o documento só deste cartão; documento que não sobra em nenhum plano é apagado.
+  tirarDocumentoDoCartao(id, tipo, cartao) {
+    const ids = this.planosDoCartao(tipo, cartao);
+    if (!ids.length) return false;
+    const r = this.db.prepare(`DELETE FROM documentos_planos WHERE documento_id = ? AND plano_id IN (${ids.map(() => "?").join(",")})`).run(id, ...ids);
+    this.apagarDocumentosSemPlano();
+    return r.changes > 0;
+  }
+
+  // Renomear no cartão troca o documento só nele: os outros cartões continuam com o nome antigo.
+  renomearDocumentoNoCartao(id, tipo, cartao, nome) {
+    const outro = this.documentoComNome(nome, tipo);
+    if (outro === id) return this.renomearDocumento(id, nome);
+    // Documento só deste cartão, com nome livre: muda no lugar e mantém o id.
+    const ids = this.planosDoCartao(tipo, cartao);
+    const foraDoCartao = this.db
+      .prepare(`SELECT COUNT(*) AS n FROM documentos_planos WHERE documento_id = ? AND plano_id NOT IN (${ids.map(() => "?").join(",")})`)
+      .get(id, ...ids).n;
+    if (outro == null && !foraDoCartao) return this.renomearDocumento(id, nome);
+    this.tirarDocumentoDoCartao(id, tipo, cartao);
+    return this.adicionarDocumentoAoCartao(tipo, cartao, nome);
+  }
+
+  apagarDocumentosSemPlano() {
+    this.db.exec("DELETE FROM documentos WHERE id NOT IN (SELECT documento_id FROM documentos_planos)");
+  }
+
+  documentosDoPlano(planoId) {
+    const p = this.obterPlano(planoId);
+    return p ? this.documentosDoCartao(p.categoria, linhaDoPlano(p)).map((d) => d.nome) : [];
   }
 
   // Links criados antes dos documentos por plano guardam só o nome do plano.

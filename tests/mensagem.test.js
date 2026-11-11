@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { idadesParaVidas } from "../public/js/calculo.js";
-import { buildMsg, linkConversaDireta, linkWhatsApp, textoDosLinks, mensagemDocumentos, waHtml } from "../public/js/mensagem.js";
+import { buildMsg, linkConversaDireta, linkWhatsApp, textoDosLinks, mensagemDocumentos, mensagemDocumentosDoPlano, waHtml } from "../public/js/mensagem.js";
 
 const planos = JSON.parse(readFileSync(new URL("../dados/planos.json", import.meta.url), "utf8"));
 const plano = (id) => planos.find((p) => p.id === id);
@@ -116,6 +116,15 @@ test("mensagem de documentos lista um documento por linha e traz a assinatura", 
   assert.match(msg, /aceite da proposta do plano \*PLAM SAÚDE\* \(Apartamento\)/);
   assert.ok(msg.includes("• RG\n• CPF"));
   assert.ok(msg.endsWith("(34) 91234-5678"));
+});
+
+test("mensagem da tela Documentos lista os documentos do plano para qualquer cliente", () => {
+  const msg = mensagemDocumentosDoPlano({ plano: "UNIMED", tipo: "CNPJ", documentos: ["Cartão CNPJ", "RG"], corretor });
+  assert.ok(msg.startsWith("Olá! Tudo bem?"));
+  assert.ok(msg.includes("contratação do plano *UNIMED* (empresarial)"));
+  assert.ok(msg.includes("• Cartão CNPJ\n• RG"));
+  assert.ok(msg.endsWith("(34) 91234-5678"));
+  assert.ok(!mensagemDocumentosDoPlano({ plano: "PLAM SAÚDE", tipo: "PF", documentos: ["RG"], corretor: {} }).includes("empresarial"));
 });
 
 test("filtro dos selects ignora acentos e maiúsculas e procura também no grupo", async () => {

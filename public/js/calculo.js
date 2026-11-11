@@ -100,8 +100,15 @@ export function planPrices(p, vidas, over = {}) {
   return { porFaixa: false, linhas: [], enf: o.enf !== undefined ? o.enf : p.enfermaria, apto: o.apto !== undefined ? o.apto : p.apartamento };
 }
 
-/* ---------- carências ---------- */
-// Toda tabela de carências traz terapias e preexistência; as linhas que já existem não mudam.
+/* ---------- cartões de planos ---------- */
+// Planos da mesma linha ("AMIL PRATA 30%", "AMIL PRATA 30% MEI", "AMIL PRATA PARCIAL"...) ficam num cartão só.
+// O nome sem a coparticipação e sem o MEI é o da linha.
+export const SUFIXOS = /\s+(\d+%|PARCIAL|MEI)(?=\s|$)/gi;
+// Operadoras cujos planos (de nomes diferentes) ficam todos num cartão só, com o produto como opção.
+const UMA_LINHA_POR_OPERADORA = [{ nome: "SULAMÉRICA", prefixo: /^SUL\s?AM[ÉE]RICA\s+/i }, { nome: "UNIMED", prefixo: /^UNIMED\s+/i }];
+export const operadoraEmLinha = (p) => UMA_LINHA_POR_OPERADORA.find((o) => o.prefixo.test(String(p.nome || "")));
+export const linhaDoPlano = (p) => operadoraEmLinha(p)?.nome ?? String(p.nome || "").replace(SUFIXOS, "").trim();
+
 /* ---------- colunas de carência ---------- */
 // Tabelas com mais de uma coluna de prazos (ex.: PRC 10, 20 e 50): o corretor pode mandar só uma delas.
 const linhasDaTabela = (t) => String(t ?? "").split("\n").map((l) => l.split("|").map((x) => x.trim())).filter((r) => r.some(Boolean));
@@ -120,6 +127,8 @@ export function carenciaDaColuna(tabela, coluna) {
   return linhasDaTabela(tabela).map((r) => `${r[0]} | ${r[k] ?? ""}`).join("\n");
 }
 
+/* ---------- carências ---------- */
+// Toda tabela de carências traz terapias e preexistência; as linhas que já existem não mudam.
 export function completarCarencias(tabela) {
   const linhas = lines(tabela);
   if (linhas.length < 2) return String(tabela ?? "").trim();

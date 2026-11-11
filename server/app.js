@@ -434,31 +434,45 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     if (!documento) throw new ErroNaoEncontrado("Documento não encontrado.");
     return documento;
   };
-  const NOME_DO_TIPO = { PF: "pessoa física", CNPJ: "CNPJ" };
-  const nomeDeDocumento = (b, tipo, idAtual) => {
+  // Cada documento é de um cartão de plano (como na Nova cotação), que vem no corpo ou na URL.
+  const cartaoDoPedido = (dados) => {
+    const tipo = dados?.tipo;
+    if (tipo !== "PF" && tipo !== "CNPJ") throw new ErroEntrada("O tipo do plano precisa ser PF ou CNPJ.");
+    const cartao = textoOpc(dados?.cartao, "plano", 300);
+    if (!cartao || !banco.planosDoCartao(tipo, cartao).length) throw new ErroEntrada("Escolha o plano dos documentos.");
+    return { tipo, cartao };
+  };
+  const nomeDeDocumento = (b, { tipo, cartao }, idAtual) => {
     const nome = textoOpc(b?.nome, "documento", 300);
     if (!nome) throw new ErroEntrada("Escreva o nome do documento.");
     const existente = banco.documentoComNome(nome, tipo);
-    if (existente != null && existente !== idAtual) throw new ErroEntrada(`Já existe um documento de ${NOME_DO_TIPO[tipo]} com esse nome.`);
+    if (existente != null && existente !== idAtual && banco.documentosDoCartao(tipo, cartao).some((d) => d.id === existente)) {
+      throw new ErroEntrada(`${cartao} já pede um documento com esse nome.`);
+    }
     return nome;
   };
+  const documentoDoCartao = (req, c) => {
+    const d = documentoDaRota(req);
+    if (!banco.documentosDoCartao(c.tipo, c.cartao).some((x) => x.id === d.id)) throw new ErroNaoEncontrado("Documento não encontrado.");
+    return d;
+  };
 
-  app.get("/api/documentos", exige("documentos", "ver"), (_req, res) => res.json(banco.listarDocumentos()));
+  app.get("/api/documentos", exige("documentos", "ver"), (_req, res) => res.json(banco.cartoesDeDocumentos()));
 
   app.post("/api/documentos", exige("documentos", "editar"), (req, res) => {
-    // O documento vale para todos os planos do tipo; sem tipo informado, é de pessoa física.
-    const tipo = req.body?.tipo ?? "PF";
-    if (tipo !== "PF" && tipo !== "CNPJ") throw new ErroEntrada("O tipo do documento precisa ser PF ou CNPJ.");
-    res.status(201).json(banco.criarDocumento(nomeDeDocumento(req.body, tipo), tipo));
+    const c = cartaoDoPedido(req.body);
+    res.status(201).json(banco.adicionarDocumentoAoCartao(c.tipo, c.cartao, nomeDeDocumento(req.body, c)));
   });
 
   app.put("/api/documentos/:id", exige("documentos", "editar"), (req, res) => {
-    const d = documentoDaRota(req);
-    res.json(banco.renomearDocumento(d.id, nomeDeDocumento(req.body, d.tipo, d.id)));
+    const c = cartaoDoPedido(req.body);
+    const d = documentoDoCartao(req, c);
+    res.json(banco.renomearDocumentoNoCartao(d.id, c.tipo, c.cartao, nomeDeDocumento(req.body, c, d.id)));
   });
 
   app.delete("/api/documentos/:id", exige("documentos", "editar"), (req, res) => {
-    banco.excluirDocumento(documentoDaRota(req).id);
+    const c = cartaoDoPedido(req.query);
+    banco.tirarDocumentoDoCartao(documentoDoCartao(req, c).id, c.tipo, c.cartao);
     res.status(204).end();
   });
 

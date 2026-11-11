@@ -96,6 +96,22 @@ export function mensagemDocumentos({ cliente, plano, acomodacao, valor, document
   return L.join("\n");
 }
 
+// Mensagem da tela Documentos: a lista de um plano, para copiar e colar na conversa com qualquer cliente.
+export function mensagemDocumentosDoPlano({ plano, tipo, documentos, corretor }) {
+  const L = [
+    "Olá! Tudo bem? 😊",
+    "",
+    `Para a contratação do plano *${plano}*${tipo === "CNPJ" ? " (empresarial)" : ""}, precisamos que você nos envie os seguintes documentos:`,
+    "",
+    ...documentos.map((d) => `• ${d}`),
+    "",
+    "Pode mandar as fotos ou os arquivos por aqui mesmo.",
+  ];
+  const sig = assinatura(corretor);
+  if (sig.length) L.push("", ...sig);
+  return L.join("\n");
+}
+
 const escHtml = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 export function waHtml(t) {
