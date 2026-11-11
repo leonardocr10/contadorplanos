@@ -489,7 +489,8 @@ body{margin:0}
 .ctr-botoes{margin:0;flex-wrap:nowrap;gap:8px}
 .ctr-botoes .btn{height:40px;white-space:nowrap}
 @media (max-width:1250px){.ctr-form{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)}}
-.ctr-filtros{grid-template-columns:repeat(2,minmax(0,1fr)) auto}
+/* Os filtros ficam separados do cadastro por uma linha, num bloco próprio. */
+.ctr-filtros{grid-template-columns:repeat(2,minmax(0,1fr)) auto;margin-top:6px;padding-top:16px;border-top:1px solid var(--line)}
 /* Botão padrão de limpar: borda, ícone de borracha e texto. O compacto vai ao lado de rótulos e títulos. */
 .btn.btn-limpar{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:40px;min-height:0;padding:0 14px;box-sizing:border-box;white-space:nowrap}
 .btn.btn-limpar svg{flex:none}
