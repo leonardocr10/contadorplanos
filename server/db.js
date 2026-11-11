@@ -217,6 +217,8 @@ const MIGRACOES = [
   () => {},
   // Sem mudança na estrutura: carências da Unimed PME com as colunas PRC 10, 20 e 50 (ver atualizarCarenciasUnimedPme).
   () => {},
+  // Sem mudança na estrutura: rede da Unimed PME com hospitais e laboratórios de cada plano (ver atualizarRedeUnimedPme).
+  () => {},
 ];
 
 const VERSAO_TEXTOS_COPARTICIPACAO = 11;
@@ -226,6 +228,9 @@ const VERSAO_CARENCIAS_AMIL_PME = 27;
 const VERSAO_BENEFICIOS_AMIL_PME = 28;
 const VERSAO_HAPVIDA_PME = 35;
 const VERSAO_CARENCIAS_UNIMED_PME = 36;
+const VERSAO_REDE_UNIMED_PME = 37;
+// Rede que a Unimed PME tinha antes da tabela de rede: outra rede foi editada à mão.
+const REDE_ANTIGA_UNIMED_PME = { "unimed-pleno-on-pme": "Hospital Santa Clara\nHospital Santa Marta\nHospital UMC\nHospital Orthomed", "unimed-udiplan-on-pme": "Hospital Santa Genoveva\nHospital Santa Marta\nHospital Santa Clara\nHospital UMC\nOrthomed Center", "unimed-pontual-on-pme": "", "unimed-uniplan-on-pme": "" };
 // Tabela de carências que a Unimed PME tinha só com a coluna PRC 10: outra tabela foi editada à mão.
 const CARENCIA_ANTIGA_UNIMED_PME = ["Procedimentos | PRC 10 – contratual", "Pronto Socorro | 24 horas", "Consulta Eletiva | 24 horas", "Exames de Rotina | 24 horas", "Exames Básicos | 60 dias", "Exames Intermediário | 90 dias", "Exames Avançados | 180 dias", "Exames Especializado | 180 dias", "Internações | 180 dias", "Parto | 300 dias", "Terapias | 180 dias", "CPT | 720 dias"].join("\n");
 // Primeira faixa das tabelas que a Hapvida PME já teve: plano com outro valor foi editado à mão.
@@ -327,6 +332,7 @@ export class Banco {
     this.atualizarBeneficiosAmilPme(versaoAntes);
     this.atualizarHapvidaPme(versaoAntes);
     this.atualizarCarenciasUnimedPme(versaoAntes);
+    this.atualizarRedeUnimedPme(versaoAntes);
   }
 
   // Os planos das tabelas anteriores passam para a tabela atual; plano com valores editados à mão fica como está.
@@ -368,6 +374,16 @@ export class Banco {
     const atualizar = this.db.prepare("UPDATE planos SET carencia_tabela = ?, carencia_nota = ? WHERE id = ? AND carencia_tabela = ?");
     for (const p of JSON.parse(readFileSync(this.caminhoSeed, "utf8"))) {
       if (/^unimed-.*-pme$/.test(p.id)) atualizar.run(p.carenciaTabela, p.carenciaNota ?? "", p.id, CARENCIA_ANTIGA_UNIMED_PME);
+    }
+  }
+
+  // Troca só a rede antiga: rede editada à mão fica como está.
+  atualizarRedeUnimedPme(versaoAntes) {
+    if (versaoAntes === 0 || versaoAntes >= VERSAO_REDE_UNIMED_PME) return;
+    if (!this.caminhoSeed || !existsSync(this.caminhoSeed)) return;
+    const atualizar = this.db.prepare("UPDATE planos SET rede = ? WHERE id = ? AND rede = ?");
+    for (const p of JSON.parse(readFileSync(this.caminhoSeed, "utf8"))) {
+      if (p.id in REDE_ANTIGA_UNIMED_PME) atualizar.run(p.rede ?? "", p.id, REDE_ANTIGA_UNIMED_PME[p.id]);
     }
   }
 

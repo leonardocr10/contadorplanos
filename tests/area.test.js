@@ -206,6 +206,27 @@ test("os planos PME da Unimed seguem a tabela: valores, área, coparticipação 
   assert.equal(novo.obterPlano(ids[0]).carenciaTabela, pme[0].carenciaTabela);
   assert.equal(novo.obterPlano(ids[1]).carenciaTabela, "Item | Prazo\nParto | 300 dias\nTerapias | 180 dias\nCPT | 720 dias");
   novo.fechar();
+  // Rede de cada plano conforme a tabela da Unimed: hospitais e os dois laboratórios.
+  const rede = (id) => pme[ids.indexOf(id)].rede.split("\n");
+  assert.deepEqual(pme.map((p) => p.rede.split("\n").length), [7, 7, 6, 7]);
+  for (const p of pme) assert.ok(["Hospital UMC", "Hospital Santa Clara", "Orthomed Center", "Laboratório Labormed", "Laboratório Check Up"].every((h) => p.rede.split("\n").includes(h)), p.id);
+  assert.ok(rede("unimed-pleno-on-pme").includes("APS (Atenção Primária à Saúde)") && !rede("unimed-pleno-on-pme").includes("Hospital Santa Genoveva"));
+  assert.ok(!rede("unimed-pontual-on-pme").includes("Hospital Santa Marta"));
+  // Banco antigo: rede original troca pela nova; rede editada à mão fica.
+  const pastaRede = mkdtempSync(join(tmpdir(), "cotador-unimed-rede-"));
+  t.after(() => rmSync(pastaRede, { recursive: true, force: true }));
+  const caminhoRede = join(pastaRede, "c.db");
+  const velho = new Banco(caminhoRede, seed);
+  velho.gravarPlano(ids[0], { ...pme[0], rede: "Hospital Santa Clara\nHospital Santa Marta\nHospital UMC\nHospital Orthomed" });
+  velho.gravarPlano(ids[2], { ...pme[2], rede: "" });
+  velho.gravarPlano(ids[3], { ...pme[3], rede: "Minha rede" });
+  velho.db.exec("PRAGMA user_version = 36");
+  velho.fechar();
+  const atual = new Banco(caminhoRede, seed);
+  assert.equal(atual.obterPlano(ids[0]).rede, pme[0].rede);
+  assert.equal(atual.obterPlano(ids[2]).rede, pme[2].rede);
+  assert.equal(atual.obterPlano(ids[3]).rede, "Minha rede");
+  atual.fechar();
 });
 
 test("a Aurora segue a tabela: valores, área, rede por cidade e comparativo", (t) => {

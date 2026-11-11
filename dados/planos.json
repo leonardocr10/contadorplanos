@@ -1224,7 +1224,7 @@
       985.52,
       1312.81
     ],
-    "rede": "Hospital Santa Clara\nHospital Santa Marta\nHospital UMC\nHospital Orthomed",
+    "rede": "APS (Atenção Primária à Saúde)\nHospital UMC\nHospital Santa Marta\nHospital Santa Clara\nOrthomed Center\nLaboratório Labormed\nLaboratório Check Up",
     "extras": "🚑 SOS Unimed: atendimento pré-hospitalar de urgência e emergência, sem carência\n✈️ Transporte aeromédico incluso (carência de 60 dias)"
   },
   {
@@ -1279,7 +1279,7 @@
       1242.44,
       1656.17
     ],
-    "rede": "Hospital Santa Genoveva\nHospital Santa Marta\nHospital Santa Clara\nHospital UMC\nOrthomed Center",
+    "rede": "Hospital UMC\nHospital Santa Marta\nHospital Santa Clara\nHospital Santa Genoveva\nOrthomed Center\nLaboratório Labormed\nLaboratório Check Up",
     "extras": "🚑 SOS Unimed: atendimento pré-hospitalar de urgência e emergência, sem carência\n✈️ Transporte aeromédico incluso (carência de 60 dias)"
   },
   {
@@ -1334,7 +1334,7 @@
       1492.04,
       1989.76
     ],
-    "rede": "",
+    "rede": "Hospital UMC\nHospital Santa Clara\nHospital Santa Genoveva\nOrthomed Center\nLaboratório Labormed\nLaboratório Check Up",
     "extras": "🚑 SOS Unimed: atendimento pré-hospitalar de urgência e emergência, sem carência\n✈️ Transporte aeromédico incluso (carência de 60 dias)"
   },
   {
@@ -1389,7 +1389,7 @@
       1608.1,
       2144.88
     ],
-    "rede": "",
+    "rede": "Hospital UMC\nHospital Santa Marta\nHospital Santa Clara\nHospital Santa Genoveva\nOrthomed Center\nLaboratório Labormed\nLaboratório Check Up",
     "extras": "🚑 SOS Unimed: atendimento pré-hospitalar de urgência e emergência, sem carência\n✈️ Transporte aeromédico incluso (carência de 60 dias)"
   },
   {
