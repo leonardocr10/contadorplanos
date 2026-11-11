@@ -160,8 +160,10 @@ test("seletor traz as situações reais e uma lista por situação", () => {
   assert.equal(P.carencias.length, 21);
   assert.equal(P.carencias[1].prazos[0].texto, "1 dia");
   assert.equal(P.carencias[1].prazos[2].texto, "0 dia");
-  assert.equal(P.precos.at(-1).destaque, true);
   const html = renderizarProposta(s);
+  // Enfermaria e apartamento na mesma cor: nenhum preço em destaque.
+  assert.ok(!html.includes("featured"));
+  assert.equal(html.match(/<div class="price">/g).length, 2);
   assert.equal(html.match(/data-situacao=/g).length, 3);
   assert.equal(html.match(/class="car-list" data-situacao="\d"( hidden)?/g).filter((x) => !x.includes("hidden")).length, 1);
 });

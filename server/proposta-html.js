@@ -133,7 +133,8 @@ export function paraProposta(s) {
     subtitulo: p.subtitulo,
     taxa: p.taxa ? `+ ${moeda(p.taxa)} de taxa associativa` : "",
     cotacao: s.data,
-    precos: opcoes.map((o, i) => ({ label: o.nome, valor: o.valor, destaque: i === opcoes.length - 1 })),
+    // Enfermaria e apartamento na mesma cor: nenhum dos dois fica em destaque.
+    precos: opcoes.map((o) => ({ label: o.nome, valor: o.valor })),
     beneficios,
     rede: { cidade: p.cidade || "Uberlândia", hospitais: p.rede, titulo: `Rede Credenciada${p.redeCidade ? ` em ${p.redeCidade}` : ""}` },
     consultor: { nome: c.nome, corretora: c.empresa, telefone: c.fone },
@@ -377,9 +378,7 @@ h1{margin:0;font-size:36px;font-weight:800;letter-spacing:-.02em;color:var(--nav
 .lado{display:flex;flex-wrap:wrap;gap:12px;align-items:stretch}
 .prices{display:flex;flex-wrap:wrap;gap:12px}
 .price{min-width:200px;border:1px solid var(--line);border-radius:16px;padding:14px 18px;display:flex;flex-direction:column;gap:2px}
-.price.featured{background:var(--accent);border-color:var(--accent);color:#fff}
 .price .label{font-size:13px;font-weight:700;color:var(--muted)}
-.price.featured .label{color:var(--sobre-accent)}
 .price .value{font-size:30px;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
 .aceitar{position:relative;display:flex}
 .aceitar summary{list-style:none;display:flex;align-items:center;justify-content:center;min-height:44px;padding:0 20px;border-radius:16px;background:var(--navy);color:#fff;font-weight:800;font-size:15px;cursor:pointer;width:100%}
@@ -434,7 +433,7 @@ export function renderizarProposta(s, aceitacao = {}, { paraImagem = false } = {
   const P = paraProposta(s);
   const titulo = `Proposta ${P.plano}`;
   const precos = P.precos.length
-    ? P.precos.map((p) => `<div class="price${p.destaque ? " featured" : ""}"><span class="label">${esc(p.label)}</span><span class="value">${moeda(p.valor)}</span></div>`).join("")
+    ? P.precos.map((p) => `<div class="price"><span class="label">${esc(p.label)}</span><span class="value">${moeda(p.valor)}</span></div>`).join("")
     : `<div class="price"><span class="label">Valor mensal</span><span class="value">Sob consulta</span></div>`;
   return `<!doctype html>
 <html lang="pt-BR">
