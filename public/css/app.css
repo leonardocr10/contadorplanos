@@ -157,9 +157,6 @@ input[type=date]{padding-block:9px;cursor:pointer}
 /* Na cotação, Cliente e Beneficiários ficam compactos para sobrar espaço para os planos. */
 #v-cotacao>.stack{gap:10px}
 #v-cotacao>.stack>.panel{padding:12px 14px;gap:10px}
-#v-cotacao .btn#limpar-vidas,#v-cotacao .btn#limpar-planos{padding:4px 12px;min-height:0;font-size:13px}
-#v-cotacao .btn#limpar-planos{white-space:nowrap}
-#v-cotacao .btn#limpar-planos:disabled{opacity:.5;cursor:default}
 #hist-cli:empty{display:none}
 #v-cotacao .faixas{grid-template-columns:repeat(auto-fill,minmax(146px,1fr));gap:6px}
 #v-cotacao .fx{padding:3px 4px 3px 8px;gap:4px}
@@ -493,8 +490,16 @@ body{margin:0}
 .ctr-botoes .btn{height:40px;white-space:nowrap}
 @media (max-width:1250px){.ctr-form{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)}}
 .ctr-filtros{grid-template-columns:repeat(2,minmax(0,1fr)) auto}
-.ctr-limpar{display:inline-flex;align-items:center;gap:6px;height:40px;min-height:0;padding:0 14px;box-sizing:border-box}
-.ctr-limpar:disabled{opacity:.45;cursor:default}
+/* Botão padrão de limpar: borda, ícone de borracha e texto. O compacto vai ao lado de rótulos e títulos. */
+.btn.btn-limpar{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:40px;min-height:0;padding:0 14px;box-sizing:border-box;white-space:nowrap}
+.btn.btn-limpar svg{flex:none}
+.btn.btn-limpar:disabled{opacity:.45;cursor:default}
+.btn.btn-limpar.compacto{height:28px;padding:0 10px;gap:5px;font-size:13px}
+.btn.btn-limpar.compacto svg{width:15px;height:15px}
+/* Ao lado do rótulo de um campo, sem empurrar o campo para baixo. */
+.rotulo-acao{align-items:center}
+.rotulo-acao .btn.btn-limpar.compacto{height:22px;margin:-3px 0;padding:0 8px;font-size:12px}
+.rotulo-acao .btn.btn-limpar.compacto svg{width:13px;height:13px}
 @media (max-width:760px){.ctr-filtros{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:1000px){.ctr-form{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
 @media (max-width:560px){.ctr-form{grid-template-columns:minmax(0,1fr)}}

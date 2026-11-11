@@ -199,7 +199,7 @@ function renderPlans() {
   const list = naArea.filter(passaNoFiltro);
   if (list.length !== naArea.length) $("#contagem-planos").textContent = `${list.length} de ${naArea.length} planos`;
   if (!list.length) {
-    box.innerHTML = `<div class="status">Nenhum plano encontrado com esse filtro. <button type="button" class="btn" id="limpar-filtro-planos">Mostrar todos</button></div>`;
+    box.innerHTML = `<div class="status">Nenhum plano encontrado com esse filtro. <button type="button" class="btn btn-limpar compacto" id="limpar-filtro-planos" title="Limpar o filtro de planos"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg><span>Limpar filtro</span></button></div>`;
     $("#limpar-filtro-planos").onclick = limparFiltroPlanos;
     return;
   }
