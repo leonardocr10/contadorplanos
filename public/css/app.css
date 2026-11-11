@@ -135,8 +135,10 @@ h2{font-family:var(--display);font-weight:600;font-size:19px;margin:0}
 .usr-niveis input:checked+span{background:var(--pine);color:var(--pine-ink)}
 @media (prefers-reduced-motion:no-preference){.gaveta[open]{animation:gaveta-entra .18s ease-out}}
 @keyframes gaveta-entra{from{transform:translateX(24px);opacity:0}}
-input[type=text],input[type=search],input[type=tel],input[type=email],input[type=password],textarea,select{width:100%;font:500 15px var(--body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+input[type=text],input[type=search],input[type=tel],input[type=email],input[type=password],input[type=date],textarea,select{width:100%;font:500 15px var(--body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
 textarea{resize:vertical;min-height:72px;line-height:1.45}
+/* O seletor de data do navegador é mais alto: fica da altura dos outros campos. */
+input[type=date]{padding-block:9px;cursor:pointer}
 .money{font-variant-numeric:tabular-nums}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;align-self:flex-start}
 .seg button{border:0;background:var(--surface);color:var(--muted);font:600 14px var(--body);padding:9px 18px;cursor:pointer}
