@@ -276,7 +276,8 @@ textarea{resize:vertical;min-height:72px;line-height:1.45}
 .catrow.doc-linha .iconbtn{width:28px;height:28px;border-radius:7px}
 .catrow.doc-linha .iconbtn svg{width:15px;height:15px}
 .catrow.doc-linha .actions{gap:6px}
-.catrow.doc-linha .status{margin:2px 0 6px}
+.doc-confirma{align-items:center;gap:6px;font-size:13px;font-weight:600;color:var(--danger,#b42318)}
+.doc-confirma .btn{min-height:0;padding:3px 10px;font-size:12.5px}
 .doc-marca{flex:none;display:flex;align-items:center;width:20px}
 .doc-marca input{width:18px;height:18px;margin:0;accent-color:var(--accent);cursor:pointer}
 .doc-msg-topo{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px}

@@ -151,11 +151,13 @@ function renderPlano(c) {
       : `<b>${esc(d.nome)}</b>${ondeVale(c, d)}`;
     return `<div class="catrow doc-linha" data-id="${d.id}">
       ${marca(c, d)}<div class="t" style="flex:1 1 0;min-width:0">${nome}</div>
-      <div class="actions">
+      ${excluindo === d.id
+    // A confirmação fica na própria linha, no lugar dos botões.
+    ? `<div class="actions doc-confirma"><span>Excluir?</span><button type="button" class="btn danger" data-excluir-sim>Sim</button><button type="button" class="btn" data-excluir-nao>Não</button></div>`
+    : `<div class="actions">
         ${botaoIcone("editar", "Editar nome", "data-editar")}
         ${botaoIcone("excluir", "Excluir documento", "data-excluir", "perigo")}
-      </div>
-      ${excluindo === d.id ? `<div class="status" style="flex:1 1 100%">Tirar <b>${esc(d.nome)}</b> dos documentos de ${esc(nomeDaVisao(c))}? <div class="actions" style="margin-top:8px"><button class="btn danger" data-excluir-sim>Sim, excluir</button><button class="btn" data-excluir-nao>Manter</button></div></div>` : ""}
+      </div>`}
     </div>`;
   }).join("");
   box.querySelectorAll(".catrow[data-id]").forEach((row) => ligarLinha(row, c));
@@ -213,11 +215,23 @@ function ligarLinha(row, c) {
   if (campo) campo.onkeydown = (e) => { if (e.key === "Enter") salvarNome(); if (e.key === "Escape") { editando = null; renderDocumentos(); } };
   on("[data-excluir]", () => { excluindo = id; editando = null; renderDocumentos(); });
   on("[data-excluir-nao]", () => { excluindo = null; renderDocumentos(); });
-  on("[data-excluir-sim]", () => executar(async () => {
+  // O documento some na hora; o servidor confirma depois. Se der erro, a lista volta como estava no servidor.
+  on("[data-excluir-sim]", async () => {
     excluindo = null;
-    await api(`${url}?${new URLSearchParams(alvo(c))}`, { metodo: "DELETE" });
+    const escopo = opcaoDe(c) ? [opcao] : c.planos.map((p) => p.id);
+    const doc = c.documentos.find((d) => d.id === id);
+    if (doc) doc.planos = doc.planos.filter((p) => !escopo.includes(p));
+    c.documentos = c.documentos.filter((d) => d.planos.length);
+    fora.delete(id);
+    renderDocumentos();
     avisoCentral("Documento excluído com sucesso");
-  }));
+    try {
+      await api(`${url}?${new URLSearchParams(alvo(c))}`, { metodo: "DELETE" });
+    } catch (e) {
+      toast(`Não deu para excluir: ${e.message}`, "erro");
+      await carregarDocumentos().catch(() => {});
+    }
+  });
 }
 
 export function iniciarDocumentos() {
@@ -247,10 +261,15 @@ export function iniciarDocumentos() {
     botao.disabled = true;
     botao.textContent = "Salvando…";
     try {
-      await api("/api/documentos", { metodo: "POST", json: { nome: campo.value, ...alvo(c) } });
+      const novo = await api("/api/documentos", { metodo: "POST", json: { nome: campo.value, ...alvo(c) } });
+      // Atualiza a lista aqui mesmo, sem buscar tudo de novo no servidor.
+      const escopo = opcaoDe(c) ? [opcao] : c.planos.map((p) => p.id);
+      const doc = c.documentos.find((d) => d.id === novo.id);
+      if (doc) doc.planos = c.planos.map((p) => p.id).filter((p) => doc.planos.includes(p) || escopo.includes(p));
+      else c.documentos.push({ id: novo.id, nome: novo.nome, planos: escopo });
       campo.value = "";
+      renderDocumentos();
       avisoCentral("Documento cadastrado com sucesso");
-      await carregarDocumentos();
       campo.focus();
     } catch (erro) {
       toast(erro.message, "erro");
