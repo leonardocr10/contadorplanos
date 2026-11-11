@@ -121,6 +121,43 @@ $("#dados-form").onsubmit = async (e) => {
   $("#dados-salvar").disabled = false;
 };
 
+/* ---------- fazer backup ---------- */
+// O backup junta o banco (com os documentos dos contratos) e as imagens num arquivo só, o que pode levar
+// alguns minutos: o botão mostra o andamento e a mensagem avisa quando o arquivo foi baixado.
+function andamentoDoBackup(texto) {
+  $("#b-andamento").hidden = !texto;
+  $("#b-andamento-texto").textContent = texto || "";
+}
+$("#b-fazer").onclick = async () => {
+  const botao = $("#b-fazer");
+  botao.disabled = true;
+  botao.textContent = "Gerando backup…";
+  andamentoDoBackup("Gerando o backup com os planos, o histórico, os contratos e os documentos dos clientes. Pode levar alguns minutos: não feche esta tela.");
+  const inicio = Date.now();
+  try {
+    const r = await fetch("/api/backup");
+    if (r.status === 401) { location.href = "/login"; return; }
+    if (!r.ok) throw new Error((await r.json().catch(() => null))?.erro || "O cotador não conseguiu gerar o backup.");
+    andamentoDoBackup("Baixando o arquivo do backup…");
+    const arquivo = await r.blob();
+    const nome = /filename="([^"]+)"/.exec(r.headers.get("Content-Disposition") || "")?.[1] || "cotador-backup.db";
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(arquivo);
+    link.download = nome;
+    document.body.append(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(link.href), 60_000);
+    const segundos = Math.round((Date.now() - inicio) / 1000);
+    avisoCentral(`Backup feito com sucesso (${(arquivo.size / 1024 / 1024).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} MB${segundos > 1 ? `, em ${segundos} s` : ""}). Guarde o arquivo em local seguro.`);
+  } catch (e) {
+    toast(e.message === "Failed to fetch" ? "Não consegui falar com o cotador. Verifique se a janela dele está aberta." : `Não deu para fazer o backup: ${e.message}`, "erro");
+  }
+  andamentoDoBackup("");
+  botao.disabled = false;
+  botao.textContent = "Fazer backup";
+};
+
 /* ---------- restaurar backup ---------- */
 let arquivoBackup = null;
 document.querySelector('label[for="b-file"]').onkeydown = (e) => {

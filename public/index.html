@@ -291,10 +291,11 @@
       <h2>Backup</h2>
       <p class="note" style="margin:0">Guarda em um só arquivo os planos, os usuários, o histórico de cotações, os contratos vendidos com os documentos dos clientes e as imagens enviadas, inclusive as fotos dos usuários. Guarde o arquivo em local seguro.</p>
       <div class="actions">
-        <a class="btn primary" href="/api/backup" download>Fazer backup</a>
+        <button class="btn primary" type="button" id="b-fazer">Fazer backup</button>
         <label class="btn" for="b-file" tabindex="0">Restaurar backup</label>
         <input id="b-file" type="file" accept=".db" hidden>
       </div>
+      <p class="status b-andamento" id="b-andamento" role="status" hidden><span class="ctr-girando" aria-hidden="true"></span><span id="b-andamento-texto"></span></p>
       <div id="b-confirm" class="status" hidden>Trocar todos os dados atuais pelos de <b id="b-nome"></b>? Uma cópia dos dados atuais fica na pasta backups. <div class="actions" style="margin-top:8px"><button class="btn danger" id="b-sim">Sim, restaurar</button><button class="btn" id="b-nao">Cancelar</button></div></div>
     </div>
     <div class="panel cfg-painel" data-cfg="atualizar" hidden>
