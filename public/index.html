@@ -18,6 +18,7 @@
 <link rel="modulepreload" href="js/historico.js">
 <link rel="modulepreload" href="js/aceites.js">
 <link rel="modulepreload" href="js/documentos.js">
+<link rel="modulepreload" href="js/contratos.js">
 <link rel="modulepreload" href="js/configuracoes.js">
 <link rel="modulepreload" href="js/filtro-select.js">
 </head>
@@ -32,10 +33,12 @@
       <button id="tab-doc" role="tab" aria-selected="false" data-view="documentos">Documentos</button>
       <button id="tab-his" role="tab" aria-selected="false" data-view="historico">Histórico</button>
       <button id="tab-ace" role="tab" aria-selected="false" data-view="aceites">Aceites <span class="pill" id="ace-selo" hidden style="margin:0 0 0 4px"></span></button>
+      <button id="tab-ctr" role="tab" aria-selected="false" data-view="contratos">Contratos vendidos <span class="pill st-off" id="ctr-selo" hidden style="margin:0 0 0 4px"></span></button>
       <button id="tab-cfg" role="tab" aria-selected="false" data-view="configuracoes">Configurações</button>
       <form method="post" action="/sair" style="display:contents"><button type="submit">Sair</button></form>
     </nav>
   </header>
+  <button type="button" class="alerta-contratos" id="ctr-alerta" hidden></button>
 
   <!-- COTAÇÃO -->
   <section id="v-cotacao" class="grid">
@@ -165,6 +168,30 @@
       </div>
       <div id="ace-list" class="cat"></div>
       <p class="note" style="margin:0">O botão abre a conversa com a lista de documentos pronta: confira e aperte enviar no WhatsApp.</p>
+    </div>
+  </section>
+
+  <!-- CONTRATOS VENDIDOS -->
+  <section id="v-contratos" hidden>
+    <div class="panel">
+      <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center">
+        <h2>Contratos vendidos</h2>
+        <span class="note" id="ctr-count"></span>
+      </div>
+      <form id="ctr-form" class="ctr-form" autocomplete="off" data-edita="contratos" hidden>
+        <div class="field"><label for="ctr-nome">Nome do cliente</label><input id="ctr-nome" type="text" placeholder="Ex.: Maria da Silva"></div>
+        <div class="field"><label for="ctr-fone">Telefone</label><input id="ctr-fone" type="tel" placeholder="(34) 99999-0000"></div>
+        <div class="field"><label for="ctr-plano">Plano contratado</label><input id="ctr-plano" type="text" list="ctr-planos" placeholder="Ex.: Amil Ouro"><datalist id="ctr-planos"></datalist></div>
+        <div class="field"><label for="ctr-valor">Valor (R$)</label><input id="ctr-valor" type="text" inputmode="decimal" placeholder="0,00"></div>
+        <div class="field"><label for="ctr-ativacao">Data de ativação</label><input id="ctr-ativacao" type="date"></div>
+        <div class="actions ctr-botoes"><button class="btn primary" type="submit" id="ctr-salvar">Cadastrar contrato</button><button class="btn" type="button" id="ctr-cancelar" hidden>Cancelar</button></div>
+      </form>
+      <p class="note" style="margin:0">Na data de ativação o sistema avisa que é preciso entrar em contato com o cliente. Cada usuário vê só os contratos que cadastrou.</p>
+      <div class="hist-filtros">
+        <div class="field"><label for="ctr-busca">Buscar por nome, telefone ou plano</label><input id="ctr-busca" type="text" placeholder="(34) 99999-0000 ou Maria" autocomplete="off"></div>
+        <div class="field"><label for="ctr-filtro">Situação</label><select id="ctr-filtro" data-icone="filtro" data-contagem="situação|situações"></select></div>
+      </div>
+      <div id="ctr-list" class="cat"></div>
     </div>
   </section>
 

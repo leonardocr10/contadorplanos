@@ -125,6 +125,21 @@ function validarPlano(b) {
   };
 }
 
+const DATA_ISO = /^(\d{4})-(\d{2})-(\d{2})$/;
+function validarContrato(b) {
+  if (!b || typeof b !== "object") throw new ErroEntrada("Dados do contrato inválidos.");
+  const nome = textoOpc(b.nome, "nome", 200), plano = textoOpc(b.plano, "plano", 200), fone = normFone(b.fone);
+  if (!nome) throw new ErroEntrada("Informe o nome do cliente.");
+  if (fone.length < 10) throw new ErroEntrada("Informe o telefone do cliente com DDD.");
+  if (!plano) throw new ErroEntrada("Informe o plano contratado.");
+  const valor = Number(b.valor);
+  if (typeof b.valor !== "number" || !Number.isFinite(valor) || valor <= 0) throw new ErroEntrada("Informe o valor do contrato.");
+  const m = DATA_ISO.exec(String(b.ativacao ?? ""));
+  const data = m && new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+  if (!m || data.getUTCMonth() !== +m[2] - 1 || data.getUTCDate() !== +m[3]) throw new ErroEntrada("Informe a data de ativação do plano.");
+  return { nome, fone, plano, valor: Math.round(valor * 100) / 100, ativacao: m[0] };
+}
+
 function validarCotacao(b) {
   if (!b || typeof b !== "object") throw new ErroEntrada("Dados da cotação inválidos.");
   const fone = normFone(b.fone);
@@ -335,6 +350,40 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
 
   app.delete("/api/cotacoes/:id", exige("historico", "editar"), (req, res) => {
     if (!cotacaoVisivel(req) || !banco.excluirCotacao(req.params.id)) return res.status(404).json(NAO_ACHOU_COTACAO);
+    res.status(204).end();
+  });
+
+  /* ---------- contratos vendidos ---------- */
+  // Cada login vê e altera só os contratos que cadastrou, inclusive o administrador.
+  const donoDoLogin = (req) => req.usuario?.id ?? "";
+  const contratoDoLogin = (req) => {
+    const c = banco.obterContrato(req.params.id);
+    return c && c.usuarioId === donoDoLogin(req) ? c : null;
+  };
+  const NAO_ACHOU_CONTRATO = { erro: "Contrato não encontrado." };
+  const semDono = ({ usuarioId, ...c }) => c;
+
+  app.get("/api/contratos", exige("contratos", "ver"), (req, res) => {
+    res.json(banco.listarContratos({ usuarioId: donoDoLogin(req) }).map(semDono));
+  });
+
+  app.post("/api/contratos", exige("contratos", "editar"), (req, res) => {
+    res.status(201).json(semDono(banco.criarContrato({ ...validarContrato(req.body), usuarioId: donoDoLogin(req) })));
+  });
+
+  app.put("/api/contratos/:id", exige("contratos", "editar"), (req, res) => {
+    if (!contratoDoLogin(req)) return res.status(404).json(NAO_ACHOU_CONTRATO);
+    res.json(semDono(banco.gravarContrato(req.params.id, validarContrato(req.body))));
+  });
+
+  app.patch("/api/contratos/:id/contato", exige("contratos", "editar"), (req, res) => {
+    if (typeof req.body?.feito !== "boolean") throw new ErroEntrada("Informe se o contato foi feito.");
+    if (!contratoDoLogin(req)) return res.status(404).json(NAO_ACHOU_CONTRATO);
+    res.json(semDono(banco.marcarContato(req.params.id, req.body.feito)));
+  });
+
+  app.delete("/api/contratos/:id", exige("contratos", "editar"), (req, res) => {
+    if (!contratoDoLogin(req) || !banco.excluirContrato(req.params.id)) return res.status(404).json(NAO_ACHOU_CONTRATO);
     res.status(204).end();
   });
 

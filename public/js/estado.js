@@ -49,7 +49,7 @@ export const toast = (texto, tipo = "aviso") => avisoCentral(texto, tipo);
 export const eAdmin = () => S.eu?.perfil === "admin";
 const ORDEM_NIVEIS = ["nenhum", "ver", "editar"];
 export const pode = (tela, minimo = "ver") => ORDEM_NIVEIS.indexOf(S.eu?.permissoes?.[tela] ?? "nenhum") >= ORDEM_NIVEIS.indexOf(minimo);
-export const VIEWS = ["cotacao", "planos", "documentos", "historico", "aceites", "configuracoes"];
+export const VIEWS = ["cotacao", "planos", "documentos", "historico", "aceites", "contratos", "configuracoes"];
 export function show(telaPedida) {
   // Tela sem permissão abre a primeira permitida; Configurações é de todos.
   const permitida = (t) => !S.eu || t === "configuracoes" || pode(t);

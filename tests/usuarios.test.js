@@ -426,14 +426,14 @@ async function comPermissoes(t, permissoes) {
 
 test("sem escolher, o usuário fica com o acesso padrão, e o administrador com tudo", async (t) => {
   const { pedir, admin, entrar } = await comPermissoes(t);
-  assert.deepEqual((await (await pedir(admin, "/api/eu")).json()).permissoes, { cotacao: "editar", planos: "editar", documentos: "editar", historico: "editar", aceites: "editar" });
+  assert.deepEqual((await (await pedir(admin, "/api/eu")).json()).permissoes, { cotacao: "editar", planos: "editar", documentos: "editar", historico: "editar", aceites: "editar", contratos: "editar" });
   const comum = (await entrar("corretor1", "senha-do-corretor")).cookie;
-  assert.deepEqual((await (await pedir(comum, "/api/eu")).json()).permissoes, { cotacao: "editar", planos: "ver", documentos: "ver", historico: "editar", aceites: "editar" });
+  assert.deepEqual((await (await pedir(comum, "/api/eu")).json()).permissoes, { cotacao: "editar", planos: "ver", documentos: "ver", historico: "editar", aceites: "editar", contratos: "editar" });
 });
 
 test("sem acesso a uma tela, as rotas dela ficam fechadas", async (t) => {
-  const { pedir, comum } = await comPermissoes(t, { cotacao: "editar", planos: "nenhum", documentos: "nenhum", historico: "nenhum", aceites: "nenhum" });
-  for (const rota of ["/api/documentos", "/api/cotacoes", "/api/aceites"]) assert.equal((await pedir(comum, rota)).status, 403, rota);
+  const { pedir, comum } = await comPermissoes(t, { cotacao: "editar", planos: "nenhum", documentos: "nenhum", historico: "nenhum", aceites: "nenhum", contratos: "nenhum" });
+  for (const rota of ["/api/documentos", "/api/cotacoes", "/api/aceites", "/api/contratos"]) assert.equal((await pedir(comum, rota)).status, 403, rota);
   assert.equal((await pedir(comum, "/api/planos")).status, 200);
   assert.equal((await pedir(comum, "/api/propostas/previa", "POST", pedido)).status, 200);
   // Cotação com edição salva mesmo sem ver a tela de histórico.
@@ -441,7 +441,7 @@ test("sem acesso a uma tela, as rotas dela ficam fechadas", async (t) => {
 });
 
 test("sem nenhuma tela, a pessoa só acessa os próprios dados", async (t) => {
-  const { pedir, comum } = await comPermissoes(t, { cotacao: "nenhum", planos: "nenhum", documentos: "nenhum", historico: "nenhum", aceites: "nenhum" });
+  const { pedir, comum } = await comPermissoes(t, { cotacao: "nenhum", planos: "nenhum", documentos: "nenhum", historico: "nenhum", aceites: "nenhum", contratos: "nenhum" });
   assert.equal((await pedir(comum, "/api/planos")).status, 403);
   assert.equal((await pedir(comum, "/api/propostas/previa", "POST", pedido)).status, 403);
   assert.equal((await pedir(comum, "/api/eu")).status, 200);
@@ -449,22 +449,59 @@ test("sem nenhuma tela, a pessoa só acessa os próprios dados", async (t) => {
 });
 
 test("com visualização, consulta e não altera", async (t) => {
-  const { banco, pedir, admin, comum } = await comPermissoes(t, { cotacao: "ver", planos: "ver", documentos: "ver", historico: "ver", aceites: "ver" });
+  const { banco, pedir, admin, comum } = await comPermissoes(t, { cotacao: "ver", planos: "ver", documentos: "ver", historico: "ver", aceites: "ver", contratos: "ver" });
   const eu = await (await pedir(comum, "/api/eu")).json();
-  for (const rota of ["/api/planos", "/api/documentos", "/api/cotacoes", "/api/aceites"]) assert.equal((await pedir(comum, rota)).status, 200, rota);
+  for (const rota of ["/api/planos", "/api/documentos", "/api/cotacoes", "/api/aceites", "/api/contratos"]) assert.equal((await pedir(comum, rota)).status, 200, rota);
   assert.equal((await pedir(comum, "/api/propostas/previa", "POST", pedido)).status, 200);
   const c = banco.salvarCotacao({ ...cotacao(), usuarioId: eu.id }).cotacao;
   const proibidos = [
     ["/api/cotacoes", "POST", cotacao()], [`/api/cotacoes/${c.id}`, "PUT", cotacao()], [`/api/cotacoes/${c.id}`, "PATCH", { status: "Vendida" }], [`/api/cotacoes/${c.id}`, "DELETE"],
     ["/api/propostas", "POST", { ...pedido, fone: "34999990000" }], ["/api/propostas/comparativo", "POST", { ...pedido, planos: ["plam-saude-pf", "plamedh-pf"] }],
     ["/api/planos", "POST", { nome: "X", categoria: "PF" }], ["/api/documentos", "POST", { nome: "Y" }], ["/api/aceites/qualquer/documentos", "POST", {}], ["/api/aceites/qualquer", "DELETE"],
+    ["/api/contratos", "POST", contrato()], ["/api/contratos/qualquer", "PUT", contrato()], ["/api/contratos/qualquer/contato", "PATCH", { feito: true }], ["/api/contratos/qualquer", "DELETE"],
   ];
   for (const [rota, metodo, json] of proibidos) assert.equal((await pedir(comum, rota, metodo, json)).status, 403, `${metodo} ${rota}`);
   // A permissão muda na hora, sem precisar entrar de novo.
-  const editar = { cotacao: "editar", planos: "editar", documentos: "editar", historico: "editar", aceites: "editar" };
+  const editar = { cotacao: "editar", planos: "editar", documentos: "editar", historico: "editar", aceites: "editar", contratos: "editar" };
   assert.equal((await pedir(admin, `/api/usuarios/${eu.id}`, "PUT", { permissoes: editar })).status, 200);
   assert.equal((await pedir(comum, "/api/planos", "POST", { nome: "X", categoria: "PF" })).status, 201);
   assert.equal((await pedir(admin, `/api/usuarios/${eu.id}`, "PUT", { permissoes: { ...editar, planos: "nada" } })).status, 400);
+});
+
+const contrato = (extra = {}) => ({ nome: "Maria da Silva", fone: "(34) 99999-1111", plano: "AMIL OURO", valor: 450.9, ativacao: "2026-11-20", ...extra });
+
+test("contratos vendidos: cada usuário vê e altera só os próprios, inclusive o administrador", async (t) => {
+  const { pedir, admin, comum } = await comPermissoes(t);
+  const doCorretor = await (await pedir(comum, "/api/contratos", "POST", contrato())).json();
+  assert.equal(doCorretor.fone, "34999991111");
+  assert.equal(doCorretor.valor, 450.9);
+  assert.equal(doCorretor.contatoEm, null);
+  assert.ok(!("usuarioId" in doCorretor));
+  const doAdmin = await (await pedir(admin, "/api/contratos", "POST", contrato({ nome: "João" }))).json();
+  assert.deepEqual((await (await pedir(comum, "/api/contratos")).json()).map((c) => c.nome), ["Maria da Silva"]);
+  assert.deepEqual((await (await pedir(admin, "/api/contratos")).json()).map((c) => c.nome), ["João"]);
+  // O contrato de outro login não é encontrado, nem para o administrador.
+  for (const [rota, metodo, json] of [[`/api/contratos/${doCorretor.id}`, "PUT", contrato()], [`/api/contratos/${doCorretor.id}/contato`, "PATCH", { feito: true }], [`/api/contratos/${doCorretor.id}`, "DELETE"]]) {
+    assert.equal((await pedir(admin, rota, metodo, json)).status, 404, `${metodo} ${rota}`);
+  }
+  assert.equal((await pedir(comum, `/api/contratos/${doAdmin.id}`, "DELETE")).status, 404);
+  // Contato feito; mudar a data de ativação volta o contato para pendente.
+  const feito = await (await pedir(comum, `/api/contratos/${doCorretor.id}/contato`, "PATCH", { feito: true })).json();
+  assert.ok(feito.contatoEm);
+  const mesmaData = await (await pedir(comum, `/api/contratos/${doCorretor.id}`, "PUT", contrato({ valor: 500 }))).json();
+  assert.ok(mesmaData.contatoEm);
+  assert.equal(mesmaData.valor, 500);
+  const outraData = await (await pedir(comum, `/api/contratos/${doCorretor.id}`, "PUT", contrato({ ativacao: "2026-12-01" }))).json();
+  assert.equal(outraData.contatoEm, null);
+  assert.equal((await pedir(comum, `/api/contratos/${doCorretor.id}`, "DELETE")).status, 204);
+  assert.deepEqual(await (await pedir(comum, "/api/contratos")).json(), []);
+});
+
+test("contratos vendidos: dados obrigatórios conferidos no servidor", async (t) => {
+  const { pedir, comum } = await comPermissoes(t);
+  for (const errado of [{ nome: "" }, { fone: "3499" }, { plano: " " }, { valor: 0 }, { valor: "450" }, { ativacao: "" }, { ativacao: "2026-02-30" }, { ativacao: "20/11/2026" }]) {
+    assert.equal((await pedir(comum, "/api/contratos", "POST", contrato(errado))).status, 400, JSON.stringify(errado));
+  }
 });
 
 test("LOGIN_REDEFINIR_SENHA recupera o acesso do administrador", async (t) => {

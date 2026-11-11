@@ -5,10 +5,10 @@ const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 const msg = (t) => ($("#cfg-msg").textContent = t);
 const msgUsuarios = (t) => toast(t, "erro");
 const PERFIS = { admin: "Administrador", usuario: "Usuário" };
-const TELAS = { cotacao: "Nova cotação", planos: "Planos e valores", documentos: "Documentos", historico: "Histórico", aceites: "Aceites" };
+const TELAS = { cotacao: "Nova cotação", planos: "Planos e valores", documentos: "Documentos", historico: "Histórico", aceites: "Aceites", contratos: "Contratos vendidos" };
 const NIVEIS = { nenhum: "Sem acesso", ver: "Ver", editar: "Editar" };
 const NOMES_NIVEIS = { nenhum: "sem acesso", ver: "visualização", editar: "edição" };
-const PADRAO = { cotacao: "editar", planos: "ver", documentos: "ver", historico: "editar", aceites: "editar" };
+const PADRAO = { cotacao: "editar", planos: "ver", documentos: "ver", historico: "editar", aceites: "editar", contratos: "editar" };
 
 let eu = null, usuarios = [], editando = null;
 

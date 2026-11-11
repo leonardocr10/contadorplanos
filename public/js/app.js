@@ -5,6 +5,7 @@ import { iniciarPlanos, renderCat } from "./planos.js";
 import { carregarHistorico, iniciarHistorico, renderHist } from "./historico.js";
 import { carregarAceites, renderAceites } from "./aceites.js";
 import { carregarDocumentos, iniciarDocumentos, renderDocumentos } from "./documentos.js";
+import { atualizarPlanosDoContrato, carregarContratos, conferirDiaDosContratos, iniciarContratos } from "./contratos.js";
 import { abrirItem, aplicarPerfil, avatarDoUsuario, carregarUsuarios, iniciarConfiguracoes, mostrarUsuarioLogado } from "./configuracoes.js";
 import { iniciarFiltroSelects } from "./filtro-select.js";
 
@@ -14,6 +15,7 @@ definirRender(() => {
   renderCotacao();
   renderCat();
   renderDocumentos();
+  atualizarPlanosDoContrato();
 });
 
 /* ---------- abas ---------- */
@@ -180,6 +182,7 @@ async function carregar() {
       carregarHistorico(),
       pode("documentos") ? carregarDocumentos().catch((e) => toast(e.message, "erro")) : null,
       verificarAceites(),
+      carregarContratos(),
     ]);
     const precisaDosPlanos = ["cotacao", "planos", "documentos"].some((t) => pode(t));
     const [status, erroPlanos] = await Promise.all([statusP, planosP]);
@@ -213,6 +216,7 @@ iniciarPlanos();
 iniciarHistorico();
 iniciarDocumentos();
 iniciarConfiguracoes();
+iniciarContratos();
 renderHist();
 renderAceites();
 render();
@@ -221,6 +225,7 @@ carregar();
 // o servidor é consultado cada vez mais devagar (até 40 s), em vez de encher o console de erros.
 let falhas = 0;
 async function conferir() {
+  conferirDiaDosContratos();
   if (!document.hidden) {
     const ok = await verificarLink();
     if (ok) await verificarAceites();

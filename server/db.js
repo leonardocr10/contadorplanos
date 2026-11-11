@@ -226,6 +226,18 @@ const MIGRACOES = [
   (db) => trocarDocumentosCnpj(db, { unimed: true }),
   // Lista empresarial com os nomes mais curtos (sem "cópia"); a Unimed PME fica com a lista dela.
   (db) => trocarDocumentosCnpj(db, { unimed: false }),
+  // Contratos vendidos: cliente, plano, valor e a data de ativação, quando o corretor deve entrar em contato.
+  `CREATE TABLE IF NOT EXISTS contratos (
+     id TEXT PRIMARY KEY,
+     usuario_id TEXT NOT NULL DEFAULT '',
+     nome TEXT NOT NULL,
+     fone TEXT NOT NULL,
+     plano TEXT NOT NULL,
+     valor REAL NOT NULL,
+     ativacao TEXT NOT NULL,
+     contato_em TEXT,
+     criado_em TEXT NOT NULL
+   );`,
 ];
 
 // Troca os documentos dos planos CNPJ pela lista empresarial; com unimed, a Unimed PME recebe a lista dela.
@@ -358,6 +370,13 @@ function linhaParaProposta(l) {
   return {
     token: l.token, dados: JSON.parse(l.dados), fone: l.fone, criadoEm: l.criado_em,
     aceitoEm: l.aceito_em, acomodacao: l.acomodacao, valor: l.valor, docsEnviadosEm: l.docs_enviados_em,
+  };
+}
+
+function linhaParaContrato(l) {
+  return {
+    id: l.id, usuarioId: l.usuario_id, nome: l.nome, fone: l.fone, plano: l.plano, valor: l.valor,
+    ativacao: l.ativacao, contatoEm: l.contato_em, criadoEm: l.criado_em,
   };
 }
 
@@ -729,6 +748,42 @@ export class Banco {
 
   excluirCotacao(id) {
     return this.db.prepare("DELETE FROM cotacoes WHERE id = ?").run(id).changes > 0;
+  }
+
+  /* ---------- contratos vendidos ---------- */
+  listarContratos({ usuarioId } = {}) {
+    const sql = `SELECT * FROM contratos ${usuarioId !== undefined ? "WHERE usuario_id = ?" : ""} ORDER BY ativacao DESC, criado_em DESC`;
+    return this.db.prepare(sql).all(...(usuarioId !== undefined ? [usuarioId] : [])).map(linhaParaContrato);
+  }
+
+  obterContrato(id) {
+    const l = this.db.prepare("SELECT * FROM contratos WHERE id = ?").get(id);
+    return l ? linhaParaContrato(l) : null;
+  }
+
+  criarContrato(c) {
+    const id = randomBytes(9).toString("base64url");
+    this.db.prepare("INSERT INTO contratos (id, usuario_id, nome, fone, plano, valor, ativacao, criado_em) VALUES (?,?,?,?,?,?,?,?)")
+      .run(id, c.usuarioId ?? "", c.nome, c.fone, c.plano, c.valor, c.ativacao, new Date().toISOString());
+    return this.obterContrato(id);
+  }
+
+  // Mudar a data de ativação refaz o aviso: o contato volta a ficar pendente.
+  gravarContrato(id, c) {
+    const antes = this.obterContrato(id);
+    if (!antes) return null;
+    this.db.prepare("UPDATE contratos SET nome = ?, fone = ?, plano = ?, valor = ?, ativacao = ?, contato_em = ? WHERE id = ?")
+      .run(c.nome, c.fone, c.plano, c.valor, c.ativacao, antes.ativacao === c.ativacao ? antes.contatoEm : null, id);
+    return this.obterContrato(id);
+  }
+
+  marcarContato(id, feito) {
+    this.db.prepare("UPDATE contratos SET contato_em = ? WHERE id = ?").run(feito ? new Date().toISOString() : null, id);
+    return this.obterContrato(id);
+  }
+
+  excluirContrato(id) {
+    return this.db.prepare("DELETE FROM contratos WHERE id = ?").run(id).changes > 0;
   }
 
   /* ---------- páginas públicas das propostas ---------- */

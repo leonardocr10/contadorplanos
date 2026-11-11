@@ -112,6 +112,21 @@ export function mensagemDocumentosDoPlano({ plano, tipo, documentos, corretor })
   return L.join("\n");
 }
 
+// Contato do corretor no dia da ativação do plano vendido.
+export function mensagemAtivacao({ cliente, plano, corretor }) {
+  const primeiro = String(cliente || "").trim().split(/\s+/)[0];
+  const L = [
+    primeiro ? `Olá, *${primeiro}*! Tudo bem? 😊` : "Olá! Tudo bem? 😊",
+    "",
+    `Passando para avisar que o seu plano *${plano}* já está ativo.`,
+    "",
+    "Se tiver qualquer dúvida sobre carteirinha, rede credenciada ou como usar o plano, é só me chamar por aqui.",
+  ];
+  const sig = assinatura(corretor);
+  if (sig.length) L.push("", ...sig);
+  return L.join("\n");
+}
+
 const escHtml = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 export function waHtml(t) {
