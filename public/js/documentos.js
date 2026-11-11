@@ -7,6 +7,8 @@ import { normalizar } from "./filtro-select.js";
 
 const TIPOS = { PF: "Pessoa física", CNPJ: "CNPJ" };
 let cartoes = [], aba = "PF", busca = "", aberto = null, opcao = "", editando = null, excluindo = null;
+// Documentos desmarcados: ficam fora da mensagem. Ao abrir outro plano ou opção, todos voltam marcados.
+let fora = new Set();
 const cartoesDaAba = () => cartoes.filter((c) => c.tipo === aba);
 // O plano aberto some se for renomeado ou apagado em Planos e valores: a tela volta para a lista.
 const cartaoAberto = () => (aberto ? cartoes.find((c) => c.tipo === aberto.tipo && c.nome === aberto.nome) ?? null : null);
@@ -79,6 +81,7 @@ function renderLista() {
 function abrirPlano(c, planoId) {
   aberto = { tipo: c.tipo, nome: c.nome };
   opcao = planoId;
+  fora = new Set();
   editando = excluindo = null;
   renderDocumentos();
   $("#v-documentos").scrollIntoView({ block: "start" });
@@ -104,6 +107,10 @@ const nomeDaVisao = (c) => opcaoDe(c)?.nome ?? c.nome;
 const docsDaVisao = (c) => (opcaoDe(c) ? c.documentos.filter((d) => d.planos.includes(opcao)) : c.documentos);
 // Na visão de todas as opções, a mensagem leva só o que todas pedem; o resto depende da opção.
 const docsDaMensagem = (c) => (opcaoDe(c) ? docsDaVisao(c) : c.documentos.filter((d) => d.planos.length === c.planos.length));
+const marcados = (c) => docsDaMensagem(c).filter((d) => !fora.has(d.id));
+const marca = (c, d) => (docsDaMensagem(c).some((x) => x.id === d.id)
+  ? `<label class="doc-marca" title="Pedir na mensagem"><input type="checkbox" data-marca="${d.id}" aria-label="Pedir ${esc(d.nome)} na mensagem"${fora.has(d.id) ? "" : " checked"}></label>`
+  : `<span class="doc-marca"></span>`);
 const alvo = (c) => ({ tipo: c.tipo, cartao: c.nome, ...(opcaoDe(c) ? { plano: opcao } : {}) });
 // Na visão de todas as opções, o documento que não vale para todas diz onde vale.
 const ondeVale = (c, d) => {
@@ -142,15 +149,16 @@ function renderPlano(c) {
     return;
   }
   if (!edita) {
-    box.innerHTML = lista.map((d) => `<div class="catrow"><div class="t"><b>${esc(d.nome)}</b>${ondeVale(c, d)}</div></div>`).join("");
+    box.innerHTML = lista.map((d) => `<div class="catrow doc-linha">${marca(c, d)}<div class="t" style="flex:1 1 240px"><b>${esc(d.nome)}</b>${ondeVale(c, d)}</div></div>`).join("");
+    ligarMarcas(box, c);
     return;
   }
   box.innerHTML = lista.map((d) => {
     const nome = editando === d.id
       ? `<input type="text" data-nome value="${esc(d.nome)}" aria-label="Nome do documento"><div class="actions" style="margin-top:8px"><button class="btn primary" data-salvar>Salvar</button><button class="btn" data-cancelar>Cancelar</button></div>`
       : `<b>${esc(d.nome)}</b>${ondeVale(c, d)}`;
-    return `<div class="catrow" data-id="${d.id}">
-      <div class="t" style="flex:1 1 240px">${nome}</div>
+    return `<div class="catrow doc-linha" data-id="${d.id}">
+      ${marca(c, d)}<div class="t" style="flex:1 1 240px">${nome}</div>
       <div class="actions">
         ${botaoIcone("editar", "Editar nome", "data-editar")}
         ${botaoIcone("excluir", "Excluir documento", "data-excluir", "perigo")}
@@ -159,18 +167,32 @@ function renderPlano(c) {
     </div>`;
   }).join("");
   box.querySelectorAll(".catrow[data-id]").forEach((row) => ligarLinha(row, c));
+  ligarMarcas(box, c);
   if (editando != null) box.querySelector("[data-nome]")?.focus();
 }
 
 const textoDaMensagem = (c) => mensagemDocumentosDoPlano({
-  plano: nomeDaVisao(c), tipo: c.tipo, documentos: docsDaMensagem(c).map((d) => d.nome),
+  plano: nomeDaVisao(c), tipo: c.tipo, documentos: marcados(c).map((d) => d.nome),
   corretor: { nome: S.cor.nome.trim(), fone: S.cor.fone.trim(), empresa: S.cor.empresa.trim() },
 });
 
 function renderMensagem(c) {
-  const caixa = $("#doc-msg");
-  caixa.hidden = !docsDaMensagem(c).length;
-  if (!caixa.hidden) $("#doc-msg-previa").innerHTML = waHtml(textoDaMensagem(c));
+  const caixa = $("#doc-msg"), todos = docsDaMensagem(c), lista = marcados(c);
+  caixa.hidden = !todos.length;
+  if (caixa.hidden) return;
+  $("#doc-msg-qtd").textContent = `${lista.length} de ${todos.length} ${todos.length === 1 ? "documento marcado" : "documentos marcados"}`;
+  $("#doc-marcar-todos").textContent = lista.length === todos.length ? "Desmarcar todos" : "Marcar todos";
+  $("#doc-msg-previa").innerHTML = lista.length ? waHtml(textoDaMensagem(c)) : "Marque ao menos um documento para montar a mensagem.";
+  $("#doc-copiar").disabled = !lista.length;
+}
+
+// Marcar ou desmarcar só refaz a mensagem: a lista fica como está.
+function ligarMarcas(box, c) {
+  box.querySelectorAll("[data-marca]").forEach((caixa) => (caixa.onchange = () => {
+    const id = Number(caixa.dataset.marca);
+    if (caixa.checked) fora.delete(id); else fora.add(id);
+    renderMensagem(c);
+  }));
 }
 
 function ligarLinha(row, c) {
@@ -211,8 +233,16 @@ export function iniciarDocumentos() {
     renderDocumentos();
   };
   $("#doc-voltar").onclick = voltarParaLista;
+  $("#doc-marcar-todos").onclick = () => {
+    const c = cartaoAberto();
+    if (!c) return;
+    const todos = docsDaMensagem(c);
+    fora = marcados(c).length === todos.length ? new Set(todos.map((d) => d.id)) : new Set();
+    renderDocumentos();
+  };
   $("#doc-opcao").onchange = (e) => {
     opcao = e.target.value;
+    fora = new Set();
     editando = excluindo = null;
     renderDocumentos();
   };
@@ -232,7 +262,7 @@ export function iniciarDocumentos() {
   };
   $("#doc-copiar").onclick = async () => {
     const c = cartaoAberto();
-    if (!c || !docsDaMensagem(c).length) return;
+    if (!c || !marcados(c).length) return;
     if (await copiarTexto(textoDaMensagem(c))) toast("Mensagem copiada: cole na conversa do cliente no WhatsApp", "sucesso");
     else toast("Não deu para copiar: selecione o texto da mensagem e use Ctrl+C", "erro");
   };

@@ -265,6 +265,10 @@ textarea{resize:vertical;min-height:72px;line-height:1.45}
 .doc-plano-nome span{font-size:12px}
 .doc-plano-linha .iconbtn{width:28px;height:28px;border-radius:7px}
 .doc-plano-linha .iconbtn svg{width:15px;height:15px}
+.doc-linha{flex-wrap:nowrap}
+.doc-marca{flex:none;display:flex;align-items:center;width:20px}
+.doc-marca input{width:18px;height:18px;margin:0;accent-color:var(--accent);cursor:pointer}
+.doc-msg-topo{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 12px}
 .doc-so-em{display:block;margin-top:2px;font-size:12px;color:var(--muted)}
 .empty{color:var(--muted);font-size:14px;text-align:center;padding:30px 10px}
 .phone .foot{padding:14px;display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--line)}
