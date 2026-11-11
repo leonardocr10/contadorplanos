@@ -238,16 +238,23 @@ export function iniciarDocumentos() {
   };
   $("#doc-form").onsubmit = async (e) => {
     e.preventDefault();
-    const campo = $("#doc-nome"), c = cartaoAberto();
-    if (!c) return;
+    const campo = $("#doc-nome"), botao = $("#doc-form [type=submit]"), c = cartaoAberto();
+    if (!c || botao.disabled) return;
+    if (!campo.value.trim()) { toast("Escreva o nome do documento", "erro"); campo.focus(); return; }
+    // Enquanto grava, o botão avisa e não aceita outro clique.
+    botao.disabled = true;
+    botao.textContent = "Salvando…";
     try {
       await api("/api/documentos", { metodo: "POST", json: { nome: campo.value, ...alvo(c) } });
       campo.value = "";
-      await carregarDocumentos();
       avisoCentral("Documento cadastrado com sucesso");
+      await carregarDocumentos();
       campo.focus();
     } catch (erro) {
       toast(erro.message, "erro");
+    } finally {
+      botao.disabled = false;
+      botao.textContent = "Adicionar";
     }
   };
   $("#doc-copiar").onclick = async () => {

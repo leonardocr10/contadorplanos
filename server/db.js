@@ -511,8 +511,13 @@ export class Banco {
   /* Documentos por cartão: cada documento fica ligado aos planos do cartão (como na Nova cotação, ex.: UNIMED,
      AMIL PRATA MG I). O cartão pede os documentos ligados a qualquer plano dele, então uma opção nova do
      cartão já entra pedindo os mesmos documentos. */
+  // Só id, nome e tipo, na ordem de Planos e valores: o cartão sai do nome, sem ler o plano inteiro.
+  planosResumidos() {
+    return this.db.prepare("SELECT id, nome, categoria FROM planos ORDER BY ordem, nome").all();
+  }
+
   planosDoCartao(tipo, cartao) {
-    return this.listarPlanos().filter((p) => p.categoria === tipo && linhaDoPlano(p) === cartao).map((p) => p.id);
+    return this.planosResumidos().filter((p) => p.categoria === tipo && linhaDoPlano(p) === cartao).map((p) => p.id);
   }
 
   // Planos que a ação alcança: uma opção do cartão (ex.: AMIL OURO 30% MEI) ou, sem ela, o cartão inteiro.
@@ -538,16 +543,28 @@ export class Banco {
     return [...docs.values()];
   }
 
+  // Tudo com duas consultas: os planos e as ligações de todos os documentos.
   cartoesDeDocumentos() {
-    const cartoes = new Map();
-    for (const [ordem, p] of this.listarPlanos().entries()) {
+    const cartoes = new Map(), cartaoDoPlano = new Map();
+    for (const [ordem, p] of this.planosResumidos().entries()) {
       const nome = linhaDoPlano(p), chave = `${p.categoria}|${nome}`;
-      if (!cartoes.has(chave)) cartoes.set(chave, { tipo: p.categoria, nome, planos: [] });
+      if (!cartoes.has(chave)) cartoes.set(chave, { tipo: p.categoria, nome, planos: [], documentos: [] });
       cartoes.get(chave).planos.push({ id: p.id, nome: p.nome, ordem });
+      cartaoDoPlano.set(p.id, cartoes.get(chave));
     }
-    return [...cartoes.values()]
-      .map((c) => ({ ...c, documentos: this.documentosDoCartao(c.tipo, c.nome) }))
-      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
+    const docs = new Map();
+    for (const l of this.db.prepare("SELECT d.id, d.nome, d.tipo, v.plano_id FROM documentos d JOIN documentos_planos v ON v.documento_id = d.id ORDER BY d.id").all()) {
+      const c = cartaoDoPlano.get(l.plano_id);
+      if (!c || c.tipo !== l.tipo) continue;
+      const chave = `${c.tipo}|${c.nome}|${l.id}`;
+      if (!docs.has(chave)) { docs.set(chave, { id: l.id, nome: l.nome, planos: [] }); c.documentos.push(docs.get(chave)); }
+      docs.get(chave).planos.push(l.plano_id);
+    }
+    for (const c of cartoes.values()) {
+      const ordem = c.planos.map((p) => p.id);
+      for (const d of c.documentos) d.planos.sort((a, b) => ordem.indexOf(a) - ordem.indexOf(b));
+    }
+    return [...cartoes.values()].sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
   }
 
   // Liga o documento (pelo nome, sem diferença de maiúsculas) aos planos do cartão, ou só à opção escolhida.
