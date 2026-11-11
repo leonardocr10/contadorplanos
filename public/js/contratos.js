@@ -166,30 +166,122 @@ const MAX_ARQUIVO = 20 * 1024 * 1024;
 const fmtTamanho = (n) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
 const urlDoArquivo = (c, a, baixar) => `/api/contratos/${encodeURIComponent(c.id)}/arquivos/${encodeURIComponent(a.id)}${baixar ? "?baixar=1" : ""}`;
 
+// Arquivos que ainda estão subindo, por contrato: aparecem na lista na hora, como "Salvando…".
+const emEnvio = new Map();
+
+// Cada arquivo é baixado uma vez só e fica na memória da página: miniatura e visualização usam a mesma cópia.
+const PDFJS = "/vendor/pdfjs/";
+let pdfjsP = null;
+const carregarPdfJs = () => (pdfjsP ||= import(PDFJS + "pdf.min.mjs")
+  .then((lib) => { lib.GlobalWorkerOptions.workerSrc = PDFJS + "pdf.worker.min.mjs"; return lib; })
+  .catch((e) => { pdfjsP = null; throw e; }));
+const copias = new Map(), miniaturas = new Map();
+function copiaLocal(c, a) {
+  if (!copias.has(a.id)) {
+    copias.set(a.id, fetch(urlDoArquivo(c, a))
+      .then((r) => { if (!r.ok) throw new Error("Documento não encontrado."); return r.blob(); })
+      .then((b) => URL.createObjectURL(b))
+      .catch((e) => { copias.delete(a.id); throw e; }));
+  }
+  return copias.get(a.id);
+}
+// Imagem: a própria foto. PDF: a primeira página desenhada pelo leitor de PDF do sistema.
+async function gerarMiniatura(c, a) {
+  const url = await copiaLocal(c, a);
+  if (a.tipo !== "application/pdf") return url;
+  const lib = await carregarPdfJs();
+  const tarefa = lib.getDocument({ url, isEvalSupported: false, cMapUrl: PDFJS + "cmaps/", cMapPacked: true, standardFontDataUrl: PDFJS + "standard_fonts/", wasmUrl: PDFJS + "wasm/" });
+  try {
+    const doc = await tarefa.promise;
+    const pagina = await doc.getPage(1);
+    const base = pagina.getViewport({ scale: 1 });
+    const vp = pagina.getViewport({ scale: 240 / base.width });
+    const tela = document.createElement("canvas");
+    tela.width = Math.round(vp.width);
+    tela.height = Math.round(vp.height);
+    await pagina.render({ canvasContext: tela.getContext("2d"), viewport: vp }).promise;
+    return tela.toDataURL("image/jpeg", 0.8);
+  } finally {
+    tarefa.destroy();
+  }
+}
+const miniatura = (c, a) => {
+  if (!miniaturas.has(a.id)) miniaturas.set(a.id, gerarMiniatura(c, a).then((src) => { miniaturas.set(a.id, src); return src; }, (e) => { miniaturas.delete(a.id); throw e; }));
+  return miniaturas.get(a.id);
+};
+const miniaturaPronta = (id) => (typeof miniaturas.get(id) === "string" ? miniaturas.get(id) : null);
+function esquecerArquivo(id) {
+  copias.get(id)?.then((url) => URL.revokeObjectURL(url), () => {});
+  copias.delete(id);
+  miniaturas.delete(id);
+}
+
+// Documento aberto na visualização, por contrato.
+const docVisto = new Map();
+const ehPdf = (a) => a.tipo === "application/pdf";
+
 function painelDeDocumentos(c, edita) {
-  const lista = c.arquivos.length
-    ? `<ul class="ctr-docs-lista">${c.arquivos.map((a) => `<li data-arquivo="${esc(a.id)}">
-        <span class="ctr-doc-tipo">${a.tipo === "application/pdf" ? "PDF" : "IMG"}</span>
-        <a class="ctr-doc-nome" href="${esc(urlDoArquivo(c, a))}" target="_blank" rel="noopener" title="${esc(a.nome)}">${esc(a.nome)}</a>
-        <span class="note">${fmtTamanho(a.tamanho)} · ${esc(new Date(a.criadoEm).toLocaleDateString("pt-BR"))}</span>
+  const subindo = emEnvio.get(c.id) ?? [];
+  if (!c.arquivos.some((a) => a.id === docVisto.get(c.id))) docVisto.set(c.id, c.arquivos[0]?.id);
+  const visto = c.arquivos.find((a) => a.id === docVisto.get(c.id));
+  const mini = (a) => {
+    const src = miniaturaPronta(a.id);
+    return `<span class="ctr-doc-mini" data-mini="${esc(a.id)}">${src ? `<img src="${esc(src)}" alt="">` : `<span>${ehPdf(a) ? "PDF" : "IMG"}</span>`}</span>`;
+  };
+  const linhas = c.arquivos.map((a) => `<li><button type="button" class="ctr-doc-linha${a.id === visto?.id ? " visto" : ""}" data-ver-doc="${esc(a.id)}" aria-current="${a.id === visto?.id}">
+      ${mini(a)}
+      <span class="ctr-doc-texto"><b title="${esc(a.nome)}">${esc(a.nome)}</b><span class="note">${ehPdf(a) ? "PDF" : "Imagem"} · ${fmtTamanho(a.tamanho)} · ${esc(new Date(a.criadoEm).toLocaleDateString("pt-BR"))}</span></span>
+    </button></li>`).join("") + subindo.map((a) => `<li><div class="ctr-doc-linha ctr-doc-subindo">
+      <span class="ctr-doc-mini"><span class="ctr-girando" aria-hidden="true"></span></span>
+      <span class="ctr-doc-texto"><b title="${esc(a.nome)}">${esc(a.nome)}</b><span class="note">${a.reduzindo ? "Preparando…" : "Salvando…"}</span></span>
+    </div></li>`).join("");
+  const previa = visto ? `<aside class="ctr-doc-previa" aria-live="polite">
+      <header class="ctr-doc-previa-topo">
+        <b title="${esc(visto.nome)}">${esc(visto.nome)}</b>
         <span class="ctr-doc-acoes">
-          <a class="limpar-filtros" href="${esc(urlDoArquivo(c, a, true))}">Baixar</a>
+          <a class="limpar-filtros" href="${esc(urlDoArquivo(c, visto))}" target="_blank" rel="noopener">Abrir em nova aba</a>
+          <a class="limpar-filtros" href="${esc(urlDoArquivo(c, visto, true))}">Baixar</a>
           ${edita ? `<button type="button" class="limpar-filtros" data-tirar>Excluir</button>` : ""}
         </span>
-        <span class="doc-confirma ctr-doc-confirma" hidden>Excluir? <button type="button" class="limpar-filtros" data-tirar-sim>Sim</button><button type="button" class="limpar-filtros" data-tirar-nao>Não</button></span>
-      </li>`).join("")}</ul>`
-    : `<p class="note" style="margin:0">Nenhum documento salvo ainda.</p>`;
+        <span class="doc-confirma ctr-doc-confirma" hidden>Excluir este documento? <button type="button" class="limpar-filtros" data-tirar-sim>Sim</button><button type="button" class="limpar-filtros" data-tirar-nao>Não</button></span>
+      </header>
+      <div class="ctr-doc-ver" data-ver="${esc(visto.id)}"><span class="note">Carregando…</span></div>
+    </aside>` : `<aside class="ctr-doc-previa ctr-doc-previa-vazia"><p class="note">${subindo.length ? "Os documentos aparecem aqui assim que forem salvos." : "Nenhum documento salvo ainda."}</p></aside>`;
   return `<div class="ctr-docs" data-painel-docs>
-    <div class="ctr-docs-topo"><span class="label">Documentos do cliente</span>${edita ? `<span class="note">PDF, JPG, PNG ou WebP, até 20 MB cada. Pode arrastar os arquivos para cá.</span>` : ""}</div>
-    ${lista}
-    ${edita ? `<div class="actions"><label class="btn primary" tabindex="0" data-escolher>Adicionar documentos<input type="file" multiple accept="${ACEITOS}" hidden data-arquivos></label><span class="note" data-progresso aria-live="polite"></span></div>` : ""}
+    <div class="ctr-docs-topo"><span class="label">Documentos do cliente${c.arquivos.length ? ` · ${c.arquivos.length}` : ""}</span>${edita ? `<span class="note">PDF, JPG, PNG ou WebP, sem limite de quantidade. Pode arrastar os arquivos para cá.</span>` : ""}</div>
+    <div class="ctr-docs-mestre">
+      <div class="ctr-docs-coluna">
+        ${linhas ? `<ul class="ctr-docs-lista">${linhas}</ul>` : ""}
+        ${edita ? `<label class="btn primary" tabindex="0" data-escolher>Adicionar documentos<input type="file" multiple accept="${ACEITOS}" hidden data-arquivos></label>` : ""}
+      </div>
+      ${previa}
+    </div>
   </div>`;
 }
 
+// Preenche as miniaturas que ainda não estavam prontas e a visualização do documento escolhido.
+function mostrarDocumentos(painel, c) {
+  for (const el of painel.querySelectorAll("[data-mini]")) {
+    if (el.querySelector("img")) continue;
+    const a = c.arquivos.find((x) => x.id === el.dataset.mini);
+    if (a) miniatura(c, a).then((src) => { if (el.isConnected) el.innerHTML = `<img src="${esc(src)}" alt="">`; }, () => {});
+  }
+  const ver = painel.querySelector("[data-ver]");
+  const a = ver && c.arquivos.find((x) => x.id === ver.dataset.ver);
+  if (!a) return;
+  copiaLocal(c, a).then((url) => {
+    if (!ver.isConnected) return;
+    ver.innerHTML = ehPdf(a) ? `<iframe src="${esc(url)}#navpanes=0&amp;view=FitH" title="${esc(a.nome)}"></iframe>` : `<img src="${esc(url)}" alt="${esc(a.nome)}">`;
+  }, (e) => { if (ver.isConnected) ver.innerHTML = `<span class="note">${esc(e.message)}</span>`; });
+}
+
 function ligarDocumentos(painel, c) {
-  painel.querySelectorAll("[data-tirar]").forEach((b) => (b.onclick = () => (b.closest("li").querySelector(".ctr-doc-confirma").hidden = false)));
-  painel.querySelectorAll("[data-tirar-nao]").forEach((b) => (b.onclick = () => (b.closest(".ctr-doc-confirma").hidden = true)));
-  painel.querySelectorAll("[data-tirar-sim]").forEach((b) => (b.onclick = () => tirarDocumento(c, b.closest("li").dataset.arquivo, b)));
+  mostrarDocumentos(painel, c);
+  painel.querySelectorAll("[data-ver-doc]").forEach((b) => (b.onclick = () => { docVisto.set(c.id, b.dataset.verDoc); renderContratos(); }));
+  painel.querySelector("[data-tirar]")?.addEventListener("click", () => (painel.querySelector(".ctr-doc-confirma").hidden = false));
+  painel.querySelector("[data-tirar-nao]")?.addEventListener("click", () => (painel.querySelector(".ctr-doc-confirma").hidden = true));
+  const sim = painel.querySelector("[data-tirar-sim]");
+  if (sim) sim.onclick = () => tirarDocumento(c, docVisto.get(c.id), sim);
   const entrada = painel.querySelector("[data-arquivos]");
   if (!entrada) return;
   const escolher = painel.querySelector("[data-escolher]");
@@ -200,26 +292,67 @@ function ligarDocumentos(painel, c) {
   painel.ondrop = (e) => { e.preventDefault(); painel.classList.remove("arrastando"); enviarDocumentos(c, [...e.dataTransfer.files], painel); };
 }
 
-// Um arquivo por vez, para mostrar o andamento e não perder os que já foram se um falhar.
-async function enviarDocumentos(c, arquivos, painel) {
-  if (!arquivos.length) return;
-  const grandes = arquivos.filter((a) => a.size > MAX_ARQUIVO);
-  const enviar = arquivos.filter((a) => a.size <= MAX_ARQUIVO);
-  const progresso = painel.querySelector("[data-progresso]");
-  const escolher = painel.querySelector("[data-escolher]");
-  escolher.classList.add("desativado");
-  const erros = grandes.map((a) => `${a.name}: maior que 20 MB`);
-  let salvos = 0;
-  for (const [i, arquivo] of enviar.entries()) {
-    progresso.textContent = `Salvando ${i + 1} de ${enviar.length}…`;
-    try {
-      const novo = await api(`/api/contratos/${encodeURIComponent(c.id)}/arquivos`, { metodo: "POST", corpo: arquivo, tipo: arquivo.type || "application/octet-stream", cabecalhos: { "X-Nome-Arquivo": encodeURIComponent(arquivo.name) } });
-      c.arquivos.push(novo);
-      salvos++;
-    } catch (e) {
-      erros.push(`${arquivo.name}: ${e.message}`);
-    }
+// Foto de celular tem vários MB: reduzida para até 2000 px em JPEG, sobe muito mais rápido e continua legível.
+// PDF e imagem já pequena vão como estão.
+const LADO_MAXIMO = 2000, REDUZIR_ACIMA_DE = 500 * 1024;
+async function reduzirImagem(arquivo) {
+  if (!/^image\/(jpeg|png|webp)$/.test(arquivo.type) || arquivo.size <= REDUZIR_ACIMA_DE) return arquivo;
+  try {
+    const imagem = await createImageBitmap(arquivo, { imageOrientation: "from-image" });
+    const escala = Math.min(1, LADO_MAXIMO / Math.max(imagem.width, imagem.height));
+    const tela = document.createElement("canvas");
+    tela.width = Math.round(imagem.width * escala);
+    tela.height = Math.round(imagem.height * escala);
+    const ctx = tela.getContext("2d");
+    // PNG com transparência fica com fundo branco no JPEG.
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, tela.width, tela.height);
+    ctx.drawImage(imagem, 0, 0, tela.width, tela.height);
+    imagem.close();
+    const blob = await new Promise((ok) => tela.toBlob(ok, "image/jpeg", 0.85));
+    if (!blob || blob.size >= arquivo.size) return arquivo;
+    return new File([blob], arquivo.name.replace(/\.(png|webp|jpe?g)$/i, "") + ".jpg", { type: "image/jpeg" });
+  } catch {
+    return arquivo;
   }
+}
+
+// Até 3 arquivos sobem ao mesmo tempo; cada um entra na lista assim que termina, e um erro não perde os outros.
+const ENVIOS_SIMULTANEOS = 3;
+async function enviarDocumentos(c, arquivos) {
+  if (!arquivos.length) return;
+  const fila = arquivos.map((arquivo) => ({ arquivo, nome: arquivo.name, pdf: arquivo.type === "application/pdf" || /\.pdf$/i.test(arquivo.name), reduzindo: true }));
+  emEnvio.set(c.id, [...(emEnvio.get(c.id) ?? []), ...fila]);
+  docsAbertos = c.id;
+  renderContratos();
+  const erros = [];
+  let salvos = 0, proximo = 0;
+  const sair = (item) => {
+    const lista = (emEnvio.get(c.id) ?? []).filter((x) => x !== item);
+    if (lista.length) emEnvio.set(c.id, lista); else emEnvio.delete(c.id);
+  };
+  const trabalhar = async () => {
+    while (proximo < fila.length) {
+      const item = fila[proximo++];
+      try {
+        const arquivo = await reduzirImagem(item.arquivo);
+        if (arquivo.size > MAX_ARQUIVO) throw new Error("maior que 20 MB");
+        item.nome = arquivo.name;
+        item.reduzindo = false;
+        renderContratos();
+        const novo = await api(`/api/contratos/${encodeURIComponent(c.id)}/arquivos`, { metodo: "POST", corpo: arquivo, tipo: arquivo.type || "application/octet-stream", cabecalhos: { "X-Nome-Arquivo": encodeURIComponent(arquivo.name) } });
+        c.arquivos.push(novo);
+        salvos++;
+      } catch (e) {
+        erros.push(`${item.arquivo.name}: ${e.message}`);
+      }
+      sair(item);
+      renderContratos();
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(ENVIOS_SIMULTANEOS, fila.length) }, trabalhar));
+  // A ordem da lista é a do servidor (a de chegada).
+  c.arquivos.sort((a, b) => a.criadoEm.localeCompare(b.criadoEm));
   renderContratos();
   if (erros.length) toast(`${salvos ? `${salvos} salvo${salvos === 1 ? "" : "s"}. ` : ""}Não deu para salvar ${erros.join("; ")}`, "erro");
   else avisoCentral(salvos === 1 ? "Documento salvo com sucesso" : `${salvos} documentos salvos com sucesso`);
@@ -230,6 +363,7 @@ async function tirarDocumento(c, id, botao) {
   try {
     await api(`/api/contratos/${encodeURIComponent(c.id)}/arquivos/${encodeURIComponent(id)}`, { metodo: "DELETE" });
     c.arquivos = c.arquivos.filter((a) => a.id !== id);
+    esquecerArquivo(id);
     renderContratos();
     avisoCentral("Documento excluído com sucesso");
   } catch (e) {
