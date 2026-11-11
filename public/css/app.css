@@ -489,6 +489,9 @@ body{margin:0}
 .ctr-botoes{grid-column:1/-1;margin:0}
 @media (max-width:1000px){.ctr-form{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
 @media (max-width:560px){.ctr-form{grid-template-columns:minmax(0,1fr)}}
+.ctr-msg{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.ctr-msg textarea{background:var(--surface);min-height:170px}
+.ctr-msg .actions{margin:0}
 .ctr-item.ctr-pendente{border-color:var(--danger);box-shadow:inset 4px 0 0 var(--danger)}
 .alerta-contratos{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;width:100%;margin:0 0 14px;padding:10px 16px;border:1px solid var(--danger);border-radius:12px;background:var(--danger-soft);color:var(--danger);font:inherit;font-size:14px;text-align:left;cursor:pointer}
 .alerta-contratos[hidden]{display:none}

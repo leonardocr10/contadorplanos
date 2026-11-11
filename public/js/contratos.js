@@ -4,6 +4,8 @@ import { $, S, api, avisoCentral, esc, pode, show, toast } from "./estado.js";
 import { linkConversaDireta, mensagemAtivacao } from "./mensagem.js";
 
 let contratos = [], carregados = false, erro = null, editando = null, filtro = "todos";
+// Mensagem do WhatsApp aberta para edição: { id do contrato, texto }.
+let mensagem = null;
 // O aviso aparece uma vez por dia, e de novo só quando surge outro contrato para contatar.
 let avisados = -1, diaDoAviso = "";
 
@@ -84,26 +86,71 @@ export function renderContratos() {
   const edita = pode("contratos", "editar");
   box.innerHTML = lista.map((c) => {
     const st = situacao(c, dia);
-    const texto = mensagemAtivacao({ cliente: c.nome, plano: c.plano, corretor: S.cor });
     return `<div class="hq ctr-item${st.chave === "pendente" ? " ctr-pendente" : ""}" data-id="${esc(c.id)}">
       <div class="hq-top"><span class="hg-name">${esc(c.nome)}</span><span class="pill ${st.classe}">${esc(st.rotulo)}</span></div>
       <div class="hq-date">${esc(fmtFone(c.fone))} · ativação em ${esc(fmtDia(c.ativacao))}${c.contatoEm ? ` · contato feito em ${esc(new Date(c.contatoEm).toLocaleDateString("pt-BR"))}` : ""}</div>
       <div class="hq-plans"><b>${esc(c.plano)}</b> · R$ ${brl(c.valor)}</div>
       ${edita ? `<div class="actions">
-        <a class="btn ${st.chave === "pendente" ? "primary" : ""}" href="${esc(linkConversaDireta(c.fone, texto, navigator.userAgent))}" target="_blank" rel="noopener">Abrir no WhatsApp</a>
+        <button class="btn ${st.chave === "pendente" ? "primary" : ""}" data-mensagem aria-expanded="${mensagem?.id === c.id}">Mensagem no WhatsApp</button>
         ${st.chave === "aguardando" ? "" : `<button class="btn" data-contato="${c.contatoEm ? "0" : "1"}">${c.contatoEm ? "Desfazer contato" : "Marcar contato feito"}</button>`}
         <button class="btn" data-editar>Editar</button>
         <button class="btn danger" data-excluir>Excluir</button>
       </div>
+      ${mensagem?.id === c.id ? `<div class="ctr-msg" data-painel-msg>
+        <label class="label" for="ctr-msg-texto">Mensagem para ${esc(c.nome)}</label>
+        <textarea id="ctr-msg-texto" rows="8" spellcheck="true">${esc(mensagem.texto)}</textarea>
+        <div class="actions">
+          <button class="btn primary" data-msg-abrir>Abrir no WhatsApp</button>
+          <button class="btn" data-msg-copiar>Copiar mensagem</button>
+          <button class="btn" data-msg-original>Voltar ao texto original</button>
+          <button class="btn" data-msg-fechar>Fechar</button>
+        </div>
+      </div>` : ""}
       <div class="status" data-confirma hidden>Excluir o contrato de <b>${esc(c.nome)}</b>? <span class="actions" style="margin-top:8px"><button class="btn danger" data-sim>Sim, excluir</button><button class="btn" data-nao>Manter</button></span></div>` : ""}
     </div>`;
   }).join("");
   const doItem = (el) => contratos.find((c) => c.id === el.closest(".hq").dataset.id);
   box.querySelectorAll("[data-contato]").forEach((b) => (b.onclick = () => marcarContato(doItem(b), b.dataset.contato === "1", b)));
+  box.querySelectorAll("[data-mensagem]").forEach((b) => (b.onclick = () => abrirMensagem(doItem(b))));
+  const painel = box.querySelector("[data-painel-msg]");
+  if (painel) {
+    const c = doItem(painel), campo = painel.querySelector("textarea");
+    // O texto editado fica guardado: redesenhar a lista não perde o que foi escrito.
+    campo.oninput = () => (mensagem.texto = campo.value);
+    painel.querySelector("[data-msg-abrir]").onclick = () => {
+      if (!campo.value.trim()) return toast("Escreva a mensagem antes de abrir o WhatsApp.", "erro");
+      window.open(linkConversaDireta(c.fone, campo.value, navigator.userAgent), "_blank", "noopener");
+    };
+    painel.querySelector("[data-msg-copiar]").onclick = async () => {
+      try {
+        await navigator.clipboard.writeText(campo.value);
+        avisoCentral("Mensagem copiada com sucesso");
+      } catch {
+        campo.select();
+        toast("Não deu para copiar sozinho: o texto ficou selecionado, use Ctrl+C.", "erro");
+      }
+    };
+    painel.querySelector("[data-msg-original]").onclick = () => {
+      mensagem.texto = textoOriginal(c);
+      campo.value = mensagem.texto;
+      campo.focus();
+    };
+    painel.querySelector("[data-msg-fechar]").onclick = () => { mensagem = null; renderContratos(); };
+  }
   box.querySelectorAll("[data-editar]").forEach((b) => (b.onclick = () => editar(doItem(b))));
   box.querySelectorAll("[data-excluir]").forEach((b) => (b.onclick = () => (b.closest(".hq").querySelector("[data-confirma]").hidden = false)));
   box.querySelectorAll("[data-nao]").forEach((b) => (b.onclick = () => (b.closest("[data-confirma]").hidden = true)));
   box.querySelectorAll("[data-sim]").forEach((b) => (b.onclick = () => excluir(doItem(b), b)));
+}
+
+const textoOriginal = (c) => mensagemAtivacao({ cliente: c.nome, plano: c.plano, corretor: S.cor });
+
+// Abre (ou fecha) a mensagem do contrato para editar antes de mandar.
+function abrirMensagem(c) {
+  mensagem = mensagem?.id === c.id ? null : { id: c.id, texto: textoOriginal(c) };
+  renderContratos();
+  const campo = $("#ctr-msg-texto");
+  if (campo) { campo.focus(); campo.setSelectionRange(0, 0); campo.scrollTop = 0; }
 }
 
 // Sugestões do campo plano: os nomes dos planos cadastrados, sem impedir outro nome.
@@ -193,6 +240,7 @@ async function excluir(c, botao) {
     await api(`/api/contratos/${encodeURIComponent(c.id)}`, { metodo: "DELETE" });
     contratos = contratos.filter((x) => x.id !== c.id);
     if (editando === c.id) limparFormulario();
+    if (mensagem?.id === c.id) mensagem = null;
     avisados = Math.min(avisados, pendentes().length);
     renderContratos();
     avisoCentral("Contrato excluído com sucesso");
