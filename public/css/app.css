@@ -364,6 +364,8 @@ html:has(.visor[open]){overflow:hidden}
 .cat-detalhe .ftab th{border-bottom:1px solid var(--line);vertical-align:bottom}
 .cat-detalhe .ftab td{padding:4px 6px;border-bottom:1px solid var(--line)}
 .cat-detalhe .ftab td:first-child{white-space:normal;font-weight:500}
+/* Prazos e valores ("24 horas", "180 dias") ficam numa linha só; quem quebra é a descrição. */
+.cat-detalhe .ftab td:not(:first-child),.cat-detalhe .ftab th:not(:first-child){white-space:nowrap}
 @media (max-width:900px){.cat-mestre{grid-template-columns:minmax(0,1fr)}.cat-detalhe{position:static;max-height:none}}
 .catrow b{display:block}
 .catrow span{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
