@@ -265,8 +265,12 @@ textarea{resize:vertical;min-height:72px;line-height:1.45}
 .doc-plano-nome span{font-size:12px}
 .doc-plano-linha .iconbtn{width:28px;height:28px;border-radius:7px}
 .doc-plano-linha .iconbtn svg{width:15px;height:15px}
-#doc-list{gap:4px}
-.catrow.doc-linha{gap:4px 10px;padding:2px 6px 2px 10px;border-radius:8px}
+#doc-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px 8px;align-items:stretch}
+#doc-list>.status{grid-column:1/-1}
+@media (max-width:1100px){#doc-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:640px){#doc-list{grid-template-columns:minmax(0,1fr)}}
+.catrow.doc-linha{flex-wrap:wrap;gap:4px 8px;padding:2px 6px 2px 10px;border-radius:8px}
+.catrow.doc-linha b{overflow-wrap:anywhere}
 .catrow.doc-linha b{font-size:13.5px}
 .catrow.doc-linha .t{padding:4px 0}
 .catrow.doc-linha .iconbtn{width:28px;height:28px;border-radius:7px}

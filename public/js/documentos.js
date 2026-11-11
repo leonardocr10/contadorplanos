@@ -149,7 +149,7 @@ function renderPlano(c) {
     return;
   }
   if (!edita) {
-    box.innerHTML = lista.map((d) => `<div class="catrow doc-linha">${marca(c, d)}<div class="t" style="flex:1 1 240px"><b>${esc(d.nome)}</b>${ondeVale(c, d)}</div></div>`).join("");
+    box.innerHTML = lista.map((d) => `<div class="catrow doc-linha">${marca(c, d)}<div class="t" style="flex:1 1 0;min-width:0"><b>${esc(d.nome)}</b>${ondeVale(c, d)}</div></div>`).join("");
     ligarMarcas(box, c);
     return;
   }
@@ -158,7 +158,7 @@ function renderPlano(c) {
       ? `<input type="text" data-nome value="${esc(d.nome)}" aria-label="Nome do documento"><div class="actions" style="margin-top:8px"><button class="btn primary" data-salvar>Salvar</button><button class="btn" data-cancelar>Cancelar</button></div>`
       : `<b>${esc(d.nome)}</b>${ondeVale(c, d)}`;
     return `<div class="catrow doc-linha" data-id="${d.id}">
-      ${marca(c, d)}<div class="t" style="flex:1 1 240px">${nome}</div>
+      ${marca(c, d)}<div class="t" style="flex:1 1 0;min-width:0">${nome}</div>
       <div class="actions">
         ${botaoIcone("editar", "Editar nome", "data-editar")}
         ${botaoIcone("excluir", "Excluir documento", "data-excluir", "perigo")}
