@@ -65,10 +65,6 @@ test("cada usuário troca e remove a própria foto, e o arquivo antigo é apagad
   assert.equal((await pedir(comum, "/api/eu/foto", "DELETE")).status, 204);
   assert.equal((await (await pedir(comum, "/api/eu")).json()).foto, "");
   assert.equal((await pedir(comum, `/${segunda}`)).status, 404);
-  // Excluir o usuário não deixa a foto para trás.
-  const { foto: terceira } = await (await enviar(comum, jpg)).json();
-  assert.equal((await pedir(admin, `/api/usuarios/${u.id}`, "DELETE")).status, 204);
-  assert.equal((await pedir(admin, `/${terceira}`)).status, 404);
 });
 
 test("a senha guardada não é a senha e só confere com a certa", () => {
@@ -117,7 +113,7 @@ test("usuário comum não acessa o que é do administrador", async (t) => {
   assert.equal(criado.status, 201);
   assert.equal(JSON.stringify(await criado.json()).includes("hash"), false);
   const comum = (await entrar("corretor1", "senha-do-corretor")).cookie;
-  for (const [rota, metodo] of [["/api/usuarios", "GET"], ["/api/usuarios", "POST"], ["/api/backup", "GET"], ["/api/restaurar", "POST"], ["/api/sistema/versao", "GET"], ["/api/sistema/atualizar", "POST"], ["/api/usuarios/x", "DELETE"], ["/api/usuarios/x", "PUT"]]) {
+  for (const [rota, metodo] of [["/api/usuarios", "GET"], ["/api/usuarios", "POST"], ["/api/backup", "GET"], ["/api/restaurar", "POST"], ["/api/sistema/versao", "GET"], ["/api/sistema/atualizar", "POST"], ["/api/usuarios/x", "PUT"]]) {
     assert.equal((await pedir(comum, rota, metodo, metodo === "GET" ? undefined : {})).status, 403, `${metodo} ${rota}`);
     assert.notEqual((await pedir(admin, rota, metodo === "POST" && rota === "/api/sistema/atualizar" ? "POST" : "GET")).status, 401);
   }
@@ -175,15 +171,35 @@ test("o administrador redefine, desativa e exclui, e o acesso cai na hora", asyn
 
   await pedir(admin, `/api/usuarios/${u.id}`, "PUT", { ativo: true });
   comum = (await entrar("corretor1", "senha-redefinida")).cookie;
-  assert.equal((await pedir(admin, `/api/usuarios/${u.id}`, "DELETE")).status, 204);
-  assert.equal((await pedir(comum, "/api/eu")).status, 401);
+  assert.equal((await pedir(comum, "/api/eu")).status, 200);
+});
+
+test("usuário não é excluído, só desativado, e os contratos e documentos dele ficam guardados", async (t) => {
+  const { base, banco, entrar, pedir } = await subir(t);
+  const admin = (await entrar("chefe", SENHA_ADMIN)).cookie;
+  const u = await (await pedir(admin, "/api/usuarios", "POST", { login: "corretor1", email: "corretor1@exemplo.com", senha: "senha-do-corretor" })).json();
+  let comum = (await entrar("corretor1", "senha-do-corretor")).cookie;
+  const c = await (await pedir(comum, "/api/contratos", "POST", { nome: "Maria", fone: "34999991111", plano: "AMIL OURO", valor: 300, ativacao: "2026-11-20" })).json();
+  await fetch(`${base}/api/contratos/${c.id}/arquivos`, { method: "POST", headers: { cookie: comum, "Content-Type": "application/pdf", "X-Nome-Arquivo": "rg.pdf" }, body: Buffer.from("%PDF-1.4\nrg") });
+  // Não existe mais a exclusão de usuário.
+  assert.equal((await pedir(admin, `/api/usuarios/${u.id}`, "DELETE")).status, 404);
+  assert.ok(banco.obterUsuario(u.id));
+  // Desativado, não entra; os dados continuam no banco.
+  assert.equal((await pedir(admin, `/api/usuarios/${u.id}`, "PUT", { ativo: false })).status, 200);
+  assert.equal((await entrar("corretor1", "senha-do-corretor")).status, 401);
+  assert.equal(banco.listarContratos({ usuarioId: u.id }).length, 1);
+  assert.equal(banco.db.prepare("SELECT COUNT(*) AS n FROM contratos_arquivos").get().n, 1);
+  // Ativado de novo, vê os contratos e documentos como estavam.
+  await pedir(admin, `/api/usuarios/${u.id}`, "PUT", { ativo: true });
+  comum = (await entrar("corretor1", "senha-do-corretor")).cookie;
+  const lista = await (await pedir(comum, "/api/contratos")).json();
+  assert.deepEqual(lista.map((x) => [x.nome, x.arquivos.length]), [["Maria", 1]]);
 });
 
 test("o sistema nunca fica sem administrador", async (t) => {
   const { entrar, pedir } = await subir(t);
   const admin = (await entrar("chefe", SENHA_ADMIN)).cookie;
   const eu = await (await pedir(admin, "/api/eu")).json();
-  assert.equal((await pedir(admin, `/api/usuarios/${eu.id}`, "DELETE")).status, 400);
   assert.equal((await pedir(admin, `/api/usuarios/${eu.id}`, "PUT", { ativo: false })).status, 400);
   assert.equal((await pedir(admin, `/api/usuarios/${eu.id}`, "PUT", { perfil: "usuario" })).status, 400);
 });

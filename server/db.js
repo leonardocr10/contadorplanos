@@ -969,10 +969,6 @@ export class Banco {
     return this.obterUsuario(id);
   }
 
-  excluirUsuario(id) {
-    return this.db.prepare("DELETE FROM usuarios WHERE id = ?").run(id).changes > 0;
-  }
-
   /* ---------- backup ---------- */
   // VACUUM INTO gera uma cópia consistente do banco, mesmo com o servidor em uso.
   // Com a pasta das imagens, elas entram na própria cópia, e o backup continua sendo um arquivo só.

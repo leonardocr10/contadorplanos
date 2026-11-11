@@ -79,11 +79,9 @@ function renderUsuarios() {
       <td><div class="usr-chips">${chipsDeAcesso(u)}</div></td>
       <td><div class="usr-acoes">
         <button class="btn" type="button" data-editar>Editar</button>
-        ${proprio ? "" : `<button class="btn" type="button" data-ativo>${u.ativo ? "Desativar" : "Ativar"}</button>
-        <button class="btn danger" type="button" data-excluir>Excluir</button>`}
+        ${proprio ? "" : `<button class="btn" type="button" data-ativo title="${u.ativo ? "Bloqueia o login; cotações, contratos e documentos do usuário ficam guardados" : "Libera o login de novo"}">${u.ativo ? "Desativar" : "Ativar"}</button>`}
       </div></td>
-    </tr>
-    <tr class="usr-confirma" data-confirma="${esc(u.id)}" hidden><td colspan="4"><div class="status">Excluir o usuário <b>${esc(u.login)}</b>? As cotações e propostas dele continuam visíveis para o administrador. <span class="actions" style="margin-top:8px"><button class="btn danger" type="button" data-sim>Sim, excluir</button><button class="btn" type="button" data-nao>Manter</button></span></div></td></tr>`;
+    </tr>`;
   }).join("");
   box.querySelectorAll("tr[data-id]").forEach((linha) => {
     const u = usuarios.find((x) => x.id === linha.dataset.id);
@@ -93,18 +91,6 @@ function renderUsuarios() {
       try {
         await api(`/api/usuarios/${encodeURIComponent(u.id)}`, { metodo: "PUT", json: { ativo: !u.ativo } });
         avisoCentral(u.ativo ? "Usuário desativado com sucesso" : "Usuário ativado com sucesso");
-        await carregarUsuarios();
-      } catch (e) {
-        msgUsuarios(e.message);
-      }
-    };
-    const confirma = linha.nextElementSibling;
-    linha.querySelector("[data-excluir]").onclick = () => (confirma.hidden = false);
-    confirma.querySelector("[data-nao]").onclick = () => (confirma.hidden = true);
-    confirma.querySelector("[data-sim]").onclick = async () => {
-      try {
-        await api(`/api/usuarios/${encodeURIComponent(u.id)}`, { metodo: "DELETE" });
-        avisoCentral("Usuário excluído com sucesso");
         await carregarUsuarios();
       } catch (e) {
         msgUsuarios(e.message);

@@ -670,15 +670,8 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     res.json(banco.alterarAcessoDoUsuario(alvo.id, { perfil, ativo, permissoes }));
   });
 
-  app.delete("/api/usuarios/:id", soAdmin, (req, res) => {
-    const alvo = banco.obterUsuario(req.params.id);
-    if (!alvo) throw new ErroNaoEncontrado("Usuário não encontrado.");
-    if (req.usuario?.id === alvo.id) throw new ErroEntrada("Você não pode excluir o seu próprio usuário.");
-    if (alvo.perfil === "admin" && alvo.ativo && banco.contarAdminsAtivos() <= 1) throw new ErroEntrada("O sistema precisa de pelo menos um administrador ativo.");
-    banco.excluirUsuario(alvo.id);
-    apagarFoto(alvo.foto);
-    res.status(204).end();
-  });
+  // Usuário não é excluído, só desativado (PUT com ativo: false): as cotações, os contratos vendidos e os
+  // documentos dos clientes continuam guardados, e o acesso volta se ele for ativado de novo.
 
   app.get("/api/backup", soAdmin, (_req, res) => {
     res.setHeader("Content-Type", "application/octet-stream");

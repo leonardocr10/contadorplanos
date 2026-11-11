@@ -97,7 +97,6 @@ h2{font-family:var(--display);font-weight:600;font-size:19px;margin:0}
 .chip-tela.nenhum{background:var(--line);color:var(--muted);text-decoration:line-through}
 .usr-acoes{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end}
 .usr-acoes .btn{padding:5px 12px;min-height:0;font-size:13px}
-.usr-confirma td{padding-top:0}
 .usr-legenda{display:flex;flex-wrap:wrap;gap:6px 20px;padding:14px 20px;color:var(--muted);font-size:13px}
 @media (max-width:1100px){
   .usr-tabela thead{display:none}
