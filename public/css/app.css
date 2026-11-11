@@ -267,11 +267,11 @@ textarea{resize:vertical;min-height:72px;line-height:1.45}
 .doc-plano-linha .iconbtn svg{width:15px;height:15px}
 #doc-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:3px 6px;align-items:stretch}
 #doc-list>.status{grid-column:1/-1}
-@container (max-width:900px){#doc-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@container (max-width:1400px){#doc-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @container (max-width:520px){#doc-list{grid-template-columns:minmax(0,1fr)}}
 .catrow.doc-linha{flex-wrap:wrap;gap:2px 6px;padding:1px 4px 1px 8px;border-radius:6px}
-.catrow.doc-linha b{overflow-wrap:anywhere}
-.catrow.doc-linha b{font-size:12.5px;font-weight:600}
+/* Nome numa linha só: o que não couber termina em "…" e aparece inteiro ao passar o mouse. */
+.catrow.doc-linha b{display:block;font-size:11.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .catrow.doc-linha .t{padding:2px 0}
 .catrow.doc-linha .iconbtn{width:22px;height:22px;border-radius:6px;padding:0}
 .catrow.doc-linha .iconbtn svg{width:13px;height:13px}
