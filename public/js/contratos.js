@@ -216,72 +216,48 @@ function esquecerArquivo(id) {
   miniaturas.delete(id);
 }
 
-// Documento aberto na visualização, por contrato.
-const docVisto = new Map();
 const ehPdf = (a) => a.tipo === "application/pdf";
 
 function painelDeDocumentos(c, edita) {
   const subindo = emEnvio.get(c.id) ?? [];
-  if (!c.arquivos.some((a) => a.id === docVisto.get(c.id))) docVisto.set(c.id, c.arquivos[0]?.id);
-  const visto = c.arquivos.find((a) => a.id === docVisto.get(c.id));
   const mini = (a) => {
     const src = miniaturaPronta(a.id);
-    return `<span class="ctr-doc-mini" data-mini="${esc(a.id)}">${src ? `<img src="${esc(src)}" alt="">` : `<span>${ehPdf(a) ? "PDF" : "IMG"}</span>`}</span>`;
+    return `<a class="ctr-doc-mini" data-mini="${esc(a.id)}" href="${esc(urlDoArquivo(c, a))}" target="_blank" rel="noopener" title="Abrir ${esc(a.nome)}">${src ? `<img src="${esc(src)}" alt="">` : `<span>${ehPdf(a) ? "PDF" : "IMG"}</span>`}</a>`;
   };
-  const linhas = c.arquivos.map((a) => `<li><button type="button" class="ctr-doc-linha${a.id === visto?.id ? " visto" : ""}" data-ver-doc="${esc(a.id)}" aria-current="${a.id === visto?.id}">
+  const linhas = c.arquivos.map((a) => `<li class="ctr-doc-linha" data-arquivo="${esc(a.id)}">
       ${mini(a)}
-      <span class="ctr-doc-texto"><b title="${esc(a.nome)}">${esc(a.nome)}</b><span class="note">${ehPdf(a) ? "PDF" : "Imagem"} · ${fmtTamanho(a.tamanho)} · ${esc(new Date(a.criadoEm).toLocaleDateString("pt-BR"))}</span></span>
-    </button></li>`).join("") + subindo.map((a) => `<li><div class="ctr-doc-linha ctr-doc-subindo">
+      <span class="ctr-doc-texto"><a href="${esc(urlDoArquivo(c, a))}" target="_blank" rel="noopener" title="${esc(a.nome)}">${esc(a.nome)}</a><span class="note">${ehPdf(a) ? "PDF" : "Imagem"} · ${fmtTamanho(a.tamanho)} · ${esc(new Date(a.criadoEm).toLocaleDateString("pt-BR"))}</span></span>
+      <span class="ctr-doc-acoes">
+        <a class="limpar-filtros" href="${esc(urlDoArquivo(c, a))}" target="_blank" rel="noopener">Abrir</a>
+        <a class="limpar-filtros" href="${esc(urlDoArquivo(c, a, true))}">Baixar</a>
+        ${edita ? `<button type="button" class="limpar-filtros" data-tirar>Excluir</button>` : ""}
+      </span>
+      <span class="doc-confirma ctr-doc-confirma" hidden>Excluir este documento? <button type="button" class="limpar-filtros" data-tirar-sim>Sim</button><button type="button" class="limpar-filtros" data-tirar-nao>Não</button></span>
+    </li>`).join("") + subindo.map((a) => `<li class="ctr-doc-linha ctr-doc-subindo">
       <span class="ctr-doc-mini"><span class="ctr-girando" aria-hidden="true"></span></span>
       <span class="ctr-doc-texto"><b title="${esc(a.nome)}">${esc(a.nome)}</b><span class="note">${a.reduzindo ? "Preparando…" : "Salvando…"}</span></span>
-    </div></li>`).join("");
-  const previa = visto ? `<aside class="ctr-doc-previa" aria-live="polite">
-      <header class="ctr-doc-previa-topo">
-        <b title="${esc(visto.nome)}">${esc(visto.nome)}</b>
-        <span class="ctr-doc-acoes">
-          <a class="limpar-filtros" href="${esc(urlDoArquivo(c, visto))}" target="_blank" rel="noopener">Abrir em nova aba</a>
-          <a class="limpar-filtros" href="${esc(urlDoArquivo(c, visto, true))}">Baixar</a>
-          ${edita ? `<button type="button" class="limpar-filtros" data-tirar>Excluir</button>` : ""}
-        </span>
-        <span class="doc-confirma ctr-doc-confirma" hidden>Excluir este documento? <button type="button" class="limpar-filtros" data-tirar-sim>Sim</button><button type="button" class="limpar-filtros" data-tirar-nao>Não</button></span>
-      </header>
-      <div class="ctr-doc-ver" data-ver="${esc(visto.id)}"><span class="note">Carregando…</span></div>
-    </aside>` : `<aside class="ctr-doc-previa ctr-doc-previa-vazia"><p class="note">${subindo.length ? "Os documentos aparecem aqui assim que forem salvos." : "Nenhum documento salvo ainda."}</p></aside>`;
+    </li>`).join("");
   return `<div class="ctr-docs" data-painel-docs>
     <div class="ctr-docs-topo"><span class="label">Documentos do cliente${c.arquivos.length ? ` · ${c.arquivos.length}` : ""}</span>${edita ? `<span class="note">PDF, JPG, PNG ou WebP, sem limite de quantidade. Pode arrastar os arquivos para cá.</span>` : ""}</div>
-    <div class="ctr-docs-mestre">
-      <div class="ctr-docs-coluna">
-        ${linhas ? `<ul class="ctr-docs-lista">${linhas}</ul>` : ""}
-        ${edita ? `<label class="btn primary" tabindex="0" data-escolher>Adicionar documentos<input type="file" multiple accept="${ACEITOS}" hidden data-arquivos></label>` : ""}
-      </div>
-      ${previa}
-    </div>
+    ${linhas ? `<ul class="ctr-docs-lista">${linhas}</ul>` : `<p class="note" style="margin:0">Nenhum documento salvo ainda.</p>`}
+    ${edita ? `<div class="actions"><label class="btn primary" tabindex="0" data-escolher>Adicionar documentos<input type="file" multiple accept="${ACEITOS}" hidden data-arquivos></label></div>` : ""}
   </div>`;
 }
 
-// Preenche as miniaturas que ainda não estavam prontas e a visualização do documento escolhido.
-function mostrarDocumentos(painel, c) {
+// Preenche as miniaturas que ainda não estavam prontas.
+function mostrarMiniaturas(painel, c) {
   for (const el of painel.querySelectorAll("[data-mini]")) {
     if (el.querySelector("img")) continue;
     const a = c.arquivos.find((x) => x.id === el.dataset.mini);
     if (a) miniatura(c, a).then((src) => { if (el.isConnected) el.innerHTML = `<img src="${esc(src)}" alt="">`; }, () => {});
   }
-  const ver = painel.querySelector("[data-ver]");
-  const a = ver && c.arquivos.find((x) => x.id === ver.dataset.ver);
-  if (!a) return;
-  copiaLocal(c, a).then((url) => {
-    if (!ver.isConnected) return;
-    ver.innerHTML = ehPdf(a) ? `<iframe src="${esc(url)}#navpanes=0&amp;view=FitH" title="${esc(a.nome)}"></iframe>` : `<img src="${esc(url)}" alt="${esc(a.nome)}">`;
-  }, (e) => { if (ver.isConnected) ver.innerHTML = `<span class="note">${esc(e.message)}</span>`; });
 }
 
 function ligarDocumentos(painel, c) {
-  mostrarDocumentos(painel, c);
-  painel.querySelectorAll("[data-ver-doc]").forEach((b) => (b.onclick = () => { docVisto.set(c.id, b.dataset.verDoc); renderContratos(); }));
-  painel.querySelector("[data-tirar]")?.addEventListener("click", () => (painel.querySelector(".ctr-doc-confirma").hidden = false));
-  painel.querySelector("[data-tirar-nao]")?.addEventListener("click", () => (painel.querySelector(".ctr-doc-confirma").hidden = true));
-  const sim = painel.querySelector("[data-tirar-sim]");
-  if (sim) sim.onclick = () => tirarDocumento(c, docVisto.get(c.id), sim);
+  mostrarMiniaturas(painel, c);
+  painel.querySelectorAll("[data-tirar]").forEach((b) => (b.onclick = () => (b.closest("li").querySelector(".ctr-doc-confirma").hidden = false)));
+  painel.querySelectorAll("[data-tirar-nao]").forEach((b) => (b.onclick = () => (b.closest(".ctr-doc-confirma").hidden = true)));
+  painel.querySelectorAll("[data-tirar-sim]").forEach((b) => (b.onclick = () => tirarDocumento(c, b.closest("li").dataset.arquivo, b)));
   const entrada = painel.querySelector("[data-arquivos]");
   if (!entrada) return;
   const escolher = painel.querySelector("[data-escolher]");
