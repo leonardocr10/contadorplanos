@@ -124,21 +124,30 @@
   <section id="v-documentos" hidden>
     <div class="panel">
       <h2>Documentos necessários</h2>
-      <p class="note" style="margin:0" data-edita="documentos" hidden>Escolha o plano e cadastre os documentos que ele pede. Os planos aparecem como na Nova cotação: os documentos valem para todas as opções do cartão e aparecem na mensagem da aba Aceites.</p>
-      <p class="note" style="margin:0" data-so-ve="documentos" hidden>Veja os documentos pedidos ao cliente em cada plano e copie a mensagem para o WhatsApp. O seu usuário não altera esta lista.</p>
-      <nav class="cfg-abas" id="doc-abas" aria-label="Tipo de plano"></nav>
-      <div class="field"><label for="doc-plano">Plano</label><select id="doc-plano"></select></div>
-      <div class="note" id="doc-opcoes"></div>
-      <form id="doc-form" class="row" style="grid-template-columns:minmax(0,1fr) auto;align-items:end" data-edita="documentos" hidden>
-        <div class="field"><label for="doc-nome" id="doc-nome-rotulo">Novo documento</label><input id="doc-nome" type="text" placeholder="Ex.: Comprovante de residência" autocomplete="off"></div>
-        <button class="btn primary" type="submit">Adicionar</button>
-      </form>
-      <div class="note" id="doc-count"></div>
-      <div id="doc-list" class="cat"></div>
-      <div id="doc-msg" class="doc-msg" hidden>
-        <div class="label">Mensagem para o WhatsApp</div>
-        <div class="bubble" id="doc-msg-previa"></div>
-        <div class="actions"><button type="button" class="btn primary" id="doc-copiar">Copiar mensagem</button></div>
+      <div id="doc-planos-tela">
+        <p class="note" style="margin:0" data-edita="documentos" hidden>Clique no plano para cadastrar ou excluir os documentos dele. Os planos aparecem como na Nova cotação: os documentos valem para todas as opções do cartão e aparecem na mensagem da aba Aceites.</p>
+        <p class="note" style="margin:0" data-so-ve="documentos" hidden>Clique no plano para ver os documentos pedidos ao cliente e copiar a mensagem para o WhatsApp. O seu usuário não altera esta lista.</p>
+        <nav class="cfg-abas" id="doc-abas" aria-label="Tipo de plano"></nav>
+        <div class="busca-plano"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input id="doc-busca" type="search" placeholder="Buscar plano: Unimed, Amil, Hapvida…" aria-label="Buscar plano" autocomplete="off"></div>
+        <div class="note" id="doc-planos-qtd"></div>
+        <div id="doc-planos" class="cat"></div>
+      </div>
+      <div id="doc-plano-tela" class="doc-plano-tela" hidden>
+        <div class="doc-plano-topo">
+          <button type="button" class="btn" id="doc-voltar">← Voltar aos planos</button>
+          <div><h3 id="doc-titulo"></h3><div class="note" id="doc-opcoes"></div></div>
+        </div>
+        <form id="doc-form" class="row" style="grid-template-columns:minmax(0,1fr) auto;align-items:end" data-edita="documentos" hidden>
+          <div class="field"><label for="doc-nome" id="doc-nome-rotulo">Novo documento</label><input id="doc-nome" type="text" placeholder="Ex.: Comprovante de residência" autocomplete="off"></div>
+          <button class="btn primary" type="submit">Adicionar</button>
+        </form>
+        <div class="note" id="doc-count"></div>
+        <div id="doc-list" class="cat"></div>
+        <div id="doc-msg" class="doc-msg" hidden>
+          <div class="label">Mensagem para o WhatsApp</div>
+          <div class="bubble" id="doc-msg-previa"></div>
+          <div class="actions"><button type="button" class="btn primary" id="doc-copiar">Copiar mensagem</button></div>
+        </div>
       </div>
     </div>
   </section>

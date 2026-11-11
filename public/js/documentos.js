@@ -1,59 +1,110 @@
-// Tela "Documentos": os documentos de cada plano, agrupados nos mesmos cartões da Nova cotação
-// (ex.: UNIMED, AMIL PRATA MG I). Cada cartão tem a sua lista e a mensagem pronta para o WhatsApp.
+// Tela "Documentos": a lista dos planos, agrupados nos mesmos cartões da Nova cotação (ex.: UNIMED,
+// AMIL PRATA MG I), com busca. Clicar no plano abre a tela dele: documentos e mensagem para o WhatsApp.
 import { $, S, api, avisoCentral, esc, pode, toast } from "./estado.js";
 import { mensagemDocumentosDoPlano, waHtml } from "./mensagem.js";
 import { copiarTexto } from "./cotacao.js";
+import { normalizar } from "./filtro-select.js";
 
 const TIPOS = { PF: "Pessoa física", CNPJ: "CNPJ" };
-let cartoes = [], aba = "PF", escolhido = { PF: "", CNPJ: "" }, editando = null, excluindo = null;
+let cartoes = [], aba = "PF", busca = "", aberto = null, editando = null, excluindo = null;
 const cartoesDaAba = () => cartoes.filter((c) => c.tipo === aba);
-const cartaoAtual = () => cartoesDaAba().find((c) => c.nome === escolhido[aba]) ?? cartoesDaAba()[0] ?? null;
+// O plano aberto some se for renomeado ou apagado em Planos e valores: a tela volta para a lista.
+const cartaoAberto = () => (aberto ? cartoes.find((c) => c.tipo === aberto.tipo && c.nome === aberto.nome) ?? null : null);
 
 const icone = (corpo) => `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${corpo}</svg>`;
 const ICONES = {
   editar: icone('<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>'),
   excluir: icone('<path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>'),
+  ver: icone('<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>'),
 };
 const botaoIcone = (nome, rotulo, atributos, extra = "") => `<button type="button" class="iconbtn doc-acao ${extra}" title="${esc(rotulo)}" aria-label="${esc(rotulo)}" ${atributos}>${ICONES[nome]}</button>`;
+const qtdDocs = (n) => (n ? `${n} ${n === 1 ? "documento" : "documentos"}` : "Nenhum documento");
 
 export async function carregarDocumentos() {
   cartoes = await api("/api/documentos");
   renderDocumentos();
 }
 
+export function renderDocumentos() {
+  const c = cartaoAberto();
+  if (aberto && !c) aberto = null;
+  $("#doc-planos-tela").hidden = !!c;
+  $("#doc-plano-tela").hidden = !c;
+  if (c) renderPlano(c);
+  else renderLista();
+}
+
+/* ---------- lista dos planos ---------- */
 function renderAbas() {
   $("#doc-abas").innerHTML = Object.entries(TIPOS).map(([tipo, nome]) =>
     `<button type="button" class="cfg-item" data-tipo="${tipo}" aria-current="${tipo === aba}">${nome} <span class="cat-qtd">${cartoes.filter((c) => c.tipo === tipo).length}</span></button>`).join("");
   $("#doc-abas").querySelectorAll("[data-tipo]").forEach((b) => (b.onclick = () => {
     aba = b.dataset.tipo;
-    editando = excluindo = null;
     renderDocumentos();
   }));
 }
 
-const qtdDocs = (n) => `${n} ${n === 1 ? "documento" : "documentos"}`;
+// A busca olha o nome do cartão e o das opções dele (ex.: "pontual" acha UNIMED).
+const achados = () => {
+  const termo = normalizar(busca);
+  const todos = cartoesDaAba();
+  return termo ? todos.filter((c) => [c.nome, ...c.planos].some((n) => normalizar(n).includes(termo))) : todos;
+};
 
-function renderSeletor() {
-  const sel = $("#doc-plano"), c = cartaoAtual();
-  const opcoes = cartoesDaAba().map((x) => `<option value="${esc(x.nome)}">${esc(x.nome)} · ${qtdDocs(x.documentos.length)}</option>`).join("");
-  if (sel.dataset.opcoes !== opcoes) { sel.innerHTML = opcoes; sel.dataset.opcoes = opcoes; }
-  sel.value = c?.nome ?? "";
-  sel.disabled = !c;
-  $("#doc-opcoes").textContent = c && c.planos.length > 1 ? `Vale para as ${c.planos.length} opções deste cartão: ${c.planos.join(", ")}.` : "";
+function renderLista() {
+  renderAbas();
+  const todos = cartoesDaAba(), lista = achados(), edita = pode("documentos", "editar");
+  $("#doc-planos-qtd").textContent = busca.trim() ? `${lista.length} de ${todos.length} planos` : `${todos.length} ${todos.length === 1 ? "plano" : "planos"} de ${TIPOS[aba].toLowerCase()}`;
+  const box = $("#doc-planos");
+  if (!lista.length) {
+    box.innerHTML = `<div class="status">${todos.length ? "Nenhum plano encontrado com essa busca." : `Nenhum plano de ${TIPOS[aba].toLowerCase()} cadastrado.`}</div>`;
+    return;
+  }
+  box.innerHTML = lista.map((c, i) => {
+    const opcoes = c.planos.length > 1 ? ` · ${c.planos.length} opções` : "";
+    const rotulo = edita ? "Editar documentos" : "Ver documentos";
+    return `<div class="catrow doc-plano-linha" data-i="${i}">
+      <button type="button" class="doc-plano-nome" data-abrir><b>${esc(c.nome)}</b><span>${qtdDocs(c.documentos.length)}${opcoes}</span></button>
+      <div class="actions">${botaoIcone(edita ? "editar" : "ver", rotulo, "data-abrir")}</div>
+    </div>`;
+  }).join("");
+  box.querySelectorAll(".doc-plano-linha").forEach((row) => {
+    const c = lista[Number(row.dataset.i)];
+    // A linha inteira abre o plano; os botões dentro dela chegam aqui pelo clique.
+    row.onclick = () => abrirPlano(c);
+  });
 }
 
-export function renderDocumentos() {
-  renderAbas();
-  renderSeletor();
-  const c = cartaoAtual(), edita = pode("documentos", "editar");
-  const lista = c?.documentos ?? [];
-  $("#doc-form").hidden = !edita || !c;
-  if (c) $("#doc-nome-rotulo").textContent = `Novo documento para ${c.nome}`;
-  $("#doc-nome").placeholder = aba === "CNPJ" ? "Ex.: Contrato social" : "Ex.: Comprovante de residência";
-  $("#doc-count").textContent = c ? `${lista.length} ${lista.length === 1 ? "documento pedido" : "documentos pedidos"} em ${c.nome}` : "";
+function abrirPlano(c) {
+  aberto = { tipo: c.tipo, nome: c.nome };
+  editando = excluindo = null;
+  renderDocumentos();
+  $("#v-documentos").scrollIntoView({ block: "start" });
+  if (pode("documentos", "editar")) $("#doc-nome").focus({ preventScroll: true });
+}
+
+function voltarParaLista() {
+  const nome = aberto?.nome;
+  aberto = null;
+  editando = excluindo = null;
+  renderDocumentos();
+  // Volta com o plano que estava aberto à vista.
+  const linha = [...$("#doc-planos").querySelectorAll(".doc-plano-linha")].find((r) => r.querySelector("b")?.textContent === nome);
+  linha?.scrollIntoView({ block: "center" });
+  linha?.querySelector(".doc-plano-nome")?.focus({ preventScroll: true });
+}
+
+/* ---------- tela do plano ---------- */
+function renderPlano(c) {
+  const lista = c.documentos, edita = pode("documentos", "editar");
+  $("#doc-titulo").textContent = `${c.nome} · ${TIPOS[c.tipo]}`;
+  $("#doc-opcoes").textContent = c.planos.length > 1 ? `Vale para as ${c.planos.length} opções deste cartão: ${c.planos.join(", ")}.` : "";
+  $("#doc-form").hidden = !edita;
+  $("#doc-nome-rotulo").textContent = `Novo documento para ${c.nome}`;
+  $("#doc-nome").placeholder = c.tipo === "CNPJ" ? "Ex.: Contrato social" : "Ex.: Comprovante de residência";
+  $("#doc-count").textContent = `${lista.length} ${lista.length === 1 ? "documento pedido" : "documentos pedidos"} em ${c.nome}`;
   renderMensagem(c);
   const box = $("#doc-list");
-  if (!c) { box.innerHTML = `<div class="status">Nenhum plano de ${TIPOS[aba].toLowerCase()} cadastrado.</div>`; return; }
   if (!lista.length) {
     box.innerHTML = `<div class="status">Nenhum documento cadastrado para ${esc(c.nome)}.${edita ? " Escreva o nome acima e clique em <b>Adicionar</b>." : ""}</div>`;
     return;
@@ -86,7 +137,7 @@ const textoDaMensagem = (c) => mensagemDocumentosDoPlano({
 
 function renderMensagem(c) {
   const caixa = $("#doc-msg");
-  caixa.hidden = !c?.documentos.length;
+  caixa.hidden = !c.documentos.length;
   if (!caixa.hidden) $("#doc-msg-previa").innerHTML = waHtml(textoDaMensagem(c));
 }
 
@@ -112,7 +163,7 @@ function ligarLinha(row, c) {
   });
   on("[data-salvar]", salvarNome);
   const campo = row.querySelector("[data-nome]");
-  if (campo) campo.onkeydown = (e) => { if (e.key === "Enter") salvarNome(); };
+  if (campo) campo.onkeydown = (e) => { if (e.key === "Enter") salvarNome(); if (e.key === "Escape") { editando = null; renderDocumentos(); } };
   on("[data-excluir]", () => { excluindo = id; editando = null; renderDocumentos(); });
   on("[data-excluir-nao]", () => { excluindo = null; renderDocumentos(); });
   on("[data-excluir-sim]", () => executar(async () => {
@@ -123,18 +174,17 @@ function ligarLinha(row, c) {
 }
 
 export function iniciarDocumentos() {
-  $("#doc-plano").onchange = (e) => {
-    escolhido[aba] = e.target.value;
-    editando = excluindo = null;
+  $("#doc-busca").oninput = (e) => {
+    busca = e.target.value;
     renderDocumentos();
   };
+  $("#doc-voltar").onclick = voltarParaLista;
   $("#doc-form").onsubmit = async (e) => {
     e.preventDefault();
-    const campo = $("#doc-nome"), c = cartaoAtual();
+    const campo = $("#doc-nome"), c = cartaoAberto();
     if (!c) return;
     try {
       await api("/api/documentos", { metodo: "POST", json: { nome: campo.value, tipo: c.tipo, cartao: c.nome } });
-      escolhido[aba] = c.nome;
       campo.value = "";
       await carregarDocumentos();
       avisoCentral("Documento cadastrado com sucesso");
@@ -144,7 +194,7 @@ export function iniciarDocumentos() {
     }
   };
   $("#doc-copiar").onclick = async () => {
-    const c = cartaoAtual();
+    const c = cartaoAberto();
     if (!c?.documentos.length) return;
     if (await copiarTexto(textoDaMensagem(c))) toast("Mensagem copiada: cole na conversa do cliente no WhatsApp", "sucesso");
     else toast("Não deu para copiar: selecione o texto da mensagem e use Ctrl+C", "erro");
