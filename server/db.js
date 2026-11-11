@@ -215,6 +215,8 @@ const MIGRACOES = [
   () => {},
   // Sem mudança na estrutura: Hapvida PME de Uberlândia com a tabela nova, taxa de R$ 20,00 e odonto novo (ver atualizarHapvidaPme).
   () => {},
+  // Sem mudança na estrutura: carências da Unimed PME com as colunas PRC 10, 20 e 50 (ver atualizarCarenciasUnimedPme).
+  () => {},
 ];
 
 const VERSAO_TEXTOS_COPARTICIPACAO = 11;
@@ -223,6 +225,9 @@ const VERSAO_REDE_POR_CIDADE = 13;
 const VERSAO_CARENCIAS_AMIL_PME = 27;
 const VERSAO_BENEFICIOS_AMIL_PME = 28;
 const VERSAO_HAPVIDA_PME = 35;
+const VERSAO_CARENCIAS_UNIMED_PME = 36;
+// Tabela de carências que a Unimed PME tinha só com a coluna PRC 10: outra tabela foi editada à mão.
+const CARENCIA_ANTIGA_UNIMED_PME = ["Procedimentos | PRC 10 – contratual", "Pronto Socorro | 24 horas", "Consulta Eletiva | 24 horas", "Exames de Rotina | 24 horas", "Exames Básicos | 60 dias", "Exames Intermediário | 90 dias", "Exames Avançados | 180 dias", "Exames Especializado | 180 dias", "Internações | 180 dias", "Parto | 300 dias", "Terapias | 180 dias", "CPT | 720 dias"].join("\n");
 // Primeira faixa das tabelas que a Hapvida PME já teve: plano com outro valor foi editado à mão.
 const HAPVIDA_PME_ANTIGA = { "hapvida-nosso-plano-pme-total": [170.72, 114.32], "hapvida-nosso-plano-pme-parcial": [252.94, 168.22], "hapvida-nosso-plano-pme-uberaba-total": [174.44, 120.59], "hapvida-nosso-plano-pme-uberaba-parcial": [255.75, 158.93] };
 // Prazos da lei que os planos Amil PME tiveram até a tabela da Amil chegar.
@@ -321,6 +326,7 @@ export class Banco {
     this.atualizarCarenciasAmilPme(versaoAntes);
     this.atualizarBeneficiosAmilPme(versaoAntes);
     this.atualizarHapvidaPme(versaoAntes);
+    this.atualizarCarenciasUnimedPme(versaoAntes);
   }
 
   // Os planos das tabelas anteriores passam para a tabela atual; plano com valores editados à mão fica como está.
@@ -352,6 +358,16 @@ export class Banco {
     const atualizar = this.db.prepare("UPDATE planos SET carencia_tabela = ?, carencia_nota = ? WHERE id = ? AND carencia_tabela LIKE ?");
     for (const p of JSON.parse(readFileSync(this.caminhoSeed, "utf8"))) {
       if (p.id.startsWith("amil-pme-")) atualizar.run(p.carenciaTabela, p.carenciaNota ?? "", p.id, `${CARENCIA_PROVISORIA_AMIL_PME}%`);
+    }
+  }
+
+  // Troca só a tabela antiga: carência editada à mão fica como está.
+  atualizarCarenciasUnimedPme(versaoAntes) {
+    if (versaoAntes === 0 || versaoAntes >= VERSAO_CARENCIAS_UNIMED_PME) return;
+    if (!this.caminhoSeed || !existsSync(this.caminhoSeed)) return;
+    const atualizar = this.db.prepare("UPDATE planos SET carencia_tabela = ?, carencia_nota = ? WHERE id = ? AND carencia_tabela = ?");
+    for (const p of JSON.parse(readFileSync(this.caminhoSeed, "utf8"))) {
+      if (/^unimed-.*-pme$/.test(p.id)) atualizar.run(p.carenciaTabela, p.carenciaNota ?? "", p.id, CARENCIA_ANTIGA_UNIMED_PME);
     }
   }
 

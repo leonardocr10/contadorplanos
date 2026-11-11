@@ -185,6 +185,27 @@ test("os planos PME da Unimed seguem a tabela: valores, área, coparticipação 
   assert.deepEqual(linha("Pronto-socorro"), Array(4).fill("R$ 55,00"));
   assert.deepEqual(linha("Internação em apartamento"), Array(4).fill("R$ 150,00"));
   assert.ok(html.includes("Prazo de fidelidade") || html.includes("Fidelidade"));
+  // Carências com as três colunas de redução (PRC 10, 20 e 50).
+  for (const p of pme) {
+    const car = p.carenciaTabela.split("\n");
+    assert.ok(car[0].startsWith("Procedimentos | PRC 10") && car[0].includes("| PRC 20") && car[0].includes("| PRC 50"), p.id);
+    assert.ok(car.includes("Exames Especializados | 180 dias | 120 dias | 24 horas"), p.id);
+    assert.ok(car.includes("CPT | 720 dias | 720 dias | 720 dias"), p.id);
+  }
+  // O banco das versões anteriores recebe a tabela nova; carência editada à mão fica como está.
+  const pasta = mkdtempSync(join(tmpdir(), "cotador-unimed-car-"));
+  t.after(() => rmSync(pasta, { recursive: true, force: true }));
+  const caminho = join(pasta, "c.db");
+  const antigo = new Banco(caminho, seed);
+  const tabelaAntiga = "Procedimentos | PRC 10 – contratual\nPronto Socorro | 24 horas\nConsulta Eletiva | 24 horas\nExames de Rotina | 24 horas\nExames Básicos | 60 dias\nExames Intermediário | 90 dias\nExames Avançados | 180 dias\nExames Especializado | 180 dias\nInternações | 180 dias\nParto | 300 dias\nTerapias | 180 dias\nCPT | 720 dias";
+  antigo.gravarPlano(ids[0], { ...pme[0], carenciaTabela: tabelaAntiga });
+  antigo.gravarPlano(ids[1], { ...pme[1], carenciaTabela: "Item | Prazo\nParto | 300 dias\nTerapias | 180 dias\nCPT | 720 dias" });
+  antigo.db.exec("PRAGMA user_version = 35");
+  antigo.fechar();
+  const novo = new Banco(caminho, seed);
+  assert.equal(novo.obterPlano(ids[0]).carenciaTabela, pme[0].carenciaTabela);
+  assert.equal(novo.obterPlano(ids[1]).carenciaTabela, "Item | Prazo\nParto | 300 dias\nTerapias | 180 dias\nCPT | 720 dias");
+  novo.fechar();
 });
 
 test("a Aurora segue a tabela: valores, área, rede por cidade e comparativo", (t) => {
