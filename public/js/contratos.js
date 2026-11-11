@@ -87,13 +87,8 @@ export function renderContratos() {
   if (!carregados) { box.innerHTML = `<div class="status">${erro ? esc(erro) : "Carregando contratos…"}</div>`; return; }
   $("#ctr-count").textContent = `${contratos.length} ${contratos.length === 1 ? "contrato" : "contratos"} · ${quantos("pendente")} para contatar`;
   if (!contratos.length) { box.innerHTML = `<div class="status">Nenhum contrato cadastrado ainda. Preencha os dados acima e clique em <b>Cadastrar contrato</b>.</div>`; return; }
-  const q = $("#ctr-busca").value.trim().toLowerCase(), qd = q.replace(/\D/g, "");
-  const lista = ordenar(contratos, dia).filter((c) => {
-    if (filtro !== "todos" && situacao(c, dia).chave !== filtro) return false;
-    if (mes !== "todos" && !c.ativacao.startsWith(mes)) return false;
-    if (!q) return true;
-    return c.nome.toLowerCase().includes(q) || c.plano.toLowerCase().includes(q) || (qd.length >= 3 && c.fone.includes(qd));
-  });
+  const lista = ordenar(contratos, dia).filter((c) =>
+    (filtro === "todos" || situacao(c, dia).chave === filtro) && (mes === "todos" || c.ativacao.startsWith(mes)));
   if (!lista.length) { box.innerHTML = `<div class="status">Nenhum contrato encontrado.</div>`; return; }
   const edita = pode("contratos", "editar");
   box.innerHTML = lista.map((c) => {
@@ -487,7 +482,6 @@ export function conferirDiaDosContratos() {
 export function iniciarContratos() {
   $("#ctr-form").onsubmit = salvar;
   $("#ctr-cancelar").onclick = limparFormulario;
-  $("#ctr-busca").addEventListener("input", renderContratos);
   $("#ctr-filtro").onchange = () => { filtro = $("#ctr-filtro").value; renderContratos(); };
   $("#ctr-mes").onchange = () => { mes = $("#ctr-mes").value; renderContratos(); };
   $("#ctr-fone").addEventListener("blur", () => {

@@ -492,7 +492,7 @@ body{margin:0}
 .ctr-botoes{margin:0;flex-wrap:nowrap;gap:8px}
 .ctr-botoes .btn{height:40px;white-space:nowrap}
 @media (max-width:1250px){.ctr-form{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)}}
-.ctr-filtros{grid-template-columns:minmax(0,2fr) minmax(200px,1fr) minmax(200px,1fr)}
+.ctr-filtros{grid-template-columns:repeat(2,minmax(0,1fr))}
 @media (max-width:760px){.ctr-filtros{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:1000px){.ctr-form{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
 @media (max-width:560px){.ctr-form{grid-template-columns:minmax(0,1fr)}}
