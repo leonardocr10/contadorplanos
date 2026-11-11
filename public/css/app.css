@@ -485,8 +485,15 @@ body{margin:0}
 }
 
 /* ---------- contratos vendidos ---------- */
-.ctr-form{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr) minmax(0,1.4fr) minmax(0,.8fr) minmax(0,1fr);gap:12px;align-items:end}
-.ctr-botoes{grid-column:1/-1;margin:0}
+/* Cadastro numa linha só: campos compactos e o botão logo depois da data de ativação. */
+.ctr-form{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(150px,170px) minmax(0,1.7fr) minmax(100px,120px) minmax(150px,165px) auto;gap:10px;align-items:end}
+.ctr-form .field{gap:4px}
+.ctr-form input,.ctr-form .fs-botao{height:40px;min-height:0;box-sizing:border-box}
+.ctr-botoes{margin:0;flex-wrap:nowrap;gap:8px}
+.ctr-botoes .btn{height:40px;white-space:nowrap}
+@media (max-width:1250px){.ctr-form{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)}}
+.ctr-filtros{grid-template-columns:minmax(0,2fr) minmax(200px,1fr) minmax(200px,1fr)}
+@media (max-width:760px){.ctr-filtros{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:1000px){.ctr-form{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
 @media (max-width:560px){.ctr-form{grid-template-columns:minmax(0,1fr)}}
 .ctr-msg{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}

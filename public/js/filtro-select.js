@@ -53,6 +53,7 @@ const ICONES = {
   local: '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
   todos: '<circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15 15 0 0 1 4 10 15 15 0 0 1-4 10 15 15 0 0 1-4-10 15 15 0 0 1 4-10Z"/>',
   filtro: '<path d="M22 3H2l8 9.46V19l4 2v-8.54L22 3Z"/>',
+  calendario: '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>',
 };
 // Listas curtas, como a situação da cotação, dispensam o campo de busca.
 const MINIMO_PARA_BUSCAR = 9;

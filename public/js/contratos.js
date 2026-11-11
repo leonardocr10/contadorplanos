@@ -3,7 +3,9 @@ import { brl, fmtFone, normFone, parseBRL } from "./calculo.js";
 import { $, S, api, avisoCentral, esc, pode, show, toast } from "./estado.js";
 import { linkConversaDireta, mensagemAtivacao } from "./mensagem.js";
 
-let contratos = [], carregados = false, erro = null, editando = null, filtro = "todos";
+let contratos = [], carregados = false, erro = null, editando = null, filtro = "todos", mes = "todos";
+const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+const nomeDoMes = (aaaamm) => `${MESES[Number(aaaamm.slice(5, 7)) - 1]} de ${aaaamm.slice(0, 4)}`;
 // Mensagem do WhatsApp aberta para edição: { id do contrato, texto }.
 let mensagem = null;
 // O aviso aparece uma vez por dia, e de novo só quando surge outro contrato para contatar.
@@ -72,6 +74,13 @@ export function renderContratos() {
   const opcoes = `<option value="todos" data-icone="todos">${FILTROS.todos}</option><optgroup label="Situações">${["pendente", "aguardando", "feito"].map((k) => `<option value="${k}"${carregados ? ` data-selo="${quantos(k)}"` : ""}>${FILTROS[k]}</option>`).join("")}</optgroup>`;
   if (sel.dataset.opcoes !== opcoes) { sel.innerHTML = opcoes; sel.dataset.opcoes = opcoes; }
   sel.value = filtro;
+  // Meses que têm contrato, do mais recente para o mais antigo, com a quantidade de cada um.
+  const meses = [...new Set(contratos.map((c) => c.ativacao.slice(0, 7)))].sort().reverse();
+  if (mes !== "todos" && !meses.includes(mes)) mes = "todos";
+  const selMes = $("#ctr-mes");
+  const opcoesMes = `<option value="todos" data-icone="todos">Todos os meses</option>${meses.length ? `<optgroup label="Meses">${meses.map((m) => `<option value="${m}" data-selo="${contratos.filter((c) => c.ativacao.startsWith(m)).length}">${nomeDoMes(m)}</option>`).join("")}</optgroup>` : ""}`;
+  if (selMes.dataset.opcoes !== opcoesMes) { selMes.innerHTML = opcoesMes; selMes.dataset.opcoes = opcoesMes; }
+  selMes.value = mes;
   const box = $("#ctr-list");
   if (!carregados) { box.innerHTML = `<div class="status">${erro ? esc(erro) : "Carregando contratos…"}</div>`; return; }
   $("#ctr-count").textContent = `${contratos.length} ${contratos.length === 1 ? "contrato" : "contratos"} · ${quantos("pendente")} para contatar`;
@@ -79,6 +88,7 @@ export function renderContratos() {
   const q = $("#ctr-busca").value.trim().toLowerCase(), qd = q.replace(/\D/g, "");
   const lista = ordenar(contratos, dia).filter((c) => {
     if (filtro !== "todos" && situacao(c, dia).chave !== filtro) return false;
+    if (mes !== "todos" && !c.ativacao.startsWith(mes)) return false;
     if (!q) return true;
     return c.nome.toLowerCase().includes(q) || c.plano.toLowerCase().includes(q) || (qd.length >= 3 && c.fone.includes(qd));
   });
@@ -154,11 +164,25 @@ function abrirMensagem(c) {
 }
 
 // Sugestões do campo plano: os nomes dos planos cadastrados, sem impedir outro nome.
+// Plano do contrato em edição que não existe mais na lista: entra como opção para não se perder.
+let planoAntigo = "";
 export function atualizarPlanosDoContrato() {
-  const nomes = [...new Set(S.plans.map((p) => p.nome))].sort((a, b) => a.localeCompare(b, "pt-BR"));
-  const html = nomes.map((n) => `<option value="${esc(n)}">`).join("");
-  const dl = $("#ctr-planos");
-  if (dl.dataset.html !== html) { dl.innerHTML = html; dl.dataset.html = html; }
+  const ordem = (a, b) => a.localeCompare(b, "pt-BR");
+  const grupo = (cat) => [...new Set(S.plans.filter((p) => p.categoria === cat).map((p) => p.nome))].sort(ordem);
+  const todos = new Set(S.plans.map((p) => p.nome));
+  const opcao = (n) => `<option value="${esc(n)}">${esc(n)}</option>`;
+  const html = `<option value="">Selecionar plano</option>`
+    + (planoAntigo && !todos.has(planoAntigo) ? `<optgroup label="Plano do contrato">${opcao(planoAntigo)}</optgroup>` : "")
+    + [["PF", "Pessoa física"], ["CNPJ", "CNPJ"]].map(([cat, rotulo]) => {
+      const nomes = grupo(cat);
+      return nomes.length ? `<optgroup label="${rotulo}">${nomes.map(opcao).join("")}</optgroup>` : "";
+    }).join("");
+  const sel = $("#ctr-plano");
+  if (sel.dataset.html === html) return;
+  const valor = sel.value;
+  sel.innerHTML = html;
+  sel.dataset.html = html;
+  sel.value = valor;
 }
 
 function lerFormulario() {
@@ -174,6 +198,8 @@ function lerFormulario() {
 function limparFormulario() {
   editando = null;
   for (const id of ["nome", "fone", "plano", "valor", "ativacao"]) $("#ctr-" + id).value = "";
+  planoAntigo = "";
+  atualizarPlanosDoContrato();
   $("#ctr-salvar").textContent = "Cadastrar contrato";
   $("#ctr-cancelar").hidden = true;
 }
@@ -182,6 +208,8 @@ function editar(c) {
   editando = c.id;
   $("#ctr-nome").value = c.nome;
   $("#ctr-fone").value = fmtFone(c.fone);
+  planoAntigo = c.plano;
+  atualizarPlanosDoContrato();
   $("#ctr-plano").value = c.plano;
   $("#ctr-valor").value = brl(c.valor);
   $("#ctr-ativacao").value = c.ativacao;
@@ -196,7 +224,7 @@ async function salvar(e) {
   const d = lerFormulario();
   if (!d.nome) return toast("Informe o nome do cliente.", "erro");
   if (d.fone.length < 10) return toast("Informe o telefone do cliente com DDD.", "erro");
-  if (!d.plano) return toast("Informe o plano contratado.", "erro");
+  if (!d.plano) return toast("Selecione o plano contratado.", "erro");
   if (!(d.valor > 0)) return toast("Informe o valor do contrato.", "erro");
   if (!d.ativacao) return toast("Informe a data de ativação do plano.", "erro");
   const botao = $("#ctr-salvar");
@@ -263,6 +291,7 @@ export function iniciarContratos() {
   $("#ctr-cancelar").onclick = limparFormulario;
   $("#ctr-busca").addEventListener("input", renderContratos);
   $("#ctr-filtro").onchange = () => { filtro = $("#ctr-filtro").value; renderContratos(); };
+  $("#ctr-mes").onchange = () => { mes = $("#ctr-mes").value; renderContratos(); };
   $("#ctr-fone").addEventListener("blur", () => {
     const f = normFone($("#ctr-fone").value);
     if (f.length >= 10) $("#ctr-fone").value = fmtFone(f);
@@ -271,5 +300,5 @@ export function iniciarContratos() {
     const v = parseBRL($("#ctr-valor").value);
     if (v != null) $("#ctr-valor").value = brl(v);
   });
-  $("#ctr-alerta").onclick = () => { filtro = "pendente"; show("contratos"); renderContratos(); scrollTo({ top: 0 }); };
+  $("#ctr-alerta").onclick = () => { filtro = "pendente"; mes = "todos"; show("contratos"); renderContratos(); scrollTo({ top: 0 }); };
 }
