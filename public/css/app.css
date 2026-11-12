@@ -454,24 +454,32 @@ body{margin:0}
 }
 @media (max-width:900px){.tabs{flex-wrap:wrap;border-radius:18px}}
 
-/* Menu fixo ou recolhido (só no computador): recolhido, fica uma faixa estreita e abre por cima da tela. */
-.menu-botao,.menu-fixar{display:none}
+/* Menu fixo ou recolhido (só no computador). O cadeado no topo fixa (fechado) ou recolhe (aberto) o menu;
+   recolhido, fica só a faixa com os ícones das telas, e passar o mouse abre o menu por cima, sem empurrar o conteúdo. */
+.menu-cadeado,.tab-ico{display:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 @media (min-width:901px){
   body{transition:padding-left .18s ease}
-  header.top{transition:width .18s ease,box-shadow .18s ease}
-  .menu-botao{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;padding:0;border:1px solid transparent;border-radius:9px;background:transparent;color:var(--muted);cursor:pointer}
-  .menu-botao:hover{color:var(--ink);background:var(--bg);border-color:var(--line)}
-  .tabs .menu-fixar{display:flex;justify-content:flex-start;gap:10px;margin-top:auto}
-  .tabs .menu-fixar~form button{margin-top:0}
-  .menu-fixar .ico-fixar{display:none}
-  .menu-fixar:not(.fixado) .ico-recolher{display:none}
-  .menu-fixar:not(.fixado) .ico-fixar{display:block}
-  .menu-abrir{display:none}
-  body.menu-recolhido{padding-left:60px}
-  body.menu-recolhido header.top:not(:hover,.aberto),body.menu-recolhido header.top.saindo-do-mouse{width:60px;padding:16px 12px;overflow:hidden}
-  body.menu-recolhido header.top:not(:hover,.aberto)>:not(.menu-abrir),body.menu-recolhido header.top.saindo-do-mouse>:not(.menu-abrir){display:none}
-  body.menu-recolhido header.top:not(:hover,.aberto) .menu-abrir,body.menu-recolhido header.top.saindo-do-mouse .menu-abrir{display:inline-flex}
-  body.menu-recolhido header.top:is(:hover,.aberto):not(.saindo-do-mouse){z-index:30;box-shadow:0 12px 40px rgba(8,28,21,.18)}
+  header.top{padding-top:48px;overflow-x:hidden;transition:width .18s ease,box-shadow .18s ease}
+  .menu-cadeado{position:absolute;top:12px;right:12px;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;padding:0;border:1px solid transparent;border-radius:9px;background:transparent;color:var(--danger);cursor:pointer}
+  .menu-cadeado:hover{background:var(--danger-soft);border-color:var(--danger)}
+  .menu-cadeado .ico-aberto,.menu-cadeado:not(.fixado) .ico-fechado{display:none}
+  .menu-cadeado:not(.fixado) .ico-aberto{display:block}
+  .tab-ico{display:block;flex:none}
+  .tabs button{justify-content:flex-start;gap:12px}
+  .tab-rotulo{white-space:nowrap}
+  .tabs .pill{margin-left:auto!important}
+  body.menu-recolhido{padding-left:64px}
+  /* Faixa estreita: cadeado, foto e um ícone por tela. */
+  body.menu-recolhido header.top:not(:hover),body.menu-recolhido header.top.saindo-do-mouse{width:64px;padding-inline:10px}
+  body.menu-recolhido header.top:not(:hover) .menu-cadeado,body.menu-recolhido header.top.saindo-do-mouse .menu-cadeado{right:15px}
+  body.menu-recolhido header.top:not(:hover) h1,body.menu-recolhido header.top.saindo-do-mouse h1,
+  body.menu-recolhido header.top:not(:hover) .usuario-logado-texto,body.menu-recolhido header.top.saindo-do-mouse .usuario-logado-texto,
+  body.menu-recolhido header.top:not(:hover) .tab-rotulo,body.menu-recolhido header.top.saindo-do-mouse .tab-rotulo{display:none}
+  body.menu-recolhido header.top:not(:hover) .usuario-logado,body.menu-recolhido header.top.saindo-do-mouse .usuario-logado{justify-content:center;padding:3px;border-radius:50%}
+  body.menu-recolhido header.top:not(:hover) .tabs button,body.menu-recolhido header.top.saindo-do-mouse .tabs button{position:relative;justify-content:center;padding-inline:0}
+  body.menu-recolhido header.top:not(:hover) .tabs .pill,body.menu-recolhido header.top.saindo-do-mouse .tabs .pill{position:absolute;top:1px;right:0;padding:0 5px;font-size:10px;line-height:16px}
+  body.menu-recolhido header.top:hover:not(.saindo-do-mouse){z-index:30;box-shadow:0 12px 40px rgba(8,28,21,.18)}
 }
 @media (min-width:901px) and (prefers-reduced-motion:reduce){body,header.top{transition:none}}
 

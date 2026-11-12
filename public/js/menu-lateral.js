@@ -1,5 +1,5 @@
-/* Menu lateral fixo ou recolhido (só no computador). Recolhido, vira uma faixa estreita: passar o mouse ou
-   clicar no botão abre o menu por cima da tela, sem empurrar o conteúdo. A escolha fica guardada no navegador. */
+/* Menu lateral fixo ou recolhido (só no computador). O cadeado fechado deixa o menu sempre aberto; aberto,
+   o menu recolhe para a faixa de ícones e abre por cima da tela ao passar o mouse. A escolha fica no navegador. */
 (() => {
   const CHAVE = "cotador.menu";
   const corpo = document.body;
@@ -10,32 +10,23 @@
 
   document.addEventListener("DOMContentLoaded", () => {
     const menu = document.querySelector("header.top");
-    const fixar = document.getElementById("menu-fixar");
-    const abrir = document.getElementById("menu-abrir");
+    const cadeado = document.getElementById("menu-cadeado");
     const pintar = () => {
-      const recolhido = corpo.classList.contains("menu-recolhido");
-      fixar.title = recolhido ? "Deixar o menu sempre aberto" : "Esconder o menu e usar a tela toda";
-      fixar.querySelector("span").textContent = recolhido ? "Fixar menu" : "Recolher menu";
-      fixar.setAttribute("aria-pressed", String(!recolhido));
-      fixar.classList.toggle("fixado", !recolhido);
-      abrir.setAttribute("aria-expanded", String(menu.classList.contains("aberto")));
+      const fixo = !corpo.classList.contains("menu-recolhido");
+      cadeado.classList.toggle("fixado", fixo);
+      cadeado.setAttribute("aria-pressed", String(fixo));
+      cadeado.title = fixo ? "Menu fixo: clique para recolher" : "Menu recolhido: clique para fixar";
+      cadeado.querySelector(".sr").textContent = fixo ? "Menu fixo" : "Menu recolhido";
     };
-    const fecharSobreposto = () => { menu.classList.remove("aberto"); pintar(); };
-    fixar.onclick = () => {
+    cadeado.onclick = () => {
       const recolher = !corpo.classList.contains("menu-recolhido");
       corpo.classList.toggle("menu-recolhido", recolher);
-      menu.classList.remove("aberto");
       try { localStorage.setItem(CHAVE, recolher ? "recolhido" : "fixo"); } catch {}
-      // Com o menu recolhido, o mouse ainda está em cima dele: só fecha quando sair.
+      // Ao recolher, o mouse ainda está em cima do menu: ele só volta a abrir depois que o mouse sair e voltar.
       if (recolher) menu.classList.add("saindo-do-mouse");
       pintar();
     };
     menu.addEventListener("mouseleave", () => menu.classList.remove("saindo-do-mouse"));
-    abrir.onclick = () => { menu.classList.toggle("aberto"); pintar(); };
-    // Escolher uma tela, clicar fora ou apertar Esc fecha o menu aberto por cima.
-    menu.addEventListener("click", (e) => { if (e.target.closest(".tabs button, #usuario-logado")) fecharSobreposto(); });
-    document.addEventListener("click", (e) => { if (menu.classList.contains("aberto") && !menu.contains(e.target)) fecharSobreposto(); });
-    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && menu.classList.contains("aberto")) { fecharSobreposto(); abrir.focus(); } });
     pintar();
   });
 })();
