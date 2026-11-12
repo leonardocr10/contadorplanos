@@ -461,8 +461,8 @@ body{margin:0}
 @media (min-width:901px){
   body{transition:padding-left .18s ease}
   header.top{padding-top:48px;overflow-x:hidden;transition:width .18s ease,box-shadow .18s ease}
-  .menu-cadeado{position:absolute;top:12px;right:12px;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;padding:0;border:1px solid transparent;border-radius:9px;background:transparent;color:var(--danger);cursor:pointer}
-  .menu-cadeado:hover{background:var(--danger-soft);border-color:var(--danger)}
+  .menu-cadeado{position:absolute;top:12px;right:12px;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;padding:0;border:1px solid transparent;border-radius:9px;background:transparent;color:var(--accent);cursor:pointer}
+  .menu-cadeado:hover{background:var(--accent-soft);border-color:var(--accent)}
   .menu-cadeado .ico-aberto,.menu-cadeado:not(.fixado) .ico-fechado{display:none}
   .menu-cadeado:not(.fixado) .ico-aberto{display:block}
   .tab-ico{display:block;flex:none}
