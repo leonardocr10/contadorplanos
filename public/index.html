@@ -23,8 +23,10 @@
 <link rel="modulepreload" href="js/filtro-select.js">
 </head>
 <body>
+<script src="js/menu-lateral.js"></script>
 <div class="wrap">
   <header class="top">
+    <button type="button" class="menu-botao menu-abrir" id="menu-abrir" title="Abrir menu" aria-label="Abrir menu" aria-expanded="false"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
     <h1>Cotador de Planos<small>Monte a proposta e envie pelo WhatsApp em poucos cliques</small></h1>
     <button type="button" class="usuario-logado" id="usuario-logado" title="Abrir Meus dados" hidden></button>
     <nav class="tabs" role="tablist">
@@ -35,6 +37,7 @@
       <button role="tab" aria-selected="false" data-view="aceites">Aceites <span class="pill" id="ace-selo" hidden style="margin:0 0 0 4px"></span></button>
       <button role="tab" aria-selected="false" data-view="contratos">Contratos Vendidos <span class="pill st-off" id="ctr-selo" hidden style="margin:0 0 0 4px"></span></button>
       <button role="tab" aria-selected="false" data-view="configuracoes">Configurações</button>
+      <button type="button" class="menu-fixar" id="menu-fixar" title="Esconder o menu e usar a tela toda"><svg class="ico-recolher" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 17l-5-5 5-5M18 17l-5-5 5-5"/></svg><svg class="ico-fixar" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 17v5M9 3h6l-1 6 3 3v2H7v-2l3-3z"/></svg><span>Recolher menu</span></button>
       <form method="post" action="/sair" style="display:contents"><button type="submit">Sair</button></form>
     </nav>
   </header>
