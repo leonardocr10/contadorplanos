@@ -296,8 +296,9 @@ test("a proposta guarda o corretor que a criou e entra só nos aceites dele", as
 test("planos e documentos: todos consultam, só o administrador altera", async (t) => {
   const { banco, pedir, admin, um } = await doisCorretores(t);
   const plano = { nome: "PLANO NOVO", categoria: "PF" };
+  const antes = listarDocumentos(banco).length;
   const doc = (await (await pedir(admin, "/api/documentos", "POST", { nome: "RG", tipo: "PF", cartao: "PLAM SAÚDE" })).json());
-  const docId = doc.id ?? listarDocumentos(banco)[0].id;
+  const docId = doc.id;
   const proibidos = [
     ["/api/planos", "POST", plano], ["/api/planos/plam-saude-pf", "PUT", plano], ["/api/planos/plam-saude-pf", "DELETE"],
     ["/api/documentos", "POST", { nome: "CPF" }], [`/api/documentos/${docId}`, "PUT", { nome: "Outro" }], [`/api/documentos/${docId}`, "DELETE"],
@@ -306,7 +307,7 @@ test("planos e documentos: todos consultam, só o administrador altera", async (
   for (const [rota, metodo, json] of proibidos) assert.equal((await pedir(um, rota, metodo, json)).status, 403, `${metodo} ${rota}`);
   // Nada mudou, e a consulta segue aberta.
   assert.ok(banco.obterPlano("plam-saude-pf"));
-  assert.equal(listarDocumentos(banco).length, 1);
+  assert.equal(listarDocumentos(banco).length, antes + 1);
   assert.equal((await pedir(um, "/api/planos")).status, 200);
   assert.deepEqual((await (await pedir(um, "/api/documentos")).json()).find((c) => c.nome === "PLAM SAÚDE").documentos.map((d) => d.nome), ["RG"]);
   // O administrador continua alterando.

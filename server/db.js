@@ -251,6 +251,8 @@ const MIGRACOES = [
    CREATE INDEX IF NOT EXISTS contratos_arquivos_contrato ON contratos_arquivos (contrato_id);`,
   // Documento que tenha ficado sem contrato é apagado.
   "DELETE FROM contratos_arquivos WHERE contrato_id NOT IN (SELECT id FROM contratos)",
+  // Sem mudança na estrutura: carta de permanência em todos os planos (ver incluirCartaDePermanencia).
+  () => {},
 ];
 
 // Troca os documentos dos planos CNPJ pela lista empresarial; com unimed, a Unimed PME recebe a lista dela.
@@ -280,6 +282,7 @@ const VERSAO_BENEFICIOS_AMIL_PME = 28;
 const VERSAO_HAPVIDA_PME = 35;
 const VERSAO_CARENCIAS_UNIMED_PME = 36;
 const VERSAO_REDE_UNIMED_PME = 37;
+const VERSAO_CARTA_DE_PERMANENCIA = 44;
 // Relação de documentos do plano empresarial/PJ: da empresa, depois do titular e dos dependentes.
 const DOCUMENTOS_CNPJ = [
   "CARTÃO CNPJ",
@@ -423,6 +426,17 @@ export class Banco {
     this.atualizarHapvidaPme(versaoAntes);
     this.atualizarCarenciasUnimedPme(versaoAntes);
     this.atualizarRedeUnimedPme(versaoAntes);
+    this.incluirCartaDePermanencia(versaoAntes);
+  }
+
+  // A carta de permanência passa a ser pedida em todos os planos, de pessoa física e de CNPJ.
+  incluirCartaDePermanencia(versaoAntes) {
+    if (versaoAntes === 0 || versaoAntes >= VERSAO_CARTA_DE_PERMANENCIA) return;
+    for (const tipo of ["PF", "CNPJ"]) {
+      const nome = "CARTA DE PERMANÊNCIA";
+      const id = this.documentoComNome(nome, tipo) ?? this.criarDocumento(nome, tipo).id;
+      this.db.prepare("INSERT OR IGNORE INTO documentos_planos (documento_id, plano_id) SELECT ?, id FROM planos WHERE categoria = ?").run(id, tipo);
+    }
   }
 
   // Os planos das tabelas anteriores passam para a tabela atual; plano com valores editados à mão fica como está.
