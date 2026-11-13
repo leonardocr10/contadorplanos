@@ -98,7 +98,7 @@ Em **Documentos**, cada contrato guarda os arquivos que o cliente enviou (PDF, J
 
 O menu **Financeiro** tem dois itens. Quem não é administrador começa sem acesso: libere em **Configurações > Usuários**.
 
-- **Regras de pagamento:** cadastre uma ou mais corretoras e, em cada uma, as regras de comissão por operadora. Cada regra tem o segmento (Pessoa física ou PME) e até 4 parcelas, em % sobre a mensalidade: a 1ª no mês da ativação, a 2ª no mês seguinte e assim por diante. Parcela em branco vale zero.
+- **Regras de pagamento:** cadastre uma ou mais corretoras e, em cada uma, clique em **Nova regra**. Cada regra tem o segmento (Pessoa física ou PME), a operadora, escolhida entre os planos cadastrados no sistema (Pessoa física mostra os planos PF; PME, os planos CNPJ), a **angariação** e até 4 parcelas. Tudo em % sobre a mensalidade: a angariação é paga no ato da venda e as parcelas uma por mês, a 1ª no mês da ativação, a 2ª no mês seguinte e assim por diante. Campo em branco vale zero.
 - **Comissões:** lista os contratos de Contratos Vendidos com a mensalidade cadastrada. Na calculadora de cada contrato, escolha a regra. O detalhamento mostra cada parcela prevista, com a data e o valor. Os cards mostram o total de vendas, a comissão prevista e os contratos sem regra, de acordo com os filtros.
 
 Excluir uma regra ou uma corretora deixa sem regra os contratos que a usavam.

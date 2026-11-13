@@ -13,7 +13,7 @@ import { comprimir } from "./compressao.js";
 import { conferirSenha, gerarHashSemTravar } from "./senhas.js";
 import { criarEnviadorDeEmail } from "./email.js";
 import { NIVEIS, PERMISSOES_PADRAO, TELAS, TELAS_COM_PLANOS, atende } from "./permissoes.js";
-import { MAX_PARCELAS, SEGMENTOS } from "../public/js/comissao.js";
+import { CATEGORIA_DO_SEGMENTO, MAX_PARCELAS, SEGMENTOS } from "../public/js/comissao.js";
 import { montarSnapshot, renderizarProposta } from "./proposta-html.js";
 import { MAX_PLANOS_COMPARATIVO, renderizarComparativo } from "./comparativo-html.js";
 
@@ -130,16 +130,18 @@ function validarPlano(b) {
 // Regra de comissão: percentuais de 0 a 1000; parcelas em % da mensalidade e angariação em % da adesão.
 function validarRegra(b) {
   if (!b || typeof b !== "object") throw new ErroEntrada("Dados da regra inválidos.");
-  const nome = textoOpc(b.nome, "operadora", 120);
-  if (!nome) throw new ErroEntrada("Informe a operadora ou administradora.");
+  const nome = textoOpc(b.nome, "plano", 120);
+  if (!nome) throw new ErroEntrada("Escolha o plano da regra.");
   if (!SEGMENTOS.includes(b.segmento)) throw new ErroEntrada("Escolha o segmento da regra: Pessoa física ou PME.");
+  const angariacao = b.angariacao === undefined || b.angariacao === null || b.angariacao === "" ? 0 : Number(b.angariacao);
+  if (!Number.isFinite(angariacao) || angariacao < 0 || angariacao > 1000) throw new ErroEntrada("A angariação precisa ficar entre 0% e 1000%.");
   const parcelas = Array.isArray(b.parcelas) ? b.parcelas.map((p) => (p === null || p === "" ? 0 : Number(p))) : null;
   if (!parcelas || parcelas.length > MAX_PARCELAS || parcelas.some((p) => !Number.isFinite(p) || p < 0 || p > 1000)) throw new ErroEntrada(`Informe até ${MAX_PARCELAS} parcelas, cada uma entre 0% e 1000%.`);
-  if (!parcelas.some((p) => p > 0)) throw new ErroEntrada("Informe a porcentagem de ao menos uma parcela.");
+  if (!angariacao && !parcelas.some((p) => p > 0)) throw new ErroEntrada("Informe a angariação ou a porcentagem de ao menos uma parcela.");
   const r2 = (n) => Math.round(n * 100) / 100;
   // As parcelas em branco no fim não contam.
   while (parcelas.length && !parcelas.at(-1)) parcelas.pop();
-  return { nome, segmento: b.segmento, angariacao: 0, parcelas: parcelas.map(r2), observacao: textoOpc(b.observacao, "observação", 300) };
+  return { nome, segmento: b.segmento, angariacao: r2(angariacao), parcelas: parcelas.map(r2), observacao: textoOpc(b.observacao, "observação", 300) };
 }
 
 const DATA_ISO =/^(\d{4})-(\d{2})-(\d{2})$/;
@@ -515,13 +517,24 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
   });
 
   // Uma regra (objeto) ou várias (lista, como na importação de uma tabela).
+  // O plano da regra precisa estar cadastrado no sistema, na categoria do segmento (PF ou CNPJ).
+  // Na edição, a regra pode manter o plano que já tinha, mesmo que ele tenha saído da lista.
+  const exigirPlano = (regra, atual = null) => {
+    if (atual && atual.nome === regra.nome && atual.segmento === regra.segmento) return regra;
+    const categoria = CATEGORIA_DO_SEGMENTO[regra.segmento];
+    if (!banco.listarPlanos().some((p) => p.nome === regra.nome && p.categoria === categoria)) {
+      throw new ErroEntrada(`Escolha um plano cadastrado no sistema para ${regra.segmento === "PF" ? "pessoa física" : "PME (CNPJ)"}.`);
+    }
+    return regra;
+  };
+
   app.post("/api/financeiro/corretoras/:id/regras", exige("financeiro", "editar"), express.json({ limit: "512kb" }), (req, res) => {
     if (!banco.obterCorretora(req.params.id)) return res.status(404).json(NAO_ACHOU_CORRETORA);
     const lista = Array.isArray(req.body) ? req.body : [req.body];
     if (!lista.length || lista.length > 500) throw new ErroEntrada("Envie de 1 a 500 regras.");
     const regras = lista.map((r, i) => {
       try {
-        return validarRegra(r);
+        return exigirPlano(validarRegra(r));
       } catch (e) {
         throw lista.length > 1 ? new ErroEntrada(`Regra ${i + 1}${r?.nome ? ` (${r.nome})` : ""}: ${e.message}`) : e;
       }
@@ -530,8 +543,9 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     res.status(201).json(Array.isArray(req.body) ? criadas : criadas[0]);
   });
   app.put("/api/financeiro/regras/:id", exige("financeiro", "editar"), (req, res) => {
-    const r = banco.gravarRegra(req.params.id, validarRegra(req.body));
-    if (!r) return res.status(404).json({ erro: "Regra não encontrada." });
+    const atual = banco.obterRegra(req.params.id);
+    if (!atual) return res.status(404).json({ erro: "Regra não encontrada." });
+    const r = banco.gravarRegra(req.params.id, exigirPlano(validarRegra(req.body), atual));
     res.json(r);
   });
   app.delete("/api/financeiro/regras/:id", exige("financeiro", "editar"), (req, res) => {

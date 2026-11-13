@@ -1,9 +1,9 @@
 // Menu Financeiro: "Regras de pagamento" (corretoras e as regras de comissão de cada uma) e
 // "Comissões" (a comissão de cada contrato vendido, pela regra escolhida).
 import { brl, parseBRL } from "./calculo.js";
-import { $, api, avisoCentral, esc, pode, toast } from "./estado.js";
+import { $, S, api, avisoCentral, esc, pode, toast } from "./estado.js";
 import { normalizar } from "./filtro-select.js";
-import { calcularComissao, MAX_PARCELAS, parcelaDe, rotuloDoSegmento, SEGMENTOS, totalDaRegra } from "./comissao.js";
+import { calcularComissao, CATEGORIA_DO_SEGMENTO, MAX_PARCELAS, parcelaDe, rotuloDoSegmento, SEGMENTOS, totalDaRegra } from "./comissao.js";
 import { botaoIcone, cabecalho, desenharCards, desenharPaginacao, guardarPorPagina, lerPorPagina, ordenarPor, paginar, proximaOrdem } from "./grade.js";
 
 let corretoras = [], contratos = [], carregado = false, erro = null;
@@ -34,7 +34,7 @@ export async function carregarFinanceiro() {
 let corretoraAtual = null;
 const CHAVE_PP_REGRAS = "cotador.regras.porPagina";
 let buscaRegra = "", filtroSeg = "todos", paginaRegra = 1, ordemRegra = { campo: "ordem", dir: "asc" }, porPaginaRegra = lerPorPagina(CHAVE_PP_REGRAS);
-let editandoRegra = null, excluindoRegra = null;
+let editandoRegra = null, excluindoRegra = null, formRegraAberto = false;
 
 const grupoDoSegmento = (s) => s;
 const GRUPOS = SEGMENTOS.map((s) => [s, rotuloDoSegmento(s)]);
@@ -42,6 +42,7 @@ const POSICOES = Array.from({ length: MAX_PARCELAS }, (_, i) => i);
 const COLUNAS_REGRAS = [
   { campo: "nome", rotulo: "Operadora", valor: (r) => normalizar(r.nome) },
   { campo: "segmento", rotulo: "Segmento", valor: (r) => normalizar(rotuloDoSegmento(r.segmento)) },
+  { campo: "angariacao", rotulo: "Angariação", valor: (r) => r.angariacao, dir: true, desc: true },
   ...POSICOES.map((i) => ({ campo: `p${i}`, rotulo: `${i + 1}ª parcela`, valor: (r) => parcelaDe(r, i), dir: true, desc: true })),
   { campo: "total", rotulo: "Total", valor: (r) => totalDaRegra(r), dir: true, desc: true },
 ];
@@ -49,13 +50,24 @@ const COLUNAS_REGRAS = [
 const opcoesSegmento = (atual) => SEGMENTOS.map((s) => `<option value="${esc(s)}"${s === atual ? " selected" : ""}>${esc(rotuloDoSegmento(s))}</option>`).join("");
 const numeroBR = (n) => (n ? String(n).replace(".", ",") : "");
 
-// Campos de uma regra (cadastro no topo e edição na linha): operadora, segmento, 4 parcelas e observação.
+// Planos cadastrados no sistema para o segmento (Pessoa física: planos PF; PME: planos CNPJ), com busca.
+// O plano que a regra já tem entra como opção, para a edição não perdê-lo se ele saiu da lista.
+function opcoesDePlano(segmento, atual = "") {
+  const nomes = [...new Set((S.plans ?? []).filter((p) => p.categoria === CATEGORIA_DO_SEGMENTO[segmento]).map((p) => p.nome))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const opcao = (n) => `<option value="${esc(n)}"${n === atual ? " selected" : ""}>${esc(n)}</option>`;
+  return `<option value="">Selecionar plano</option>`
+    + (atual && !nomes.includes(atual) ? `<optgroup label="Plano da regra">${opcao(atual)}</optgroup>` : "")
+    + (nomes.length ? `<optgroup label="Planos ${esc(rotuloDoSegmento(segmento) === "PME" ? "PME (CNPJ)" : rotuloDoSegmento(segmento))}">${nomes.map(opcao).join("")}</optgroup>` : "");
+}
+
+// Campos de uma regra (cadastro no topo e edição na linha): segmento, plano, angariação, 4 parcelas e observação.
 function camposDaRegra(pref, r = {}) {
   const segmento = SEGMENTOS.includes(r.segmento) ? r.segmento : "PF";
-  return `<div class="field fin-nome"><label for="${pref}-nome">Operadora</label><input id="${pref}-nome" data-campo="nome" type="text" maxlength="120" placeholder="Ex.: Amil Saúde" value="${esc(r.nome ?? "")}"></div>
-    <div class="field fin-seg"><label for="${pref}-segmento">Segmento</label><select id="${pref}-segmento" data-campo="segmento">${opcoesSegmento(segmento)}</select></div>
-    ${POSICOES.map((i) => `<div class="field fin-parcela"><label for="${pref}-p${i}" title="Porcentagem sobre a mensalidade, paga no ${i + 1}º mês a partir da ativação">${i + 1}ª parcela (%)</label><input id="${pref}-p${i}" data-parcela="${i}" type="text" inputmode="decimal" placeholder="0" value="${esc(numeroBR(parcelaDe(r, i)))}"></div>`).join("")}
-    <div class="field fin-obs"><label for="${pref}-observacao">Observação</label><input id="${pref}-observacao" data-campo="observacao" type="text" maxlength="300" placeholder="Opcional" value="${esc(r.observacao ?? "")}"></div>`;
+  return `<div class="field fin-seg"><label for="${pref}-segmento">Segmento</label><select id="${pref}-segmento" data-campo="segmento">${opcoesSegmento(segmento)}</select></div>
+    <div class="field fin-nome"><label for="${pref}-nome">Operadora</label><select id="${pref}-nome" data-campo="nome" data-plano-regra data-busca="Buscar plano…" data-contagem="plano|planos">${opcoesDePlano(segmento, r.nome ?? "")}</select></div>
+    <div class="field fin-obs"><label for="${pref}-observacao">Observação</label><input id="${pref}-observacao" data-campo="observacao" type="text" maxlength="300" placeholder="Opcional" value="${esc(r.observacao ?? "")}"></div>
+    <div class="field fin-parcela"><label for="${pref}-angariacao" title="Porcentagem sobre a mensalidade, paga no ato da venda">Angariação (%)</label><input id="${pref}-angariacao" data-campo="angariacao" type="text" inputmode="decimal" placeholder="0" value="${esc(numeroBR(r.angariacao))}"></div>
+    ${POSICOES.map((i) => `<div class="field fin-parcela"><label for="${pref}-p${i}" title="Porcentagem sobre a mensalidade, paga no ${i + 1}º mês a partir da ativação">${i + 1}ª parcela (%)</label><input id="${pref}-p${i}" data-parcela="${i}" type="text" inputmode="decimal" placeholder="0" value="${esc(numeroBR(parcelaDe(r, i)))}"></div>`).join("")}`;
 }
 
 function lerCamposDaRegra(form) {
@@ -68,7 +80,26 @@ function lerCamposDaRegra(form) {
     return n;
   });
   while (parcelas.length && !parcelas.at(-1)) parcelas.pop();
-  return { nome: v("nome").trim(), segmento: v("segmento"), parcelas, observacao: v("observacao").trim() };
+  const ta = v("angariacao").replace("%", "").trim();
+  const angariacao = ta ? parseBRL(ta) : 0;
+  if (angariacao == null || angariacao < 0 || angariacao > 1000) throw new Error("Porcentagem da angariação inválida.");
+  return { nome: v("nome").trim(), segmento: v("segmento"), angariacao, parcelas, observacao: v("observacao").trim() };
+}
+
+// Troca a lista de planos quando o segmento muda, mantendo o plano escolhido se ele continuar na lista.
+function trocarPlanos(form) {
+  const sel = form.querySelector("[data-plano-regra]"), seg = form.querySelector("[data-campo=segmento]").value;
+  const valor = sel.value, original = sel.dataset.original ?? "";
+  const html = opcoesDePlano(seg, original);
+  if (sel.dataset.html === html) return;
+  sel.innerHTML = html;
+  sel.dataset.html = html;
+  sel.value = [...sel.options].some((o) => o.value === valor) ? valor : "";
+}
+
+// Os planos chegam do servidor depois da tela: as listas abertas se atualizam quando chegam ou mudam.
+export function atualizarPlanosDaRegra() {
+  document.querySelectorAll("#reg-form, [data-form-regra]").forEach((f) => f.querySelector("[data-plano-regra]") && trocarPlanos(f));
 }
 
 // Total ao vivo enquanto a regra é digitada.
@@ -78,6 +109,9 @@ function ligarTotal(form) {
     try { const r = lerCamposDaRegra(form); saida.textContent = `Total: ${pct(totalDaRegra(r))}`; } catch (e) { saida.textContent = e.message; }
   };
   form.querySelectorAll("input,select").forEach((el) => el.addEventListener("input", atualizar));
+  const seg = form.querySelector("[data-campo=segmento]"), plano = form.querySelector("[data-plano-regra]");
+  plano.dataset.original ??= plano.value;
+  seg.addEventListener("change", () => { trocarPlanos(form); atualizar(); });
   atualizar();
 }
 
@@ -93,6 +127,7 @@ function linhaDaRegra(r) {
   return `<tr class="grade-linha" data-regra="${esc(r.id)}">
       <td><div class="grade-nome" title="${esc(r.nome)}">${esc(r.nome)}</div>${r.observacao ? `<div class="note fin-obs-linha" title="${esc(r.observacao)}">${esc(r.observacao)}</div>` : ""}</td>
       <td><span class="pill st-env">${esc(rotuloDoSegmento(r.segmento))}</span></td>
+      <td class="dir">${r.angariacao ? pct(r.angariacao) : "—"}</td>
       ${POSICOES.map((i) => `<td class="dir">${parcelaDe(r, i) ? pct(parcelaDe(r, i)) : "—"}</td>`).join("")}
       <td class="dir"><b>${pct(totalDaRegra(r))}</b></td>
       ${edita() ? `<td><div class="grade-acoes">${acoes}</div></td>` : ""}
@@ -108,7 +143,10 @@ export function renderRegras() {
   sel.disabled = !corretoras.length;
   const c = corretoras.find((x) => x.id === corretoraAtual);
   $("#reg-renomear").disabled = $("#reg-excluir").disabled = !c;
-  $("#reg-form-bloco").hidden = !edita() || !c;
+  // O cadastro de regra só aparece ao clicar em "Nova regra".
+  $("#reg-nova-regra").disabled = !c;
+  $("#reg-nova-regra").setAttribute("aria-expanded", String(formRegraAberto && !!c));
+  $("#reg-form-bloco").hidden = !edita() || !c || !formRegraAberto;
   if ($("#reg-form-bloco").hidden === false) $("#reg-form-titulo").textContent = `Nova regra para ${c.nome}`;
   const regras = c?.regras ?? [];
   const quantos = (g) => regras.filter((r) => grupoDoSegmento(r.segmento) === g).length;
@@ -339,16 +377,22 @@ export function iniciarFinanceiro() {
   $("#reg-renomear").onclick = () => abrirAcao("renomear");
   $("#reg-excluir").onclick = () => abrirAcao("excluir");
   const form = $("#reg-form");
-  form.innerHTML = `${camposDaRegra("fin-nova")}<div class="actions fin-botoes"><span class="note" data-total></span><button class="btn primary" type="submit">Adicionar regra</button></div>`;
+  form.innerHTML = `${camposDaRegra("fin-nova")}<div class="actions fin-botoes"><span class="note" data-total></span><button class="btn primary" type="submit">Adicionar regra</button><button class="btn" type="button" data-fechar-nova>Fechar</button></div>`;
   ligarTotal(form);
+  $("#reg-nova-regra").onclick = () => {
+    formRegraAberto = !formRegraAberto;
+    renderRegras();
+    if (formRegraAberto) { $("#reg-form-bloco").scrollIntoView({ block: "nearest" }); form.querySelector("[data-campo=segmento]").focus(); }
+  };
+  form.querySelector("[data-fechar-nova]").onclick = () => { formRegraAberto = false; renderRegras(); };
   form.onsubmit = async (e) => {
     e.preventDefault();
     try {
       await api(`/api/financeiro/corretoras/${encodeURIComponent(corretoraAtual)}/regras`, { metodo: "POST", json: lerCamposDaRegra(form) });
-      form.querySelectorAll("[data-campo=nome],[data-campo=observacao],[data-parcela]").forEach((el) => (el.value = ""));
+      form.querySelectorAll("[data-campo=nome],[data-campo=angariacao],[data-campo=observacao],[data-parcela]").forEach((el) => (el.value = ""));
       form.querySelector("[data-campo=nome]").focus();
       await carregarFinanceiro();
-      ligarTotal(form);
+      form.querySelector("[data-parcela]").dispatchEvent(new Event("input", { bubbles: true }));
       avisoCentral("Regra cadastrada com sucesso");
     } catch (erro) { toast(`Não deu para cadastrar: ${erro.message}`, "erro"); }
   };

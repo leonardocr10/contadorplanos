@@ -6,20 +6,21 @@ import { carregarHistorico, iniciarHistorico, renderHist } from "./historico.js"
 import { carregarAceites, iniciarAceites, renderAceites } from "./aceites.js";
 import { carregarDocumentos, iniciarDocumentos, renderDocumentos } from "./documentos.js";
 import { atualizarPlanosDoContrato, carregarContratos, conferirDiaDosContratos, iniciarContratos } from "./contratos.js";
-import { carregarFinanceiro, iniciarFinanceiro } from "./financeiro.js";
+import { atualizarPlanosDaRegra, carregarFinanceiro, iniciarFinanceiro } from "./financeiro.js";
 import { abrirItem, aplicarPerfil, avatarDoUsuario, carregarUsuarios, iniciarConfiguracoes, mostrarUsuarioLogado } from "./configuracoes.js";
 import { iniciarFiltroSelects } from "./filtro-select.js";
 
 iniciarFiltroSelects();
 
 // Telas que usam a lista de planos (a mesma regra do servidor).
-const TELAS_COM_PLANOS = ["cotacao", "planos", "documentos", "contratos"];
+const TELAS_COM_PLANOS = ["cotacao", "planos", "documentos", "contratos", "financeiro"];
 
 definirRender(() => {
   renderCotacao();
   renderCat();
   renderDocumentos();
   atualizarPlanosDoContrato();
+  atualizarPlanosDaRegra();
 });
 
 /* ---------- abas ---------- */

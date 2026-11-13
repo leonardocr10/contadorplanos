@@ -32,51 +32,54 @@ test("regra: segmentos, parcelas por posição e total", () => {
   assert.equal(rotuloDoSegmento("PME"), "PME");
   assert.equal(parcelaDe({ parcelas: [100, 50] }, 1), 50);
   assert.equal(parcelaDe({ parcelas: [100, 50] }, 3), 0);
-  // A angariação não entra mais na conta.
-  assert.equal(totalDaRegra({ angariacao: 100, parcelas: [100, 0, 25] }), 125);
+  assert.equal(totalDaRegra({ angariacao: 100, parcelas: [100, 0, 25] }), 225);
   assert.equal(somarMeses("2026-01-31", 1), "2026-02-28");
   assert.equal(somarMeses("2026-11-20", 2), "2027-01-20");
 });
 
-test("comissão: parcelas sobre a mensalidade, mês a mês", () => {
+test("comissão: angariação no ato da venda e parcelas mês a mês, tudo sobre a mensalidade", () => {
   const contrato = { valor: 400, ativacao: "2026-12-10", adesao: 150 };
   const pme = calcularComissao(contrato, { angariacao: 0, parcelas: [100, 100, 50] });
   assert.deepEqual(pme.itens.map((i) => [i.rotulo, i.data, i.valor]), [["1ª parcela", "2026-12-10", 400], ["2ª parcela", "2027-01-10", 400], ["3ª parcela", "2027-02-10", 200]]);
   assert.equal(pme.total, 1000);
-  const pulando = calcularComissao(contrato, { angariacao: 100, parcelas: [0, 25] });
-  assert.deepEqual(pulando.itens.map((i) => [i.rotulo, i.data, i.valor]), [["2ª parcela", "2027-01-10", 100]]);
-  assert.equal(pulando.total, 100);
+  const pulando = calcularComissao(contrato, { angariacao: 50, parcelas: [0, 25] });
+  assert.deepEqual(pulando.itens.map((i) => [i.rotulo, i.data, i.valor]), [["Angariação", "2026-12-10", 200], ["2ª parcela", "2027-01-10", 100]]);
+  assert.equal(pulando.total, 300);
   assert.equal(calcularComissao(contrato, null).total, 0);
 });
 
-test("corretoras e regras: cadastro, edição e exclusão", async (t) => {
+test("corretoras e regras: cadastro com os planos do sistema, edição e exclusão", async (t) => {
   const { api } = await subir(t);
   assert.deepEqual((await api("/api/financeiro/corretoras")).corpo, []);
   const c = (await api("/api/financeiro/corretoras", "POST", { nome: "Corretora PJ" })).corpo;
   assert.equal((await api("/api/financeiro/corretoras", "POST", { nome: "corretora pj" })).status, 400);
   assert.equal((await api("/api/financeiro/corretoras", "POST", { nome: " " })).status, 400);
 
-  const regra = (extra) => ({ nome: "Amil Saúde", segmento: "PME", parcelas: [100, 100, 50], ...extra });
+  const regra = (extra) => ({ nome: "AMIL PRATA 30%", segmento: "PME", parcelas: [100, 100, 50], ...extra });
   const amil = (await api(`/api/financeiro/corretoras/${c.id}/regras`, "POST", regra())).corpo;
-  assert.deepEqual([amil.nome, amil.segmento, amil.parcelas], ["Amil Saúde", "PME", [100, 100, 50]]);
-  for (const ruim of [{ nome: "" }, { segmento: "Outro" }, { segmento: "Adesão PF" }, { segmento: "PF e PME" }, { parcelas: [-1] }, { parcelas: [10, 10, 10, 10, 10] }, { parcelas: [] }, { parcelas: [0, 0] }, { angariacao: 100, parcelas: [] }]) {
+  assert.deepEqual([amil.nome, amil.segmento, amil.parcelas], ["AMIL PRATA 30%", "PME", [100, 100, 50]]);
+  // Plano fora da lista do sistema ou de outro segmento (PF usa planos PF; PME, planos CNPJ) não passa.
+  for (const ruim of [{ nome: "" }, { nome: "Plano Inventado" }, { nome: "AMIL OURO" }, { segmento: "PF" }, { segmento: "Adesão PF" }, { parcelas: [-1] }, { parcelas: [10, 10, 10, 10, 10] }, { parcelas: [] }, { parcelas: [0, 0] }, { angariacao: -1 }]) {
     assert.equal((await api(`/api/financeiro/corretoras/${c.id}/regras`, "POST", regra(ruim))).status, 400, JSON.stringify(ruim));
   }
-  // A angariação é ignorada; parcelas em branco no fim não contam.
-  const pf = (await api(`/api/financeiro/corretoras/${c.id}/regras`, "POST", regra({ nome: "Dental Uni", segmento: "PF", angariacao: 100, parcelas: [100, 50, null, ""] }))).corpo;
-  assert.deepEqual([pf.segmento, pf.angariacao, pf.parcelas], ["PF", 0, [100, 50]]);
-  const p4 = (await api(`/api/financeiro/corretoras/${c.id}/regras`, "POST", regra({ nome: "Plamedh", parcelas: [0, 30, 0, 20] }))).corpo;
-  assert.deepEqual(p4.parcelas, [0, 30, 0, 20]);
+  // Parcelas em branco no fim não contam; só a angariação também vale.
+  const pf = (await api(`/api/financeiro/corretoras/${c.id}/regras`, "POST", regra({ nome: "AMIL OURO", segmento: "PF", angariacao: 100, parcelas: [100, 50, null, ""] }))).corpo;
+  assert.deepEqual([pf.segmento, pf.angariacao, pf.parcelas], ["PF", 100, [100, 50]]);
+  const p4 = (await api(`/api/financeiro/corretoras/${c.id}/regras`, "POST", regra({ nome: "PLAMEDH BASIC", angariacao: 100, parcelas: [0, 30, 0, 20] }))).corpo;
+  assert.deepEqual([p4.angariacao, p4.parcelas], [100, [0, 30, 0, 20]]);
+  assert.equal((await api(`/api/financeiro/corretoras/${c.id}/regras`, "POST", regra({ nome: "PLAM TOTAL", angariacao: 80, parcelas: [] }))).status, 201);
   let [lista] = (await api("/api/financeiro/corretoras")).corpo;
-  assert.deepEqual(lista.regras.map((r) => r.nome), ["Amil Saúde", "Dental Uni", "Plamedh"]);
+  assert.deepEqual(lista.regras.map((r) => r.nome), ["AMIL PRATA 30%", "AMIL OURO", "PLAMEDH BASIC", "PLAM TOTAL"]);
 
   const editada = (await api(`/api/financeiro/regras/${amil.id}`, "PUT", regra({ parcelas: [100, 50] }))).corpo;
   assert.deepEqual(editada.parcelas, [100, 50]);
   assert.equal((await api(`/api/financeiro/corretoras/${c.id}`, "PUT", { nome: "Corretora Freelancer" })).corpo.nome, "Corretora Freelancer");
   assert.equal((await api(`/api/financeiro/regras/${amil.id}`, "DELETE")).status, 204);
   assert.equal((await api(`/api/financeiro/regras/${amil.id}`, "DELETE")).status, 404);
+  // Editar com um plano que não existe não passa.
+  assert.equal((await api(`/api/financeiro/regras/${pf.id}`, "PUT", regra({ nome: "Plano Inventado", segmento: "PF" }))).status, 400);
   [lista] = (await api("/api/financeiro/corretoras")).corpo;
-  assert.equal(lista.regras.length, 2);
+  assert.equal(lista.regras.length, 3);
   assert.equal((await api(`/api/financeiro/corretoras/${c.id}`, "DELETE")).status, 204);
   assert.deepEqual((await api("/api/financeiro/corretoras")).corpo, []);
 });
@@ -84,7 +87,7 @@ test("corretoras e regras: cadastro, edição e exclusão", async (t) => {
 test("cada contrato guarda a regra; apagar a regra deixa o contrato sem regra", async (t) => {
   const { api } = await subir(t);
   const c = (await api("/api/financeiro/corretoras", "POST", { nome: "Corretora A" })).corpo;
-  const r = (await api(`/api/financeiro/corretoras/${c.id}/regras`, "POST", { nome: "Amil", segmento: "PF", parcelas: [100, 50] })).corpo;
+  const r = (await api(`/api/financeiro/corretoras/${c.id}/regras`, "POST", { nome: "PLAM SAÚDE", segmento: "PF", parcelas: [100, 50] })).corpo;
   const contrato = (await api("/api/contratos", "POST", { nome: "Maria", fone: "34999990000", plano: "PLAM SAÚDE", valor: 300, ativacao: "2026-12-01" })).corpo;
   assert.equal(contrato.regraId, null);
   // O valor da adesão não é mais guardado.

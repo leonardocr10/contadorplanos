@@ -1,8 +1,8 @@
 // O que cada login faz em cada tela. O administrador sempre pode tudo.
 export const TELAS = ["cotacao", "planos", "documentos", "historico", "aceites", "contratos", "financeiro"];
 export const NIVEIS = ["nenhum", "ver", "editar"];
-// Telas que usam a lista de planos (a cotação, os documentos e o campo plano dos contratos vendidos).
-export const TELAS_COM_PLANOS = ["cotacao", "planos", "documentos", "contratos"];
+// Telas que usam a lista de planos (a cotação, os documentos, o campo plano dos contratos vendidos e as regras de comissão).
+export const TELAS_COM_PLANOS = ["cotacao", "planos", "documentos", "contratos", "financeiro"];
 
 // Vale para quem foi criado sem escolher, e repete o que os usuários já podiam fazer.
 // O Financeiro (comissões) começa fechado: o administrador libera para quem precisar.
