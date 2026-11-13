@@ -630,6 +630,9 @@ body{margin:0}
 .grade-cards [data-chave="adesao"]{--cor:var(--pine)}
 .fin-falta{color:var(--danger);font-weight:600;font-size:13px}
 .fin-regra{max-width:260px}
+.fin-regra-celula{min-width:240px;max-width:320px}
+.fin-regra-celula .fs-botao{min-height:34px;padding:6px 10px;font-size:13.5px}
+.fin-regra-celula .fs-botao.fin-sem-regra{border-color:var(--danger);color:var(--danger)}
 .fin-comissao{display:flex;flex-direction:column;gap:10px}
 .fin-com-campos{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px}
 .fin-com-campos .fin-com-regra{flex:1 1 360px;max-width:560px}
