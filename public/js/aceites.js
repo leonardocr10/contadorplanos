@@ -3,6 +3,7 @@ import { brl, fmtFone } from "./calculo.js";
 import { $, S, api, avisoCentral, esc, pode, toast } from "./estado.js";
 import { copiarTexto } from "./cotacao.js";
 import { ehPdf, esquecerArquivo, fmtTamanho, miniaturaPronta, mostrarMiniaturas } from "./contratos.js";
+import { ligarVisualizacao } from "./visor-documento.js";
 import { linkConversaDireta, mensagemDocumentos, mensagemPropostaEnviada } from "./mensagem.js";
 
 let aceites = [], assinatura = null;
@@ -186,13 +187,13 @@ function painelDeRecebidos(a) {
   const edita = pode("aceites", "editar");
   const mini = (x) => {
     const src = miniaturaPronta(x.id);
-    return `<a class="ctr-doc-mini" data-mini="${esc(x.id)}" href="${esc(urlDoArquivo(a, x))}" target="_blank" rel="noopener" title="Abrir ${esc(x.nome)}">${src ? `<img src="${esc(src)}" alt="">` : `<span>${ehPdf(x) ? "PDF" : "IMG"}</span>`}</a>`;
+    return `<a class="ctr-doc-mini" data-mini="${esc(x.id)}" data-ver="${esc(x.id)}" href="${esc(urlDoArquivo(a, x))}" target="_blank" rel="noopener" title="Abrir ${esc(x.nome)}">${src ? `<img src="${esc(src)}" alt="">` : `<span>${ehPdf(x) ? "PDF" : "IMG"}</span>`}</a>`;
   };
   const linhas = a.arquivos.map((x) => `<li class="ctr-doc-linha" data-arquivo="${esc(x.id)}">
       ${mini(x)}
-      <span class="ctr-doc-texto"><a href="${esc(urlDoArquivo(a, x))}" target="_blank" rel="noopener" title="${esc(x.nome)}">${esc(x.nome)}</a><span class="note" title="${esc(x.documento)}">${esc(x.documento)} · ${fmtTamanho(x.tamanho)} · ${esc(new Date(x.criadoEm).toLocaleDateString("pt-BR"))}</span></span>
+      <span class="ctr-doc-texto"><a data-ver="${esc(x.id)}" href="${esc(urlDoArquivo(a, x))}" target="_blank" rel="noopener" title="${esc(x.nome)}">${esc(x.nome)}</a><span class="note" title="${esc(x.documento)}">${esc(x.documento)} · ${fmtTamanho(x.tamanho)} · ${esc(new Date(x.criadoEm).toLocaleDateString("pt-BR"))}</span></span>
       <span class="ctr-doc-acoes">
-        <a class="limpar-filtros" href="${esc(urlDoArquivo(a, x))}" target="_blank" rel="noopener">Abrir</a>
+        <a class="limpar-filtros" data-ver="${esc(x.id)}" href="${esc(urlDoArquivo(a, x))}" target="_blank" rel="noopener">Abrir</a>
         <a class="limpar-filtros" href="${esc(urlDoArquivo(a, x, true))}">Baixar</a>
         ${edita ? `<button type="button" class="limpar-filtros" data-tirar>Excluir</button>` : ""}
       </span>
@@ -210,6 +211,7 @@ function painelDeRecebidos(a) {
 
 function ligarRecebidos(painel, a) {
   mostrarMiniaturas(painel, a.arquivos, (x) => urlDoArquivo(a, x));
+  ligarVisualizacao(painel, a.arquivos.map((x) => ({ ...x, url: urlDoArquivo(a, x), urlBaixar: urlDoArquivo(a, x, true), detalhe: `${x.documento} · ${fmtTamanho(x.tamanho)}` })));
   painel.querySelectorAll("[data-tirar]").forEach((b) => (b.onclick = () => (b.closest("li").querySelector(".ctr-doc-confirma").hidden = false)));
   painel.querySelectorAll("[data-tirar-nao]").forEach((b) => (b.onclick = () => (b.closest(".ctr-doc-confirma").hidden = true)));
   painel.querySelectorAll("[data-tirar-sim]").forEach((b) => (b.onclick = () => tirarRecebido(a, b.closest("li").dataset.arquivo, b)));

@@ -2,6 +2,7 @@
 import { brl, fmtFone, normFone, parseBRL } from "./calculo.js";
 import { $, S, api, avisoCentral, esc, pode, show, toast } from "./estado.js";
 import { linkConversaDireta, mensagemAtivacao } from "./mensagem.js";
+import { ligarVisualizacao } from "./visor-documento.js";
 
 let contratos = [], carregados = false, erro = null, filtro = "todos", mes = "todos";
 const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
@@ -175,13 +176,13 @@ const urlDoArquivo = (c, a, baixar) => `/api/contratos/${encodeURIComponent(c.id
 const emEnvio = new Map();
 
 // Cada arquivo é baixado uma vez só e fica na memória da página: miniatura e visualização usam a mesma cópia.
-const PDFJS = "/vendor/pdfjs/";
+export const PDFJS = "/vendor/pdfjs/";
 let pdfjsP = null;
-const carregarPdfJs = () => (pdfjsP ||= import(PDFJS + "pdf.min.mjs")
+export const carregarPdfJs = () => (pdfjsP ||= import(PDFJS + "pdf.min.mjs")
   .then((lib) => { lib.GlobalWorkerOptions.workerSrc = PDFJS + "pdf.worker.min.mjs"; return lib; })
   .catch((e) => { pdfjsP = null; throw e; }));
 const copias = new Map(), miniaturas = new Map();
-function copiaLocal(url, a) {
+export function copiaLocal(url, a) {
   if (!copias.has(a.id)) {
     copias.set(a.id, fetch(url)
       .then((r) => { if (!r.ok) throw new Error("Documento não encontrado."); return r.blob(); })
@@ -227,13 +228,13 @@ function painelDeDocumentos(c, edita) {
   const subindo = emEnvio.get(c.id) ?? [];
   const mini = (a) => {
     const src = miniaturaPronta(a.id);
-    return `<a class="ctr-doc-mini" data-mini="${esc(a.id)}" href="${esc(urlDoArquivo(c, a))}" target="_blank" rel="noopener" title="Abrir ${esc(a.nome)}">${src ? `<img src="${esc(src)}" alt="">` : `<span>${ehPdf(a) ? "PDF" : "IMG"}</span>`}</a>`;
+    return `<a class="ctr-doc-mini" data-mini="${esc(a.id)}" data-ver="${esc(a.id)}" href="${esc(urlDoArquivo(c, a))}" target="_blank" rel="noopener" title="Abrir ${esc(a.nome)}">${src ? `<img src="${esc(src)}" alt="">` : `<span>${ehPdf(a) ? "PDF" : "IMG"}</span>`}</a>`;
   };
   const linhas = c.arquivos.map((a) => `<li class="ctr-doc-linha" data-arquivo="${esc(a.id)}">
       ${mini(a)}
-      <span class="ctr-doc-texto"><a href="${esc(urlDoArquivo(c, a))}" target="_blank" rel="noopener" title="${esc(a.nome)}">${esc(a.nome)}</a><span class="note">${ehPdf(a) ? "PDF" : "Imagem"} · ${fmtTamanho(a.tamanho)} · ${esc(new Date(a.criadoEm).toLocaleDateString("pt-BR"))}</span></span>
+      <span class="ctr-doc-texto"><a data-ver="${esc(a.id)}" href="${esc(urlDoArquivo(c, a))}" target="_blank" rel="noopener" title="${esc(a.nome)}">${esc(a.nome)}</a><span class="note">${ehPdf(a) ? "PDF" : "Imagem"} · ${fmtTamanho(a.tamanho)} · ${esc(new Date(a.criadoEm).toLocaleDateString("pt-BR"))}</span></span>
       <span class="ctr-doc-acoes">
-        <a class="limpar-filtros" href="${esc(urlDoArquivo(c, a))}" target="_blank" rel="noopener">Abrir</a>
+        <a class="limpar-filtros" data-ver="${esc(a.id)}" href="${esc(urlDoArquivo(c, a))}" target="_blank" rel="noopener">Abrir</a>
         <a class="limpar-filtros" href="${esc(urlDoArquivo(c, a, true))}">Baixar</a>
         ${edita ? `<button type="button" class="limpar-filtros" data-tirar>Excluir</button>` : ""}
       </span>
@@ -260,6 +261,7 @@ export function mostrarMiniaturas(painel, arquivos, urlDe) {
 
 function ligarDocumentos(painel, c) {
   mostrarMiniaturas(painel, c.arquivos, (a) => urlDoArquivo(c, a));
+  ligarVisualizacao(painel, c.arquivos.map((a) => ({ ...a, url: urlDoArquivo(c, a), urlBaixar: urlDoArquivo(c, a, true), detalhe: `${c.nome} · ${fmtTamanho(a.tamanho)}` })));
   painel.querySelectorAll("[data-tirar]").forEach((b) => (b.onclick = () => (b.closest("li").querySelector(".ctr-doc-confirma").hidden = false)));
   painel.querySelectorAll("[data-tirar-nao]").forEach((b) => (b.onclick = () => (b.closest(".ctr-doc-confirma").hidden = true)));
   painel.querySelectorAll("[data-tirar-sim]").forEach((b) => (b.onclick = () => tirarDocumento(c, b.closest("li").dataset.arquivo, b)));
