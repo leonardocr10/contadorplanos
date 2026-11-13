@@ -39,7 +39,9 @@ let editandoRegra = null, excluindoRegra = null, formRegraAberto = false;
 const grupoDoSegmento = (s) => s;
 const GRUPOS = SEGMENTOS.map((s) => [s, rotuloDoSegmento(s)]);
 const POSICOES = Array.from({ length: MAX_PARCELAS }, (_, i) => i);
+const nomeDaCorretora = (r) => corretoras.find((c) => c.id === r.corretoraId)?.nome ?? "";
 const COLUNAS_REGRAS = [
+  { campo: "corretora", rotulo: "Corretora", valor: (r) => normalizar(nomeDaCorretora(r)) },
   { campo: "nome", rotulo: "Operadora", valor: (r) => normalizar(r.nome) },
   { campo: "segmento", rotulo: "Segmento", valor: (r) => normalizar(rotuloDoSegmento(r.segmento)) },
   { campo: "angariacao", rotulo: "Angariação", valor: (r) => r.angariacao, dir: true, desc: true },
@@ -126,6 +128,7 @@ function linhaDaRegra(r) {
     excluindoRegra === r.id ? `<div class="status" data-confirma>Excluir a regra <b>${esc(r.nome)} (${esc(rotuloDoSegmento(r.segmento))})</b>? Os contratos que usam esta regra ficam sem regra. <span class="actions" style="margin-top:8px"><button class="btn danger" data-sim-regra>Sim, excluir</button><button class="btn" data-nao-regra>Manter</button></span></div>` : "",
   ].join("");
   return `<tr class="grade-linha" data-regra="${esc(r.id)}">
+      <td><div class="grade-plano" title="${esc(nomeDaCorretora(r))}">${esc(nomeDaCorretora(r))}</div></td>
       <td><div class="grade-nome" title="${esc(r.nome)}">${esc(r.nome)}</div>${r.observacao ? `<div class="note fin-obs-linha" title="${esc(r.observacao)}">${esc(r.observacao)}</div>` : ""}</td>
       <td><span class="pill st-env">${esc(rotuloDoSegmento(r.segmento))}</span></td>
       <td class="dir">${r.segmento === "PF" && r.angariacao ? pct(r.angariacao) : "—"}</td>
@@ -151,8 +154,6 @@ export function renderRegras() {
   if ($("#reg-form-bloco").hidden === false) $("#reg-form-titulo").textContent = `Nova regra para ${c.nome}`;
   const regras = c?.regras ?? [];
   const quantos = (g) => regras.filter((r) => grupoDoSegmento(r.segmento) === g).length;
-  desenharCards($("#reg-cards"), [{ chave: "todos", rotulo: "Todas as regras", qtd: regras.length }, ...GRUPOS.map(([g, rotulo]) => ({ chave: g, rotulo, qtd: quantos(g) }))], filtroSeg,
-    (chave) => { filtroSeg = chave; paginaRegra = 1; renderRegras(); });
   const selSeg = $("#reg-filtro");
   const opSeg = `<option value="todos" data-icone="todos">Todos os segmentos</option><optgroup label="Segmentos">${GRUPOS.map(([g, rotulo]) => `<option value="${g}" data-selo="${quantos(g)}">${rotulo}</option>`).join("")}</optgroup>`;
   if (selSeg.dataset.opcoes !== opSeg) { selSeg.innerHTML = opSeg; selSeg.dataset.opcoes = opSeg; }
