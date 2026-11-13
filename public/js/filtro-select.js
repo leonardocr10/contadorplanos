@@ -40,6 +40,15 @@ const CSS = `
 .fs-opcao .fs-icone{flex:none;color:var(--muted)}
 .fs-opcao .fs-marca{flex:none;color:var(--pine,var(--accent))}
 .fs-selo{flex:none;padding:2px 8px;border-radius:6px;background:var(--accent-soft,#e2f4e9);color:var(--pine,var(--accent));font-size:11.5px;font-weight:700}
+.fs-caixa{flex:none;display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border:2px solid var(--line);border-radius:5px;background:var(--surface,#fff);color:#fff}
+.fs-caixa svg{display:none}
+.fs-caixa.marcada{border-color:var(--pine,var(--accent));background:var(--pine,var(--accent))}
+.fs-caixa.marcada svg{display:block}
+.fs-caixa.parcial{border-color:var(--pine,var(--accent))}
+.fs-caixa.parcial::after{content:"";width:8px;height:2px;border-radius:1px;background:var(--pine,var(--accent))}
+.fs-todos{display:flex;align-items:center;gap:10px;margin:0 6px 4px;padding:8px 10px;border:0;border-radius:8px;background:transparent;color:var(--ink);font:700 14px var(--body,inherit);text-align:left;cursor:pointer}
+.fs-todos:hover{background:var(--bg,#f3f6f3)}
+.fs-todos[hidden]{display:none}
 .fs-vazio{padding:12px 10px;font-size:14px;color:var(--muted)}
 .fs-rodape{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 12px;padding:8px 12px;border-top:1px solid var(--line);font-size:12px;color:var(--muted)}
 .fs-teclas{display:flex;align-items:center;gap:4px}
@@ -50,6 +59,8 @@ const CSS = `
 const icone = (corpo, tamanho = 16, classe = "fs-icone") => `<svg class="${classe}" width="${tamanho}" height="${tamanho}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${corpo}</svg>`;
 const SETA = icone('<path d="m6 9 6 6 6-6"/>', 14, "fs-seta");
 const MARCA = icone('<path d="M20 6 9 17l-5-5"/>', 16, "fs-marca");
+// Caixa de marcação do select múltiplo (marcada, vazia ou parcial).
+const CAIXA = (estado) => `<span class="fs-caixa ${estado}" aria-hidden="true">${icone('<path d="M20 6 9 17l-5-5"/>', 12, "")}</span>`;
 // Ícones que a tela pode pedir: no botão (data-icone no select) ou numa opção (data-icone na option).
 const ICONES = {
   local: '<path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/>',
@@ -104,7 +115,12 @@ function abrir(select, botao) {
   const multiplo = select.multiple;
   rodape.innerHTML = `<span data-contagem></span><span class="fs-teclas"><kbd>↑</kbd><kbd>↓</kbd> navegar <kbd>Enter</kbd> ${multiplo ? "marcar" : "escolher"}</span>`;
   rodape.hidden = !umItem;
-  painel.append(caixaBusca, lista, rodape);
+  // Select múltiplo: "Selecionar todos" marca (ou desmarca) as opções que aparecem com o filtro.
+  const todos = document.createElement("button");
+  todos.type = "button";
+  todos.className = "fs-todos";
+  todos.hidden = !multiplo;
+  painel.append(caixaBusca, todos, lista, rodape);
 
   let visiveis = [], ativa = -1;
   const pintarAtiva = (rolar = true) => {
@@ -149,7 +165,7 @@ function abrir(select, botao) {
       li.setAttribute("aria-selected", String(marcada));
       if (o.desativada) li.setAttribute("aria-disabled", "true");
       if (o.icone) li.dataset.destaque = "1";
-      li.innerHTML = `${o.icone && ICONES[o.icone] ? icone(ICONES[o.icone]) : ""}<span class="fs-texto"></span>${o.selo ? `<span class="fs-selo"></span>` : ""}${marcada ? MARCA : ""}`;
+      li.innerHTML = `${multiplo ? CAIXA(marcada ? "marcada" : "") : ""}${o.icone && ICONES[o.icone] ? icone(ICONES[o.icone]) : ""}<span class="fs-texto"></span>${o.selo ? `<span class="fs-selo"></span>` : ""}${marcada && !multiplo ? MARCA : ""}`;
       li.querySelector(".fs-texto").textContent = o.texto;
       if (o.selo) li.querySelector(".fs-selo").textContent = o.selo;
       lista.append(li);
@@ -158,6 +174,12 @@ function abrir(select, botao) {
       const n = visiveis.filter((o) => o.valor !== "" && !o.icone).length;
       const marcadas = multiplo ? select.selectedOptions.length : 0;
       rodape.querySelector("[data-contagem]").textContent = `${n} ${n === 1 ? umItem : variosItens || umItem}${marcadas ? ` · ${marcadas} marcad${marcadas === 1 ? "o" : "os"}` : ""}`;
+    }
+    if (multiplo) {
+      const marcaveis = visiveis.filter((o) => !o.desativada && o.valor !== "");
+      const n = marcaveis.filter((o) => o.marcada).length;
+      todos.hidden = !marcaveis.length;
+      todos.innerHTML = `${CAIXA(n && n === marcaveis.length ? "marcada" : n ? "parcial" : "")}<span>${n && n === marcaveis.length ? "Desmarcar todos" : "Selecionar todos"}${filtro.value.trim() ? " os encontrados" : ""} (${marcaveis.length})</span>`;
     }
     const atual = multiplo && ativa >= 0 && ativa < visiveis.length ? ativa : visiveis.findIndex((o) => o.indice === select.selectedIndex && !o.desativada);
     ativa = atual >= 0 ? atual : visiveis.findIndex((o) => !o.desativada);
@@ -197,6 +219,19 @@ function abrir(select, botao) {
   };
 
   filtro.addEventListener("input", desenhar);
+  todos.addEventListener("mousedown", (e) => e.preventDefault());
+  todos.addEventListener("click", () => {
+    const marcaveis = visiveis.filter((o) => !o.desativada && o.valor !== "");
+    const marcar = !marcaveis.every((o) => o.marcada);
+    for (const o of marcaveis) select.options[o.indice].selected = marcar;
+    const rolagem = lista.scrollTop;
+    desenhar();
+    lista.scrollTop = rolagem;
+    botao.querySelector("span").textContent = textoDoMultiplo(select);
+    select.dispatchEvent(new Event("input", { bubbles: true }));
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+    filtro.focus();
+  });
   filtro.addEventListener("keydown", (e) => {
     if (e.key === "ArrowDown") { e.preventDefault(); mover(1); }
     else if (e.key === "ArrowUp") { e.preventDefault(); mover(-1); }
