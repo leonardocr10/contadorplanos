@@ -49,7 +49,7 @@ const COLUNAS_REGRAS = [
   { campo: "nome", rotulo: "Operadora", valor: (r) => normalizar(r.nome) },
   { campo: "segmento", rotulo: "Segmento", valor: (r) => normalizar(rotuloDoSegmento(r.segmento)) },
   { campo: "angariacao", rotulo: "Angariação", valor: (r) => r.angariacao, dir: true, desc: true },
-  ...POSICOES.map((i) => ({ campo: `p${i}`, rotulo: `${i + 1}ª parcela`, valor: (r) => parcelaDe(r, i), dir: true, desc: true })),
+  ...POSICOES.map((i) => ({ campo: `p${i}`, rotulo: `${i + 1}ª parc.`, valor: (r) => parcelaDe(r, i), dir: true, desc: true })),
   { campo: "total", rotulo: "Total", valor: (r) => totalDaRegra(r), dir: true, desc: true },
 ];
 
@@ -253,7 +253,7 @@ export function renderRegras() {
   const pag = paginar(lista, paginaRegra, porPaginaRegra);
   paginaRegra = pag.pagina;
   box.innerHTML = pag.quantos
-    ? `<div class="grade-rolagem"><table class="grade-tabela fin-tabela">${cabecalho(colunas, ordemRegra, edita())}<tbody>${pag.itens.map(linhaDaRegra).join("")}</tbody></table></div>`
+    ? `<div class="grade-rolagem"><table class="grade-tabela fin-tabela fin-tabela-regras">${cabecalho(colunas, ordemRegra, edita())}<tbody>${pag.itens.map(linhaDaRegra).join("")}</tbody></table></div>`
     : `<div class="status">${regras.length ? "Nenhuma regra encontrada com esses filtros." : "Esta corretora ainda não tem regras."}</div>`;
   desenharPaginacao(nav, pag, ["regra", "regras"], (p) => { paginaRegra = p; renderRegras(); box.scrollIntoView({ block: "nearest" }); });
   box.querySelectorAll("[data-ordem]").forEach((b) => (b.onclick = () => { ordemRegra = proximaOrdem(ordemRegra, b.dataset.ordem, colunas); paginaRegra = 1; renderRegras(); }));
