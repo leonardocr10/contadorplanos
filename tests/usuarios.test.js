@@ -624,3 +624,34 @@ test("a tela só mostra ao administrador o que é dele", () => {
     assert.match(html, new RegExp(`data-abre="${item}" data-admin hidden`), item);
   }
 });
+
+test("cada login vê e altera só as próprias corretoras e regras de comissão; as antigas ficam com o administrador", async (t) => {
+  const ctx = await subir(t, undefined, (banco) => banco.criarCorretora("Antiga"));
+  const { pedir, entrar } = ctx;
+  const admin = (await entrar("chefe", SENHA_ADMIN)).cookie;
+  const permissoes = { cotacao: "editar", planos: "ver", documentos: "ver", historico: "editar", aceites: "editar", contratos: "editar", financeiro: "editar" };
+  await pedir(admin, "/api/usuarios", "POST", { login: "corretor1", email: "c1@exemplo.com", senha: "senha-do-corretor", permissoes });
+  const um = (await entrar("corretor1", "senha-do-corretor")).cookie;
+  const nomes = async (cookie) => (await (await pedir(cookie, "/api/financeiro/corretoras")).json()).map((c) => c.nome);
+  // A corretora sem dono, de antes da separação, vai para o administrador que abrir o Financeiro.
+  assert.deepEqual(await nomes(um), []);
+  assert.deepEqual(await nomes(admin), ["Antiga"]);
+  assert.deepEqual(await nomes(um), []);
+  // O mesmo nome pode existir em logins diferentes.
+  const minha = await (await pedir(um, "/api/financeiro/corretoras", "POST", { nome: "Antiga" })).json();
+  assert.equal((await pedir(um, "/api/financeiro/corretoras", "POST", { nome: "antiga" })).status, 400);
+  const [doAdmin] = await (await pedir(admin, "/api/financeiro/corretoras")).json();
+  const regra = { nome: "AMIL OURO", segmento: "PF", parcelas: [100] };
+  assert.equal((await pedir(um, `/api/financeiro/corretoras/${doAdmin.id}/regras`, "POST", regra)).status, 404);
+  assert.equal((await pedir(um, `/api/financeiro/corretoras/${doAdmin.id}`, "PUT", { nome: "Roubada" })).status, 404);
+  assert.equal((await pedir(um, `/api/financeiro/corretoras/${doAdmin.id}`, "DELETE")).status, 404);
+  const r = await (await pedir(admin, `/api/financeiro/corretoras/${doAdmin.id}/regras`, "POST", regra)).json();
+  assert.equal((await pedir(um, `/api/financeiro/regras/${r.id}`, "PUT", regra)).status, 404);
+  assert.equal((await pedir(um, `/api/financeiro/regras/${r.id}`, "DELETE")).status, 404);
+  // O contrato de um login não usa a regra de outro.
+  const c = await (await pedir(um, "/api/contratos", "POST", { nome: "Maria", fone: "34999991111", plano: "AMIL OURO", valor: 300, ativacao: "2026-11-20" })).json();
+  assert.equal((await pedir(um, `/api/contratos/${c.id}/comissao`, "PATCH", { regraId: r.id })).status, 400);
+  const minhaRegra = await (await pedir(um, `/api/financeiro/corretoras/${minha.id}/regras`, "POST", regra)).json();
+  assert.equal((await pedir(um, `/api/contratos/${c.id}/comissao`, "PATCH", { regraId: minhaRegra.id })).status, 200);
+  assert.deepEqual((await (await pedir(um, "/api/financeiro/corretoras")).json()).map((x) => [x.nome, x.regras.length, x.usuarioId]), [["Antiga", 1, undefined]]);
+});

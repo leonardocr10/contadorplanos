@@ -65,7 +65,7 @@ let sequencia = 0, fecharAberto = null;
 
 function lerOpcoes(select) {
   return [...select.options].map((o) => ({
-    valor: o.value, texto: o.textContent, indice: o.index, desativada: o.disabled,
+    valor: o.value, texto: o.textContent, indice: o.index, desativada: o.disabled, marcada: o.selected,
     selo: o.dataset.selo || null, icone: o.dataset.icone || null,
     grupo: o.parentElement?.tagName === "OPTGROUP" ? o.parentElement.label : null,
   }));
@@ -100,7 +100,9 @@ function abrir(select, botao) {
   const [umItem, variosItens] = (select.dataset.contagem || "").split("|");
   const rodape = document.createElement("div");
   rodape.className = "fs-rodape";
-  rodape.innerHTML = `<span data-contagem></span><span class="fs-teclas"><kbd>↑</kbd><kbd>↓</kbd> navegar <kbd>Enter</kbd> escolher</span>`;
+  // No select múltiplo, cada clique marca ou desmarca, e a lista fica aberta.
+  const multiplo = select.multiple;
+  rodape.innerHTML = `<span data-contagem></span><span class="fs-teclas"><kbd>↑</kbd><kbd>↓</kbd> navegar <kbd>Enter</kbd> ${multiplo ? "marcar" : "escolher"}</span>`;
   rodape.hidden = !umItem;
   painel.append(caixaBusca, lista, rodape);
 
@@ -143,7 +145,7 @@ function abrir(select, botao) {
       li.id = `${lista.id}-${pos}`;
       li.dataset.pos = pos;
       li.setAttribute("role", "option");
-      const marcada = o.indice === select.selectedIndex;
+      const marcada = multiplo ? o.marcada : o.indice === select.selectedIndex;
       li.setAttribute("aria-selected", String(marcada));
       if (o.desativada) li.setAttribute("aria-disabled", "true");
       if (o.icone) li.dataset.destaque = "1";
@@ -154,14 +156,26 @@ function abrir(select, botao) {
     });
     if (umItem) {
       const n = visiveis.filter((o) => o.valor !== "" && !o.icone).length;
-      rodape.querySelector("[data-contagem]").textContent = `${n} ${n === 1 ? umItem : variosItens || umItem}`;
+      const marcadas = multiplo ? select.selectedOptions.length : 0;
+      rodape.querySelector("[data-contagem]").textContent = `${n} ${n === 1 ? umItem : variosItens || umItem}${marcadas ? ` · ${marcadas} marcad${marcadas === 1 ? "o" : "os"}` : ""}`;
     }
-    const atual = visiveis.findIndex((o) => o.indice === select.selectedIndex && !o.desativada);
+    const atual = multiplo && ativa >= 0 && ativa < visiveis.length ? ativa : visiveis.findIndex((o) => o.indice === select.selectedIndex && !o.desativada);
     ativa = atual >= 0 ? atual : visiveis.findIndex((o) => !o.desativada);
     pintarAtiva();
   };
   const escolher = (o) => {
     if (!o || o.desativada) return;
+    if (multiplo) {
+      const op = select.options[o.indice];
+      op.selected = !op.selected;
+      const rolagem = lista.scrollTop;
+      desenhar();
+      lista.scrollTop = rolagem;
+      botao.querySelector("span").textContent = textoDoMultiplo(select);
+      select.dispatchEvent(new Event("input", { bubbles: true }));
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+      return;
+    }
     const mudou = select.selectedIndex !== o.indice;
     select.selectedIndex = o.indice;
     fechar(true);
@@ -245,6 +259,15 @@ function abrir(select, botao) {
 }
 
 // A etiqueta só entra no botão quando a tela pede (a UF da cidade, sim; a contagem da situação, não).
+// Select múltiplo: o nome do único marcado, ou quantos foram marcados.
+function textoDoMultiplo(select) {
+  const marcadas = [...select.selectedOptions];
+  if (!marcadas.length) return select.dataset.vazio || "Selecionar";
+  if (marcadas.length === 1) return marcadas[0].textContent;
+  const [, varios] = (select.dataset.contagem || "|itens").split("|");
+  return `${marcadas.length} ${varios || "itens"} selecionados`;
+}
+
 const textoDoBotao = (select, o) => (o ? (o.selo && select.dataset.seloNoBotao !== undefined ? `${o.texto} (${o.selo})` : o.texto) : "Selecionar");
 
 function ativarSelect(select) {
@@ -264,7 +287,7 @@ function ativarSelect(select) {
 
   const atualizar = () => {
     const o = select.selectedOptions[0];
-    botao.querySelector("span").textContent = textoDoBotao(select, o && { texto: o.textContent, selo: o.dataset.selo });
+    botao.querySelector("span").textContent = select.multiple ? textoDoMultiplo(select) : textoDoBotao(select, o && { texto: o.textContent, selo: o.dataset.selo });
     botao.disabled = select.disabled;
     if (select.getAttribute("aria-label")) botao.setAttribute("aria-label", select.getAttribute("aria-label"));
   };

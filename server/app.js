@@ -495,25 +495,38 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
   }
 
   /* ---------- financeiro: corretoras, regras de comissão e a comissão de cada contrato ---------- */
-  app.get("/api/financeiro/corretoras", exige("financeiro", "ver"), (_req, res) => res.json(banco.listarCorretoras()));
+  // Cada login vê e altera só as próprias corretoras e as regras delas, como nos contratos vendidos.
+  const semDonoCorretora = ({ usuarioId, ...c }) => c;
+  const corretoraDoLogin = (req, id) => {
+    const c = banco.obterCorretora(id);
+    return c && c.usuarioId === donoDoLogin(req) ? c : null;
+  };
+  const regraDoLogin = (req, id) => {
+    const r = banco.obterRegra(id);
+    return r && corretoraDoLogin(req, r.corretoraId) ? r : null;
+  };
+  app.get("/api/financeiro/corretoras", exige("financeiro", "ver"), (req, res) => {
+    if (eAdmin(req)) banco.assumirCorretorasSemDono(donoDoLogin(req));
+    res.json(banco.listarCorretoras({ usuarioId: donoDoLogin(req) }).map(semDonoCorretora));
+  });
 
-  const nomeDeCorretora = (b, idAtual = null) => {
-    const nome = textoOpc(b?.nome, "nome da corretora", 120);
+  const nomeDeCorretora = (req, idAtual = null) => {
+    const nome = textoOpc(req.body?.nome, "nome da corretora", 120);
     if (!nome) throw new ErroEntrada("Informe o nome da corretora.");
-    if (banco.corretoraComNome(nome, idAtual)) throw new ErroEntrada("Já existe uma corretora com esse nome.");
+    if (banco.corretoraComNome(nome, idAtual, donoDoLogin(req))) throw new ErroEntrada("Já existe uma corretora com esse nome.");
     return nome;
   };
   const NAO_ACHOU_CORRETORA = { erro: "Corretora não encontrada." };
+  const NAO_ACHOU_REGRA = { erro: "Regra não encontrada." };
   app.post("/api/financeiro/corretoras", exige("financeiro", "editar"), (req, res) => {
-    res.status(201).json(banco.criarCorretora(nomeDeCorretora(req.body)));
+    res.status(201).json(semDonoCorretora(banco.criarCorretora(nomeDeCorretora(req), donoDoLogin(req))));
   });
   app.put("/api/financeiro/corretoras/:id", exige("financeiro", "editar"), (req, res) => {
-    const c = banco.renomearCorretora(req.params.id, nomeDeCorretora(req.body, req.params.id));
-    if (!c) return res.status(404).json(NAO_ACHOU_CORRETORA);
-    res.json(c);
+    if (!corretoraDoLogin(req, req.params.id)) return res.status(404).json(NAO_ACHOU_CORRETORA);
+    res.json(semDonoCorretora(banco.renomearCorretora(req.params.id, nomeDeCorretora(req, req.params.id))));
   });
   app.delete("/api/financeiro/corretoras/:id", exige("financeiro", "editar"), (req, res) => {
-    if (!banco.excluirCorretora(req.params.id)) return res.status(404).json(NAO_ACHOU_CORRETORA);
+    if (!corretoraDoLogin(req, req.params.id) || !banco.excluirCorretora(req.params.id)) return res.status(404).json(NAO_ACHOU_CORRETORA);
     res.status(204).end();
   });
 
@@ -530,7 +543,7 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
   };
 
   app.post("/api/financeiro/corretoras/:id/regras", exige("financeiro", "editar"), express.json({ limit: "512kb" }), (req, res) => {
-    if (!banco.obterCorretora(req.params.id)) return res.status(404).json(NAO_ACHOU_CORRETORA);
+    if (!corretoraDoLogin(req, req.params.id)) return res.status(404).json(NAO_ACHOU_CORRETORA);
     const lista = Array.isArray(req.body) ? req.body : [req.body];
     if (!lista.length || lista.length > 500) throw new ErroEntrada("Envie de 1 a 500 regras.");
     const regras = lista.map((r, i) => {
@@ -544,13 +557,13 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     res.status(201).json(Array.isArray(req.body) ? criadas : criadas[0]);
   });
   app.put("/api/financeiro/regras/:id", exige("financeiro", "editar"), (req, res) => {
-    const atual = banco.obterRegra(req.params.id);
-    if (!atual) return res.status(404).json({ erro: "Regra não encontrada." });
+    const atual = regraDoLogin(req, req.params.id);
+    if (!atual) return res.status(404).json(NAO_ACHOU_REGRA);
     const r = banco.gravarRegra(req.params.id, exigirPlano(validarRegra(req.body), atual));
     res.json(r);
   });
   app.delete("/api/financeiro/regras/:id", exige("financeiro", "editar"), (req, res) => {
-    if (!banco.excluirRegra(req.params.id)) return res.status(404).json({ erro: "Regra não encontrada." });
+    if (!regraDoLogin(req, req.params.id) || !banco.excluirRegra(req.params.id)) return res.status(404).json(NAO_ACHOU_REGRA);
     res.status(204).end();
   });
 
@@ -558,7 +571,7 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
   app.patch("/api/contratos/:id/comissao", exige("financeiro", "editar"), (req, res) => {
     if (!contratoDoLogin(req)) return res.status(404).json(NAO_ACHOU_CONTRATO);
     const regraId = req.body?.regraId || null;
-    if (regraId && !banco.obterRegra(regraId)) throw new ErroEntrada("Regra de comissão não encontrada.");
+    if (regraId && !regraDoLogin(req, regraId)) throw new ErroEntrada("Regra de comissão não encontrada.");
     res.json(semDono(banco.definirComissaoDoContrato(req.params.id, regraId, null)));
   });
 

@@ -25,7 +25,8 @@ export async function carregarFinanceiro() {
   } catch (e) {
     erro = e.message;
   }
-  if (!corretoras.some((c) => c.id === corretoraAtual)) corretoraAtual = corretoras[0]?.id ?? null;
+  // A corretora aberta que deixou de existir volta para a lista.
+  if (!corretoras.some((c) => c.id === corretoraAtual)) corretoraAtual = null;
   renderRegras();
   renderComissoes();
 }
@@ -54,19 +55,20 @@ const numeroBR = (n) => (n ? String(n).replace(".", ",") : "");
 
 // Planos cadastrados no sistema para o segmento (Pessoa física: planos PF; PME: planos CNPJ), com busca.
 // O plano que a regra já tem entra como opção, para a edição não perdê-lo se ele saiu da lista.
-function opcoesDePlano(segmento, atual = "") {
+function opcoesDePlano(segmento, atual = "", multiplo = false) {
   const nomes = [...new Set((S.plans ?? []).filter((p) => p.categoria === CATEGORIA_DO_SEGMENTO[segmento]).map((p) => p.nome))].sort((a, b) => a.localeCompare(b, "pt-BR"));
   const opcao = (n) => `<option value="${esc(n)}"${n === atual ? " selected" : ""}>${esc(n)}</option>`;
-  return `<option value="">Selecionar plano</option>`
+  return (multiplo ? "" : `<option value="">Selecionar plano</option>`)
     + (atual && !nomes.includes(atual) ? `<optgroup label="Plano da regra">${opcao(atual)}</optgroup>` : "")
     + (nomes.length ? `<optgroup label="Planos ${esc(rotuloDoSegmento(segmento) === "PME" ? "PME (CNPJ)" : rotuloDoSegmento(segmento))}">${nomes.map(opcao).join("")}</optgroup>` : "");
 }
 
 // Campos de uma regra (cadastro no topo e edição na linha): segmento, plano, angariação, 4 parcelas e observação.
-function camposDaRegra(pref, r = {}) {
+// No cadastro, dá para marcar vários planos: a mesma regra é criada para cada um.
+function camposDaRegra(pref, r = {}, { multiplo = false } = {}) {
   const segmento = SEGMENTOS.includes(r.segmento) ? r.segmento : "PF";
   return `<div class="field fin-seg"><label for="${pref}-segmento">Segmento</label><select id="${pref}-segmento" data-campo="segmento">${opcoesSegmento(segmento)}</select></div>
-    <div class="field fin-nome"><label for="${pref}-nome">Operadora</label><select id="${pref}-nome" data-campo="nome" data-plano-regra data-busca="Buscar plano…" data-contagem="plano|planos">${opcoesDePlano(segmento, r.nome ?? "")}</select></div>
+    <div class="field fin-nome"><label for="${pref}-nome">${multiplo ? "Operadoras (pode marcar mais de uma)" : "Operadora"}</label><select id="${pref}-nome" data-campo="nome" data-plano-regra data-busca="Buscar plano…" data-contagem="plano|planos"${multiplo ? ` multiple data-vazio="Selecionar planos"` : ""}>${opcoesDePlano(segmento, r.nome ?? "", multiplo)}</select></div>
     <div class="field fin-obs"><label for="${pref}-observacao">Observação</label><input id="${pref}-observacao" data-campo="observacao" type="text" maxlength="300" placeholder="Opcional" value="${esc(r.observacao ?? "")}"></div>
     <div class="field fin-parcela fin-ang"${segmento === "PF" ? "" : " hidden"}><label for="${pref}-angariacao" title="Só para Pessoa física: porcentagem sobre a mensalidade, paga no ato da venda">Angariação (%)</label><input id="${pref}-angariacao" data-campo="angariacao" type="text" inputmode="decimal" placeholder="0" value="${esc(numeroBR(r.angariacao))}"></div>
     ${POSICOES.map((i) => `<div class="field fin-parcela"><label for="${pref}-p${i}" title="Porcentagem sobre a mensalidade, paga no ${i + 1}º mês a partir da ativação">${i + 1}ª parcela (%)</label><input id="${pref}-p${i}" data-parcela="${i}" type="text" inputmode="decimal" placeholder="0" value="${esc(numeroBR(parcelaDe(r, i)))}"></div>`).join("")}`;
@@ -86,18 +88,24 @@ function lerCamposDaRegra(form) {
   const ta = v("segmento") === "PF" ? v("angariacao").replace("%", "").trim() : "";
   const angariacao = ta ? parseBRL(ta) : 0;
   if (angariacao == null || angariacao < 0 || angariacao > 1000) throw new Error("Porcentagem da angariação inválida.");
-  return { nome: v("nome").trim(), segmento: v("segmento"), angariacao, parcelas, observacao: v("observacao").trim() };
+  const sel = form.querySelector("[data-campo=nome]");
+  const nomes = sel.multiple ? [...sel.selectedOptions].map((o) => o.value) : [sel.value.trim()];
+  return { nome: nomes[0] ?? "", nomes, segmento: v("segmento"), angariacao, parcelas, observacao: v("observacao").trim() };
 }
+// O que vai para o servidor: uma regra por plano marcado.
+const regrasDoForm = ({ nomes, ...regra }) => nomes.map((nome) => ({ ...regra, nome }));
 
 // Troca a lista de planos quando o segmento muda, mantendo o plano escolhido se ele continuar na lista.
 function trocarPlanos(form) {
   const sel = form.querySelector("[data-plano-regra]"), seg = form.querySelector("[data-campo=segmento]").value;
-  const valor = sel.value, original = sel.dataset.original ?? "";
-  const html = opcoesDePlano(seg, original);
+  const marcados = new Set([...sel.selectedOptions].map((o) => o.value)), original = sel.dataset.original ?? "";
+  const html = opcoesDePlano(seg, original, sel.multiple);
   if (sel.dataset.html === html) return;
   sel.innerHTML = html;
   sel.dataset.html = html;
-  sel.value = [...sel.options].some((o) => o.value === valor) ? valor : "";
+  for (const o of sel.options) o.selected = marcados.has(o.value);
+  if (!sel.multiple && !sel.selectedOptions.length) sel.value = "";
+  sel.dispatchEvent(new Event("change"));
 }
 
 // Os planos chegam do servidor depois da tela: as listas abertas se atualizam quando chegam ou mudam.
@@ -113,7 +121,7 @@ function ligarTotal(form) {
   };
   form.querySelectorAll("input,select").forEach((el) => el.addEventListener("input", atualizar));
   const seg = form.querySelector("[data-campo=segmento]"), plano = form.querySelector("[data-plano-regra]");
-  plano.dataset.original ??= plano.value;
+  plano.dataset.original ??= plano.multiple ? "" : plano.value;
   seg.addEventListener("change", () => { trocarPlanos(form); form.querySelector(".fin-ang").hidden = seg.value !== "PF"; atualizar(); });
   atualizar();
 }
@@ -138,19 +146,90 @@ function linhaDaRegra(r) {
     </tr>${paineis ? `<tr class="grade-painel-linha" data-regra="${esc(r.id)}"><td colspan="${COLUNAS_REGRAS.length + (edita() ? 1 : 0)}">${paineis}</td></tr>` : ""}`;
 }
 
+/* ---------- Tela 1: lista das corretoras ---------- */
+let buscaCor = "", ordemCor = { campo: "nome", dir: "asc" }, renomeandoCor = null, excluindoCor = null;
+const COLUNAS_COR = [
+  { campo: "nome", rotulo: "Corretora", valor: (c) => normalizar(c.nome) },
+  { campo: "regras", rotulo: "Regras", valor: (c) => c.regras.length, dir: true, desc: true },
+  { campo: "pf", rotulo: "Pessoa física", valor: (c) => c.regras.filter((r) => r.segmento === "PF").length, dir: true, desc: true },
+  { campo: "pme", rotulo: "PME", valor: (c) => c.regras.filter((r) => r.segmento === "PME").length, dir: true, desc: true },
+];
+
+// Abre a tela das regras de uma corretora; com "novaRegra", já com o cadastro aberto.
+function abrirCorretora(id, { novaRegra = false } = {}) {
+  corretoraAtual = id;
+  formRegraAberto = novaRegra && edita();
+  buscaRegra = ""; $("#reg-busca").value = ""; filtroSeg = "todos"; paginaRegra = 1; editandoRegra = excluindoRegra = null;
+  $("#reg-acao").hidden = true;
+  renderRegras();
+  $("#v-regras").scrollIntoView({ block: "start" });
+  if (formRegraAberto) $("#reg-form [data-campo=segmento]").focus();
+}
+
+function linhaDaCorretora(c, colunas) {
+  const qtd = (s) => c.regras.filter((r) => r.segmento === s).length;
+  const acoes = [
+    edita() ? `<button type="button" class="btn fin-btn-linha" data-nova-regra-cor title="Cadastrar uma regra de comissão para ${esc(c.nome)}">Nova regra</button>` : "",
+    botaoIcone("ver", "Abrir as regras desta corretora", { atributos: "data-abrir-cor" }),
+    edita() ? botaoIcone("editar", "Renomear corretora", { atributos: `data-renomear-cor aria-expanded="${renomeandoCor === c.id}"` }) : "",
+    edita() ? botaoIcone("excluir", "Excluir corretora", { atributos: `data-excluir-cor aria-expanded="${excluindoCor === c.id}"`, classe: "perigo" }) : "",
+  ].join("");
+  const painel = renomeandoCor === c.id
+    ? `<form class="fin-acao" data-form-renomear novalidate><div class="field"><label for="cor-ren-nome">Novo nome da corretora</label><input id="cor-ren-nome" type="text" maxlength="120" value="${esc(c.nome)}"></div><div class="actions"><button type="submit" class="btn primary">Salvar</button><button type="button" class="btn" data-cancelar-cor>Cancelar</button></div></form>`
+    : excluindoCor === c.id
+      ? `<div class="status">Excluir a corretora <b>${esc(c.nome)}</b> e as ${c.regras.length} regras dela? Os contratos que usam essas regras ficam sem regra. <span class="actions" style="margin-top:8px"><button class="btn danger" data-sim-cor>Sim, excluir</button><button class="btn" data-cancelar-cor>Manter</button></span></div>`
+      : "";
+  return `<tr class="grade-linha fin-linha-cor" data-cor="${esc(c.id)}" title="Clique para abrir as regras de ${esc(c.nome)}">
+      <td><div class="grade-nome">${esc(c.nome)}</div></td>
+      <td class="dir"><b>${c.regras.length}</b></td>
+      <td class="dir">${qtd("PF")}</td>
+      <td class="dir">${qtd("PME")}</td>
+      <td><div class="grade-acoes">${acoes}</div></td>
+    </tr>${painel ? `<tr class="grade-painel-linha" data-cor="${esc(c.id)}"><td colspan="${colunas.length + 1}">${painel}</td></tr>` : ""}`;
+}
+
+function renderCorretoras() {
+  const box = $("#cor-lista");
+  if (!carregado) { box.innerHTML = `<div class="status">${erro ? esc(erro) : "Carregando corretoras…"}</div>`; return; }
+  if (!corretoras.length) { box.innerHTML = `<div class="status">Nenhuma corretora cadastrada. ${edita() ? "Clique em <b>Nova corretora</b> para começar." : ""}</div>`; return; }
+  const termo = normalizar(buscaCor.trim());
+  const lista = ordenarPor(corretoras.filter((c) => !termo || normalizar(c.nome).includes(termo)), COLUNAS_COR, ordemCor, (x, y) => x.nome.localeCompare(y.nome, "pt-BR"));
+  box.innerHTML = lista.length
+    ? `<div class="grade-rolagem"><table class="grade-tabela fin-tabela">${cabecalho(COLUNAS_COR, ordemCor, true)}<tbody>${lista.map((c) => linhaDaCorretora(c, COLUNAS_COR)).join("")}</tbody></table></div>`
+    : `<div class="status">Nenhuma corretora encontrada com essa busca.</div>`;
+  box.querySelectorAll("[data-ordem]").forEach((b) => (b.onclick = () => { ordemCor = proximaOrdem(ordemCor, b.dataset.ordem, COLUNAS_COR); renderCorretoras(); }));
+  const daLinha = (el) => corretoras.find((c) => c.id === el.closest("[data-cor]").dataset.cor);
+  // Clicar na linha (fora dos botões) abre a corretora.
+  box.querySelectorAll("tr.fin-linha-cor").forEach((tr) => (tr.onclick = (e) => { if (!e.target.closest("button,a,input,form")) abrirCorretora(tr.dataset.cor); }));
+  box.querySelectorAll("[data-abrir-cor]").forEach((b) => (b.onclick = () => abrirCorretora(daLinha(b).id)));
+  box.querySelectorAll("[data-nova-regra-cor]").forEach((b) => (b.onclick = () => abrirCorretora(daLinha(b).id, { novaRegra: true })));
+  box.querySelectorAll("[data-renomear-cor]").forEach((b) => (b.onclick = () => { const c = daLinha(b); renomeandoCor = renomeandoCor === c.id ? null : c.id; excluindoCor = null; renderCorretoras(); box.querySelector("#cor-ren-nome")?.select(); }));
+  box.querySelectorAll("[data-excluir-cor]").forEach((b) => (b.onclick = () => { const c = daLinha(b); excluindoCor = excluindoCor === c.id ? null : c.id; renomeandoCor = null; renderCorretoras(); }));
+  box.querySelectorAll("[data-cancelar-cor]").forEach((b) => (b.onclick = () => { renomeandoCor = excluindoCor = null; renderCorretoras(); }));
+  box.querySelectorAll("[data-sim-cor]").forEach((b) => (b.onclick = async () => {
+    b.disabled = true;
+    try { await api(`/api/financeiro/corretoras/${encodeURIComponent(daLinha(b).id)}`, { metodo: "DELETE" }); excluindoCor = null; await carregarFinanceiro(); avisoCentral("Corretora excluída com sucesso"); } catch (e) { b.disabled = false; toast(e.message, "erro"); }
+  }));
+  const ren = box.querySelector("[data-form-renomear]");
+  if (ren) ren.onsubmit = async (e) => {
+    e.preventDefault();
+    const nome = ren.querySelector("input").value.trim();
+    if (!nome) { toast("Informe o nome da corretora", "erro"); return; }
+    try { await api(`/api/financeiro/corretoras/${encodeURIComponent(daLinha(ren).id)}`, { metodo: "PUT", json: { nome } }); renomeandoCor = null; await carregarFinanceiro(); avisoCentral("Corretora renomeada com sucesso"); } catch (erro) { toast(erro.message, "erro"); }
+  };
+}
+
+/* ---------- Tela 2: regras da corretora aberta ---------- */
 export function renderRegras() {
   if (!pode("financeiro")) return;
-  const sel = $("#reg-corretora");
-  const opcoes = corretoras.length ? corretoras.map((c) => `<option value="${esc(c.id)}" data-selo="${c.regras.length}">${esc(c.nome)}</option>`).join("") : `<option value="">Nenhuma corretora</option>`;
-  if (sel.dataset.opcoes !== opcoes) { sel.innerHTML = opcoes; sel.dataset.opcoes = opcoes; }
-  sel.value = corretoraAtual ?? "";
-  sel.disabled = !corretoras.length;
   const c = corretoras.find((x) => x.id === corretoraAtual);
-  $("#reg-renomear").disabled = $("#reg-excluir").disabled = !c;
+  $("#reg-tela-corretoras").hidden = !!c;
+  $("#reg-tela-regras").hidden = !c;
+  if (!c) { formRegraAberto = false; renderCorretoras(); return; }
+  $("#reg-titulo").textContent = `Regras de ${c.nome}`;
   // O cadastro de regra só aparece ao clicar em "Nova regra".
-  $("#reg-nova-regra").disabled = !c;
-  $("#reg-nova-regra").setAttribute("aria-expanded", String(formRegraAberto && !!c));
-  $("#reg-form-bloco").hidden = !edita() || !c || !formRegraAberto;
+  $("#reg-nova-regra").setAttribute("aria-expanded", String(formRegraAberto));
+  $("#reg-form-bloco").hidden = !edita() || !formRegraAberto;
   if ($("#reg-form-bloco").hidden === false) $("#reg-form-titulo").textContent = `Nova regra para ${c.nome}`;
   const regras = c?.regras ?? [];
   const quantos = (g) => regras.filter((r) => grupoDoSegmento(r.segmento) === g).length;
@@ -163,7 +242,6 @@ export function renderRegras() {
 
   const box = $("#reg-lista"), nav = $("#reg-paginacao");
   if (!carregado) { box.innerHTML = `<div class="status">${erro ? esc(erro) : "Carregando regras…"}</div>`; nav.innerHTML = ""; return; }
-  if (!c) { box.innerHTML = `<div class="status">Nenhuma corretora cadastrada. ${edita() ? "Clique em <b>Nova corretora</b> e depois cadastre as regras." : ""}</div>`; nav.innerHTML = ""; return; }
   const termo = normalizar(buscaRegra.trim());
   const filtradas = regras.filter((r) => (filtroSeg === "todos" || grupoDoSegmento(r.segmento) === filtroSeg) && (!termo || normalizar(`${r.nome} ${rotuloDoSegmento(r.segmento)} ${r.observacao}`).includes(termo)));
   const posicao = new Map(regras.map((r, i) => [r.id, i]));
@@ -197,7 +275,8 @@ export function renderRegras() {
     form.onsubmit = async (e) => {
       e.preventDefault();
       try {
-        await api(`/api/financeiro/regras/${encodeURIComponent(form.dataset.formRegra)}`, { metodo: "PUT", json: lerCamposDaRegra(form) });
+        const { nomes, ...regra } = lerCamposDaRegra(form);
+        await api(`/api/financeiro/regras/${encodeURIComponent(form.dataset.formRegra)}`, { metodo: "PUT", json: regra });
         editandoRegra = null;
         await carregarFinanceiro();
         avisoCentral("Regra salva com sucesso");
@@ -206,42 +285,27 @@ export function renderRegras() {
   }
 }
 
-// Faixa abaixo da escolha da corretora: nome (nova ou renomear) ou confirmação da exclusão.
-function abrirAcao(tipo) {
-  const caixa = $("#reg-acao"), c = corretoras.find((x) => x.id === corretoraAtual);
+// Faixa abaixo de "Nova corretora": o nome da corretora nova. Ela entra na lista.
+function abrirNovaCorretora() {
+  const caixa = $("#reg-acao");
   const fechar = () => { caixa.hidden = true; caixa.innerHTML = ""; };
-  if (tipo === "excluir") {
-    if (!c) return;
-    caixa.innerHTML = `<span>Excluir a corretora <b>${esc(c.nome)}</b> e as ${c.regras.length} regras dela? Os contratos que usam essas regras ficam sem regra.</span>
-      <div class="actions"><button type="button" class="btn danger" data-sim>Sim, excluir</button><button type="button" class="btn" data-nao>Manter</button></div>`;
-    caixa.hidden = false;
-    caixa.querySelector("[data-nao]").onclick = fechar;
-    caixa.querySelector("[data-sim]").onclick = async (e) => {
-      e.target.disabled = true;
-      try { await api(`/api/financeiro/corretoras/${encodeURIComponent(c.id)}`, { metodo: "DELETE" }); fechar(); corretoraAtual = null; await carregarFinanceiro(); avisoCentral("Corretora excluída com sucesso"); } catch (erro) { e.target.disabled = false; toast(erro.message, "erro"); }
-    };
-    return;
-  }
-  const renomear = tipo === "renomear" && c;
   caixa.innerHTML = `<form class="fin-acao-form" style="display:contents" novalidate>
-      <div class="field"><label for="reg-acao-nome">${renomear ? "Novo nome da corretora" : "Nome da nova corretora"}</label><input id="reg-acao-nome" type="text" maxlength="120" placeholder="Ex.: Corretora PJ" value="${renomear ? esc(c.nome) : ""}"></div>
-      <div class="actions"><button type="submit" class="btn primary">${renomear ? "Salvar" : "Cadastrar corretora"}</button><button type="button" class="btn" data-nao>Cancelar</button></div>
+      <div class="field"><label for="reg-acao-nome">Nome da nova corretora</label><input id="reg-acao-nome" type="text" maxlength="120" placeholder="Ex.: Corretora PJ"></div>
+      <div class="actions"><button type="submit" class="btn primary">Cadastrar corretora</button><button type="button" class="btn" data-nao>Cancelar</button></div>
     </form>`;
   caixa.hidden = false;
   const campo = caixa.querySelector("input");
   campo.focus();
-  campo.select();
   caixa.querySelector("[data-nao]").onclick = fechar;
   caixa.querySelector("form").onsubmit = async (e) => {
     e.preventDefault();
     const nome = campo.value.trim();
     if (!nome) { toast("Informe o nome da corretora", "erro"); campo.focus(); return; }
     try {
-      if (renomear) await api(`/api/financeiro/corretoras/${encodeURIComponent(c.id)}`, { metodo: "PUT", json: { nome } });
-      else corretoraAtual = (await api("/api/financeiro/corretoras", { metodo: "POST", json: { nome } })).id;
+      await api("/api/financeiro/corretoras", { metodo: "POST", json: { nome } });
       fechar();
       await carregarFinanceiro();
-      avisoCentral(renomear ? "Corretora renomeada com sucesso" : "Corretora cadastrada com sucesso");
+      avisoCentral("Corretora cadastrada com sucesso");
     } catch (erro) { toast(erro.message, "erro"); }
   };
 }
@@ -374,12 +438,11 @@ export function renderComissoes() {
 /* =================== ligações da tela =================== */
 export function iniciarFinanceiro() {
   // Regras
-  $("#reg-corretora").onchange = () => { $("#reg-acao").hidden = true; corretoraAtual = $("#reg-corretora").value || null; paginaRegra = 1; editandoRegra = excluindoRegra = null; renderRegras(); };
-  $("#reg-nova").onclick = () => abrirAcao("nova");
-  $("#reg-renomear").onclick = () => abrirAcao("renomear");
-  $("#reg-excluir").onclick = () => abrirAcao("excluir");
+  $("#reg-nova").onclick = () => abrirNovaCorretora();
+  $("#cor-busca").oninput = () => { buscaCor = $("#cor-busca").value; renderCorretoras(); };
+  $("#reg-voltar").onclick = () => { corretoraAtual = null; renderRegras(); };
   const form = $("#reg-form");
-  form.innerHTML = `${camposDaRegra("fin-nova")}<div class="actions fin-botoes"><span class="note" data-total></span><button class="btn primary" type="submit">Adicionar regra</button><button class="btn" type="button" data-fechar-nova>Fechar</button></div>`;
+  form.innerHTML = `${camposDaRegra("fin-nova", {}, { multiplo: true })}<div class="actions fin-botoes"><span class="note" data-total></span><button class="btn primary" type="submit">Adicionar regra</button><button class="btn" type="button" data-fechar-nova>Fechar</button></div>`;
   ligarTotal(form);
   $("#reg-nova-regra").onclick = () => {
     formRegraAberto = !formRegraAberto;
@@ -390,12 +453,16 @@ export function iniciarFinanceiro() {
   form.onsubmit = async (e) => {
     e.preventDefault();
     try {
-      await api(`/api/financeiro/corretoras/${encodeURIComponent(corretoraAtual)}/regras`, { metodo: "POST", json: lerCamposDaRegra(form) });
-      form.querySelectorAll("[data-campo=nome],[data-campo=angariacao],[data-campo=observacao],[data-parcela]").forEach((el) => (el.value = ""));
-      form.querySelector("[data-campo=nome]").focus();
+      const regras = regrasDoForm(lerCamposDaRegra(form));
+      if (!regras.length || !regras[0].nome) { toast("Escolha ao menos um plano.", "erro"); return; }
+      await api(`/api/financeiro/corretoras/${encodeURIComponent(corretoraAtual)}/regras`, { metodo: "POST", json: regras });
+      const planos = form.querySelector("[data-campo=nome]");
+      for (const o of planos.options) o.selected = false;
+      planos.dispatchEvent(new Event("change"));
+      form.querySelectorAll("[data-campo=angariacao],[data-campo=observacao],[data-parcela]").forEach((el) => (el.value = ""));
+      avisoCentral(regras.length === 1 ? "Regra cadastrada com sucesso" : `${regras.length} regras cadastradas com sucesso`);
       await carregarFinanceiro();
       form.querySelector("[data-parcela]").dispatchEvent(new Event("input", { bubbles: true }));
-      avisoCentral("Regra cadastrada com sucesso");
     } catch (erro) { toast(`Não deu para cadastrar: ${erro.message}`, "erro"); }
   };
   $("#reg-busca").oninput = () => { buscaRegra = $("#reg-busca").value; paginaRegra = 1; renderRegras(); };

@@ -65,11 +65,20 @@ export const pode = (tela, minimo = "ver") => ORDEM_NIVEIS.indexOf(S.eu?.permiss
 export const VIEWS = ["cotacao", "planos", "documentos", "historico", "aceites", "contratos", "regras", "comissoes", "configuracoes"];
 // Telas que são parte de outra na permissão (os submenus do Financeiro).
 export const telaDaView = (v) => ({ regras: "financeiro", comissoes: "financeiro" }[v] ?? v);
+// Grupo do menu (Financeiro): os submenus só aparecem com o grupo aberto.
+export function abrirGrupoDoMenu(aberto) {
+  const grupo = document.querySelector(".tabs-grupo");
+  if (!grupo) return;
+  grupo.setAttribute("aria-expanded", String(aberto));
+  grupo.closest(".tabs").classList.toggle("grupo-aberto", aberto);
+}
 export function show(telaPedida) {
   // Tela sem permissão abre a primeira permitida; Configurações é de todos.
   const permitida = (t) => !S.eu || t === "configuracoes" || pode(telaDaView(t));
   const v = permitida(telaPedida) ? telaPedida : VIEWS.find(permitida);
-  for (const b of document.querySelectorAll(".tabs button")) b.setAttribute("aria-selected", b.dataset.view === v);
+  for (const b of document.querySelectorAll(".tabs button[data-view]")) b.setAttribute("aria-selected", b.dataset.view === v);
+  // Abrir uma tela do Financeiro abre o grupo no menu, para o item escolhido aparecer.
+  if (telaDaView(v) === "financeiro") abrirGrupoDoMenu(true);
   for (const id of VIEWS) $("#v-" + id).hidden = id !== v;
   if (location.hash.slice(1) !== v) history.replaceState(null, "", "#" + v);
 }

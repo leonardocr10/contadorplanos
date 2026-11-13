@@ -319,6 +319,22 @@ const MIGRACOES = [
     db.exec(`UPDATE contratos SET regra_id = NULL WHERE regra_id IN (${antigas});
      DELETE FROM comissao_regras WHERE id IN (${antigas});`);
   },
+  // Cada login tem as próprias corretoras (e as regras delas). O nome só se repete entre logins diferentes.
+  // As que já existiam ficam sem dono até um administrador abrir o Financeiro (ver assumirCorretorasSemDono).
+  (db) => {
+    const colunas = db.prepare("PRAGMA table_info(comissao_corretoras)").all().map((c) => c.name);
+    if (colunas.includes("usuario_id")) return;
+    db.exec(`CREATE TABLE comissao_corretoras_nova (
+       id TEXT PRIMARY KEY,
+       usuario_id TEXT NOT NULL DEFAULT '',
+       nome TEXT NOT NULL COLLATE NOCASE,
+       criado_em TEXT NOT NULL,
+       UNIQUE (usuario_id, nome)
+     );
+     INSERT INTO comissao_corretoras_nova (id, usuario_id, nome, criado_em) SELECT id, '', nome, criado_em FROM comissao_corretoras;
+     DROP TABLE comissao_corretoras;
+     ALTER TABLE comissao_corretoras_nova RENAME TO comissao_corretoras;`);
+  },
 ];
 
 // Troca os documentos dos planos CNPJ pela lista empresarial; com unimed, a Unimed PME recebe a lista dela.
@@ -927,25 +943,36 @@ export class Banco {
   }
 
   /* ---------- financeiro: corretoras e regras de comissão ---------- */
-  listarCorretoras() {
+  // Com usuarioId, só as corretoras daquele login.
+  listarCorretoras({ usuarioId } = {}) {
     const regras = this.db.prepare("SELECT * FROM comissao_regras ORDER BY ordem, rowid").all().map(linhaParaRegra);
-    return this.db.prepare("SELECT * FROM comissao_corretoras ORDER BY nome").all()
-      .map((c) => ({ id: c.id, nome: c.nome, regras: regras.filter((r) => r.corretoraId === c.id) }));
+    const linhas = usuarioId === undefined
+      ? this.db.prepare("SELECT * FROM comissao_corretoras ORDER BY nome").all()
+      : this.db.prepare("SELECT * FROM comissao_corretoras WHERE usuario_id = ? ORDER BY nome").all(usuarioId);
+    return linhas.map((c) => ({ id: c.id, usuarioId: c.usuario_id, nome: c.nome, regras: regras.filter((r) => r.corretoraId === c.id) }));
   }
 
   obterCorretora(id) {
     return this.listarCorretoras().find((c) => c.id === id) ?? null;
   }
 
-  corretoraComNome(nome, outraQue = null) {
-    const l = this.db.prepare("SELECT id FROM comissao_corretoras WHERE nome = ?").get(nome);
+  corretoraComNome(nome, outraQue = null, usuarioId = "") {
+    const l = this.db.prepare("SELECT id FROM comissao_corretoras WHERE nome = ? AND usuario_id = ?").get(nome, usuarioId);
     return l && l.id !== outraQue ? l.id : null;
   }
 
-  criarCorretora(nome) {
+  criarCorretora(nome, usuarioId = "") {
     const id = randomBytes(9).toString("base64url");
-    this.db.prepare("INSERT INTO comissao_corretoras (id, nome, criado_em) VALUES (?, ?, ?)").run(id, nome, new Date().toISOString());
+    this.db.prepare("INSERT INTO comissao_corretoras (id, usuario_id, nome, criado_em) VALUES (?, ?, ?, ?)").run(id, usuarioId, nome, new Date().toISOString());
     return this.obterCorretora(id);
+  }
+
+  // As corretoras de antes da separação por login não têm dono: ficam com o administrador que abrir o
+  // Financeiro primeiro. Uma de mesmo nome que ele já tenha mantém o dono vazio, para não colidir.
+  assumirCorretorasSemDono(usuarioId) {
+    if (!usuarioId) return 0;
+    return this.db.prepare(`UPDATE comissao_corretoras SET usuario_id = ? WHERE usuario_id = '' AND NOT EXISTS (
+        SELECT 1 FROM comissao_corretoras o WHERE o.usuario_id = ? AND o.nome = comissao_corretoras.nome)`).run(usuarioId, usuarioId).changes;
   }
 
   renomearCorretora(id, nome) {

@@ -1,5 +1,5 @@
 // Ponto de entrada: navegação entre as abas, dados do usuário, backup e carga inicial.
-import { $, S, VIEWS, api, avisoCentral, carregarPlanos, definirRender, pode, render, show, toast } from "./estado.js";
+import { $, S, VIEWS, abrirGrupoDoMenu, api, avisoCentral, carregarPlanos, definirRender, pode, render, show, toast } from "./estado.js";
 import { iniciarCotacao, novaCotacao, renderCotacao } from "./cotacao.js";
 import { iniciarPlanos, renderCat } from "./planos.js";
 import { carregarHistorico, iniciarHistorico, renderHist } from "./historico.js";
@@ -24,6 +24,8 @@ definirRender(() => {
 });
 
 /* ---------- abas ---------- */
+// Financeiro abre e fecha os submenus (Regras de pagamento e Comissões).
+$(".tabs-grupo").onclick = (e) => abrirGrupoDoMenu(e.currentTarget.getAttribute("aria-expanded") !== "true");
 document.querySelectorAll(".tabs button[data-view]").forEach((b) => (b.onclick = () => {
   show(b.dataset.view);
   if (["regras", "comissoes"].includes(b.dataset.view)) carregarFinanceiro();
