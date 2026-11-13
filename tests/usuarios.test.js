@@ -216,7 +216,7 @@ async function doisCorretores(t, preparar, linkPublico) {
   return { ...ctx, admin, um: await criar("corretor1"), dois: await criar("corretor2") };
 }
 
-test("cada usuário só vê e altera as próprias cotações, e o administrador vê todas", async (t) => {
+test("cada usuário só vê e altera as próprias cotações, inclusive o administrador", async (t) => {
   const { pedir, admin, um, dois } = await doisCorretores(t);
   await pedir(admin, "/api/config", "PUT", { nome: "Dono" });
   await pedir(um, "/api/config", "PUT", { nome: "Corretor Um" });
@@ -227,9 +227,11 @@ test("cada usuário só vê e altera as próprias cotações, e o administrador 
   assert.equal((await lista(um))[0].responsavel, undefined);
   assert.equal((await lista(dois)).length, 1);
   assert.notEqual((await lista(dois))[0].id, c.id);
-  const todas = await lista(admin);
-  assert.equal(todas.length, 2);
-  assert.equal(todas.find((x) => x.id === c.id).responsavel, "Corretor Um");
+  // O administrador também não vê as cotações dos outros.
+  assert.deepEqual(await lista(admin), []);
+  const minha = await (await pedir(admin, "/api/cotacoes", "POST", cotacao({ cliente: "Do administrador" }))).json();
+  assert.deepEqual((await lista(admin)).map((x) => x.id), [minha.id]);
+  assert.ok(!(await lista(um)).some((x) => x.id === minha.id));
   assert.notEqual(c.usuarioId, "tentativa-de-outro-dono");
   // A busca por número também respeita o dono.
   assert.equal((await (await pedir(um, "/api/cotacoes?fone=34999990000")).json()).length, 1);
@@ -239,9 +241,10 @@ test("cada usuário só vê e altera as próprias cotações, e o administrador 
   assert.equal((await pedir(dois, `/api/cotacoes/${c.id}`, "DELETE")).status, 404);
   assert.equal((await lista(um))[0].mensagem, "Olá");
   assert.equal((await pedir(um, `/api/cotacoes/${c.id}`, "PATCH", { status: "Vendida" })).status, 200);
-  assert.equal((await pedir(admin, `/api/cotacoes/${c.id}`, "PATCH", { status: "Negativa" })).status, 200);
-  // O administrador altera sem virar o dono.
-  assert.equal((await lista(um))[0].status, "Negativa");
+  for (const [metodo, corpo] of [["PUT", cotacao({ mensagem: "invadiu" })], ["PATCH", { status: "Negativa" }], ["DELETE"]]) {
+    assert.equal((await pedir(admin, `/api/cotacoes/${c.id}`, metodo, corpo)).status, 404, metodo);
+  }
+  assert.equal((await lista(um))[0].status, "Vendida");
   assert.equal((await pedir(um, `/api/cotacoes/${c.id}`, "DELETE")).status, 204);
 });
 
@@ -250,7 +253,6 @@ test("cotações de antes dos logins ficam só com o administrador", async (t) =
   const todas = await (await pedir(admin, "/api/cotacoes")).json();
   assert.equal(todas.length, 1);
   assert.equal(todas[0].cliente, "Antiga");
-  assert.equal(todas[0].responsavel, "");
   assert.equal((await (await pedir(um, "/api/cotacoes")).json()).length, 0);
   assert.equal((await pedir(um, `/api/cotacoes/${todas[0].id}`, "DELETE")).status, 404);
 });

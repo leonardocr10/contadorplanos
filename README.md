@@ -34,6 +34,8 @@ Se o administrador esquecer a senha, coloque a nova senha em `LOGIN_SENHA`, acre
 
 Em **Configurações > Usuários**, o administrador escolhe, para cada usuário e cada tela (Nova Cotação, Planos e Valores, Documentos, Histórico, Aceites e Contratos Vendidos), entre **Sem acesso**, **Visualização** e **Edição**. O administrador sempre tem acesso a tudo. Quem só visualiza a Nova Cotação pode simular, mas não envia nem salva.
 
+No **Histórico**, cada usuário vê e altera só as próprias cotações, inclusive o administrador. As cotações de antes dos logins ficam com o administrador, e o backup guarda as de todos.
+
 Usuários não são excluídos: o administrador **desativa** quem não deve mais entrar. O login fica bloqueado, e as cotações, os contratos vendidos e os documentos dos clientes continuam guardados. **Ativar** devolve o acesso com tudo como estava.
 
 ### Recuperar a senha por e-mail

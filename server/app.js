@@ -267,9 +267,11 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     const u = dono ? banco.obterUsuario(dono) : null;
     return u ? u.nome || u.login : "";
   };
+  // Cotações: cada login vê e altera só as próprias, inclusive o administrador, que fica também com as de antes dos logins.
+  const minhaCotacao = (req, dono) => !req.usuario || dono === req.usuario.id || (eAdmin(req) && !dono);
   const cotacaoVisivel = (req) => {
     const c = banco.obterCotacao(req.params.id);
-    return c && podeVer(req, c.usuarioId) ? c : null;
+    return c && minhaCotacao(req, c.usuarioId) ? c : null;
   };
   const NAO_ACHOU_COTACAO = { erro: "Cotação não encontrada." };
 
@@ -335,9 +337,8 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
       fone: typeof fone === "string" ? normFone(fone) : "",
       q: typeof q === "string" ? q : "",
       status: typeof status === "string" ? status : "",
-      usuarioId: eAdmin(req) ? undefined : req.usuario.id,
     });
-    res.json(eAdmin(req) ? lista.map((c) => ({ ...c, responsavel: responsavel(c.usuarioId) })) : lista);
+    res.json(lista.filter((c) => minhaCotacao(req, c.usuarioId)));
   });
 
   app.post("/api/cotacoes", exige("cotacao", "editar"), (req, res) => {
