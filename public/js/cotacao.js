@@ -575,15 +575,13 @@ async function copiarLink() {
   }
   caixa.textContent = texto;
   caixa.hidden = false;
-  const copiou = await copiarTexto(texto);
-  // Com várias propostas o botão é "Mostrar links": os links ficam à vista, um por plano, e também vão copiados.
+  // Com várias propostas o botão é "Mostrar links": os links só ficam à vista, um por plano, sem copiar.
   if (links.length > 1) {
     caixa.scrollIntoView({ block: "nearest", behavior: "smooth" });
-    if (copiou) toast(S.linkLocal ? "Links copiados, mas só abrem neste computador: preencha PUBLIC_URL no .env" : "Links abaixo dos botões, e já copiados", S.linkLocal ? "aviso" : "sucesso");
-    else toast("Links abaixo dos botões: selecione e copie");
+    if (S.linkLocal) toast("Estes links só abrem neste computador: preencha PUBLIC_URL no .env", "aviso");
     return;
   }
-  if (copiou) toast(S.linkLocal ? "Link copiado, mas ele só abre neste computador: preencha PUBLIC_URL no .env" : "Link copiado: cole na conversa do cliente", S.linkLocal ? "aviso" : "sucesso");
+  if (await copiarTexto(texto)) toast(S.linkLocal ? "Link copiado, mas ele só abre neste computador: preencha PUBLIC_URL no .env" : "Link copiado: cole na conversa do cliente", S.linkLocal ? "aviso" : "sucesso");
   else toast("O navegador bloqueou a cópia: selecione o link abaixo dos botões", "erro");
 }
 
