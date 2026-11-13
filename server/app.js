@@ -133,7 +133,8 @@ function validarRegra(b) {
   const nome = textoOpc(b.nome, "plano", 120);
   if (!nome) throw new ErroEntrada("Escolha o plano da regra.");
   if (!SEGMENTOS.includes(b.segmento)) throw new ErroEntrada("Escolha o segmento da regra: Pessoa física ou PME.");
-  const angariacao = b.angariacao === undefined || b.angariacao === null || b.angariacao === "" ? 0 : Number(b.angariacao);
+  // A angariação só vale para Pessoa física; no PME ela é ignorada.
+  const angariacao = b.segmento !== "PF" || b.angariacao === undefined || b.angariacao === null || b.angariacao === "" ? 0 : Number(b.angariacao);
   if (!Number.isFinite(angariacao) || angariacao < 0 || angariacao > 1000) throw new ErroEntrada("A angariação precisa ficar entre 0% e 1000%.");
   const parcelas = Array.isArray(b.parcelas) ? b.parcelas.map((p) => (p === null || p === "" ? 0 : Number(p))) : null;
   if (!parcelas || parcelas.length > MAX_PARCELAS || parcelas.some((p) => !Number.isFinite(p) || p < 0 || p > 1000)) throw new ErroEntrada(`Informe até ${MAX_PARCELAS} parcelas, cada uma entre 0% e 1000%.`);

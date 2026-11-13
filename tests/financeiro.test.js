@@ -59,17 +59,19 @@ test("corretoras e regras: cadastro com os planos do sistema, edição e exclus�
   const amil = (await api(`/api/financeiro/corretoras/${c.id}/regras`, "POST", regra())).corpo;
   assert.deepEqual([amil.nome, amil.segmento, amil.parcelas], ["AMIL PRATA 30%", "PME", [100, 100, 50]]);
   // Plano fora da lista do sistema ou de outro segmento (PF usa planos PF; PME, planos CNPJ) não passa.
-  for (const ruim of [{ nome: "" }, { nome: "Plano Inventado" }, { nome: "AMIL OURO" }, { segmento: "PF" }, { segmento: "Adesão PF" }, { parcelas: [-1] }, { parcelas: [10, 10, 10, 10, 10] }, { parcelas: [] }, { parcelas: [0, 0] }, { angariacao: -1 }]) {
+  for (const ruim of [{ nome: "" }, { nome: "Plano Inventado" }, { nome: "AMIL OURO" }, { segmento: "PF" }, { segmento: "Adesão PF" }, { parcelas: [-1] }, { parcelas: [10, 10, 10, 10, 10] }, { parcelas: [] }, { parcelas: [0, 0] }, { nome: "AMIL OURO", segmento: "PF", angariacao: -1 }]) {
     assert.equal((await api(`/api/financeiro/corretoras/${c.id}/regras`, "POST", regra(ruim))).status, 400, JSON.stringify(ruim));
   }
   // Parcelas em branco no fim não contam; só a angariação também vale.
   const pf = (await api(`/api/financeiro/corretoras/${c.id}/regras`, "POST", regra({ nome: "AMIL OURO", segmento: "PF", angariacao: 100, parcelas: [100, 50, null, ""] }))).corpo;
   assert.deepEqual([pf.segmento, pf.angariacao, pf.parcelas], ["PF", 100, [100, 50]]);
+  // No PME a angariação é ignorada.
   const p4 = (await api(`/api/financeiro/corretoras/${c.id}/regras`, "POST", regra({ nome: "PLAMEDH BASIC", angariacao: 100, parcelas: [0, 30, 0, 20] }))).corpo;
-  assert.deepEqual([p4.angariacao, p4.parcelas], [100, [0, 30, 0, 20]]);
-  assert.equal((await api(`/api/financeiro/corretoras/${c.id}/regras`, "POST", regra({ nome: "PLAM TOTAL", angariacao: 80, parcelas: [] }))).status, 201);
+  assert.deepEqual([p4.angariacao, p4.parcelas], [0, [0, 30, 0, 20]]);
+  assert.equal((await api(`/api/financeiro/corretoras/${c.id}/regras`, "POST", regra({ nome: "PLAM TOTAL", angariacao: 80, parcelas: [] }))).status, 400);
+  assert.equal((await api(`/api/financeiro/corretoras/${c.id}/regras`, "POST", regra({ nome: "PLAM SAÚDE", segmento: "PF", angariacao: 80, parcelas: [] }))).status, 201);
   let [lista] = (await api("/api/financeiro/corretoras")).corpo;
-  assert.deepEqual(lista.regras.map((r) => r.nome), ["AMIL PRATA 30%", "AMIL OURO", "PLAMEDH BASIC", "PLAM TOTAL"]);
+  assert.deepEqual(lista.regras.map((r) => r.nome), ["AMIL PRATA 30%", "AMIL OURO", "PLAMEDH BASIC", "PLAM SAÚDE"]);
 
   const editada = (await api(`/api/financeiro/regras/${amil.id}`, "PUT", regra({ parcelas: [100, 50] }))).corpo;
   assert.deepEqual(editada.parcelas, [100, 50]);
@@ -109,4 +111,32 @@ test("sem acesso ao Financeiro, as rotas ficam fechadas; o padrão de quem não 
   assert.equal(permissoesDoUsuario("usuario", "{}").financeiro, "nenhum");
   assert.equal(permissoesDoUsuario("usuario", JSON.stringify({ financeiro: "ver" })).financeiro, "ver");
   assert.equal(permissoesDoUsuario("admin", "{}").financeiro, "editar");
+});
+
+test("ao atualizar, saem as regras antigas que não são de um plano cadastrado", () => {
+  const pasta = mkdtempSync(join(tmpdir(), "cotador-fin-mig-"));
+  const arquivo = join(pasta, "cotador.db"), planos = join(raiz, "dados", "planos.json");
+  try {
+    let banco = new Banco(arquivo, planos);
+    const c = banco.criarCorretora("Nexyun");
+    banco.criarRegras(c.id, [
+      { nome: "Bradesco Dental", segmento: "PF", angariacao: 0, parcelas: [100] },
+      { nome: "Affix", segmento: "Adesão PF", angariacao: 100, parcelas: [25] },
+      { nome: "AMIL OURO", segmento: "PME", angariacao: 0, parcelas: [100] },
+      { nome: "AMIL OURO", segmento: "PF", angariacao: 100, parcelas: [100, 50] },
+      { nome: "AMIL OURO 30%", segmento: "PME", angariacao: 0, parcelas: [100] },
+    ]);
+    const antiga = banco.listarCorretoras()[0].regras[0].id;
+    const contrato = banco.criarContrato({ nome: "Maria", fone: "34999990000", plano: "AMIL OURO", valor: 300, ativacao: "2026-12-01" });
+    banco.definirComissaoDoContrato(contrato.id, antiga, null);
+    const versao = banco.db.prepare("PRAGMA user_version").get().user_version;
+    banco.db.exec(`PRAGMA user_version = ${versao - 1}`);
+    banco.fechar();
+    banco = new Banco(arquivo, planos);
+    assert.deepEqual(banco.listarCorretoras()[0].regras.map((r) => `${r.nome}|${r.segmento}`), ["AMIL OURO|PF", "AMIL OURO 30%|PME"]);
+    assert.equal(banco.listarContratos().find((x) => x.id === contrato.id).regraId, null);
+    banco.fechar();
+  } finally {
+    rmSync(pasta, { recursive: true, force: true });
+  }
 });

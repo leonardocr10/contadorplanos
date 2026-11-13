@@ -30,7 +30,7 @@ export function somarMeses(iso, n) {
 export function calcularComissao({ valor, ativacao }, regra) {
   if (!regra) return { itens: [], total: 0 };
   const itens = [];
-  if (regra.angariacao > 0) itens.push({ rotulo: "Angariação", percentual: regra.angariacao, base: valor, data: ativacao, valor: r2(valor * regra.angariacao / 100) });
+  if (regra.segmento !== "PME" && regra.angariacao > 0) itens.push({ rotulo: "Angariação", percentual: regra.angariacao, base: valor, data: ativacao, valor: r2(valor * regra.angariacao / 100) });
   regra.parcelas.forEach((p, i) => {
     if (!p) return;
     itens.push({ rotulo: `${i + 1}ª parcela`, percentual: p, base: valor, data: somarMeses(ativacao, i), valor: r2(valor * p / 100) });

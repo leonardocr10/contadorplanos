@@ -311,6 +311,14 @@ const MIGRACOES = [
     if (!colunas.includes("regra_id")) db.exec("ALTER TABLE contratos ADD COLUMN regra_id TEXT");
     if (!colunas.includes("adesao")) db.exec("ALTER TABLE contratos ADD COLUMN adesao REAL");
   },
+  // Regras de comissão passaram a ser só de Pessoa física e PME, de um plano cadastrado (PF ou CNPJ).
+  // As regras antigas, das tabelas importadas, saem; os contratos que as usavam ficam sem regra.
+  (db) => {
+    const antigas = `SELECT r.id FROM comissao_regras r WHERE NOT EXISTS (
+       SELECT 1 FROM planos p WHERE p.nome = r.nome AND p.categoria = CASE r.segmento WHEN 'PF' THEN 'PF' WHEN 'PME' THEN 'CNPJ' END)`;
+    db.exec(`UPDATE contratos SET regra_id = NULL WHERE regra_id IN (${antigas});
+     DELETE FROM comissao_regras WHERE id IN (${antigas});`);
+  },
 ];
 
 // Troca os documentos dos planos CNPJ pela lista empresarial; com unimed, a Unimed PME recebe a lista dela.
