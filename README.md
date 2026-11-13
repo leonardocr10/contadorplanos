@@ -19,6 +19,8 @@ Com o login de administrador, em **Configurações > Atualizar sistema**, clique
 
 Cada pessoa entra com o próprio login e, em **Configurações**, preenche os próprios dados e altera a própria senha. O administrador também vê usuários, backup e a atualização do sistema. As senhas ficam no banco só como hash. As páginas das propostas continuam abrindo sem login para o cliente.
 
+Cada login é de uso individual: quando alguém entra com um login que já está em uso, o acesso anterior é encerrado na hora. Quem caiu volta para a tela de login, que explica o motivo.
+
 O primeiro administrador é criado a partir do arquivo `.env`, que não vai para o GitHub:
 
 ```

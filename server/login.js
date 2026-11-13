@@ -84,6 +84,9 @@ export function criarLogin(env, banco, { enviarEmail = null, urlBase = () => nul
   const usuarioEnv = () => (env.LOGIN_USUARIO || "").trim();
   const senhaEnv = () => (env.LOGIN_SENHA || "").trim();
   const sessoes = new Map(), falhas = new Map();
+  // Sessões encerradas porque o mesmo login entrou em outro lugar: a tela de login explica o motivo a quem caiu.
+  const derrubadas = new Map();
+  const AVISO_DERRUBADA = "Este login entrou em outro dispositivo, por isso este acesso foi encerrado. Cada login é de uso individual.";
   // Login que não existe também passa pelo scrypt, para o tempo de resposta não revelar quem existe.
   const HASH_FALSO = gerarHash(randomBytes(16));
 
@@ -137,7 +140,9 @@ export function criarLogin(env, banco, { enviarEmail = null, urlBase = () => nul
     if (sessaoDe(req)) return res.redirect(303, "/");
     res.setHeader("Cache-Control", "no-store");
     if (!garantirAdmin()) return res.type("html").send(pagina(AVISO_CONFIG, false));
-    res.type("html").send(pagina());
+    // O aviso aparece uma vez só, para quem foi derrubado.
+    const caiu = derrubadas.delete(tokenDe(req));
+    res.type("html").send(pagina(caiu ? AVISO_DERRUBADA : ""));
   });
 
   rotas.post("/login", express.urlencoded({ extended: false, limit: "4kb" }), (req, res) => {
@@ -156,6 +161,13 @@ export function criarLogin(env, banco, { enviarEmail = null, urlBase = () => nul
     // Sessões vencidas saem da memória a cada login, para não se acumularem com o servidor ligado por meses.
     const agora = Date.now();
     for (const [t, s] of sessoes) if (s.expira < agora) sessoes.delete(t);
+    for (const [t, expira] of derrubadas) if (expira < agora) derrubadas.delete(t);
+    // Cada login é de uma pessoa só: entrar de novo derruba o acesso anterior do mesmo usuário.
+    for (const [t, s] of sessoes) {
+      if (s.usuarioId !== usuario.id) continue;
+      sessoes.delete(t);
+      derrubadas.set(t, s.expira);
+    }
     const token = randomBytes(32).toString("base64url");
     sessoes.set(token, { usuarioId: usuario.id, expira: Date.now() + DURACAO_SESSAO, marca: hash });
     res.setHeader("Set-Cookie", `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${DURACAO_SESSAO / 1000}`);

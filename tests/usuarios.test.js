@@ -137,9 +137,31 @@ test("nome, telefone e corretora são de cada login e vão na proposta dele", as
   assert.ok(doAdmin.includes("Dono") && !doAdmin.includes("Corretor Um"));
 });
 
-test("troca a própria senha conferindo a atual, e as outras sessões caem", async (t) => {
+test("entrar de novo com o mesmo login derruba o acesso anterior, e só o dele", async (t) => {
+  const { base, entrar, pedir } = await subir(t);
+  const admin = (await entrar("chefe", SENHA_ADMIN)).cookie;
+  await pedir(admin, "/api/usuarios", "POST", { login: "corretor1", email: "corretor1@exemplo.com", senha: "senha-do-corretor" });
+  const primeiro = (await entrar("corretor1", "senha-do-corretor")).cookie;
+  assert.equal((await pedir(primeiro, "/api/eu")).status, 200);
+  // Senha errada não derruba ninguém.
+  assert.equal((await entrar("corretor1", "errada")).status, 401);
+  assert.equal((await pedir(primeiro, "/api/eu")).status, 200);
+  const segundo = (await entrar("corretor1", "senha-do-corretor")).cookie;
+  assert.equal((await pedir(segundo, "/api/eu")).status, 200);
+  const caiu = await pedir(primeiro, "/api/eu");
+  assert.equal(caiu.status, 401);
+  assert.equal((await caiu.json()).codigo, "sem_login");
+  assert.equal((await pedir(admin, "/api/eu")).status, 200);
+  // A tela de login explica o motivo a quem caiu, uma vez só.
+  const tela = () => fetch(base + "/login", { headers: { cookie: primeiro } }).then((r) => r.text());
+  assert.match(await tela(), /entrou em outro dispositivo/);
+  assert.doesNotMatch(await tela(), /entrou em outro dispositivo/);
+  assert.doesNotMatch(await fetch(base + "/login").then((r) => r.text()), /entrou em outro dispositivo/);
+});
+
+test("troca a própria senha conferindo a atual, e continua conectado", async (t) => {
   const { entrar, pedir } = await subir(t);
-  const a = (await entrar("chefe", SENHA_ADMIN)).cookie, outra = (await entrar("chefe", SENHA_ADMIN)).cookie;
+  const outra = (await entrar("chefe", SENHA_ADMIN)).cookie, a = (await entrar("chefe", SENHA_ADMIN)).cookie;
   const trocar = (atual, nova) => pedir(a, "/api/eu/senha", "PUT", { atual, nova });
   assert.equal((await pedir(a, "/api/eu/senha", "PUT", { nova: "nova-senha-longa" })).status, 400);
   assert.equal((await trocar("errada", "nova-senha-longa")).status, 400);
