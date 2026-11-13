@@ -525,7 +525,7 @@ body{margin:0}
 /* Menu na lateral esquerda; em telas estreitas ele volta para o topo. */
 @media (min-width:901px){
   body{padding-left:248px}
-  header.top{position:fixed;inset:0 auto 0 0;z-index:10;width:248px;margin:0;padding:20px 12px;display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;gap:20px;box-sizing:border-box;overflow-y:auto;background:var(--surface);border-right:1px solid var(--line)}
+  header.top{position:fixed;inset:0 auto 0 0;z-index:10;width:248px;margin:0;padding:20px 12px;display:flex;flex-direction:column;flex-wrap:nowrap;align-items:stretch;justify-content:flex-start;gap:20px;box-sizing:border-box;overflow-y:auto;background:var(--surface);border-right:1px solid var(--line)}
   header.top h1{padding:0 8px;font-size:22px;line-height:1.15}
   header.top h1 small{margin-top:6px}
   .tabs{flex:1;flex-direction:column;gap:4px;padding:0;background:transparent;border:0;border-radius:0}
