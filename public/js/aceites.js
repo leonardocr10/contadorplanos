@@ -36,23 +36,30 @@ export function renderAceites() {
     box.innerHTML = `<div class="status">Nenhum aceite ainda. Quando um cliente aceitar a proposta pelo link, ele aparece aqui.</div>`;
     return;
   }
-  box.innerHTML = aceites.map((a) => `<div class="hq" data-token="${esc(a.token)}">
-    <div class="hq-top"><span class="hg-name">${esc(a.cliente || "Sem nome")}</span><span class="pill ${situacao(a).pendente ? "st-neg" : "st-ok"}">${situacao(a).rotulo}</span></div>
-    <div class="hq-date">${a.fone ? esc(fmtFone(a.fone)) : "Sem número"} · aceitou em ${esc(fmtData(a.aceitoEm))}${a.responsavel ? ` · Corretor: ${esc(a.responsavel)}` : ""}</div>
-    <div class="hq-plans"><b>${esc(a.plano)}</b> · ${esc(a.acomodacao)} · R$ ${brl(a.valor)} · ${a.categoria === "CNPJ" ? "CNPJ" : "PF"}</div>
-    ${a.docsEnviadosEm ? `<div class="note">Conversa aberta com a lista em ${esc(fmtData(a.docsEnviadosEm))}</div>` : ""}
-    ${a.arquivos.length || a.docsConcluidoEm ? `<div class="note">${esc(resumoDosRecebidos(a))}</div>` : ""}
-    ${a.contatoCliente ? contatoDoCliente(a.contatoCliente) : ""}
-    <div class="actions">
-      ${pode("aceites", "editar") ? `<button class="btn ${situacao(a).pendente ? "primary" : ""}" data-docs="1">${a.docsEnviadosEm ? "Pedir de novo no WhatsApp" : "Pedir documentos no WhatsApp"}</button>` : ""}
-      <button class="btn ${a.docsConcluidoEm ? "primary" : ""}" data-recebidos aria-expanded="${recebidosAbertos === a.token}">Documentos do cliente${a.arquivos.length ? ` <span class="ctr-qtd">${a.arquivos.length}</span>` : ""}</button>
-      ${a.linkDocumentos ? `<button class="btn" data-link title="Link em que o cliente envia os documentos, entrando com o telefone">Copiar link de envio</button>` : ""}
-      ${pode("aceites", "editar") ? `<button class="btn danger" data-excluir="1">Excluir</button>` : ""}
+  // Uma linha fina por aceite, nas mesmas colunas dos Contratos Vendidos; os detalhes ficam nas dicas e no painel.
+  box.innerHTML = aceites.map((a) => {
+    const st = situacao(a), tipo = a.categoria === "CNPJ" ? "CNPJ" : "PF";
+    const dicaSituacao = [a.arquivos.length || a.docsConcluidoEm ? resumoDosRecebidos(a) : "", a.docsEnviadosEm ? `Lista aberta no WhatsApp em ${fmtData(a.docsEnviadosEm)}` : ""].filter(Boolean).join(" · ");
+    return `<div class="hq ctr-item${st.pendente ? " ctr-pendente" : ""}" data-token="${esc(a.token)}">
+    <div class="ctr-linha">
+      <b class="ctr-nome" title="${esc([a.cliente || "Sem nome", a.responsavel ? `Corretor: ${a.responsavel}` : ""].filter(Boolean).join(" · "))}">${esc(a.cliente || "Sem nome")}</b>
+      <span class="ctr-fone">${a.fone ? esc(fmtFone(a.fone)) : "Sem número"}</span>
+      <span class="ctr-plano" title="${esc(`${a.plano} · ${a.acomodacao} · ${tipo}`)}">${esc(a.plano)} <span class="ctr-sub">· ${esc(a.acomodacao)} · ${tipo}</span></span>
+      <span class="ctr-valor">R$ ${brl(a.valor)}</span>
+      <span class="ctr-ativ" title="Aceitou em ${esc(fmtData(a.aceitoEm))}">${esc(new Date(a.aceitoEm).toLocaleDateString("pt-BR"))}</span>
+      <span class="ctr-sit"><span class="pill ${st.pendente ? "st-neg" : "st-ok"}"${dicaSituacao ? ` title="${esc(dicaSituacao)}"` : ""}>${st.rotulo}</span></span>
+      <div class="actions ctr-acoes">
+        ${pode("aceites", "editar") ? `<button class="btn ${st.pendente ? "primary" : ""}" data-docs="1" title="${a.docsEnviadosEm ? "Pedir de novo os documentos no WhatsApp" : "Pedir os documentos no WhatsApp"}">WhatsApp</button>` : ""}
+        <button class="btn" data-recebidos aria-expanded="${recebidosAbertos === a.token}" title="Documentos enviados pelo cliente">Documentos${a.arquivos.length ? ` <span class="ctr-qtd">${a.arquivos.length}</span>` : ""}</button>
+        ${a.linkDocumentos ? `<button class="btn" data-link title="Copiar o link em que o cliente envia os documentos, entrando com o telefone">Copiar link</button>` : ""}
+        ${pode("aceites", "editar") ? `<button class="btn danger" data-excluir="1">Excluir</button>` : ""}
+      </div>
     </div>
     ${recebidosAbertos === a.token ? painelDeRecebidos(a) : ""}
     ${pode("aceites", "editar") ? `${escolha?.token === a.token ? painelDeDocumentos(a) : ""}
     <div class="status" data-confirma hidden>Excluir o aceite de <b>${esc(a.cliente || "Sem nome")}</b>${a.arquivos.length ? ` e ${a.arquivos.length === 1 ? "o documento que o cliente enviou" : `os ${a.arquivos.length} documentos que o cliente enviou`}` : ""}? O link desta proposta deixa de abrir para o cliente. A cotação continua no histórico. <span class="actions" style="margin-top:8px"><button class="btn danger" data-sim>Sim, excluir</button><button class="btn" data-nao>Manter</button></span></div>` : ""}
-  </div>`).join("");
+  </div>`;
+  }).join("");
   const doCartao = (b) => aceites.find((a) => a.token === b.closest(".hq").dataset.token);
   box.querySelectorAll("[data-docs]").forEach((b) => (b.onclick = () => escolherDocumentos(doCartao(b))));
   box.querySelectorAll("[data-recebidos]").forEach((b) => (b.onclick = () => {
@@ -128,6 +135,7 @@ function painelDeRecebidos(a) {
   const fora = a.arquivos.filter((x) => !a.documentos.includes(x.documento));
   return `<div class="ace-docs">
     <div class="ace-docs-topo"><span class="label">Documentos enviados pelo cliente</span><span class="note">${esc(a.arquivos.length ? resumoDosRecebidos(a) : "O cliente ainda não enviou nenhum arquivo.")}</span></div>
+    ${a.contatoCliente ? contatoDoCliente(a.contatoCliente) : ""}
     ${a.documentos.map((d) => grupo(d, a.arquivos.filter((x) => x.documento === d), "FALTA")).join("")}
     ${fora.length ? grupo("Outros documentos", fora, "") : ""}
     ${a.linkDocumentos ? `<div class="note">O cliente envia por este link, entrando com o telefone${a.fone ? ` ${esc(fmtFone(a.fone))}` : ""}: <span style="overflow-wrap:anywhere">${esc(a.linkDocumentos)}</span></div>` : ""}
