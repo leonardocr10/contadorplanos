@@ -276,6 +276,10 @@ const MIGRACOES = [
     const colunas = db.prepare("PRAGMA table_info(propostas)").all().map((c) => c.name);
     for (const nome of ["docs_nome", "docs_email"]) if (!colunas.includes(nome)) db.exec(`ALTER TABLE propostas ADD COLUMN ${nome} TEXT NOT NULL DEFAULT ''`);
   },
+  // Quando o corretor avisou o cliente, pelo WhatsApp, que a proposta para assinar foi enviada ao e-mail.
+  (db) => {
+    if (!db.prepare("PRAGMA table_info(propostas)").all().some((c) => c.name === "proposta_enviada_em")) db.exec("ALTER TABLE propostas ADD COLUMN proposta_enviada_em TEXT");
+  },
 ];
 
 // Troca os documentos dos planos CNPJ pela lista empresarial; com unimed, a Unimed PME recebe a lista dela.
@@ -410,7 +414,7 @@ function linhaParaProposta(l) {
     token: l.token, dados: JSON.parse(l.dados), fone: l.fone, criadoEm: l.criado_em,
     aceitoEm: l.aceito_em, acomodacao: l.acomodacao, valor: l.valor, docsEnviadosEm: l.docs_enviados_em,
     docsFone: l.docs_fone, docsChave: l.docs_chave, docsConcluidoEm: l.docs_concluido_em,
-    docsNome: l.docs_nome ?? "", docsEmail: l.docs_email ?? "",
+    docsNome: l.docs_nome ?? "", docsEmail: l.docs_email ?? "", propostaEnviadaEm: l.proposta_enviada_em ?? null,
   };
 }
 
@@ -980,6 +984,11 @@ export class Banco {
         .run(new Date().toISOString(), contato.nome, contato.email, contato.fone, contato.fone, token);
     }
     return this.obterProposta(token);
+  }
+
+  marcarPropostaEnviada(token) {
+    const r = this.db.prepare("UPDATE propostas SET proposta_enviada_em = ? WHERE token = ? AND aceito_em IS NOT NULL").run(new Date().toISOString(), token);
+    return r.changes > 0 ? this.obterProposta(token) : null;
   }
 
   marcarDocumentosEnviados(token) {

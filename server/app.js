@@ -487,7 +487,7 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
         token: a.token, fone: a.fone, cliente: a.dados.cliente, plano: a.dados.plano.nome, categoria: a.dados.plano.categoria,
         acomodacao: a.acomodacao, valor: a.valor, aceitoEm: a.aceitoEm, docsEnviadosEm: a.docsEnviadosEm,
         documentos: banco.documentosDaProposta(a.dados),
-        arquivos: arquivos.get(a.token) ?? [], docsConcluidoEm: a.docsConcluidoEm,
+        arquivos: arquivos.get(a.token) ?? [], docsConcluidoEm: a.docsConcluidoEm, propostaEnviadaEm: a.propostaEnviadaEm,
         // Contato que o cliente informou ao concluir o envio dos documentos.
         contatoCliente: a.docsEmail ? { nome: a.docsNome, fone: a.docsFone || a.fone, email: a.docsEmail } : null,
         linkDocumentos: link.estado === "ativo" ? `${link.url}/p/${a.token}/documentos` : null,
@@ -503,6 +503,14 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     const a = banco.marcarDocumentosEnviados(req.params.token);
     if (!a) return res.status(404).json({ erro: "Aceite não encontrado." });
     res.json({ docsEnviadosEm: a.docsEnviadosEm });
+  });
+
+  // O corretor abriu no WhatsApp o aviso de que a proposta para assinar foi enviada ao e-mail do cliente.
+  app.post("/api/aceites/:token/proposta-enviada", exige("aceites", "editar"), (req, res) => {
+    const proposta = banco.obterProposta(req.params.token);
+    const a = proposta && podeVer(req, donoDaProposta(proposta)) ? banco.marcarPropostaEnviada(req.params.token) : null;
+    if (!a) return res.status(404).json({ erro: "Aceite não encontrado." });
+    res.json({ propostaEnviadaEm: a.propostaEnviadaEm });
   });
 
   // Documento enviado pelo cliente: só abre com login, para quem pode ver o aceite.

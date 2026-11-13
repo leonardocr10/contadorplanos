@@ -3,11 +3,13 @@ import { brl, fmtFone } from "./calculo.js";
 import { $, S, api, avisoCentral, esc, pode, toast } from "./estado.js";
 import { copiarTexto } from "./cotacao.js";
 import { ehPdf, esquecerArquivo, fmtTamanho, miniaturaPronta, mostrarMiniaturas } from "./contratos.js";
-import { linkConversaDireta, mensagemDocumentos } from "./mensagem.js";
+import { linkConversaDireta, mensagemDocumentos, mensagemPropostaEnviada } from "./mensagem.js";
 
 let aceites = [], assinatura = null;
 // Escolha de documentos em andamento: sobrevive às atualizações automáticas da lista.
 let escolha = null;
+// Mensagem "Proposta enviada" aberta para edição: o texto sobrevive às atualizações automáticas da lista.
+let aviso = null;
 // Aceite com a lista de documentos recebidos aberta.
 let recebidosAbertos = null;
 const fmtData = (iso) => new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
@@ -40,7 +42,7 @@ export function renderAceites() {
   // Uma linha fina por aceite, nas mesmas colunas dos Contratos Vendidos; os detalhes ficam nas dicas e no painel.
   box.innerHTML = aceites.map((a) => {
     const st = situacao(a), tipo = a.categoria === "CNPJ" ? "CNPJ" : "PF";
-    const dicaSituacao = [a.arquivos.length || a.docsConcluidoEm ? resumoDosRecebidos(a) : "", a.docsEnviadosEm ? `Lista aberta no WhatsApp em ${fmtData(a.docsEnviadosEm)}` : ""].filter(Boolean).join(" · ");
+    const dicaSituacao = [a.arquivos.length || a.docsConcluidoEm ? resumoDosRecebidos(a) : "", a.docsEnviadosEm ? `Lista aberta no WhatsApp em ${fmtData(a.docsEnviadosEm)}` : "", a.propostaEnviadaEm ? `Aviso da proposta enviado em ${fmtData(a.propostaEnviadaEm)}` : ""].filter(Boolean).join(" · ");
     return `<div class="hq ctr-item${st.pendente ? " ctr-pendente" : ""}" data-token="${esc(a.token)}">
     <div class="ctr-linha">
       <b class="ctr-nome" title="${esc([a.cliente || "Sem nome", a.responsavel ? `Corretor: ${a.responsavel}` : ""].filter(Boolean).join(" · "))}">${esc(a.cliente || "Sem nome")}</b>
@@ -52,10 +54,12 @@ export function renderAceites() {
       <div class="actions ctr-acoes">
         ${pode("aceites", "editar") ? `<button class="btn ${st.pendente ? "primary" : ""}" data-docs="1" title="${a.docsEnviadosEm ? "Pedir de novo os documentos no WhatsApp" : "Pedir os documentos no WhatsApp"}">WhatsApp</button>` : ""}
         <button class="btn" data-recebidos aria-expanded="${recebidosAbertos === a.token}" title="Documentos enviados pelo cliente">Documentos${a.arquivos.length ? ` <span class="ctr-qtd">${a.arquivos.length}</span>` : ""}</button>
+        ${pode("aceites", "editar") ? `<button class="btn" data-proposta aria-expanded="${aviso?.token === a.token}" title="${a.propostaEnviadaEm ? `Aviso enviado em ${esc(fmtData(a.propostaEnviadaEm))}. Clique para enviar de novo.` : "Avisar no WhatsApp que a proposta para assinar foi enviada ao e-mail"}">Proposta enviada${a.propostaEnviadaEm ? " ✓" : ""}</button>` : ""}
         ${a.linkDocumentos ? `<button class="btn" data-link title="Copiar o link em que o cliente envia os documentos, entrando com o telefone">Copiar link</button>` : ""}
         ${pode("aceites", "editar") ? `<button class="btn danger" data-excluir="1">Excluir</button>` : ""}
       </div>
     </div>
+    ${aviso?.token === a.token ? painelDoAviso(a) : ""}
     ${recebidosAbertos === a.token ? painelDeRecebidos(a) : ""}
     ${pode("aceites", "editar") ? `${escolha?.token === a.token ? painelDeDocumentos(a) : ""}
     <div class="status" data-confirma hidden>Excluir o aceite de <b>${esc(a.cliente || "Sem nome")}</b>${a.arquivos.length ? ` e ${a.arquivos.length === 1 ? "o documento que o cliente enviou" : `os ${a.arquivos.length} documentos que o cliente enviou`}` : ""}? O link desta proposta deixa de abrir para o cliente. A cotação continua no histórico. <span class="actions" style="margin-top:8px"><button class="btn danger" data-sim>Sim, excluir</button><button class="btn" data-nao>Manter</button></span></div>` : ""}
@@ -63,6 +67,15 @@ export function renderAceites() {
   }).join("");
   const doCartao = (b) => aceites.find((a) => a.token === b.closest(".hq").dataset.token);
   box.querySelectorAll("[data-docs]").forEach((b) => (b.onclick = () => escolherDocumentos(doCartao(b))));
+  box.querySelectorAll("[data-proposta]").forEach((b) => (b.onclick = () => {
+    const a = doCartao(b);
+    if (!a.fone) { toast("Este aceite não tem o número do cliente"); return; }
+    aviso = aviso?.token === a.token ? null : { token: a.token, texto: mensagemPropostaEnviada() };
+    renderAceites();
+    if (aviso) box.querySelector("#ace-aviso-texto")?.focus();
+  }));
+  const painelAviso = box.querySelector("[data-painel-aviso]");
+  if (painelAviso) ligarAviso(painelAviso, doCartao(painelAviso));
   const recebidos = box.querySelector("[data-painel-docs]");
   if (recebidos) ligarRecebidos(recebidos, doCartao(recebidos));
   box.querySelectorAll("[data-recebidos]").forEach((b) => (b.onclick = () => {
@@ -104,8 +117,47 @@ export function renderAceites() {
   box.querySelectorAll("[data-sim]").forEach((b) => (b.onclick = () => excluirAceite(doCartao(b), b)));
 }
 
+// Texto do aviso "Proposta enviada", editável antes de abrir no WhatsApp.
+function painelDoAviso(a) {
+  return `<div class="ctr-msg" data-painel-aviso>
+    <label class="label" for="ace-aviso-texto">Mensagem para ${esc(a.cliente || "o cliente")}: proposta enviada ao e-mail</label>
+    <textarea id="ace-aviso-texto" rows="10" spellcheck="true">${esc(aviso.texto)}</textarea>
+    <div class="actions">
+      <button class="btn primary" data-aviso-abrir>Abrir no WhatsApp</button>
+      <button class="btn" data-aviso-copiar>Copiar mensagem</button>
+      <button class="btn" data-aviso-original>Voltar ao texto original</button>
+      <button class="btn" data-aviso-fechar>Fechar</button>
+    </div>
+  </div>`;
+}
+
+function ligarAviso(painel, a) {
+  const campo = painel.querySelector("textarea");
+  campo.oninput = () => (aviso.texto = campo.value);
+  painel.querySelector("[data-aviso-original]").onclick = () => { aviso.texto = campo.value = mensagemPropostaEnviada(); campo.focus(); };
+  painel.querySelector("[data-aviso-fechar]").onclick = () => { aviso = null; renderAceites(); };
+  painel.querySelector("[data-aviso-copiar]").onclick = async () => {
+    if (await copiarTexto(campo.value)) toast("Mensagem copiada", "sucesso");
+    else toast("O navegador bloqueou a cópia: selecione o texto e copie", "erro");
+  };
+  painel.querySelector("[data-aviso-abrir]").onclick = async () => {
+    const texto = campo.value.trim();
+    if (!texto) { toast("Escreva a mensagem antes de abrir o WhatsApp"); campo.focus(); return; }
+    window.open(linkConversaDireta(a.fone, texto, navigator.userAgent), "_blank", "noopener");
+    aviso = null;
+    renderAceites();
+    try {
+      await api(`/api/aceites/${encodeURIComponent(a.token)}/proposta-enviada`, { metodo: "POST", json: {} });
+      await carregarAceites();
+    } catch (e) {
+      toast(e.message, "erro");
+    }
+  };
+}
+
 // O que mostrar no selo: o que o cliente já fez vale mais do que o pedido do corretor.
 function situacao(a) {
+  if (a.propostaEnviadaEm) return { rotulo: "PROPOSTA ENVIADA", pendente: false };
   if (a.docsConcluidoEm) return { rotulo: "DOCUMENTOS RECEBIDOS", pendente: false };
   if (a.arquivos.length) return { rotulo: "RECEBENDO DOCUMENTOS", pendente: false };
   if (a.docsEnviadosEm) return { rotulo: "LISTA ABERTA NO WHATSAPP", pendente: false };

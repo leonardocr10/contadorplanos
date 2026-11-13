@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { Banco } from "../server/db.js";
 import { criarApp } from "../server/app.js";
 import { criarAppPublica } from "../server/publico.js";
-import { mensagemDocumentos } from "../public/js/mensagem.js";
+import { mensagemDocumentos, mensagemPropostaEnviada } from "../public/js/mensagem.js";
 
 const raiz = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
 const vidas = [1, 0, 0, 1, 1, 0, 0, 0, 0, 0];
@@ -231,6 +231,26 @@ test("banco da versão anterior ganha o envio de documentos sem perder os aceite
   assert.equal(p.docsFone, "");
   assert.equal(p.docsConcluidoEm, null);
   assert.deepEqual(s.banco.arquivosDaProposta(token), []);
+});
+
+test("aviso de proposta enviada: texto pronto e registro de quando o corretor enviou", async (t) => {
+  const texto = mensagemPropostaEnviada();
+  assert.match(texto, /^Foi enviado para seu e-mail a proposta/);
+  assert.match(texto, /declaração de saúde/);
+  assert.match(texto, /\n\*Suspeitas, investigações de diagnóstico, eventos esporádicos, Cirurgias antigas o ideal é colocar como NÃO\*\n/);
+  assert.match(texto, /você pode me chamar que te auxilio\.$/);
+
+  const s = await subir(t);
+  const { token } = await proposta(s);
+  assert.equal((await (await fetch(s.admin + "/api/aceites")).json())[0].propostaEnviadaEm, null);
+  const r = await fetch(`${s.admin}/api/aceites/${token}/proposta-enviada`, { method: "POST" });
+  assert.equal(r.status, 200);
+  const { propostaEnviadaEm } = await r.json();
+  assert.ok(propostaEnviadaEm);
+  assert.equal((await (await fetch(s.admin + "/api/aceites")).json())[0].propostaEnviadaEm, propostaEnviadaEm);
+  assert.equal((await fetch(`${s.admin}/api/aceites/nao-existe-1234567890/proposta-enviada`, { method: "POST" })).status, 404);
+  const semAceite = await proposta(s, { aceitar: false, fone: "(34) 97777-0000" });
+  assert.equal((await fetch(`${s.admin}/api/aceites/${semAceite.token}/proposta-enviada`, { method: "POST" })).status, 404);
 });
 
 test("a mensagem do WhatsApp leva o link de envio quando ele existe", () => {

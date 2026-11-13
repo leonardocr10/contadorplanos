@@ -98,6 +98,19 @@ export function mensagemDocumentos({ cliente, plano, acomodacao, valor, document
   return L.join("\n");
 }
 
+// Aviso ao cliente de que a proposta para assinar foi enviada ao e-mail, com a orientação da declaração de saúde.
+export function mensagemPropostaEnviada() {
+  return [
+    "Foi enviado para seu e-mail a proposta para você assinar o contrato favor conferir plano contratado e valor.",
+    "",
+    "No e-mail também está para você preencher a declaração de saúde que são perguntas direcionadas de sim ou não sobre patologias clinicas que o beneficiário possa ter. Tudo que a pessoa declara que possui diagnóstico entra como doença pré-existente.",
+    "Por isso a orientação é só colocar sim para o que realmente existir comprovação.",
+    "*Suspeitas, investigações de diagnóstico, eventos esporádicos, Cirurgias antigas o ideal é colocar como NÃO*",
+    "",
+    "Se tiver dúvidas na hora de responder na proposta você pode me chamar que te auxilio.",
+  ].join("\n");
+}
+
 // Mensagem da tela Documentos: a lista de um plano, para copiar e colar na conversa com qualquer cliente.
 export function mensagemDocumentosDoPlano({ plano, tipo, documentos, corretor }) {
   const L = [
