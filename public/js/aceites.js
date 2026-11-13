@@ -2,6 +2,7 @@
 import { brl, fmtFone } from "./calculo.js";
 import { $, S, api, avisoCentral, esc, pode, toast } from "./estado.js";
 import { copiarTexto } from "./cotacao.js";
+import { ehPdf, esquecerArquivo, fmtTamanho, miniaturaPronta, mostrarMiniaturas } from "./contratos.js";
 import { linkConversaDireta, mensagemDocumentos } from "./mensagem.js";
 
 let aceites = [], assinatura = null;
@@ -62,6 +63,8 @@ export function renderAceites() {
   }).join("");
   const doCartao = (b) => aceites.find((a) => a.token === b.closest(".hq").dataset.token);
   box.querySelectorAll("[data-docs]").forEach((b) => (b.onclick = () => escolherDocumentos(doCartao(b))));
+  const recebidos = box.querySelector("[data-painel-docs]");
+  if (recebidos) ligarRecebidos(recebidos, doCartao(recebidos));
   box.querySelectorAll("[data-recebidos]").forEach((b) => (b.onclick = () => {
     const a = doCartao(b);
     recebidosAbertos = recebidosAbertos === a.token ? null : a.token;
@@ -123,23 +126,56 @@ function resumoDosRecebidos(a) {
   return partes.join(" · ");
 }
 
-const tamanhoDoArquivo = (b) => (b >= 1048576 ? `${(b / 1048576).toFixed(1).replace(".", ",")} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
 const urlDoArquivo = (a, x, baixar) => `/api/aceites/${encodeURIComponent(a.token)}/arquivos/${encodeURIComponent(x.id)}${baixar ? "?baixar=1" : ""}`;
 
-// Documentos que o cliente enviou pelo link, agrupados pelo documento do plano a que pertencem.
+// Documentos que o cliente enviou pelo link, no mesmo formato dos Contratos Vendidos.
+// Cada cartão diz a que documento do plano o arquivo pertence; os que faltam aparecem embaixo.
 function painelDeRecebidos(a) {
-  const grupo = (nome, arquivos, falta) => `<div class="ace-rec-doc">
-    <div class="ace-rec-nome"><span>${esc(nome)}</span>${arquivos.length ? "" : `<span class="pill st-neg">${falta}</span>`}</div>
-    ${arquivos.map((x) => `<div class="ace-rec-arq"><a href="${esc(urlDoArquivo(a, x))}" target="_blank" rel="noopener" title="Abrir em outra aba">${esc(x.nome)}</a><span class="note">${tamanhoDoArquivo(x.tamanho)} · ${esc(fmtData(x.criadoEm))}</span><a class="btn" href="${esc(urlDoArquivo(a, x, true))}" download>Baixar</a></div>`).join("")}
-  </div>`;
-  const fora = a.arquivos.filter((x) => !a.documentos.includes(x.documento));
-  return `<div class="ace-docs">
-    <div class="ace-docs-topo"><span class="label">Documentos enviados pelo cliente</span><span class="note">${esc(a.arquivos.length ? resumoDosRecebidos(a) : "O cliente ainda não enviou nenhum arquivo.")}</span></div>
+  const edita = pode("aceites", "editar");
+  const mini = (x) => {
+    const src = miniaturaPronta(x.id);
+    return `<a class="ctr-doc-mini" data-mini="${esc(x.id)}" href="${esc(urlDoArquivo(a, x))}" target="_blank" rel="noopener" title="Abrir ${esc(x.nome)}">${src ? `<img src="${esc(src)}" alt="">` : `<span>${ehPdf(x) ? "PDF" : "IMG"}</span>`}</a>`;
+  };
+  const linhas = a.arquivos.map((x) => `<li class="ctr-doc-linha" data-arquivo="${esc(x.id)}">
+      ${mini(x)}
+      <span class="ctr-doc-texto"><a href="${esc(urlDoArquivo(a, x))}" target="_blank" rel="noopener" title="${esc(x.nome)}">${esc(x.nome)}</a><span class="note" title="${esc(x.documento)}">${esc(x.documento)} · ${fmtTamanho(x.tamanho)} · ${esc(new Date(x.criadoEm).toLocaleDateString("pt-BR"))}</span></span>
+      <span class="ctr-doc-acoes">
+        <a class="limpar-filtros" href="${esc(urlDoArquivo(a, x))}" target="_blank" rel="noopener">Abrir</a>
+        <a class="limpar-filtros" href="${esc(urlDoArquivo(a, x, true))}">Baixar</a>
+        ${edita ? `<button type="button" class="limpar-filtros" data-tirar>Excluir</button>` : ""}
+      </span>
+      <span class="doc-confirma ctr-doc-confirma" hidden>Excluir este documento? <button type="button" class="limpar-filtros" data-tirar-sim>Sim</button><button type="button" class="limpar-filtros" data-tirar-nao>Não</button></span>
+    </li>`).join("");
+  const faltam = a.documentos.filter((d) => !a.arquivos.some((x) => x.documento === d));
+  return `<div class="ctr-docs" data-painel-docs>
+    <div class="ctr-docs-topo"><span class="label">Documentos do cliente${a.arquivos.length ? ` · ${a.arquivos.length}` : ""}</span><span class="note">${esc(a.arquivos.length || a.docsConcluidoEm ? resumoDosRecebidos(a) : "O cliente ainda não enviou nenhum arquivo.")}</span></div>
     ${a.contatoCliente ? contatoDoCliente(a.contatoCliente) : ""}
-    ${a.documentos.map((d) => grupo(d, a.arquivos.filter((x) => x.documento === d), "FALTA")).join("")}
-    ${fora.length ? grupo("Outros documentos", fora, "") : ""}
-    ${a.linkDocumentos ? `<div class="note">O cliente envia por este link, entrando com o telefone${a.fone ? ` ${esc(fmtFone(a.fone))}` : ""}: <span style="overflow-wrap:anywhere">${esc(a.linkDocumentos)}</span></div>` : ""}
+    ${linhas ? `<ul class="ctr-docs-lista">${linhas}</ul>` : ""}
+    ${a.arquivos.length && faltam.length ? `<p class="note" style="margin:0"><b>Falta:</b> ${esc(faltam.join(", "))}</p>` : ""}
+    ${a.linkDocumentos ? `<p class="note" style="margin:0">O cliente envia por este link, entrando com o telefone${a.fone ? ` ${esc(fmtFone(a.fone))}` : ""}: <span style="overflow-wrap:anywhere">${esc(a.linkDocumentos)}</span></p>` : ""}
   </div>`;
+}
+
+function ligarRecebidos(painel, a) {
+  mostrarMiniaturas(painel, a.arquivos, (x) => urlDoArquivo(a, x));
+  painel.querySelectorAll("[data-tirar]").forEach((b) => (b.onclick = () => (b.closest("li").querySelector(".ctr-doc-confirma").hidden = false)));
+  painel.querySelectorAll("[data-tirar-nao]").forEach((b) => (b.onclick = () => (b.closest(".ctr-doc-confirma").hidden = true)));
+  painel.querySelectorAll("[data-tirar-sim]").forEach((b) => (b.onclick = () => tirarRecebido(a, b.closest("li").dataset.arquivo, b)));
+}
+
+async function tirarRecebido(a, id, botao) {
+  botao.disabled = true;
+  try {
+    await api(`/api/aceites/${encodeURIComponent(a.token)}/arquivos/${encodeURIComponent(id)}`, { metodo: "DELETE" });
+    a.arquivos = a.arquivos.filter((x) => x.id !== id);
+    esquecerArquivo(id);
+    renderAceites();
+    avisoCentral("Documento excluído com sucesso");
+    await carregarAceites();
+  } catch (e) {
+    botao.disabled = false;
+    toast(`Não deu para excluir: ${e.message}`, "erro");
+  }
 }
 
 async function excluirAceite(a, botao) {

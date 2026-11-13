@@ -168,7 +168,7 @@ function renderContratos() {
 /* ---------- documentos enviados pelo cliente ---------- */
 const ACEITOS = ".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp";
 const MAX_ARQUIVO = 20 * 1024 * 1024;
-const fmtTamanho = (n) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
+export const fmtTamanho = (n) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
 const urlDoArquivo = (c, a, baixar) => `/api/contratos/${encodeURIComponent(c.id)}/arquivos/${encodeURIComponent(a.id)}${baixar ? "?baixar=1" : ""}`;
 
 // Arquivos que ainda estão subindo, por contrato: aparecem na lista na hora, como "Salvando…".
@@ -181,9 +181,9 @@ const carregarPdfJs = () => (pdfjsP ||= import(PDFJS + "pdf.min.mjs")
   .then((lib) => { lib.GlobalWorkerOptions.workerSrc = PDFJS + "pdf.worker.min.mjs"; return lib; })
   .catch((e) => { pdfjsP = null; throw e; }));
 const copias = new Map(), miniaturas = new Map();
-function copiaLocal(c, a) {
+function copiaLocal(url, a) {
   if (!copias.has(a.id)) {
-    copias.set(a.id, fetch(urlDoArquivo(c, a))
+    copias.set(a.id, fetch(url)
       .then((r) => { if (!r.ok) throw new Error("Documento não encontrado."); return r.blob(); })
       .then((b) => URL.createObjectURL(b))
       .catch((e) => { copias.delete(a.id); throw e; }));
@@ -191,8 +191,8 @@ function copiaLocal(c, a) {
   return copias.get(a.id);
 }
 // Imagem: a própria foto. PDF: a primeira página desenhada pelo leitor de PDF do sistema.
-async function gerarMiniatura(c, a) {
-  const url = await copiaLocal(c, a);
+async function gerarMiniatura(endereco, a) {
+  const url = await copiaLocal(endereco, a);
   if (a.tipo !== "application/pdf") return url;
   const lib = await carregarPdfJs();
   const tarefa = lib.getDocument({ url, isEvalSupported: false, cMapUrl: PDFJS + "cmaps/", cMapPacked: true, standardFontDataUrl: PDFJS + "standard_fonts/", wasmUrl: PDFJS + "wasm/" });
@@ -210,18 +210,18 @@ async function gerarMiniatura(c, a) {
     tarefa.destroy();
   }
 }
-const miniatura = (c, a) => {
-  if (!miniaturas.has(a.id)) miniaturas.set(a.id, gerarMiniatura(c, a).then((src) => { miniaturas.set(a.id, src); return src; }, (e) => { miniaturas.delete(a.id); throw e; }));
+const miniatura = (url, a) => {
+  if (!miniaturas.has(a.id)) miniaturas.set(a.id, gerarMiniatura(url, a).then((src) => { miniaturas.set(a.id, src); return src; }, (e) => { miniaturas.delete(a.id); throw e; }));
   return miniaturas.get(a.id);
 };
-const miniaturaPronta = (id) => (typeof miniaturas.get(id) === "string" ? miniaturas.get(id) : null);
-function esquecerArquivo(id) {
+export const miniaturaPronta = (id) => (typeof miniaturas.get(id) === "string" ? miniaturas.get(id) : null);
+export function esquecerArquivo(id) {
   copias.get(id)?.then((url) => URL.revokeObjectURL(url), () => {});
   copias.delete(id);
   miniaturas.delete(id);
 }
 
-const ehPdf = (a) => a.tipo === "application/pdf";
+export const ehPdf = (a) => a.tipo === "application/pdf";
 
 function painelDeDocumentos(c, edita) {
   const subindo = emEnvio.get(c.id) ?? [];
@@ -249,17 +249,17 @@ function painelDeDocumentos(c, edita) {
   </div>`;
 }
 
-// Preenche as miniaturas que ainda não estavam prontas.
-function mostrarMiniaturas(painel, c) {
+// Preenche as miniaturas que ainda não estavam prontas; urlDe dá o endereço de cada arquivo.
+export function mostrarMiniaturas(painel, arquivos, urlDe) {
   for (const el of painel.querySelectorAll("[data-mini]")) {
     if (el.querySelector("img")) continue;
-    const a = c.arquivos.find((x) => x.id === el.dataset.mini);
-    if (a) miniatura(c, a).then((src) => { if (el.isConnected) el.innerHTML = `<img src="${esc(src)}" alt="">`; }, () => {});
+    const a = arquivos.find((x) => x.id === el.dataset.mini);
+    if (a) miniatura(urlDe(a), a).then((src) => { if (el.isConnected) el.innerHTML = `<img src="${esc(src)}" alt="">`; }, () => {});
   }
 }
 
 function ligarDocumentos(painel, c) {
-  mostrarMiniaturas(painel, c);
+  mostrarMiniaturas(painel, c.arquivos, (a) => urlDoArquivo(c, a));
   painel.querySelectorAll("[data-tirar]").forEach((b) => (b.onclick = () => (b.closest("li").querySelector(".ctr-doc-confirma").hidden = false)));
   painel.querySelectorAll("[data-tirar-nao]").forEach((b) => (b.onclick = () => (b.closest(".ctr-doc-confirma").hidden = true)));
   painel.querySelectorAll("[data-tirar-sim]").forEach((b) => (b.onclick = () => tirarDocumento(c, b.closest("li").dataset.arquivo, b)));

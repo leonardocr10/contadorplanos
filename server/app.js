@@ -516,6 +516,12 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     res.send(a.dados);
   });
 
+  app.delete("/api/aceites/:token/arquivos/:arquivo", exige("aceites", "editar"), (req, res) => {
+    const proposta = banco.obterProposta(req.params.token);
+    if (!proposta?.aceitoEm || !podeVer(req, donoDaProposta(proposta)) || !banco.excluirArquivoDaProposta(req.params.token, req.params.arquivo)) return res.status(404).json({ erro: "Documento não encontrado." });
+    res.status(204).end();
+  });
+
   // Excluir apaga a proposta aceita: o link dela deixa de abrir, os documentos enviados saem junto, e a cotação continua no histórico.
   app.delete("/api/aceites/:token", exige("aceites", "editar"), (req, res) => {
     const proposta = banco.obterProposta(req.params.token);

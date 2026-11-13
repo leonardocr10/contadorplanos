@@ -388,12 +388,6 @@ html:has(.visor[open]){overflow:hidden}
 .ace-contato{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px;font-size:14px;font-weight:600}
 .ace-contato .label{margin:0}
 .ace-contato a{color:var(--accent);overflow-wrap:anywhere}
-.ace-rec-doc{display:flex;flex-direction:column;gap:4px;padding-top:8px;border-top:1px solid var(--line)}
-.ace-rec-nome{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-weight:700;font-size:14px}
-.ace-rec-nome .pill{margin:0}
-.ace-rec-arq{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;font-size:14px}
-.ace-rec-arq a:first-child{flex:1 1 200px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--accent);font-weight:600}
-.ace-rec-arq .btn{padding:4px 10px;font-size:13px}
 .hq-st{width:auto;padding:5px 10px;font-size:13px;font-weight:700;border-radius:999px}
 .st-env{background:var(--bg);color:var(--muted)}
 .st-neg{background:var(--accent-soft);color:var(--pine)}

@@ -185,6 +185,10 @@ test("o cliente envia aos poucos, para, volta e conclui; o corretor recebe os ar
   assert.equal(arquivo.headers.get("content-type"), "application/pdf");
   assert.deepEqual(Buffer.from(await arquivo.arrayBuffer()), PDF);
   assert.equal((await fetch(`${s.admin}/api/aceites/${token}/arquivos/nao-existe`)).status, 404);
+  // O corretor também exclui um arquivo enviado pelo cliente.
+  assert.equal((await fetch(`${s.admin}/api/aceites/${token}/arquivos/${aceite.arquivos[1].id}`, { method: "DELETE" })).status, 204);
+  assert.equal((await fetch(`${s.admin}/api/aceites/${token}/arquivos/${aceite.arquivos[1].id}`, { method: "DELETE" })).status, 404);
+  assert.equal(s.banco.arquivosDaProposta(token).length, 1);
 
   // Reabrir tira o aviso de concluído, e o contato continua para a próxima conclusão.
   e = await (await concluir({ concluido: false })).json();
