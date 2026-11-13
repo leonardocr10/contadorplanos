@@ -248,13 +248,13 @@ test("cada usuário só vê e altera as próprias cotações, inclusive o admini
   assert.equal((await pedir(um, `/api/cotacoes/${c.id}`, "DELETE")).status, 204);
 });
 
-test("cotações de antes dos logins ficam só com o administrador", async (t) => {
-  const { pedir, admin, um } = await doisCorretores(t, (b) => { b.salvarCotacao({ ...cotacao(), cliente: "Antiga" }); });
-  const todas = await (await pedir(admin, "/api/cotacoes")).json();
-  assert.equal(todas.length, 1);
-  assert.equal(todas[0].cliente, "Antiga");
-  assert.equal((await (await pedir(um, "/api/cotacoes")).json()).length, 0);
-  assert.equal((await pedir(um, `/api/cotacoes/${todas[0].id}`, "DELETE")).status, 404);
+test("cotação sem dono, de antes dos logins, não aparece para ninguém, nem para o administrador", async (t) => {
+  let antiga;
+  const { pedir, admin, um } = await doisCorretores(t, (b) => { antiga = b.salvarCotacao({ ...cotacao(), cliente: "Antiga" }).cotacao; });
+  for (const quem of [admin, um]) {
+    assert.equal((await (await pedir(quem, "/api/cotacoes")).json()).length, 0);
+    assert.equal((await pedir(quem, `/api/cotacoes/${antiga.id}`, "DELETE")).status, 404);
+  }
 });
 
 test("cada usuário só vê os próprios aceites, assinados pelo corretor da proposta", async (t) => {

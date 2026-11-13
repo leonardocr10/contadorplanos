@@ -267,8 +267,8 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     const u = dono ? banco.obterUsuario(dono) : null;
     return u ? u.nome || u.login : "";
   };
-  // Cotações: cada login vê e altera só as próprias, inclusive o administrador, que fica também com as de antes dos logins.
-  const minhaCotacao = (req, dono) => !req.usuario || dono === req.usuario.id || (eAdmin(req) && !dono);
+  // Cotações: cada login vê e altera só as próprias, inclusive o administrador.
+  const minhaCotacao = (req, dono) => !req.usuario || dono === req.usuario.id;
   const cotacaoVisivel = (req) => {
     const c = banco.obterCotacao(req.params.id);
     return c && minhaCotacao(req, c.usuarioId) ? c : null;
