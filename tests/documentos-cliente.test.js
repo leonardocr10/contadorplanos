@@ -260,3 +260,17 @@ test("a mensagem do WhatsApp leva o link de envio quando ele existe", () => {
   assert.match(comLink, /informando o seu telefone/);
   assert.ok(comLink.includes("https://exemplo.com/p/abc/documentos"));
 });
+
+test("contrato vendido guarda o e-mail do cliente, que é opcional", async (t) => {
+  const s = await subir(t);
+  const salvar = (corpo, rota = "/api/contratos", metodo = "POST") => fetch(s.admin + rota, { method: metodo, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ nome: "Maria", fone: "34999990000", plano: "PLAM SAÚDE", valor: 300, ativacao: "2026-12-01", ...corpo }) });
+  const sem = await (await salvar({})).json();
+  assert.equal(sem.email, "");
+  assert.equal((await salvar({ email: "maria@" })).status, 400);
+  const com = await (await salvar({ email: " Maria@Exemplo.com " })).json();
+  assert.equal(com.email, "maria@exemplo.com");
+  const editado = await (await salvar({ email: "nova@exemplo.com" }, `/api/contratos/${sem.id}`, "PUT")).json();
+  assert.equal(editado.email, "nova@exemplo.com");
+  const lista = await (await fetch(s.admin + "/api/contratos")).json();
+  assert.deepEqual(lista.map((c) => c.email).sort(), ["maria@exemplo.com", "nova@exemplo.com"]);
+});

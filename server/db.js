@@ -280,6 +280,10 @@ const MIGRACOES = [
   (db) => {
     if (!db.prepare("PRAGMA table_info(propostas)").all().some((c) => c.name === "proposta_enviada_em")) db.exec("ALTER TABLE propostas ADD COLUMN proposta_enviada_em TEXT");
   },
+  // E-mail do cliente no contrato vendido (opcional).
+  (db) => {
+    if (!db.prepare("PRAGMA table_info(contratos)").all().some((c) => c.name === "email")) db.exec("ALTER TABLE contratos ADD COLUMN email TEXT NOT NULL DEFAULT ''");
+  },
 ];
 
 // Troca os documentos dos planos CNPJ pela lista empresarial; com unimed, a Unimed PME recebe a lista dela.
@@ -420,7 +424,7 @@ function linhaParaProposta(l) {
 
 function linhaParaContrato(l) {
   return {
-    id: l.id, usuarioId: l.usuario_id, nome: l.nome, fone: l.fone, plano: l.plano, valor: l.valor,
+    id: l.id, usuarioId: l.usuario_id, nome: l.nome, fone: l.fone, email: l.email ?? "", plano: l.plano, valor: l.valor,
     ativacao: l.ativacao, contatoEm: l.contato_em, criadoEm: l.criado_em,
   };
 }
@@ -813,8 +817,8 @@ export class Banco {
 
   criarContrato(c) {
     const id = randomBytes(9).toString("base64url");
-    this.db.prepare("INSERT INTO contratos (id, usuario_id, nome, fone, plano, valor, ativacao, criado_em) VALUES (?,?,?,?,?,?,?,?)")
-      .run(id, c.usuarioId ?? "", c.nome, c.fone, c.plano, c.valor, c.ativacao, new Date().toISOString());
+    this.db.prepare("INSERT INTO contratos (id, usuario_id, nome, fone, email, plano, valor, ativacao, criado_em) VALUES (?,?,?,?,?,?,?,?,?)")
+      .run(id, c.usuarioId ?? "", c.nome, c.fone, c.email ?? "", c.plano, c.valor, c.ativacao, new Date().toISOString());
     return this.obterContrato(id);
   }
 
@@ -822,8 +826,8 @@ export class Banco {
   gravarContrato(id, c) {
     const antes = this.obterContrato(id);
     if (!antes) return null;
-    this.db.prepare("UPDATE contratos SET nome = ?, fone = ?, plano = ?, valor = ?, ativacao = ?, contato_em = ? WHERE id = ?")
-      .run(c.nome, c.fone, c.plano, c.valor, c.ativacao, antes.ativacao === c.ativacao ? antes.contatoEm : null, id);
+    this.db.prepare("UPDATE contratos SET nome = ?, fone = ?, email = ?, plano = ?, valor = ?, ativacao = ?, contato_em = ? WHERE id = ?")
+      .run(c.nome, c.fone, c.email ?? "", c.plano, c.valor, c.ativacao, antes.ativacao === c.ativacao ? antes.contatoEm : null, id);
     return this.obterContrato(id);
   }
 

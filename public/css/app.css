@@ -390,60 +390,72 @@ html:has(.visor[open]){overflow:hidden}
 .ace-docs-lista .uchk{color:var(--ink);font-weight:500;font-size:14px}
 .ace-docs .actions{margin:0}
 /* Aceites: cards por situação, filtros, grade com ordenação e paginação */
-.ace-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px}
-.ace-card{--cor:var(--muted);display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:0;padding:10px 14px;border:1px solid var(--line);border-left:4px solid var(--cor);border-radius:12px;background:var(--surface);color:var(--ink);font:inherit;text-align:left;cursor:pointer}
-.ace-card:hover{border-color:var(--cor)}
-.ace-card[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--cor)}
-.ace-card b{font:800 26px/1.1 var(--display);color:var(--cor)}
-.ace-card span{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
-.ace-card[data-chave="pedir"]{--cor:var(--danger)}
-.ace-card[data-chave="lista"]{--cor:#c98a0b}
-.ace-card[data-chave="recebendo"]{--cor:#3b82c4}
-.ace-card[data-chave="recebidos"]{--cor:var(--accent)}
-.ace-card[data-chave="enviada"]{--cor:var(--pine)}
-.ace-filtros{grid-template-columns:minmax(0,2fr) minmax(200px,1fr) minmax(150px,170px) auto}
-@media (max-width:900px){.ace-filtros{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
-@media (max-width:560px){.ace-filtros{grid-template-columns:minmax(0,1fr)}}
-.ace-rolagem{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
-.ace-tabela{width:100%;min-width:960px;border-collapse:collapse;font-size:14px}
-.ace-tabela th{padding:10px 8px;border-bottom:1px solid var(--line);background:var(--bg);font-size:11.5px;font-weight:700;letter-spacing:.03em;text-align:left;text-transform:uppercase;color:var(--muted);white-space:nowrap}
-.ace-tabela th.dir,.ace-tabela td.dir{text-align:right}
-.ace-ordem{display:inline-flex;align-items:center;gap:4px;padding:0;border:0;background:none;color:inherit;font:inherit;letter-spacing:inherit;text-transform:inherit;cursor:pointer}
-.ace-ordem:hover,.ace-ordem[data-ativa]{color:var(--ink)}
-.ace-ordem i{font-style:normal;font-size:10px;opacity:.35}
-.ace-ordem[data-ativa] i{opacity:1;color:var(--accent)}
-.ace-tabela td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
-.ace-tabela tbody tr.ace-linha:hover td{background:var(--bg)}
-.ace-tabela tr.ace-pendente td:first-child{box-shadow:inset 4px 0 0 var(--danger)}
-.ace-tabela tbody tr:last-child td{border-bottom:0}
-.ace-tabela th:first-child,.ace-tabela td:first-child{padding-left:14px}
-.ace-tabela th:last-child,.ace-tabela td:last-child{padding-right:14px}
-.ace-nome{font-weight:700;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ace-fone,.ace-data{color:var(--muted);font-weight:600;font-size:13px;white-space:nowrap;font-variant-numeric:tabular-nums}
-.ace-email{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
-.ace-email a{color:var(--accent)}
-.ace-email .vazio{color:var(--muted)}
-.ace-plano{max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
-.ace-valor{font-variant-numeric:tabular-nums;white-space:nowrap}
-.ace-tabela .pill{margin:0;white-space:nowrap}
-.ace-acoes{display:flex;justify-content:flex-end;gap:6px}
-.ace-ico{position:relative;display:inline-grid;place-items:center;width:34px;height:34px;padding:0;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--ink);cursor:pointer}
-.ace-ico:hover{border-color:var(--accent);color:var(--accent)}
-.ace-ico:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
-.ace-ico.primario{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
-.ace-ico.feito{border-color:var(--accent);color:var(--accent)}
-.ace-ico[aria-expanded="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--pine)}
-.ace-ico.perigo{color:var(--danger)}
-.ace-ico.perigo:hover{border-color:var(--danger);color:var(--danger)}
-.ace-num{position:absolute;top:-7px;right:-7px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--pine);color:var(--pine-ink);font:700 11px/18px var(--body);text-align:center}
-.ace-painel-linha td{padding:12px;background:var(--bg)}
-.ace-painel-linha td>*+*{margin-top:10px}
-.ace-paginacao{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px}
-.ace-paginas{display:flex;flex-wrap:wrap;align-items:center;gap:4px}
-.ace-paginas .btn{min-width:36px;padding:6px 10px;font-size:13px}
-.ace-paginas .btn[aria-current="page"]{background:var(--pine);border-color:var(--pine);color:var(--pine-ink)}
-.ace-paginas .btn:disabled{opacity:.45;cursor:default}
-.ace-paginas .reticencias{padding:0 4px;color:var(--muted)}
+.grade-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px}
+.grade-card{--cor:var(--muted);display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:0;padding:10px 14px;border:1px solid var(--line);border-left:4px solid var(--cor);border-radius:12px;background:var(--surface);color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.grade-card:hover{border-color:var(--cor)}
+.grade-card[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--cor)}
+.grade-card b{font:800 26px/1.1 var(--display);color:var(--cor)}
+.grade-card span{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.grade-card[data-chave="pedir"]{--cor:var(--danger)}
+.grade-card[data-chave="lista"]{--cor:#c98a0b}
+.grade-card[data-chave="recebendo"]{--cor:#3b82c4}
+.grade-card[data-chave="recebidos"]{--cor:var(--accent)}
+.grade-card[data-chave="enviada"]{--cor:var(--pine)}
+.grade-filtros{grid-template-columns:minmax(0,2fr) minmax(200px,1fr) minmax(150px,170px) auto}
+@media (max-width:900px){.grade-filtros{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+@media (max-width:560px){.grade-filtros{grid-template-columns:minmax(0,1fr)}}
+/* Histórico: as cotações do cliente abrem na faixa abaixo da linha, no formato de antes. */
+.grade-hist{min-width:860px}
+.grade-hist .grade-plano{max-width:320px}
+.grade-cards [data-chave="Enviada"]{--cor:var(--muted)}
+.grade-cards [data-chave="Em Negociação"]{--cor:#c98a0b}
+.grade-cards [data-chave="Vendida"]{--cor:var(--accent)}
+.grade-cards [data-chave="Negativa"]{--cor:var(--danger)}
+.grade-cards [data-chave="pendente"]{--cor:var(--danger)}
+.grade-cards [data-chave="aguardando"]{--cor:#3b82c4}
+.grade-cards [data-chave="feito"]{--cor:var(--accent)}
+.grade-painel-linha .hq{background:var(--surface)}
+.grade-rolagem{overflow-x:auto;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.grade-tabela{width:100%;min-width:960px;border-collapse:collapse;font-size:14px}
+.grade-tabela th{padding:10px 8px;border-bottom:1px solid var(--line);background:var(--bg);font-size:11.5px;font-weight:700;letter-spacing:.03em;text-align:left;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+.grade-tabela th.dir,.grade-tabela td.dir{text-align:right}
+.grade-ordem{display:inline-flex;align-items:center;gap:4px;padding:0;border:0;background:none;color:inherit;font:inherit;letter-spacing:inherit;text-transform:inherit;cursor:pointer}
+.grade-ordem:hover,.grade-ordem[data-ativa]{color:var(--ink)}
+.grade-ordem i{font-style:normal;font-size:10px;opacity:.35}
+.grade-ordem[data-ativa] i{opacity:1;color:var(--accent)}
+.grade-tabela td{padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+.grade-tabela tbody tr.grade-linha:hover td{background:var(--bg)}
+.grade-tabela tr.grade-pendente td:first-child{box-shadow:inset 4px 0 0 var(--danger)}
+.grade-tabela tbody tr:last-child td{border-bottom:0}
+.grade-tabela th:first-child,.grade-tabela td:first-child{padding-left:14px}
+.grade-tabela th:last-child,.grade-tabela td:last-child{padding-right:14px}
+.grade-nome{font-weight:700;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.grade-fone,.grade-data{color:var(--muted);font-weight:600;font-size:13px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.grade-email{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.grade-email a{color:var(--accent)}
+.grade-email .vazio{color:var(--muted)}
+.grade-plano{max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
+.grade-valor{font-variant-numeric:tabular-nums;white-space:nowrap}
+.grade-tabela .pill{margin:0;white-space:nowrap}
+.grade-acoes{display:flex;justify-content:flex-end;gap:6px}
+.grade-ico{position:relative;display:inline-grid;place-items:center;width:34px;height:34px;padding:0;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--ink);cursor:pointer}
+.grade-ico:hover{border-color:var(--accent);color:var(--accent)}
+a.grade-ico{text-decoration:none}
+.grade-ico:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
+.grade-ico.primario{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.grade-ico.feito{border-color:var(--accent);color:var(--accent)}
+.grade-ico[aria-expanded="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--pine)}
+.grade-ico.perigo{color:var(--danger)}
+.grade-ico.perigo:hover{border-color:var(--danger);color:var(--danger)}
+.grade-num{position:absolute;top:-7px;right:-7px;min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--pine);color:var(--pine-ink);font:700 11px/18px var(--body);text-align:center}
+.grade-painel-linha td{padding:12px;background:var(--bg)}
+.grade-painel-linha td>*+*{margin-top:10px}
+.grade-paginacao{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px}
+.grade-paginas{display:flex;flex-wrap:wrap;align-items:center;gap:4px}
+.grade-paginas .btn{min-width:36px;padding:6px 10px;font-size:13px}
+.grade-paginas .btn[aria-current="page"]{background:var(--pine);border-color:var(--pine);color:var(--pine-ink)}
+.grade-paginas .btn:disabled{opacity:.45;cursor:default}
+.grade-paginas .reticencias{padding:0 4px;color:var(--muted)}
 .ace-contato{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px;font-size:14px;font-weight:600}
 .ace-contato .label{margin:0}
 .ace-contato a{color:var(--accent);overflow-wrap:anywhere}
@@ -562,17 +574,19 @@ body{margin:0}
 
 /* ---------- contratos vendidos ---------- */
 /* Cadastro numa linha só: campos compactos e o botão logo depois da data de ativação. */
-.ctr-form{display:grid;grid-template-columns:repeat(5,minmax(0,1fr)) auto;gap:10px;align-items:end}
+.ctr-form{display:grid;grid-template-columns:repeat(6,minmax(0,1fr)) auto;gap:10px;align-items:end}
 .ctr-form .field{gap:4px}
 .ctr-form input,.ctr-form .fs-botao{height:40px;min-height:0;box-sizing:border-box}
 .ctr-botoes{margin:0;flex-wrap:nowrap;gap:8px}
 .ctr-edicao{padding-top:4px}
+.grade-painel-linha .ctr-form{grid-template-columns:repeat(3,minmax(0,1fr))}
+.grade-painel-linha .ctr-form .ctr-botoes{grid-column:1/-1}
 .b-andamento:not([hidden]){display:flex;align-items:center;gap:10px;margin:0}
 .b-andamento .ctr-girando{flex:none}
 .ctr-botoes .btn{height:40px;white-space:nowrap}
 @media (max-width:1250px){.ctr-form{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)}}
 /* Os filtros ficam separados do cadastro por uma linha, num bloco próprio. */
-.ctr-filtros{grid-template-columns:repeat(2,minmax(0,1fr)) auto;margin-top:6px;padding-top:16px;border-top:1px solid var(--line)}
+.ctr-filtros{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr) minmax(150px,170px) auto;margin-top:6px;padding-top:16px;border-top:1px solid var(--line)}
 /* Botão padrão de limpar: borda, ícone de borracha e texto. O compacto vai ao lado de rótulos e títulos. */
 .btn.btn-limpar{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:40px;min-height:0;padding:0 14px;box-sizing:border-box;white-space:nowrap}
 .btn.btn-limpar svg{flex:none}
@@ -582,7 +596,8 @@ body{margin:0}
 /* Ao lado do rótulo de um campo, sem empurrar o campo para baixo. */
 .rotulo-acao .btn.btn-limpar.compacto{height:22px;margin:-3px 0;padding:0 8px;font-size:12px}
 .rotulo-acao .btn.btn-limpar.compacto svg{width:13px;height:13px}
-@media (max-width:760px){.ctr-filtros{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:1100px){.ctr-filtros{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+@media (max-width:560px){.ctr-filtros{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:1000px){.ctr-form{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
 @media (max-width:560px){.ctr-form{grid-template-columns:minmax(0,1fr)}}
 .ctr-msg{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
@@ -618,27 +633,8 @@ a.ctr-doc-mini:hover{border-color:var(--accent)}
 .ctr-doc-confirma{grid-column:1/-1;flex-wrap:wrap}
 .ctr-doc-confirma:not([hidden]){display:flex}
 .ctr-item.ctr-pendente{border-color:var(--danger);box-shadow:inset 4px 0 0 var(--danger)}
-/* Cada contrato numa linha fina: as colunas (nome, telefone, plano, valor, ativação, situação e botões)
-   ficam alinhadas entre os contratos; em telas menores, a linha quebra. */
-.ctr-linha{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;font-size:14px}
-.ctr-nome,.ctr-plano{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ctr-nome{font-weight:700}
-.ctr-plano{font-weight:600}
+/* Texto secundário dentro de uma célula da grade (ex.: acomodação e tipo do plano). */
 .ctr-sub{font-weight:500;color:var(--muted)}
-.ctr-fone,.ctr-ativ{color:var(--muted);font-weight:600;font-size:13px;white-space:nowrap}
-.ctr-valor{font-variant-numeric:tabular-nums;white-space:nowrap}
-.ctr-sit .pill{margin:0;white-space:nowrap}
-.ctr-acoes{margin:0;flex-wrap:nowrap;gap:6px}
-.ctr-acoes .btn{padding:6px 12px;font-size:13px;white-space:nowrap}
-@media (min-width:1251px){
-  #ctr-list{display:grid;grid-template-columns:minmax(150px,1fr) auto minmax(200px,1.3fr) 110px auto auto auto;row-gap:8px}
-  #ctr-list>.ctr-item{grid-column:1/-1;display:grid;grid-template-columns:subgrid;row-gap:8px;padding-block:8px}
-  #ctr-list>.ctr-item>*,#ctr-list>.status{grid-column:1/-1}
-  .ctr-linha{display:grid;grid-template-columns:subgrid;column-gap:20px}
-  .ctr-valor{text-align:right}
-  .ctr-acoes{justify-content:flex-end}
-}
-@media (max-width:1250px){.ctr-acoes{flex-basis:100%;flex-wrap:wrap}}
 .alerta-contratos{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;width:100%;margin:0 0 14px;padding:10px 16px;border:1px solid var(--danger);border-radius:12px;background:var(--danger-soft);color:var(--danger);font:inherit;font-size:14px;text-align:left;cursor:pointer}
 .alerta-contratos[hidden]{display:none}
 .alerta-contratos span{font-weight:600;opacity:.85;text-decoration:underline}

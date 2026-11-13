@@ -138,7 +138,7 @@ function validarContrato(b) {
   const m = DATA_ISO.exec(String(b.ativacao ?? ""));
   const data = m && new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
   if (!m || data.getUTCMonth() !== +m[2] - 1 || data.getUTCDate() !== +m[3]) throw new ErroEntrada("Informe a data de ativação do plano.");
-  return { nome, fone, plano, valor: Math.round(valor * 100) / 100, ativacao: m[0] };
+  return { nome, fone, email: validarEmail(b.email, true), plano, valor: Math.round(valor * 100) / 100, ativacao: m[0] };
 }
 
 function validarCotacao(b) {

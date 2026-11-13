@@ -3,6 +3,7 @@ import { brl, fmtFone } from "./calculo.js";
 import { $, S, api, avisoCentral, esc, pode, toast } from "./estado.js";
 import { copiarTexto } from "./cotacao.js";
 import { normalizar } from "./filtro-select.js";
+import { botaoIcone, cabecalho, desenharCards, desenharPaginacao, guardarPorPagina, lerPorPagina, ordenarPor, paginar, proximaOrdem } from "./grade.js";
 import { ehPdf, esquecerArquivo, fmtTamanho, miniaturaPronta, mostrarMiniaturas } from "./contratos.js";
 import { ligarVisualizacao } from "./visor-documento.js";
 import { linkConversaDireta, mensagemDocumentos, mensagemPropostaEnviada } from "./mensagem.js";
@@ -39,12 +40,10 @@ const SITUACOES = [
   { chave: "enviada", rotulo: "Proposta enviada" },
 ];
 const ORDEM_SITUACAO = Object.fromEntries(SITUACOES.map((s, i) => [s.chave, i]));
-const POR_PAGINA = [10, 25, 50, 100];
 const CHAVE_POR_PAGINA = "cotador.aceites.porPagina";
 
 let busca = "", filtroSituacao = "todos", pagina = 1, ordem = { campo: "aceito", dir: "desc" }, excluindo = null;
-let porPagina = 10;
-try { const v = Number(localStorage.getItem(CHAVE_POR_PAGINA)); if (POR_PAGINA.includes(v)) porPagina = v; } catch {}
+let porPagina = lerPorPagina(CHAVE_POR_PAGINA);
 
 const emailDe = (a) => a.contatoCliente?.email || "";
 const COLUNAS = [
@@ -52,8 +51,8 @@ const COLUNAS = [
   { campo: "fone", rotulo: "Telefone", valor: (a) => a.fone || "" },
   { campo: "email", rotulo: "E-mail", valor: (a) => emailDe(a).toLowerCase() || "￿" },
   { campo: "plano", rotulo: "Proposta", valor: (a) => normalizar(`${a.plano} ${a.acomodacao}`) },
-  { campo: "valor", rotulo: "Valor", valor: (a) => a.valor ?? 0, dir: true },
-  { campo: "aceito", rotulo: "Aceito em", valor: (a) => a.aceitoEm },
+  { campo: "valor", rotulo: "Valor", valor: (a) => a.valor ?? 0, dir: true, desc: true },
+  { campo: "aceito", rotulo: "Aceito em", valor: (a) => a.aceitoEm, desc: true },
   { campo: "situacao", rotulo: "Situação", valor: (a) => ORDEM_SITUACAO[situacao(a).chave] },
 ];
 
@@ -65,36 +64,19 @@ const combina = (a, termo) => {
 };
 
 function listaVisivel() {
-  const col = COLUNAS.find((c) => c.campo === ordem.campo) ?? COLUNAS[5];
-  const sinal = ordem.dir === "asc" ? 1 : -1;
-  return aceites
-    .filter((a) => (filtroSituacao === "todos" || situacao(a).chave === filtroSituacao) && combina(a, busca.trim()))
-    .sort((x, y) => {
-      const a = col.valor(x), b = col.valor(y);
-      const r = typeof a === "number" && typeof b === "number" ? a - b : String(a).localeCompare(String(b), "pt-BR");
-      return r * sinal || String(y.aceitoEm).localeCompare(String(x.aceitoEm));
-    });
+  const filtrados = aceites.filter((a) => (filtroSituacao === "todos" || situacao(a).chave === filtroSituacao) && combina(a, busca.trim()));
+  return ordenarPor(filtrados, COLUNAS, ordem, (x, y) => String(y.aceitoEm).localeCompare(String(x.aceitoEm)));
 }
-
-const ICONES = {
-  whatsapp: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M9 10h.01M12 10h.01M15 10h.01"/>',
-  documentos: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/>',
-  enviada: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
-  link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
-  excluir: '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M10 11v6M14 11v6"/>',
-};
-const icone = (nome) => `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONES[nome]}</svg>`;
-const botaoIcone = (nome, dica, atributos = "", classe = "", extra = "") => `<button type="button" class="ace-ico ${classe}" title="${esc(dica)}" aria-label="${esc(dica)}" ${atributos}>${icone(nome)}${extra}</button>`;
 
 function linhaDoAceite(a) {
   const st = situacao(a), tipo = a.categoria === "CNPJ" ? "CNPJ" : "PF", edita = pode("aceites", "editar"), email = emailDe(a);
   const dicaSituacao = [a.arquivos.length || a.docsConcluidoEm ? resumoDosRecebidos(a) : "", a.docsEnviadosEm ? `Lista aberta no WhatsApp em ${fmtData(a.docsEnviadosEm)}` : "", a.propostaEnviadaEm ? `Aviso da proposta enviado em ${fmtData(a.propostaEnviadaEm)}` : ""].filter(Boolean).join(" · ");
   const acoes = [
-    edita ? botaoIcone("whatsapp", a.docsEnviadosEm ? "Pedir de novo os documentos no WhatsApp" : "Pedir os documentos no WhatsApp", `data-docs aria-expanded="${escolha?.token === a.token}"`, st.chave === "pedir" ? "primario" : "") : "",
-    botaoIcone("documentos", a.arquivos.length ? `Documentos do cliente (${a.arquivos.length})` : "Documentos do cliente", `data-recebidos aria-expanded="${recebidosAbertos === a.token}"`, "", a.arquivos.length ? `<span class="ace-num">${a.arquivos.length}</span>` : ""),
-    edita ? botaoIcone("enviada", a.propostaEnviadaEm ? `Proposta enviada em ${fmtData(a.propostaEnviadaEm)}: clique para avisar de novo` : "Avisar no WhatsApp que a proposta para assinar foi enviada ao e-mail", `data-proposta aria-expanded="${aviso?.token === a.token}"`, a.propostaEnviadaEm ? "feito" : "") : "",
-    a.linkDocumentos ? botaoIcone("link", "Copiar o link de envio dos documentos", "data-link") : "",
-    edita ? botaoIcone("excluir", "Excluir aceite", `data-excluir aria-expanded="${excluindo === a.token}"`, "perigo") : "",
+    edita ? botaoIcone("whatsapp", a.docsEnviadosEm ? "Pedir de novo os documentos no WhatsApp" : "Pedir os documentos no WhatsApp", { atributos: `data-docs aria-expanded="${escolha?.token === a.token}"`, classe: st.chave === "pedir" ? "primario" : "" }) : "",
+    botaoIcone("documentos", a.arquivos.length ? `Documentos do cliente (${a.arquivos.length})` : "Documentos do cliente", { atributos: `data-recebidos aria-expanded="${recebidosAbertos === a.token}"`, numero: a.arquivos.length }),
+    edita ? botaoIcone("enviada", a.propostaEnviadaEm ? `Proposta enviada em ${fmtData(a.propostaEnviadaEm)}: clique para avisar de novo` : "Avisar no WhatsApp que a proposta para assinar foi enviada ao e-mail", { atributos: `data-proposta aria-expanded="${aviso?.token === a.token}"`, classe: a.propostaEnviadaEm ? "feito" : "" }) : "",
+    a.linkDocumentos ? botaoIcone("link", "Copiar o link de envio dos documentos", { atributos: "data-link" }) : "",
+    edita ? botaoIcone("excluir", "Excluir aceite", { atributos: `data-excluir aria-expanded="${excluindo === a.token}"`, classe: "perigo" }) : "",
   ].join("");
   const paineis = [
     aviso?.token === a.token ? painelDoAviso(a) : "",
@@ -102,24 +84,16 @@ function linhaDoAceite(a) {
     edita && escolha?.token === a.token ? painelDeDocumentos(a) : "",
     edita && excluindo === a.token ? `<div class="status" data-confirma>Excluir o aceite de <b>${esc(a.cliente || "Sem nome")}</b>${a.arquivos.length ? ` e ${a.arquivos.length === 1 ? "o documento que o cliente enviou" : `os ${a.arquivos.length} documentos que o cliente enviou`}` : ""}? O link desta proposta deixa de abrir para o cliente. A cotação continua no histórico. <span class="actions" style="margin-top:8px"><button class="btn danger" data-sim>Sim, excluir</button><button class="btn" data-nao>Manter</button></span></div>` : "",
   ].join("");
-  return `<tr class="ace-linha${st.pendente ? " ace-pendente" : ""}" data-token="${esc(a.token)}">
-      <td><div class="ace-nome" title="${esc([a.cliente || "Sem nome", a.responsavel ? `Corretor: ${a.responsavel}` : ""].filter(Boolean).join(" · "))}">${esc(a.cliente || "Sem nome")}</div></td>
-      <td class="ace-fone">${a.fone ? esc(fmtFone(a.fone)) : "Sem número"}</td>
-      <td><div class="ace-email">${email ? `<a href="mailto:${esc(email)}" title="${esc(email)}">${esc(email)}</a>` : `<span class="vazio" title="O cliente informa o e-mail ao concluir o envio dos documentos">—</span>`}</div></td>
-      <td><div class="ace-plano" title="${esc(`${a.plano} · ${a.acomodacao} · ${tipo}`)}">${esc(a.plano)} <span class="ctr-sub">· ${esc(a.acomodacao)} · ${tipo}</span></div></td>
-      <td class="ace-valor dir">R$ ${brl(a.valor)}</td>
-      <td class="ace-data" title="Aceitou em ${esc(fmtData(a.aceitoEm))}">${esc(new Date(a.aceitoEm).toLocaleDateString("pt-BR"))}</td>
+  return `<tr class="grade-linha${st.pendente ? " grade-pendente" : ""}" data-token="${esc(a.token)}">
+      <td><div class="grade-nome" title="${esc([a.cliente || "Sem nome", a.responsavel ? `Corretor: ${a.responsavel}` : ""].filter(Boolean).join(" · "))}">${esc(a.cliente || "Sem nome")}</div></td>
+      <td class="grade-fone">${a.fone ? esc(fmtFone(a.fone)) : "Sem número"}</td>
+      <td><div class="grade-email">${email ? `<a href="mailto:${esc(email)}" title="${esc(email)}">${esc(email)}</a>` : `<span class="vazio" title="O cliente informa o e-mail ao concluir o envio dos documentos">—</span>`}</div></td>
+      <td><div class="grade-plano" title="${esc(`${a.plano} · ${a.acomodacao} · ${tipo}`)}">${esc(a.plano)} <span class="ctr-sub">· ${esc(a.acomodacao)} · ${tipo}</span></div></td>
+      <td class="grade-valor dir">R$ ${brl(a.valor)}</td>
+      <td class="grade-data" title="Aceitou em ${esc(fmtData(a.aceitoEm))}">${esc(new Date(a.aceitoEm).toLocaleDateString("pt-BR"))}</td>
       <td><span class="pill ${st.pendente ? "st-neg" : "st-ok"}"${dicaSituacao ? ` title="${esc(dicaSituacao)}"` : ""}>${st.rotulo}</span></td>
-      <td><div class="ace-acoes">${acoes}</div></td>
-    </tr>${paineis ? `<tr class="ace-painel-linha" data-token="${esc(a.token)}"><td colspan="${COLUNAS.length + 1}">${paineis}</td></tr>` : ""}`;
-}
-
-// Números das páginas: a primeira, a última e as vizinhas da atual, com "…" no meio.
-function numerosDasPaginas(total) {
-  const n = new Set([1, total, pagina - 1, pagina, pagina + 1].filter((p) => p >= 1 && p <= total));
-  const lista = [...n].sort((a, b) => a - b), saida = [];
-  lista.forEach((p, i) => { if (i && p - lista[i - 1] > 1) saida.push(null); saida.push(p); });
-  return saida;
+      <td><div class="grade-acoes">${acoes}</div></td>
+    </tr>${paineis ? `<tr class="grade-painel-linha" data-token="${esc(a.token)}"><td colspan="${COLUNAS.length + 1}">${paineis}</td></tr>` : ""}`;
 }
 
 export function renderAceites() {
@@ -131,13 +105,11 @@ export function renderAceites() {
 
   // Cards com a quantidade de cada situação; clicar filtra a grade.
   const quantos = (k) => aceites.filter((a) => situacao(a).chave === k).length;
-  $("#ace-cards").innerHTML = [{ chave: "todos", rotulo: "Todos" }, ...SITUACOES].map((s) =>
-    `<button type="button" class="ace-card" data-chave="${s.chave}" aria-pressed="${filtroSituacao === s.chave}"><b>${s.chave === "todos" ? aceites.length : quantos(s.chave)}</b><span>${s.rotulo}</span></button>`).join("");
-  $("#ace-cards").querySelectorAll("[data-chave]").forEach((b) => (b.onclick = () => {
-    filtroSituacao = filtroSituacao === b.dataset.chave && b.dataset.chave !== "todos" ? "todos" : b.dataset.chave;
+  desenharCards($("#ace-cards"), [{ chave: "todos", rotulo: "Todos", qtd: aceites.length }, ...SITUACOES.map((s) => ({ ...s, qtd: quantos(s.chave) }))], filtroSituacao, (chave) => {
+    filtroSituacao = chave;
     pagina = 1;
     renderAceites();
-  }));
+  });
 
   const sel = $("#ace-filtro");
   const opcoes = `<option value="todos" data-icone="todos">Todas as situações</option><optgroup label="Situações">${SITUACOES.map((s) => `<option value="${s.chave}" data-selo="${quantos(s.chave)}">${s.rotulo}</option>`).join("")}</optgroup>`;
@@ -152,31 +124,15 @@ export function renderAceites() {
     nav.innerHTML = "";
     return;
   }
-  const lista = listaVisivel();
-  const totalPaginas = Math.max(1, Math.ceil(lista.length / porPagina));
-  pagina = Math.min(Math.max(1, pagina), totalPaginas);
-  const inicio = (pagina - 1) * porPagina, daPagina = lista.slice(inicio, inicio + porPagina);
-
-  const cabecalho = COLUNAS.map((c) => {
-    const ativa = ordem.campo === c.campo;
-    const seta = ativa ? (ordem.dir === "asc" ? "▲" : "▼") : "▲▼";
-    return `<th class="${c.dir ? "dir" : ""}" aria-sort="${ativa ? (ordem.dir === "asc" ? "ascending" : "descending") : "none"}"><button type="button" class="ace-ordem" data-ordem="${c.campo}"${ativa ? " data-ativa" : ""} title="Ordenar por ${c.rotulo.toLowerCase()}">${c.rotulo} <i aria-hidden="true">${seta}</i></button></th>`;
-  }).join("");
-  box.innerHTML = lista.length
-    ? `<div class="ace-rolagem"><table class="ace-tabela"><thead><tr>${cabecalho}<th class="dir">Ações</th></tr></thead><tbody>${daPagina.map(linhaDoAceite).join("")}</tbody></table></div>`
+  const pag = paginar(listaVisivel(), pagina, porPagina);
+  pagina = pag.pagina;
+  box.innerHTML = pag.quantos
+    ? `<div class="grade-rolagem"><table class="grade-tabela">${cabecalho(COLUNAS, ordem)}<tbody>${pag.itens.map(linhaDoAceite).join("")}</tbody></table></div>`
     : `<div class="status">Nenhum aceite encontrado com esses filtros.</div>`;
 
-  nav.innerHTML = lista.length ? `<span class="note">${inicio + 1}–${inicio + daPagina.length} de ${lista.length} ${lista.length === 1 ? "aceite" : "aceites"}</span>
-    ${totalPaginas > 1 ? `<div class="ace-paginas">
-      <button type="button" class="btn" data-pagina="${pagina - 1}" ${pagina === 1 ? "disabled" : ""} aria-label="Página anterior">‹ Anterior</button>
-      ${numerosDasPaginas(totalPaginas).map((p) => p === null ? `<span class="reticencias">…</span>` : `<button type="button" class="btn" data-pagina="${p}"${p === pagina ? ` aria-current="page"` : ""} aria-label="Página ${p}">${p}</button>`).join("")}
-      <button type="button" class="btn" data-pagina="${pagina + 1}" ${pagina === totalPaginas ? "disabled" : ""} aria-label="Próxima página">Próxima ›</button>
-    </div>` : ""}` : "";
-  nav.querySelectorAll("[data-pagina]").forEach((b) => (b.onclick = () => { pagina = Number(b.dataset.pagina); renderAceites(); box.scrollIntoView({ block: "nearest" }); }));
+  desenharPaginacao(nav, pag, ["aceite", "aceites"], (p) => { pagina = p; renderAceites(); box.scrollIntoView({ block: "nearest" }); });
   box.querySelectorAll("[data-ordem]").forEach((b) => (b.onclick = () => {
-    const campo = b.dataset.ordem;
-    // Texto começa de A a Z; valor, data e situação começam do maior.
-    ordem = ordem.campo === campo ? { campo, dir: ordem.dir === "asc" ? "desc" : "asc" } : { campo, dir: ["valor", "aceito"].includes(campo) ? "desc" : "asc" };
+    ordem = proximaOrdem(ordem, b.dataset.ordem, COLUNAS);
     pagina = 1;
     renderAceites();
   }));
@@ -239,7 +195,7 @@ export function iniciarAceites() {
   $("#ace-filtro").onchange = () => { filtroSituacao = $("#ace-filtro").value; pagina = 1; renderAceites(); };
   $("#ace-por-pagina").onchange = () => {
     porPagina = Number($("#ace-por-pagina").value) || 10;
-    try { localStorage.setItem(CHAVE_POR_PAGINA, String(porPagina)); } catch {}
+    guardarPorPagina(CHAVE_POR_PAGINA, porPagina);
     pagina = 1;
     renderAceites();
   };

@@ -2,6 +2,8 @@
 import { brl, fmtFone, normFone } from "./calculo.js";
 import { $, S, api, avisoCentral, esc, pode, render, show, toast } from "./estado.js";
 import { linkConversaDireta, waHtml } from "./mensagem.js";
+import { normalizar } from "./filtro-select.js";
+import { botaoIcone, cabecalho, desenharCards, desenharPaginacao, guardarPorPagina, lerPorPagina, ordenarPor, paginar, proximaOrdem } from "./grade.js";
 
 const STATUS = ["Enviada", "Em Negociação", "Vendida", "Negativa"];
 const stClass = (s) => ({ "Em Negociação": "st-neg", "Vendida": "st-ok", "Negativa": "st-off" }[s] || "st-env");
@@ -123,43 +125,102 @@ export function renderHistCli() {
   wireRows(box);
 }
 
-let filtroSt = "Todas";
+/* ---------- grade: um cliente por linha, com as cotações dele num painel ---------- */
+const CHAVE_POR_PAGINA = "cotador.historico.porPagina";
+let filtroSt = "Todas", pagina = 1, ordem = { campo: "ultima", dir: "desc" };
+let porPagina = lerPorPagina(CHAVE_POR_PAGINA);
+// Clientes com as cotações abertas.
+const abertos = new Set();
+
+const nomeDoGrupo = (l) => l.find((h) => h.cliente)?.cliente || "Sem nome";
+const COLUNAS = [
+  { campo: "cliente", rotulo: "Cliente", valor: (g) => normalizar(nomeDoGrupo(g.lista)) },
+  { campo: "fone", rotulo: "Telefone", valor: (g) => g.lista[0].fone || "￿" },
+  { campo: "planos", rotulo: "Última cotação", valor: (g) => normalizar((g.lista[0].planos || []).map((p) => p.nome).join(" ")) },
+  { campo: "qtd", rotulo: "Cotações", valor: (g) => g.lista.length, dir: true, desc: true },
+  { campo: "ultima", rotulo: "Última em", valor: (g) => g.lista[0].criadoEm, desc: true },
+  { campo: "situacao", rotulo: "Situação", valor: (g) => STATUS.indexOf(g.lista[0].status || "Enviada") },
+];
+
+// Sem WhatsApp, as cotações são agrupadas pelo nome do cliente.
+function grupos() {
+  const mapa = new Map();
+  for (const h of S.hist) {
+    const chave = h.fone || `sem-whatsapp:${(h.cliente || "").trim().toLowerCase()}`;
+    if (!mapa.has(chave)) mapa.set(chave, []);
+    mapa.get(chave).push(h);
+  }
+  return [...mapa.entries()].map(([chave, lista]) => ({ chave, lista }));
+}
+
+function linhaDoCliente(g) {
+  const l = g.lista, h = l[0], f = h.fone, aberto = abertos.has(g.chave);
+  const planos = (h.planos || []).map((p) => p.nome);
+  const acoes = [
+    botaoIcone("ver", aberto ? "Fechar as cotações" : `Ver ${l.length === 1 ? "a cotação" : `as ${l.length} cotações`}`, { atributos: `data-ver-cotacoes aria-expanded="${aberto}"`, numero: l.length > 1 ? l.length : 0 }),
+    f ? botaoIcone("whatsapp", "Abrir conversa no WhatsApp", { href: linkConversaDireta(f, "", navigator.userAgent) }) : "",
+    pode("cotacao") ? botaoIcone("reabrir", "Reabrir a última cotação", { atributos: "data-reabrir-ultima" }) : "",
+  ].join("");
+  return `<tr class="grade-linha" data-grupo="${esc(g.chave)}">
+      <td><div class="grade-nome" title="${esc(nomeDoGrupo(l))}">${esc(nomeDoGrupo(l))}</div></td>
+      <td class="grade-fone">${f ? esc(fmtFone(f)) : "Sem WhatsApp"}</td>
+      <td><div class="grade-plano" title="${esc(planos.join(", "))}">${esc(planos.join(", ") || "—")} <span class="ctr-sub">· ${h.tipo === "CNPJ" ? "CNPJ" : "PF"}</span></div></td>
+      <td class="dir">${l.length}</td>
+      <td class="grade-data">${esc(fmtData(h.criadoEm))}</td>
+      <td><span class="pill ${stClass(h.status)}">${esc(h.status || "Enviada")}</span></td>
+      <td><div class="grade-acoes">${acoes}</div></td>
+    </tr>${aberto ? `<tr class="grade-painel-linha" data-grupo="${esc(g.chave)}"><td colspan="${COLUNAS.length + 1}"><div class="cat">${l.map((x) => quoteRow(x, true)).join("")}</div></td></tr>` : ""}`;
+}
+
 export function renderHist() {
-  const box = $("#hist-list");
+  const box = $("#hist-list"), nav = $("#hist-paginacao");
+  const todos = grupos();
+  // Situação de cada cliente é a da cotação mais recente dele.
+  const quantas = (s) => todos.filter((g) => (g.lista[0].status || "Enviada") === s).length;
+  const sel = $("#hist-filtro");
   // Só troca as opções quando as contagens mudam, para não fechar a lista aberta.
-  const sel = $("#hist-filtro"), quantas = (s) => S.hist.filter((h) => h.status === s).length;
   const opcoes = `<option value="Todas" data-icone="todos">Todas as situações</option><optgroup label="Situações">${STATUS.map((s) => `<option value="${s}"${S.histLoaded ? ` data-selo="${quantas(s)}"` : ""}>${s}</option>`).join("")}</optgroup>`;
   if (sel.dataset.opcoes !== opcoes) { sel.innerHTML = opcoes; sel.dataset.opcoes = opcoes; }
   sel.value = filtroSt;
-  sel.onchange = () => { filtroSt = sel.value; renderHist(); };
-  if (!S.histLoaded) { box.innerHTML = `<div class="status">${S.histErr ? esc(S.histErr) : "Carregando histórico…"}</div>`; return; }
-  const q = $("#hist-busca").value.trim().toLowerCase(), qd = q.replace(/\D/g, "");
-  const groups = new Map();
-  for (const h of S.hist) {
-    // Sem WhatsApp, as cotações são agrupadas pelo nome do cliente.
-    const chave = h.fone || `sem-whatsapp:${(h.cliente || "").trim().toLowerCase()}`;
-    if (!groups.has(chave)) groups.set(chave, []);
-    groups.get(chave).push(h);
-  }
-  const gs = [...groups.entries()].filter(([, l]) => {
-    if (filtroSt !== "Todas" && l[0].status !== filtroSt) return false;
+  $("#hist-por-pagina").value = String(porPagina);
+  const q = $("#hist-busca").value.trim();
+  $("#hist-limpar").disabled = filtroSt === "Todas" && !q;
+  desenharCards($("#hist-cards"), [{ chave: "Todas", rotulo: "Todos os clientes", qtd: todos.length }, ...STATUS.map((s) => ({ chave: s, rotulo: s, qtd: quantas(s) }))], filtroSt,
+    (chave) => { filtroSt = chave === "todos" ? "Todas" : chave; pagina = 1; renderHist(); });
+  if (!S.histLoaded) { box.innerHTML = `<div class="status">${S.histErr ? esc(S.histErr) : "Carregando histórico…"}</div>`; nav.innerHTML = ""; return; }
+  $("#hist-count").textContent = `${todos.length} ${todos.length === 1 ? "cliente" : "clientes"} · ${S.hist.length} ${S.hist.length === 1 ? "cotação" : "cotações"}`;
+  if (!S.hist.length) { box.innerHTML = `<div class="status">Nenhuma cotação salva ainda. Monte uma cotação em <b>Nova Cotação</b>: ela aparece aqui automaticamente.</div>`; nav.innerHTML = ""; return; }
+  const qn = normalizar(q), qd = q.replace(/\D/g, "");
+  const filtrados = todos.filter(({ lista: l }) => {
+    if (filtroSt !== "Todas" && (l[0].status || "Enviada") !== filtroSt) return false;
     if (!q) return true;
-    return (qd.length >= 3 && l[0].fone.includes(qd)) || l.some((h) => (h.cliente || "").toLowerCase().includes(q));
+    return (qd.length >= 3 && (l[0].fone || "").includes(qd)) || l.some((h) => normalizar(h.cliente || "").includes(qn) || (h.planos || []).some((p) => normalizar(p.nome).includes(qn)));
   });
-  $("#hist-count").textContent = `${groups.size} ${groups.size === 1 ? "cliente" : "clientes"} · ${S.hist.length} ${S.hist.length === 1 ? "cotação" : "cotações"}`;
-  if (!S.hist.length) { box.innerHTML = `<div class="status">Nenhuma cotação salva ainda. Monte uma cotação em <b>Nova Cotação</b>: ela aparece aqui automaticamente.</div>`; return; }
-  if (!gs.length) { box.innerHTML = `<div class="status">Nenhum cliente encontrado.</div>`; return; }
-  // Mantém abertos os clientes que já estavam abertos ao redesenhar a lista.
-  const abertos = new Set([...box.querySelectorAll("details.hg[open]")].map((d) => d.dataset.fone));
-  box.innerHTML = gs.map(([chave, l]) => {
-    const nome = l.find((h) => h.cliente)?.cliente || "Sem nome", f = l[0].fone;
-    const conversa = f ? `<div class="actions"><a class="btn" href="${esc(linkConversaDireta(f, "", navigator.userAgent))}" target="_blank" rel="noopener">Abrir conversa no WhatsApp</a></div>` : "";
-    return `<details class="hg" data-fone="${esc(chave)}" ${abertos.has(chave) ? "open" : ""}><summary><span class="hg-name">${esc(nome)}</span><span class="hg-meta">${f ? fmtFone(f) : "Sem WhatsApp"} · ${l.length} ${l.length === 1 ? "cotação" : "cotações"} · última em ${fmtData(l[0].criadoEm)}</span><span class="pill ${stClass(l[0].status)}">${esc(l[0].status || "Enviada")}</span></summary>
-      <div class="cat" style="margin-top:10px">${conversa}${l.map((h) => quoteRow(h, true)).join("")}</div></details>`;
-  }).join("");
+  const pag = paginar(ordenarPor(filtrados, COLUNAS, ordem, (x, y) => String(y.lista[0].criadoEm).localeCompare(String(x.lista[0].criadoEm))), pagina, porPagina);
+  pagina = pag.pagina;
+  box.innerHTML = pag.quantos
+    ? `<div class="grade-rolagem"><table class="grade-tabela grade-hist">${cabecalho(COLUNAS, ordem)}<tbody>${pag.itens.map(linhaDoCliente).join("")}</tbody></table></div>`
+    : `<div class="status">Nenhum cliente encontrado com esses filtros.</div>`;
+  desenharPaginacao(nav, pag, ["cliente", "clientes"], (p) => { pagina = p; renderHist(); box.scrollIntoView({ block: "nearest" }); });
+  box.querySelectorAll("[data-ordem]").forEach((b) => (b.onclick = () => { ordem = proximaOrdem(ordem, b.dataset.ordem, COLUNAS); pagina = 1; renderHist(); }));
+  const doGrupo = (el) => todos.find((g) => g.chave === el.closest("[data-grupo]").dataset.grupo);
+  box.querySelectorAll("[data-ver-cotacoes]").forEach((b) => (b.onclick = () => {
+    const g = doGrupo(b);
+    if (abertos.has(g.chave)) abertos.delete(g.chave); else abertos.add(g.chave);
+    renderHist();
+  }));
+  box.querySelectorAll("[data-reabrir-ultima]").forEach((b) => (b.onclick = () => reopen(doGrupo(b).lista[0])));
   wireRows(box);
 }
 
 export function iniciarHistorico() {
-  $("#hist-busca").addEventListener("input", renderHist);
+  $("#hist-busca").addEventListener("input", () => { pagina = 1; renderHist(); });
+  $("#hist-filtro").onchange = () => { filtroSt = $("#hist-filtro").value; pagina = 1; renderHist(); };
+  $("#hist-por-pagina").onchange = () => {
+    porPagina = Number($("#hist-por-pagina").value) || 10;
+    guardarPorPagina(CHAVE_POR_PAGINA, porPagina);
+    pagina = 1;
+    renderHist();
+  };
+  $("#hist-limpar").onclick = () => { $("#hist-busca").value = ""; filtroSt = "Todas"; pagina = 1; renderHist(); };
 }
