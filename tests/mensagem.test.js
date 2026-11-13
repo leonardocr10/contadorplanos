@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { idadesParaVidas } from "../public/js/calculo.js";
+import { idadesParaVidas } from "./apoio.js";
 import { buildMsg, linkConversaDireta, linkWhatsApp, textoDosLinks, mensagemDocumentos, mensagemDocumentosDoPlano, waHtml } from "../public/js/mensagem.js";
 
 const planos = JSON.parse(readFileSync(new URL("../dados/planos.json", import.meta.url), "utf8"));

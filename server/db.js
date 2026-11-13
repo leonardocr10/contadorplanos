@@ -340,6 +340,10 @@ const MIGRACOES = [
     const colunas = db.prepare("PRAGMA table_info(contratos)").all().map((c) => c.name);
     if (!colunas.includes("comissao_ajustes")) db.exec("ALTER TABLE contratos ADD COLUMN comissao_ajustes TEXT NOT NULL DEFAULT ''");
   },
+  // O valor da adesão deixou de ser usado na comissão: a coluna sai.
+  (db) => {
+    if (db.prepare("PRAGMA table_info(contratos)").all().some((c) => c.name === "adesao")) db.exec("ALTER TABLE contratos DROP COLUMN adesao");
+  },
 ];
 
 // Troca os documentos dos planos CNPJ pela lista empresarial; com unimed, a Unimed PME recebe a lista dela.
@@ -487,7 +491,7 @@ function linhaParaRegra(l) {
 function linhaParaContrato(l) {
   return {
     id: l.id, usuarioId: l.usuario_id, nome: l.nome, fone: l.fone, email: l.email ?? "", plano: l.plano, valor: l.valor,
-    regraId: l.regra_id ?? null, adesao: l.adesao ?? null, ajustes: l.comissao_ajustes ? JSON.parse(l.comissao_ajustes) : {},
+    regraId: l.regra_id ?? null, ajustes: l.comissao_ajustes ? JSON.parse(l.comissao_ajustes) : {},
     ativacao: l.ativacao, contatoEm: l.contato_em, criadoEm: l.criado_em,
   };
 }
@@ -958,7 +962,10 @@ export class Banco {
   }
 
   obterCorretora(id) {
-    return this.listarCorretoras().find((c) => c.id === id) ?? null;
+    const c = this.db.prepare("SELECT * FROM comissao_corretoras WHERE id = ?").get(id);
+    if (!c) return null;
+    const regras = this.db.prepare("SELECT * FROM comissao_regras WHERE corretora_id = ? ORDER BY ordem, rowid").all(id).map(linhaParaRegra);
+    return { id: c.id, usuarioId: c.usuario_id, nome: c.nome, regras };
   }
 
   corretoraComNome(nome, outraQue = null, usuarioId = "") {
@@ -1005,7 +1012,7 @@ export class Banco {
     return l ? linhaParaRegra(l) : null;
   }
 
-  // Várias regras de uma vez (cadastro e importação), na ordem informada, depois das que já existem.
+  // Várias regras de uma vez (a mesma regra para vários planos), na ordem informada, depois das que já existem.
   criarRegras(corretoraId, regras) {
     const inicio = (this.db.prepare("SELECT MAX(ordem) AS m FROM comissao_regras WHERE corretora_id = ?").get(corretoraId).m ?? 0) + 1;
     const inserir = this.db.prepare("INSERT INTO comissao_regras (id, corretora_id, nome, segmento, angariacao, parcelas, observacao, ordem, criado_em) VALUES (?,?,?,?,?,?,?,?,?)");
@@ -1036,9 +1043,9 @@ export class Banco {
     return this.db.prepare("DELETE FROM comissao_regras WHERE id = ?").run(id).changes > 0;
   }
 
-  definirComissaoDoContrato(id, regraId, adesao, ajustes = {}) {
+  definirComissaoDoContrato(id, regraId, ajustes = {}) {
     const json = regraId && Object.keys(ajustes).length ? JSON.stringify(ajustes) : "";
-    this.db.prepare("UPDATE contratos SET regra_id = ?, adesao = ?, comissao_ajustes = ? WHERE id = ?").run(regraId, adesao, json, id);
+    this.db.prepare("UPDATE contratos SET regra_id = ?, comissao_ajustes = ? WHERE id = ?").run(regraId, json, id);
     return this.obterContrato(id);
   }
 

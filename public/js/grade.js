@@ -99,6 +99,3 @@ export function lerPorPagina(chave) {
 export function guardarPorPagina(chave, n) {
   try { localStorage.setItem(chave, String(n)); } catch {}
 }
-
-// Opções do seletor "Por página".
-export const opcoesPorPagina = () => POR_PAGINA.map((n) => `<option value="${n}">${n} por página</option>`).join("");

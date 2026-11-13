@@ -271,14 +271,14 @@ iniciarAceites();
 renderAceites();
 render();
 carregar();
-// Link e aceites são conferidos a cada 5 s com a aba à vista. Escondida, a aba não consulta o servidor; fora do ar,
-// o servidor é consultado cada vez mais devagar (até 40 s), em vez de encher o console de erros.
-let falhas = 0;
+// O link é conferido a cada 5 s com a aba à vista, e os aceites a cada 15 s (a lista é maior). Escondida, a aba não
+// consulta o servidor; fora do ar, o servidor é consultado cada vez mais devagar (até 40 s), em vez de encher o console de erros.
+let falhas = 0, voltas = 0;
 async function conferir() {
   conferirDiaDosContratos();
   if (!document.hidden) {
     const ok = await verificarLink();
-    if (ok) await verificarAceites();
+    if (ok && voltas++ % 3 === 2) await verificarAceites();
     falhas = ok ? 0 : falhas + 1;
   }
   setTimeout(conferir, 5000 * 2 ** Math.min(falhas, 3));

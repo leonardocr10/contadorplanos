@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { brl, colarPlanilha, faixaDe, fmtFone, idadesParaVidas, normFone, parseBRL, planPrices } from "../public/js/calculo.js";
+import { brl, colarPlanilha, faixaDe, fmtFone, normFone, parseBRL, planPrices } from "../public/js/calculo.js";
+import { idadesParaVidas } from "./apoio.js";
 
 const planos = JSON.parse(readFileSync(new URL("../dados/planos.json", import.meta.url), "utf8"));
 const plano = (id) => planos.find((p) => p.id === id);

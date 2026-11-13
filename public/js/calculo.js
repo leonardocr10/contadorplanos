@@ -19,14 +19,6 @@ export function parseBRL(s) {
 
 export const lines = (s) => String(s || "").split("\n").map((x) => x.trim()).filter(Boolean);
 
-// "35, 32, 7" vira as contagens das 10 faixas.
-export function idadesParaVidas(texto) {
-  const vidas = Array(10).fill(0);
-  const idades = (String(texto).match(/\d+/g) || []).map(Number).filter((a) => a <= 120);
-  for (const a of idades) vidas[faixaDe(a)]++;
-  return vidas;
-}
-
 // Tabela de 3 faixas: as idades continuam informadas nas 10 faixas e são somadas nestes grupos.
 const GRUPOS_3_FAIXAS = [
   { faixa: "0 a 18", indices: [0] },

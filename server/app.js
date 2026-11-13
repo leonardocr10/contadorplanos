@@ -553,13 +553,13 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     res.status(204).end();
   });
 
-  // Uma regra (objeto) ou várias (lista, como na importação de uma tabela).
+  // Uma regra (objeto) ou várias (lista: a mesma regra para vários planos).
   // O plano da regra precisa estar cadastrado no sistema, na categoria do segmento (PF ou CNPJ).
   // Na edição, a regra pode manter o plano que já tinha, mesmo que ele tenha saído da lista.
-  const exigirPlano = (regra, atual = null) => {
+  const planosCadastrados = () => new Set(banco.listarPlanos().map((p) => `${p.categoria}|${p.nome}`));
+  const exigirPlano = (regra, atual = null, planos = planosCadastrados()) => {
     if (atual && atual.nome === regra.nome && atual.segmento === regra.segmento) return regra;
-    const categoria = CATEGORIA_DO_SEGMENTO[regra.segmento];
-    if (!banco.listarPlanos().some((p) => p.nome === regra.nome && p.categoria === categoria)) {
+    if (!planos.has(`${CATEGORIA_DO_SEGMENTO[regra.segmento]}|${regra.nome}`)) {
       throw new ErroEntrada(`Escolha um plano cadastrado no sistema para ${regra.segmento === "PF" ? "pessoa física" : "PME (CNPJ)"}.`);
     }
     return regra;
@@ -569,9 +569,10 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     if (!corretoraDoLogin(req, req.params.id)) return res.status(404).json(NAO_ACHOU_CORRETORA);
     const lista = Array.isArray(req.body) ? req.body : [req.body];
     if (!lista.length || lista.length > 500) throw new ErroEntrada("Envie de 1 a 500 regras.");
+    const planos = planosCadastrados();
     const regras = lista.map((r, i) => {
       try {
-        return exigirPlano(validarRegra(r));
+        return exigirPlano(validarRegra(r), null, planos);
       } catch (e) {
         throw lista.length > 1 ? new ErroEntrada(`Regra ${i + 1}${r?.nome ? ` (${r.nome})` : ""}: ${e.message}`) : e;
       }
@@ -590,12 +591,12 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     res.status(204).end();
   });
 
-  // Regra e valor da adesão de um contrato do próprio login.
+  // Regra e ajustes da comissão de um contrato do próprio login.
   app.patch("/api/contratos/:id/comissao", exige("financeiro", "editar"), (req, res) => {
     if (!contratoDoLogin(req)) return res.status(404).json(NAO_ACHOU_CONTRATO);
     const regraId = req.body?.regraId || null;
     if (regraId && !regraDoLogin(req, regraId)) throw new ErroEntrada("Regra de comissão não encontrada.");
-    res.json(semDono(banco.definirComissaoDoContrato(req.params.id, regraId, null, validarAjustes(req.body?.ajustes))));
+    res.json(semDono(banco.definirComissaoDoContrato(req.params.id, regraId, validarAjustes(req.body?.ajustes))));
   });
 
   /* ---------- aceites ---------- */

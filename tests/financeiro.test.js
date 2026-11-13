@@ -92,9 +92,9 @@ test("cada contrato guarda a regra; apagar a regra deixa o contrato sem regra", 
   const r = (await api(`/api/financeiro/corretoras/${c.id}/regras`, "POST", { nome: "PLAM SAÚDE", segmento: "PF", parcelas: [100, 50] })).corpo;
   const contrato = (await api("/api/contratos", "POST", { nome: "Maria", fone: "34999990000", plano: "PLAM SAÚDE", valor: 300, ativacao: "2026-12-01" })).corpo;
   assert.equal(contrato.regraId, null);
-  // O valor da adesão não é mais guardado.
+  // O valor da adesão não é mais guardado nem devolvido.
   const salvo = (await api(`/api/contratos/${contrato.id}/comissao`, "PATCH", { regraId: r.id, adesao: "120.5" })).corpo;
-  assert.deepEqual([salvo.regraId, salvo.adesao], [r.id, null]);
+  assert.deepEqual([salvo.regraId, "adesao" in salvo], [r.id, false]);
   assert.equal((await api(`/api/contratos/${contrato.id}/comissao`, "PATCH", { regraId: "nao-existe" })).status, 400);
   assert.equal((await api("/api/contratos/nao-existe/comissao", "PATCH", { regraId: r.id })).status, 404);
   // Editar o contrato não perde a comissão.
@@ -128,10 +128,10 @@ test("ao atualizar, saem as regras antigas que não são de um plano cadastrado"
     ]);
     const antiga = banco.listarCorretoras()[0].regras[0].id;
     const contrato = banco.criarContrato({ nome: "Maria", fone: "34999990000", plano: "AMIL OURO", valor: 300, ativacao: "2026-12-01" });
-    banco.definirComissaoDoContrato(contrato.id, antiga, null);
+    banco.definirComissaoDoContrato(contrato.id, antiga);
     const versao = banco.db.prepare("PRAGMA user_version").get().user_version;
-    // Volta antes da limpeza (e das migrações que vieram depois: separação por login e ajustes).
-    banco.db.exec(`PRAGMA user_version = ${versao - 3}`);
+    // Volta antes da limpeza (e das migrações que vieram depois: separação por login, ajustes e fim da adesão).
+    banco.db.exec(`PRAGMA user_version = ${versao - 4}`);
     banco.fechar();
     banco = new Banco(arquivo, planos);
     assert.deepEqual(banco.listarCorretoras()[0].regras.map((r) => `${r.nome}|${r.segmento}`), ["AMIL OURO|PF", "AMIL OURO 30%|PME"]);

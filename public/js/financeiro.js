@@ -12,7 +12,11 @@ const nomeDoMes = (aaaamm) => `${MESES[Number(aaaamm.slice(5, 7)) - 1]} de ${aaa
 const fmtDia = (iso) => (iso ? iso.split("-").reverse().join("/") : "");
 const pct = (n) => `${String(Math.round(n * 100) / 100).replace(".", ",")}%`;
 const edita = () => pode("financeiro", "editar");
-const regraPorId = () => new Map(corretoras.flatMap((c) => c.regras.map((r) => [r.id, { ...r, corretora: c.nome }])));
+let mapaDeRegras = { de: null, mapa: new Map() };
+const regraPorId = () => {
+  if (mapaDeRegras.de !== corretoras) mapaDeRegras = { de: corretoras, mapa: new Map(corretoras.flatMap((c) => c.regras.map((r) => [r.id, { ...r, corretora: c.nome }]))) };
+  return mapaDeRegras.mapa;
+};
 
 export async function carregarFinanceiro() {
   if (!pode("financeiro")) return;
@@ -37,7 +41,6 @@ const CHAVE_PP_REGRAS = "cotador.regras.porPagina";
 let buscaRegra = "", filtroSeg = "todos", paginaRegra = 1, ordemRegra = { campo: "ordem", dir: "asc" }, porPaginaRegra = lerPorPagina(CHAVE_PP_REGRAS);
 let editandoRegra = null, excluindoRegra = null, formRegraAberto = false;
 
-const grupoDoSegmento = (s) => s;
 const GRUPOS = SEGMENTOS.map((s) => [s, rotuloDoSegmento(s)]);
 const POSICOES = Array.from({ length: MAX_PARCELAS }, (_, i) => i);
 const nomeDaCorretora = (r) => corretoras.find((c) => c.id === r.corretoraId)?.nome ?? "";
@@ -232,7 +235,7 @@ export function renderRegras() {
   $("#reg-form-bloco").hidden = !edita() || !formRegraAberto;
   if ($("#reg-form-bloco").hidden === false) $("#reg-form-titulo").textContent = `Nova regra para ${c.nome}`;
   const regras = c?.regras ?? [];
-  const quantos = (g) => regras.filter((r) => grupoDoSegmento(r.segmento) === g).length;
+  const quantos = (g) => regras.filter((r) => r.segmento === g).length;
   const selSeg = $("#reg-filtro");
   const opSeg = `<option value="todos" data-icone="todos">Todos os segmentos</option><optgroup label="Segmentos">${GRUPOS.map(([g, rotulo]) => `<option value="${g}" data-selo="${quantos(g)}">${rotulo}</option>`).join("")}</optgroup>`;
   if (selSeg.dataset.opcoes !== opSeg) { selSeg.innerHTML = opSeg; selSeg.dataset.opcoes = opSeg; }
@@ -243,7 +246,7 @@ export function renderRegras() {
   const box = $("#reg-lista"), nav = $("#reg-paginacao");
   if (!carregado) { box.innerHTML = `<div class="status">${erro ? esc(erro) : "Carregando regras…"}</div>`; nav.innerHTML = ""; return; }
   const termo = normalizar(buscaRegra.trim());
-  const filtradas = regras.filter((r) => (filtroSeg === "todos" || grupoDoSegmento(r.segmento) === filtroSeg) && (!termo || normalizar(`${r.nome} ${rotuloDoSegmento(r.segmento)} ${r.observacao}`).includes(termo)));
+  const filtradas = regras.filter((r) => (filtroSeg === "todos" || r.segmento === filtroSeg) && (!termo || normalizar(`${r.nome} ${rotuloDoSegmento(r.segmento)} ${r.observacao}`).includes(termo)));
   const posicao = new Map(regras.map((r, i) => [r.id, i]));
   const colunas = [...COLUNAS_REGRAS];
   const lista = ordemRegra.campo === "ordem" ? filtradas : ordenarPor(filtradas, colunas, ordemRegra, (x, y) => posicao.get(x.id) - posicao.get(y.id));
