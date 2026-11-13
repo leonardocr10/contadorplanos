@@ -5,6 +5,7 @@ import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { completarCarencias, lerArea, normFone, planPrices } from "../public/js/calculo.js";
 import { ErroBackup, STATUS, tipoImagem } from "./db.js";
+import { MAX_ARQUIVO, nomeDoArquivo, tipoDoDocumento } from "./arquivos.js";
 import { ErroLeitura, MODELO_PADRAO, lerTabela } from "./claude.js";
 import { criarLogin } from "./login.js";
 import { cacheDoArquivo, cacheDoEnvio, naoGuardar } from "./cache.js";
@@ -123,15 +124,6 @@ function validarPlano(b) {
     corPrimaria: corOpc(b.corPrimaria, "cor principal"),
     corEscura: corOpc(b.corEscura, "cor escura"),
   };
-}
-
-// Documentos dos contratos: até 20 MB cada, conferidos pelo conteúdo e não pela extensão.
-const MAX_ARQUIVO_CONTRATO = 20 * 1024 * 1024;
-const EXTENSOES = { "application/pdf": "pdf", "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
-function tipoDoDocumento(b) {
-  if (b.length > 5 && b.toString("latin1", 0, 5) === "%PDF-") return "application/pdf";
-  const imagem = tipoImagem(b);
-  return imagem ? { jpg: "image/jpeg", png: "image/png", webp: "image/webp" }[imagem] ?? null : null;
 }
 
 const DATA_ISO =/^(\d{4})-(\d{2})-(\d{2})$/;
@@ -383,15 +375,12 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
   });
 
   // Documentos do cliente: PDF ou imagem, um por envio, com o nome do arquivo no cabeçalho.
-  app.post("/api/contratos/:id/arquivos", exige("contratos", "editar"), express.raw({ type: () => true, limit: MAX_ARQUIVO_CONTRATO }), (req, res) => {
+  app.post("/api/contratos/:id/arquivos", exige("contratos", "editar"), express.raw({ type: () => true, limit: MAX_ARQUIVO }), (req, res) => {
     if (!contratoDoLogin(req)) return res.status(404).json(NAO_ACHOU_CONTRATO);
     const dados = req.body;
-    const tipo = Buffer.isBuffer(dados) ? tipoDoDocumento(dados) : null;
+    const tipo = tipoDoDocumento(dados);
     if (!tipo) throw new ErroEntrada("Envie um arquivo PDF, JPG, PNG ou WebP.");
-    let nome = "";
-    try { nome = decodeURIComponent(String(req.get("X-Nome-Arquivo") || "")); } catch { /* nome inválido: usa o padrão */ }
-    nome = basename(nome.replace(/\\/g, "/")).replace(/[\u0000-\u001f]/g, "").trim().slice(0, 150) || `documento.${EXTENSOES[tipo]}`;
-    res.status(201).json(banco.guardarArquivoDoContrato(req.params.id, { nome, tipo, dados }));
+    res.status(201).json(banco.guardarArquivoDoContrato(req.params.id, { nome: nomeDoArquivo(req, tipo), tipo, dados }));
   });
 
   app.get("/api/contratos/:id/arquivos/:arquivo", exige("contratos", "ver"), (req, res) => {
@@ -488,13 +477,18 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
   /* ---------- aceites ---------- */
   const donoDaProposta = (p) => p.dados.corretor?.usuarioId ?? "";
   app.get("/api/aceites", exige("aceites", "ver"), (req, res) => {
-    res.json(banco.listarAceites().filter((a) => podeVer(req, donoDaProposta(a))).map((a) => {
+    const aceites = banco.listarAceites().filter((a) => podeVer(req, donoDaProposta(a)));
+    // Documentos que o cliente enviou pelo link (sem o conteúdo) e o endereço em que ele envia.
+    const arquivos = banco.arquivosDasPropostas(aceites.map((a) => a.token)), link = linkPublico();
+    res.json(aceites.map((a) => {
       // A lista de documentos sai assinada pelo corretor da proposta, mesmo quando o administrador envia.
       const dono = donoDaProposta(a) ? banco.obterUsuario(donoDaProposta(a)) : null;
       return {
         token: a.token, fone: a.fone, cliente: a.dados.cliente, plano: a.dados.plano.nome, categoria: a.dados.plano.categoria,
         acomodacao: a.acomodacao, valor: a.valor, aceitoEm: a.aceitoEm, docsEnviadosEm: a.docsEnviadosEm,
         documentos: banco.documentosDaProposta(a.dados),
+        arquivos: arquivos.get(a.token) ?? [], docsConcluidoEm: a.docsConcluidoEm,
+        linkDocumentos: link.estado === "ativo" ? `${link.url}/p/${a.token}/documentos` : null,
         corretor: dono ? { nome: dono.nome, fone: dono.fone, empresa: dono.empresa } : donoDaProposta(a) ? a.dados.corretor : null,
         ...(eAdmin(req) ? { responsavel: responsavel(donoDaProposta(a)) } : {}),
       };
@@ -509,7 +503,18 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     res.json({ docsEnviadosEm: a.docsEnviadosEm });
   });
 
-  // Excluir apaga a proposta aceita: o link dela deixa de abrir, e a cotação continua no histórico.
+  // Documento enviado pelo cliente: só abre com login, para quem pode ver o aceite.
+  app.get("/api/aceites/:token/arquivos/:arquivo", exige("aceites", "ver"), (req, res) => {
+    const proposta = banco.obterProposta(req.params.token);
+    const a = proposta?.aceitoEm && podeVer(req, donoDaProposta(proposta)) && banco.lerArquivoDaProposta(req.params.token, req.params.arquivo);
+    if (!a) return res.status(404).json({ erro: "Documento não encontrado." });
+    res.setHeader("Content-Type", a.tipo);
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("Content-Disposition", `${req.query.baixar ? "attachment" : "inline"}; filename*=UTF-8''${encodeURIComponent(a.nome)}`);
+    res.send(a.dados);
+  });
+
+  // Excluir apaga a proposta aceita: o link dela deixa de abrir, os documentos enviados saem junto, e a cotação continua no histórico.
   app.delete("/api/aceites/:token", exige("aceites", "editar"), (req, res) => {
     const proposta = banco.obterProposta(req.params.token);
     if (!proposta || !proposta.aceitoEm || !podeVer(req, donoDaProposta(proposta))) return res.status(404).json({ erro: "Aceite não encontrado." });

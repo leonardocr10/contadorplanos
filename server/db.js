@@ -253,6 +253,24 @@ const MIGRACOES = [
   "DELETE FROM contratos_arquivos WHERE contrato_id NOT IN (SELECT id FROM contratos)",
   // Sem mudança na estrutura: carta de permanência em todos os planos (ver incluirCartaDePermanencia).
   () => {},
+  // Envio de documentos pelo cliente que aceitou a proposta: ele entra com o telefone e envia aos poucos.
+  // Os arquivos ficam no banco, como os dos contratos: entram no backup e nunca num link público.
+  (db) => {
+    const colunas = db.prepare("PRAGMA table_info(propostas)").all().map((c) => c.name);
+    const novas = { docs_fone: "TEXT NOT NULL DEFAULT ''", docs_chave: "TEXT", docs_concluido_em: "TEXT" };
+    for (const [nome, tipo] of Object.entries(novas)) if (!colunas.includes(nome)) db.exec(`ALTER TABLE propostas ADD COLUMN ${nome} ${tipo}`);
+    db.exec(`CREATE TABLE IF NOT EXISTS propostas_arquivos (
+     id TEXT PRIMARY KEY,
+     token TEXT NOT NULL,
+     documento TEXT NOT NULL,
+     nome TEXT NOT NULL,
+     tipo TEXT NOT NULL,
+     tamanho INTEGER NOT NULL,
+     dados BLOB NOT NULL,
+     criado_em TEXT NOT NULL
+   );
+   CREATE INDEX IF NOT EXISTS propostas_arquivos_token ON propostas_arquivos (token);`);
+  },
 ];
 
 // Troca os documentos dos planos CNPJ pela lista empresarial; com unimed, a Unimed PME recebe a lista dela.
@@ -386,6 +404,7 @@ function linhaParaProposta(l) {
   return {
     token: l.token, dados: JSON.parse(l.dados), fone: l.fone, criadoEm: l.criado_em,
     aceitoEm: l.aceito_em, acomodacao: l.acomodacao, valor: l.valor, docsEnviadosEm: l.docs_enviados_em,
+    docsFone: l.docs_fone, docsChave: l.docs_chave, docsConcluidoEm: l.docs_concluido_em,
   };
 }
 
@@ -882,8 +901,74 @@ export class Banco {
     return this.db.prepare("SELECT * FROM propostas WHERE aceito_em IS NOT NULL ORDER BY aceito_em DESC").all().map(linhaParaProposta);
   }
 
+  // O aceite e os documentos que o cliente enviou saem juntos.
   excluirAceite(token) {
-    return this.db.prepare("DELETE FROM propostas WHERE token = ? AND aceito_em IS NOT NULL").run(token).changes > 0;
+    let apagou = false;
+    this.db.exec("BEGIN");
+    try {
+      apagou = this.db.prepare("DELETE FROM propostas WHERE token = ? AND aceito_em IS NOT NULL").run(token).changes > 0;
+      if (apagou) this.db.prepare("DELETE FROM propostas_arquivos WHERE token = ?").run(token);
+      this.db.exec("COMMIT");
+    } catch (e) {
+      this.db.exec("ROLLBACK");
+      throw e;
+    }
+    if (apagou) this.liberarEspaco();
+    return apagou;
+  }
+
+  /* ---------- documentos enviados pelo cliente ---------- */
+  // Chave do acesso do cliente aos documentos desta proposta: criada na primeira entrada e mantida depois,
+  // para ele continuar o envio de onde parou, em qualquer aparelho em que já tenha entrado.
+  chaveDosDocumentos(token) {
+    const atual = this.db.prepare("SELECT docs_chave FROM propostas WHERE token = ? AND aceito_em IS NOT NULL").get(token);
+    if (!atual) return null;
+    if (atual.docs_chave) return atual.docs_chave;
+    const chave = randomBytes(32).toString("base64url");
+    this.db.prepare("UPDATE propostas SET docs_chave = ? WHERE token = ?").run(chave, token);
+    return chave;
+  }
+
+  // Proposta feita sem o número do cliente: o primeiro telefone informado passa a ser o login dela.
+  definirFoneDosDocumentos(token, fone) {
+    this.db.prepare("UPDATE propostas SET docs_fone = ? WHERE token = ? AND docs_fone = ''").run(fone, token);
+  }
+
+  // Lista sem o conteúdo: só o que as telas mostram.
+  arquivosDasPropostas(tokens) {
+    const porToken = new Map(tokens.map((t) => [t, []]));
+    if (!tokens.length) return porToken;
+    const linhas = this.db.prepare(`SELECT id, token, documento, nome, tipo, tamanho, criado_em FROM propostas_arquivos WHERE token IN (${tokens.map(() => "?").join(",")}) ORDER BY criado_em, rowid`).all(...tokens);
+    for (const l of linhas) porToken.get(l.token)?.push({ id: l.id, documento: l.documento, nome: l.nome, tipo: l.tipo, tamanho: l.tamanho, criadoEm: l.criado_em });
+    return porToken;
+  }
+
+  arquivosDaProposta(token) {
+    return this.arquivosDasPropostas([token]).get(token);
+  }
+
+  guardarArquivoDaProposta(token, { documento, nome, tipo, dados }) {
+    const id = randomBytes(9).toString("base64url");
+    this.db.prepare("INSERT INTO propostas_arquivos (id, token, documento, nome, tipo, tamanho, dados, criado_em) VALUES (?,?,?,?,?,?,?,?)")
+      .run(id, token, documento, nome, tipo, dados.length, dados, new Date().toISOString());
+    return id;
+  }
+
+  lerArquivoDaProposta(token, id) {
+    const l = this.db.prepare("SELECT nome, tipo, dados FROM propostas_arquivos WHERE token = ? AND id = ?").get(token, id);
+    return l ? { nome: l.nome, tipo: l.tipo, dados: Buffer.from(l.dados) } : null;
+  }
+
+  excluirArquivoDaProposta(token, id) {
+    const apagou = this.db.prepare("DELETE FROM propostas_arquivos WHERE token = ? AND id = ?").run(token, id).changes > 0;
+    if (apagou) this.liberarEspaco();
+    return apagou;
+  }
+
+  // O cliente avisa que terminou; reabrir o envio tira o aviso.
+  concluirDocumentos(token, concluido) {
+    this.db.prepare("UPDATE propostas SET docs_concluido_em = ? WHERE token = ? AND aceito_em IS NOT NULL").run(concluido ? new Date().toISOString() : null, token);
+    return this.obterProposta(token);
   }
 
   marcarDocumentosEnviados(token) {

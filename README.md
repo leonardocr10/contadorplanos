@@ -69,7 +69,18 @@ A página guarda os valores do momento em que o link foi criado. Mudar o plano d
 A página da proposta tem o botão **Aceitar proposta**: o cliente escolhe a acomodação e confirma. Depois disso:
 
 - A página avisa o cliente que ele receberá a lista de documentos necessários para a contratação, e oferece o botão **Falar com o corretor no WhatsApp**.
-- O aceite aparece na tela **Aceites**. O botão **Enviar documentos no WhatsApp** mostra os documentos do plano: desmarque o que não quer pedir, e a conversa abre com a mensagem pronta.
+- O aceite aparece na tela **Aceites**. O botão **Pedir documentos no WhatsApp** mostra os documentos do plano: desmarque o que não quer pedir, e a conversa abre com a mensagem pronta e o link de envio.
+
+### Envio de documentos pelo cliente
+
+Depois de aceitar, o cliente vê na própria proposta o botão **Enviar documentos**. O endereço é o da proposta com `/documentos` no fim.
+
+- **Login pelo telefone:** o cliente informa o número de WhatsApp da proposta, com DDD. Vale com ou sem o nono dígito. Se a proposta foi criada sem número, o primeiro telefone informado passa a ser o login dela. Cinco números errados bloqueiam a entrada por um minuto.
+- **Envio aos poucos:** a página lista os documentos do plano aceito e aceita foto ou PDF de até 20 MB, vários por documento. Cada arquivo é guardado assim que chega: o cliente pode parar e voltar depois pelo mesmo link, em qualquer aparelho, informando o telefone. O acesso dura 30 dias em cada aparelho.
+- **Fotos grandes:** são reduzidas no próprio celular antes de subir, para o envio ser rápido.
+- **Concluir:** ao terminar, o cliente toca em **Concluir envio**. Ele pode concluir com documentos faltando e também reabrir para trocar ou acrescentar algum.
+- **Para o corretor:** a tela **Aceites** mostra quantos documentos chegaram e, em **Documentos do cliente**, cada arquivo para abrir ou baixar. **Copiar link de envio** copia o endereço para mandar ao cliente.
+- **Privacidade:** os arquivos ficam no banco de dados e entram no backup. Pela internet, o cliente vê só o nome dos arquivos que enviou e pode removê-los; o conteúdo só abre dentro do cotador, com login. Excluir o aceite apaga os documentos dele.
 
 O aceite registra o interesse do cliente, mas não substitui a assinatura do contrato com a operadora.
 

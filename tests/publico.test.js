@@ -421,7 +421,7 @@ test("abrir o link não aceita; aceite exige acomodação válida e confirmaçã
   assert.equal(a.docsEnviadosEm, null);
 });
 
-test("só o primeiro aceite vale e a página avisa que a lista de documentos virá depois", async (t) => {
+test("só o primeiro aceite vale e a página aceita leva ao envio dos documentos", async (t) => {
   const { admin, publico, banco } = await subir(t, ativo);
   banco.gravarConfig({ fone: "(34) 90000-2222" });
   banco.criarDocumento("RG e CPF", "PF");
@@ -435,8 +435,8 @@ test("só o primeiro aceite vale e a página avisa que a lista de documentos vir
   assert.equal(lista[0].acomodacao, "Enfermaria");
   const pagina = await (await fetch(url)).text();
   assert.ok(pagina.includes("Proposta aceita"));
-  assert.ok(pagina.includes("Você receberá a lista de documentos necessários para contratação."));
-  // O corretor escolhe os documentos de cada cliente: a página não lista os do plano.
+  assert.ok(pagina.includes(`href="${new URL(url).pathname}/documentos">Enviar documentos</a>`));
+  // A lista dos documentos só aparece depois do telefone: a página da proposta não mostra.
   assert.ok(!pagina.includes("RG e CPF") && !pagina.includes("residência") && !pagina.includes("Cartão CNPJ"));
   assert.ok(pagina.includes("Falar com o corretor no WhatsApp"));
   assert.ok(!pagina.includes('action="/p/'));

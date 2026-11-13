@@ -81,7 +81,8 @@ export function linkConversaDireta(fone, texto = "", agente = "") {
   return `https://web.whatsapp.com/send${params ? "?" + params : ""}`;
 }
 
-export function mensagemDocumentos({ cliente, plano, acomodacao, valor, documentos, corretor }) {
+// Com o link, o cliente envia pelo próprio sistema, entrando com o telefone, e pode continuar depois.
+export function mensagemDocumentos({ cliente, plano, acomodacao, valor, documentos, link = "", corretor }) {
   const L = [
     cliente ? `Olá, *${cliente}*! Tudo bem? 😊` : "Olá! Tudo bem? 😊",
     "",
@@ -91,6 +92,7 @@ export function mensagemDocumentos({ cliente, plano, acomodacao, valor, document
     "",
     ...documentos.map((d) => `• ${d}`),
   ];
+  if (link) L.push("", "Você pode enviar tudo por este link, informando o seu telefone. Dá para enviar aos poucos e continuar depois:", link);
   const sig = assinatura(corretor);
   if (sig.length) L.push("", ...sig);
   return L.join("\n");

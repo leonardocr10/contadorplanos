@@ -320,20 +320,22 @@ function botaoAceite(s, { token, aceite }, paraImagem) {
   </details>`;
 }
 
-// O corretor escolhe e envia pelo WhatsApp os documentos de cada cliente; a página só avisa.
-function avisoAceito(s, { aceite, foneCorretor, agente = "" }) {
+// Depois do aceite, o cliente envia os documentos pelo próprio link, entrando com o telefone.
+function avisoAceito(s, { token, aceite, foneCorretor, agente = "" }) {
   if (!aceite?.aceitoEm) return "";
   const data = new Date(aceite.aceitoEm).toLocaleDateString("pt-BR");
   // O telefone é o atual de Meus dados; o da proposta só vale se ele não estiver preenchido.
   const fone = [foneCorretor, s.corretor.fone].map(normFone).find((f) => f.length >= 10);
   const contato = fone
-    ? `<a class="botao" href="${esc(linkConversaDireta(fone, `Olá! Aceitei a proposta do plano ${s.plano.nome}.`, agente))}">Falar com o corretor no WhatsApp</a>`
+    ? `<a class="botao claro" href="${esc(linkConversaDireta(fone, `Olá! Aceitei a proposta do plano ${s.plano.nome}.`, agente))}">Falar com o corretor no WhatsApp</a>`
     : "";
   return `<section class="aceito">
     <h2>Proposta aceita</h2>
     <p>Você aceitou esta proposta em ${esc(data)}: <b>${esc(aceite.acomodacao)}, ${moeda(aceite.valor)} por mês</b>.</p>
-    <p>Você receberá a lista de documentos necessários para contratação.</p>
-    ${contato}
+    ${token
+    ? `<p>${aceite.docsConcluidoEm ? "Você já enviou os documentos. Se precisar, ainda pode acrescentar ou trocar algum." : "O próximo passo é enviar os documentos para a contratação. Você pode enviar aos poucos: o que já foi enviado fica guardado."}</p>
+    <div class="aceito-botoes"><a class="botao" href="/p/${esc(token)}/documentos">${aceite.docsConcluidoEm ? "Ver documentos enviados" : "Enviar documentos"}</a>${contato}</div>`
+    : `<p>Você receberá a lista de documentos necessários para contratação.</p>${contato}`}
   </section>`;
 }
 
@@ -398,6 +400,9 @@ input[type=radio],input[type=checkbox]{width:18px;height:18px;flex:none;accent-c
 .aceito h3{margin:12px 0 0;font-size:15px;font-weight:800;color:var(--navy)}
 .aceito ul{margin:4px 0;padding-left:20px}
 .aceito .botao{max-width:340px}
+.aceito-botoes{display:flex;flex-wrap:wrap;gap:0 12px}
+.aceito-botoes .botao{flex:1 1 240px}
+.botao.claro{background:#fff;color:var(--navy);border:1.5px solid var(--accent)}
 .cols{display:flex;flex-wrap:wrap;gap:32px}
 .col{flex:1 1 320px;min-width:0;display:flex;flex-direction:column;gap:10px}
 .col.wide{flex:1.2 1 360px}
