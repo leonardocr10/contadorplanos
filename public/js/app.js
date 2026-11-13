@@ -6,6 +6,7 @@ import { carregarHistorico, iniciarHistorico, renderHist } from "./historico.js"
 import { carregarAceites, iniciarAceites, renderAceites } from "./aceites.js";
 import { carregarDocumentos, iniciarDocumentos, renderDocumentos } from "./documentos.js";
 import { atualizarPlanosDoContrato, carregarContratos, conferirDiaDosContratos, iniciarContratos } from "./contratos.js";
+import { carregarFinanceiro, iniciarFinanceiro } from "./financeiro.js";
 import { abrirItem, aplicarPerfil, avatarDoUsuario, carregarUsuarios, iniciarConfiguracoes, mostrarUsuarioLogado } from "./configuracoes.js";
 import { iniciarFiltroSelects } from "./filtro-select.js";
 
@@ -22,7 +23,10 @@ definirRender(() => {
 });
 
 /* ---------- abas ---------- */
-document.querySelectorAll(".tabs button[data-view]").forEach((b) => (b.onclick = () => show(b.dataset.view)));
+document.querySelectorAll(".tabs button[data-view]").forEach((b) => (b.onclick = () => {
+  show(b.dataset.view);
+  if (["regras", "comissoes"].includes(b.dataset.view)) carregarFinanceiro();
+}));
 // Nova cotação recomeça do zero na hora, sem recarregar a página; planos e histórico se atualizam ao fundo.
 $("#tab-cot").onclick = async () => {
   await novaCotacao();
@@ -223,6 +227,7 @@ async function carregar() {
       pode("documentos") ? carregarDocumentos().catch((e) => toast(e.message, "erro")) : null,
       verificarAceites(),
       carregarContratos(),
+      carregarFinanceiro(),
     ]);
     const precisaDosPlanos = TELAS_COM_PLANOS.some((t) => pode(t));
     const [status, erroPlanos] = await Promise.all([statusP, planosP]);
@@ -257,6 +262,7 @@ iniciarHistorico();
 iniciarDocumentos();
 iniciarConfiguracoes();
 iniciarContratos();
+iniciarFinanceiro();
 renderHist();
 iniciarAceites();
 renderAceites();

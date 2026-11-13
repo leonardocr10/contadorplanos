@@ -288,6 +288,29 @@ const MIGRACOES = [
   (db) => {
     if (!db.prepare("PRAGMA table_info(propostas)").all().some((c) => c.name === "contrato_id")) db.exec("ALTER TABLE propostas ADD COLUMN contrato_id TEXT");
   },
+  // Financeiro: corretoras com as regras de comissão, e a regra e o valor da adesão de cada contrato vendido.
+  (db) => {
+    db.exec(`CREATE TABLE IF NOT EXISTS comissao_corretoras (
+       id TEXT PRIMARY KEY,
+       nome TEXT NOT NULL COLLATE NOCASE UNIQUE,
+       criado_em TEXT NOT NULL
+     );
+     CREATE TABLE IF NOT EXISTS comissao_regras (
+       id TEXT PRIMARY KEY,
+       corretora_id TEXT NOT NULL,
+       nome TEXT NOT NULL,
+       segmento TEXT NOT NULL,
+       angariacao REAL NOT NULL DEFAULT 0,
+       parcelas TEXT NOT NULL DEFAULT '[]',
+       observacao TEXT NOT NULL DEFAULT '',
+       ordem INTEGER NOT NULL DEFAULT 0,
+       criado_em TEXT NOT NULL
+     );
+     CREATE INDEX IF NOT EXISTS comissao_regras_corretora ON comissao_regras (corretora_id);`);
+    const colunas = db.prepare("PRAGMA table_info(contratos)").all().map((c) => c.name);
+    if (!colunas.includes("regra_id")) db.exec("ALTER TABLE contratos ADD COLUMN regra_id TEXT");
+    if (!colunas.includes("adesao")) db.exec("ALTER TABLE contratos ADD COLUMN adesao REAL");
+  },
 ];
 
 // Troca os documentos dos planos CNPJ pela lista empresarial; com unimed, a Unimed PME recebe a lista dela.
@@ -426,9 +449,16 @@ function linhaParaProposta(l) {
   };
 }
 
+function linhaParaRegra(l) {
+  let parcelas = [];
+  try { parcelas = JSON.parse(l.parcelas); } catch { /* lista inválida fica vazia */ }
+  return { id: l.id, corretoraId: l.corretora_id, nome: l.nome, segmento: l.segmento, angariacao: l.angariacao, parcelas: Array.isArray(parcelas) ? parcelas : [], observacao: l.observacao ?? "" };
+}
+
 function linhaParaContrato(l) {
   return {
     id: l.id, usuarioId: l.usuario_id, nome: l.nome, fone: l.fone, email: l.email ?? "", plano: l.plano, valor: l.valor,
+    regraId: l.regra_id ?? null, adesao: l.adesao ?? null,
     ativacao: l.ativacao, contatoEm: l.contato_em, criadoEm: l.criado_em,
   };
 }
@@ -886,6 +916,89 @@ export class Banco {
     const apagou = this.db.prepare("DELETE FROM contratos_arquivos WHERE contrato_id = ? AND id = ?").run(contratoId, id).changes > 0;
     if (apagou) this.liberarEspaco();
     return apagou;
+  }
+
+  /* ---------- financeiro: corretoras e regras de comissão ---------- */
+  listarCorretoras() {
+    const regras = this.db.prepare("SELECT * FROM comissao_regras ORDER BY ordem, rowid").all().map(linhaParaRegra);
+    return this.db.prepare("SELECT * FROM comissao_corretoras ORDER BY nome").all()
+      .map((c) => ({ id: c.id, nome: c.nome, regras: regras.filter((r) => r.corretoraId === c.id) }));
+  }
+
+  obterCorretora(id) {
+    return this.listarCorretoras().find((c) => c.id === id) ?? null;
+  }
+
+  corretoraComNome(nome, outraQue = null) {
+    const l = this.db.prepare("SELECT id FROM comissao_corretoras WHERE nome = ?").get(nome);
+    return l && l.id !== outraQue ? l.id : null;
+  }
+
+  criarCorretora(nome) {
+    const id = randomBytes(9).toString("base64url");
+    this.db.prepare("INSERT INTO comissao_corretoras (id, nome, criado_em) VALUES (?, ?, ?)").run(id, nome, new Date().toISOString());
+    return this.obterCorretora(id);
+  }
+
+  renomearCorretora(id, nome) {
+    return this.db.prepare("UPDATE comissao_corretoras SET nome = ? WHERE id = ?").run(nome, id).changes > 0 ? this.obterCorretora(id) : null;
+  }
+
+  // As regras saem junto, e os contratos que usavam alguma delas ficam sem regra.
+  excluirCorretora(id) {
+    let apagou = false;
+    this.db.exec("BEGIN");
+    try {
+      this.db.prepare("UPDATE contratos SET regra_id = NULL WHERE regra_id IN (SELECT id FROM comissao_regras WHERE corretora_id = ?)").run(id);
+      this.db.prepare("DELETE FROM comissao_regras WHERE corretora_id = ?").run(id);
+      apagou = this.db.prepare("DELETE FROM comissao_corretoras WHERE id = ?").run(id).changes > 0;
+      this.db.exec("COMMIT");
+    } catch (e) {
+      this.db.exec("ROLLBACK");
+      throw e;
+    }
+    return apagou;
+  }
+
+  obterRegra(id) {
+    const l = this.db.prepare("SELECT * FROM comissao_regras WHERE id = ?").get(id);
+    return l ? linhaParaRegra(l) : null;
+  }
+
+  // Várias regras de uma vez (cadastro e importação), na ordem informada, depois das que já existem.
+  criarRegras(corretoraId, regras) {
+    const inicio = (this.db.prepare("SELECT MAX(ordem) AS m FROM comissao_regras WHERE corretora_id = ?").get(corretoraId).m ?? 0) + 1;
+    const inserir = this.db.prepare("INSERT INTO comissao_regras (id, corretora_id, nome, segmento, angariacao, parcelas, observacao, ordem, criado_em) VALUES (?,?,?,?,?,?,?,?,?)");
+    const ids = [];
+    this.db.exec("BEGIN");
+    try {
+      regras.forEach((r, i) => {
+        const id = randomBytes(9).toString("base64url");
+        inserir.run(id, corretoraId, r.nome, r.segmento, r.angariacao, JSON.stringify(r.parcelas), r.observacao ?? "", inicio + i, new Date().toISOString());
+        ids.push(id);
+      });
+      this.db.exec("COMMIT");
+    } catch (e) {
+      this.db.exec("ROLLBACK");
+      throw e;
+    }
+    return ids.map((id) => this.obterRegra(id));
+  }
+
+  gravarRegra(id, r) {
+    const ok = this.db.prepare("UPDATE comissao_regras SET nome = ?, segmento = ?, angariacao = ?, parcelas = ?, observacao = ? WHERE id = ?")
+      .run(r.nome, r.segmento, r.angariacao, JSON.stringify(r.parcelas), r.observacao ?? "", id).changes > 0;
+    return ok ? this.obterRegra(id) : null;
+  }
+
+  excluirRegra(id) {
+    this.db.prepare("UPDATE contratos SET regra_id = NULL WHERE regra_id = ?").run(id);
+    return this.db.prepare("DELETE FROM comissao_regras WHERE id = ?").run(id).changes > 0;
+  }
+
+  definirComissaoDoContrato(id, regraId, adesao) {
+    this.db.prepare("UPDATE contratos SET regra_id = ?, adesao = ? WHERE id = ?").run(regraId, adesao, id);
+    return this.obterContrato(id);
   }
 
   /* ---------- páginas públicas das propostas ---------- */

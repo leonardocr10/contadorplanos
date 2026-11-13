@@ -595,6 +595,52 @@ body{margin:0}
 .ctr-filtros{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr) minmax(150px,170px) auto}
 /* Contratos Vendidos em três blocos: situação, cadastro e lista. */
 .ctr-blocos:not([hidden]){display:flex;flex-direction:column;gap:16px}
+/* Financeiro */
+.fin-corretora{display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px}
+.fin-corretora .field{flex:1 1 260px;max-width:420px}
+.fin-corretora .actions{margin:0}
+.fin-acao{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.fin-acao[hidden]{display:none}
+.fin-acao .field{flex:1 1 260px;max-width:420px}
+.fin-acao .actions{margin:0}
+.fin-form{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr) minmax(0,1.3fr) minmax(0,1.4fr);gap:10px;align-items:end}
+.fin-form .fin-botoes{grid-column:1/-1;margin:0;align-items:center;justify-content:flex-end}
+.fin-form .fin-botoes [data-total]{margin-right:auto;font-weight:700;color:var(--pine)}
+@media (max-width:1100px){.fin-form{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.fin-form .fin-nome,.fin-form .fin-obs{grid-column:1/-1}}
+@media (max-width:560px){.fin-form{grid-template-columns:minmax(0,1fr)}}
+.fin-obs-linha{margin:2px 0 0;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
+.fin-tabela .grade-nome{max-width:300px}
+.fin-filtros{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr) minmax(150px,170px) auto}
+@media (max-width:1100px){.fin-filtros{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+@media (max-width:560px){.fin-filtros{grid-template-columns:minmax(0,1fr)}}
+.fin-cards{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.fin-cards [data-chave="todos"]{--cor:var(--pine)}
+.fin-cards [data-chave="com"]{--cor:var(--accent)}
+.fin-cards [data-chave="sem"]{--cor:var(--danger)}
+.grade-cards [data-chave="pf"]{--cor:#3b82c4}
+.grade-cards [data-chave="pme"]{--cor:var(--accent)}
+.grade-cards [data-chave="pfpme"]{--cor:#c98a0b}
+.grade-cards [data-chave="adesao"]{--cor:var(--pine)}
+.fin-falta{color:var(--danger);font-weight:600;font-size:13px}
+.fin-regra{max-width:260px}
+.fin-comissao{display:flex;flex-direction:column;gap:10px}
+.fin-com-campos{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px}
+.fin-com-campos .fin-com-regra{flex:1 1 360px;max-width:560px}
+.fin-com-campos .field:not(.fin-com-regra){width:180px}
+.fin-com-campos .actions{margin:0}
+.fin-detalhe{min-width:0}
+.fin-detalhe .fin-total td{font-weight:800;color:var(--pine);border-top:2px solid var(--line)}
+/* Menu: grupo Financeiro e os submenus recuados. */
+.tabs-grupo{display:flex;align-items:center;gap:12px;padding:10px 12px 4px;color:var(--muted);font:700 12px var(--body);letter-spacing:.05em;text-transform:uppercase}
+.tabs-grupo[hidden]{display:none}
+.tabs-grupo .tab-ico{display:none}
+@media (min-width:901px){
+  .tabs-grupo .tab-ico{display:block;flex:none}
+  .tabs button.tab-sub{padding-left:28px}
+  body.menu-recolhido header.top:not(:hover) .tabs-grupo,body.menu-recolhido header.top.saindo-do-mouse .tabs-grupo{display:none}
+  body.menu-recolhido header.top:not(:hover) .tabs button.tab-sub,body.menu-recolhido header.top.saindo-do-mouse .tabs button.tab-sub{padding-left:0}
+}
+@media (max-width:900px){.tabs-grupo{display:none}}
 .ctr-bloco-titulo{margin:0;font-family:var(--display);font-weight:600;font-size:16px}
 /* Botão padrão de limpar: borda, ícone de borracha e texto. O compacto vai ao lado de rótulos e títulos. */
 .btn.btn-limpar{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:40px;min-height:0;padding:0 14px;box-sizing:border-box;white-space:nowrap}

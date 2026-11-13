@@ -1,11 +1,11 @@
 // Aba "Configurações": senha de cada login e, para o administrador, usuários e atualização do sistema.
-import { $, api, avisoCentral, esc, pode, toast } from "./estado.js";
+import { $, api, avisoCentral, esc, pode, telaDaView, toast } from "./estado.js";
 
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 const msg = (t) => ($("#cfg-msg").textContent = t);
 const msgUsuarios = (t) => toast(t, "erro");
 const PERFIS = { admin: "Administrador", usuario: "Usuário" };
-const TELAS = { cotacao: "Nova Cotação", planos: "Planos e Valores", documentos: "Documentos", historico: "Histórico", aceites: "Aceites", contratos: "Contratos Vendidos" };
+const TELAS = { cotacao: "Nova Cotação", planos: "Planos e Valores", documentos: "Documentos", historico: "Histórico", aceites: "Aceites", contratos: "Contratos Vendidos", financeiro: "Financeiro" };
 const NIVEIS = { nenhum: "Sem acesso", ver: "Ver", editar: "Editar" };
 const NOMES_NIVEIS = { nenhum: "sem acesso", ver: "visualização", editar: "edição" };
 const PADRAO = { cotacao: "editar", planos: "ver", documentos: "ver", historico: "editar", aceites: "editar", contratos: "editar" };
@@ -169,7 +169,8 @@ export function aplicarPerfil(usuario) {
   document.querySelectorAll("[data-admin]").forEach((p) => (p.hidden = !admin));
   document.querySelectorAll("[data-edita]").forEach((p) => (p.hidden = !pode(p.dataset.edita, "editar")));
   document.querySelectorAll("[data-so-ve]").forEach((p) => (p.hidden = pode(p.dataset.soVe, "editar")));
-  document.querySelectorAll(".tabs button[data-view]").forEach((b) => (b.hidden = b.dataset.view !== "configuracoes" && !pode(b.dataset.view)));
+  document.querySelectorAll(".tabs button[data-view]").forEach((b) => (b.hidden = b.dataset.view !== "configuracoes" && !pode(telaDaView(b.dataset.view))));
+  document.querySelectorAll(".tabs-grupo[data-tela]").forEach((g) => (g.hidden = !pode(g.dataset.tela)));
   $("#cfg-entrou").innerHTML = usuario.login ? `Você entrou como <b>${esc(usuario.login)}</b> (${PERFIS[usuario.perfil]})` : "";
   $("#cfg-item-senha").hidden = !usuario.id;
   $("#foto-campo").hidden = !usuario.id;

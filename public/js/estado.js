@@ -62,10 +62,12 @@ export const toast = (texto, tipo = "aviso") => avisoCentral(texto, tipo);
 export const eAdmin = () => S.eu?.perfil === "admin";
 const ORDEM_NIVEIS = ["nenhum", "ver", "editar"];
 export const pode = (tela, minimo = "ver") => ORDEM_NIVEIS.indexOf(S.eu?.permissoes?.[tela] ?? "nenhum") >= ORDEM_NIVEIS.indexOf(minimo);
-export const VIEWS = ["cotacao", "planos", "documentos", "historico", "aceites", "contratos", "configuracoes"];
+export const VIEWS = ["cotacao", "planos", "documentos", "historico", "aceites", "contratos", "regras", "comissoes", "configuracoes"];
+// Telas que são parte de outra na permissão (os submenus do Financeiro).
+export const telaDaView = (v) => ({ regras: "financeiro", comissoes: "financeiro" }[v] ?? v);
 export function show(telaPedida) {
   // Tela sem permissão abre a primeira permitida; Configurações é de todos.
-  const permitida = (t) => !S.eu || t === "configuracoes" || pode(t);
+  const permitida = (t) => !S.eu || t === "configuracoes" || pode(telaDaView(t));
   const v = permitida(telaPedida) ? telaPedida : VIEWS.find(permitida);
   for (const b of document.querySelectorAll(".tabs button")) b.setAttribute("aria-selected", b.dataset.view === v);
   for (const id of VIEWS) $("#v-" + id).hidden = id !== v;

@@ -21,6 +21,8 @@
 <link rel="modulepreload" href="js/contratos.js">
 <link rel="modulepreload" href="js/visor-documento.js">
 <link rel="modulepreload" href="js/grade.js">
+<link rel="modulepreload" href="js/financeiro.js">
+<link rel="modulepreload" href="js/comissao.js">
 <link rel="modulepreload" href="js/configuracoes.js">
 <link rel="modulepreload" href="js/filtro-select.js">
 </head>
@@ -38,6 +40,9 @@
       <button role="tab" aria-selected="false" data-view="historico" title="Histórico"><svg class="tab-ico" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span class="tab-rotulo">Histórico</span></button>
       <button role="tab" aria-selected="false" data-view="aceites" title="Aceites"><svg class="tab-ico" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg><span class="tab-rotulo">Aceites</span> <span class="pill" id="ace-selo" hidden style="margin:0 0 0 4px"></span></button>
       <button role="tab" aria-selected="false" data-view="contratos" title="Contratos Vendidos"><svg class="tab-ico" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M3 13h18"/></svg><span class="tab-rotulo">Contratos Vendidos</span> <span class="pill st-off" id="ctr-selo" hidden style="margin:0 0 0 4px"></span></button>
+      <div class="tabs-grupo" data-tela="financeiro" role="presentation"><svg class="tab-ico" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="13" rx="2"/><circle cx="12" cy="12.5" r="2.5"/><path d="M6 12.5h.01M18 12.5h.01"/></svg><span class="tab-rotulo">Financeiro</span></div>
+      <button role="tab" aria-selected="false" data-view="regras" class="tab-sub" title="Regras de pagamento"><svg class="tab-ico" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg><span class="tab-rotulo">Regras de pagamento</span></button>
+      <button role="tab" aria-selected="false" data-view="comissoes" class="tab-sub" title="Comissões"><svg class="tab-ico" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="2" width="16" height="20" rx="2"/><path d="M8 6h8M8 10h.01M12 10h.01M16 10h.01M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h4"/></svg><span class="tab-rotulo">Comissões</span></button>
       <button role="tab" aria-selected="false" data-view="configuracoes" title="Configurações"><svg class="tab-ico" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></svg><span class="tab-rotulo">Configurações</span></button>
       <form method="post" action="/sair" style="display:contents"><button type="submit" title="Sair"><svg class="tab-ico" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l-5-5 5-5M5 12h11"/></svg><span class="tab-rotulo">Sair</span></button></form>
     </nav>
@@ -218,6 +223,66 @@
       </div>
       <div id="ctr-list"></div>
       <nav class="grade-paginacao" id="ctr-paginacao" aria-label="Páginas dos contratos"></nav>
+    </div>
+  </section>
+
+  <!-- FINANCEIRO: REGRAS DE PAGAMENTO -->
+  <section id="v-regras" class="ctr-blocos" hidden>
+    <div class="panel">
+      <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center">
+        <h2>Regras de pagamento</h2>
+        <span class="note">Comissão por corretora: angariação sobre a adesão e parcelas sobre a mensalidade</span>
+      </div>
+      <div class="fin-corretora">
+        <div class="field"><label for="reg-corretora">Corretora</label><select id="reg-corretora" data-icone="filtro"></select></div>
+        <div class="actions" data-edita="financeiro" hidden>
+          <button type="button" class="btn" id="reg-nova">Nova corretora</button>
+          <button type="button" class="btn" id="reg-renomear">Renomear</button>
+          <button type="button" class="btn" id="reg-importar" title="Arquivo JSON com a tabela de comissão da corretora">Importar tabela</button>
+          <button type="button" class="btn danger" id="reg-excluir">Excluir corretora</button>
+          <input type="file" id="reg-arquivo" accept=".json,application/json" hidden>
+        </div>
+      </div>
+      <div class="fin-acao" id="reg-acao" hidden></div>
+      <div class="grade-cards" id="reg-cards" role="group" aria-label="Regras por segmento"></div>
+    </div>
+    <div class="panel" id="reg-form-bloco" hidden>
+      <h3 class="ctr-bloco-titulo" id="reg-form-titulo">Nova regra</h3>
+      <form id="reg-form" class="fin-form" autocomplete="off" novalidate></form>
+    </div>
+    <div class="panel">
+      <div class="hist-filtros grade-filtros">
+        <div class="field"><label for="reg-busca">Buscar</label><input id="reg-busca" type="search" placeholder="Operadora, administradora ou segmento" autocomplete="off"></div>
+        <div class="field"><label for="reg-filtro">Segmento</label><select id="reg-filtro" data-icone="filtro" data-contagem="segmento|segmentos"></select></div>
+        <div class="field"><label for="reg-por-pagina">Por página</label><select id="reg-por-pagina"><option value="10">10 por página</option><option value="25">25 por página</option><option value="50">50 por página</option><option value="100">100 por página</option></select></div>
+        <button type="button" class="btn btn-limpar" id="reg-limpar" title="Limpar filtros" aria-label="Limpar filtros" disabled><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg><span>Limpar</span></button>
+      </div>
+      <div id="reg-lista"></div>
+      <nav class="grade-paginacao" id="reg-paginacao" aria-label="Páginas das regras"></nav>
+      <p class="note" style="margin:0">Parcelas em % da mensalidade, uma por mês a partir da ativação. Nos coletivos por adesão, a angariação é a % sobre o valor da adesão, paga no ato da venda.</p>
+    </div>
+  </section>
+
+  <!-- FINANCEIRO: COMISSÕES -->
+  <section id="v-comissoes" class="ctr-blocos" hidden>
+    <div class="panel">
+      <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center">
+        <h2>Comissões</h2>
+        <span class="note" id="com-count"></span>
+      </div>
+      <div class="grade-cards fin-cards" id="com-cards" role="group" aria-label="Totais das comissões"></div>
+    </div>
+    <div class="panel">
+      <div class="hist-filtros fin-filtros">
+        <div class="field"><label for="com-busca">Buscar</label><input id="com-busca" type="search" placeholder="Cliente, plano ou regra" autocomplete="off"></div>
+        <div class="field"><label for="com-corretora">Corretora</label><select id="com-corretora" data-icone="filtro"></select></div>
+        <div class="field"><label for="com-mes">Mês de ativação</label><select id="com-mes" data-icone="calendario"></select></div>
+        <div class="field"><label for="com-por-pagina">Por página</label><select id="com-por-pagina"><option value="10">10 por página</option><option value="25">25 por página</option><option value="50">50 por página</option><option value="100">100 por página</option></select></div>
+        <button type="button" class="btn btn-limpar" id="com-limpar" title="Limpar filtros" aria-label="Limpar filtros" disabled><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg><span>Limpar</span></button>
+      </div>
+      <div id="com-lista"></div>
+      <nav class="grade-paginacao" id="com-paginacao" aria-label="Páginas das comissões"></nav>
+      <p class="note" style="margin:0">Os contratos vêm de Contratos Vendidos, com a mensalidade cadastrada. Clique na calculadora para escolher a regra, informar a adesão e ver cada pagamento previsto.</p>
     </div>
   </section>
 

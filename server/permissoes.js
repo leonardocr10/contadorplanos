@@ -1,11 +1,12 @@
 // O que cada login faz em cada tela. O administrador sempre pode tudo.
-export const TELAS = ["cotacao", "planos", "documentos", "historico", "aceites", "contratos"];
+export const TELAS = ["cotacao", "planos", "documentos", "historico", "aceites", "contratos", "financeiro"];
 export const NIVEIS = ["nenhum", "ver", "editar"];
 // Telas que usam a lista de planos (a cotação, os documentos e o campo plano dos contratos vendidos).
 export const TELAS_COM_PLANOS = ["cotacao", "planos", "documentos", "contratos"];
 
 // Vale para quem foi criado sem escolher, e repete o que os usuários já podiam fazer.
-const PERMISSOES_PADRAO = { cotacao: "editar", planos: "ver", documentos: "ver", historico: "editar", aceites: "editar", contratos: "editar" };
+// O Financeiro (comissões) começa fechado: o administrador libera para quem precisar.
+export const PERMISSOES_PADRAO = { cotacao: "editar", planos: "ver", documentos: "ver", historico: "editar", aceites: "editar", contratos: "editar", financeiro: "nenhum" };
 
 export function permissoesDoUsuario(perfil, json) {
   if (perfil === "admin") return Object.fromEntries(TELAS.map((t) => [t, "editar"]));
