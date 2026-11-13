@@ -111,6 +111,8 @@ export function criarAppPublica({ banco, pastaPublica, pastaUploads }) {
       // Fora da lista ficam os extras e o que foi enviado para um documento que o plano deixou de pedir.
       outros: { nome: OUTROS, arquivos: arquivos.filter((a) => !nomes.includes(a.documento)).map(paraTela) },
       concluidoEm: proposta.docsConcluidoEm,
+      // Para o formulário de conclusão: o nome e o e-mail já informados, ou o nome da proposta.
+      contato: { nome: proposta.docsNome || proposta.dados.cliente || "", fone: proposta.docsFone || proposta.fone, email: proposta.docsEmail },
       limite: MAX_ARQUIVO,
     };
   };
@@ -181,8 +183,15 @@ export function criarAppPublica({ banco, pastaPublica, pastaUploads }) {
   });
 
   // O cliente avisa o corretor que terminou; pode reabrir para trocar ou acrescentar algum arquivo.
-  app.post("/p/:token/documentos/concluir", comAcesso, express.json({ limit: "1kb" }), (req, res) => {
-    res.json(estado(banco.concluirDocumentos(req.proposta.token, req.body?.concluido !== false)));
+  // Concluir pede o nome e o e-mail; o telefone é o do acesso, já conferido.
+  app.post("/p/:token/documentos/concluir", comAcesso, express.json({ limit: "2kb" }), (req, res) => {
+    const { proposta } = req;
+    if (req.body?.concluido === false) return res.json(estado(banco.concluirDocumentos(proposta.token, false)));
+    const nome = String(req.body?.nome ?? "").replace(/\s+/g, " ").trim();
+    if (nome.length < 2 || nome.length > 200) return res.status(400).json({ erro: "Informe o seu nome completo.", campo: "nome" });
+    const email = String(req.body?.email ?? "").trim().toLowerCase();
+    if (email.length > 200 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return res.status(400).json({ erro: "Informe um e-mail válido, como nome@exemplo.com.", campo: "email" });
+    res.json(estado(banco.concluirDocumentos(proposta.token, true, { nome, email, fone: proposta.docsFone ? "" : proposta.fone })));
   });
 
   const enviar = (arquivo) => (_req, res) => res.sendFile(arquivo, { headers: { "Cache-Control": "public, no-cache" } });

@@ -6,9 +6,11 @@ const BASE = app.dataset.base, WHATSAPP = app.dataset.whatsapp, PROPOSTA = app.d
 let estado = null;
 // Envios em andamento e avisos de erro, por documento: sobrevivem a cada redesenho da lista.
 const enviando = new Map(), erros = new Map();
-let confirmando = false, editando = false;
+let editando = false;
 
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmtFone = (d) => (d.length === 11 ? `(${d.slice(0, 2)}) ${d.slice(2, 7)}-${d.slice(7)}` : d.length === 10 ? `(${d.slice(0, 2)}) ${d.slice(2, 6)}-${d.slice(6)}` : d);
+const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const tamanho = (b) => (b >= 1048576 ? `${(b / 1048576).toFixed(1).replace(".", ",")} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
 
 async function pedir(rota, opcoes = {}) {
@@ -16,7 +18,7 @@ async function pedir(rota, opcoes = {}) {
   // O acesso venceu ou foi encerrado: a página de entrada pede o telefone de novo.
   if (r.status === 401) { location.reload(); throw new Error("Informe o seu telefone para continuar."); }
   const corpo = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(corpo.erro || "Não deu para concluir agora. Tente de novo em instantes.");
+  if (!r.ok) throw Object.assign(new Error(corpo.erro || "Não deu para concluir agora. Tente de novo em instantes."), { campo: corpo.campo });
   return corpo;
 }
 
@@ -101,17 +103,55 @@ async function tirar(documento, id, botao) {
   desenhar();
 }
 
-async function concluir(concluido) {
-  try {
-    estado = await pedir("/concluir", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ concluido }) });
-    confirmando = false;
-    editando = false;
-    erros.delete("");
-  } catch (e) {
-    erros.set("", e.message);
-  }
-  desenhar();
-  if (concluido) window.scrollTo({ top: 0, behavior: "smooth" });
+// Concluir abre uma janela que confirma o nome e pede o e-mail; o telefone é o do acesso.
+// Se ainda faltar algum documento, a mesma janela avisa quais.
+function abrirConclusao(faltam) {
+  const { nome, fone, email } = estado.contato;
+  const janela = document.createElement("dialog");
+  janela.className = "modal";
+  janela.setAttribute("aria-labelledby", "modal-titulo");
+  janela.innerHTML = `<form class="pilha" novalidate>
+    <h2 id="modal-titulo">Concluir envio</h2>
+    ${faltam.length
+    ? `<div class="aviso falta"><b>Ainda ${faltam.length === 1 ? "falta 1 documento" : `faltam ${faltam.length} documentos`}:</b> ${esc(faltam.map((d) => d.nome).join(", "))}. Você pode concluir agora e combinar o restante com o corretor.</div>`
+    : `<p class="sub">Confira os seus dados: o corretor vai usá-los para falar com você sobre a contratação.</p>`}
+    <label>Nome completo<input name="nome" autocomplete="name" maxlength="200" required value="${esc(nome)}"></label>
+    <label>Telefone<input type="tel" value="${esc(fmtFone(fone || ""))}" readonly aria-describedby="fone-nota"><small id="fone-nota" class="sub">É o número com que você entrou.</small></label>
+    <label>E-mail<input type="email" name="email" inputmode="email" autocomplete="email" autocapitalize="none" spellcheck="false" maxlength="200" required placeholder="nome@exemplo.com" value="${esc(email)}"></label>
+    <div class="aviso" role="alert" data-erro hidden></div>
+    <button class="botao" type="submit">Concluir envio</button>
+    <button class="botao claro" type="button" data-voltar>${faltam.length ? "Continuar enviando" : "Voltar"}</button>
+  </form>`;
+  document.body.append(janela);
+  janela.addEventListener("close", () => janela.remove());
+  const form = janela.querySelector("form"), aviso = janela.querySelector("[data-erro]"), enviar = janela.querySelector("[type=submit]");
+  const erro = (texto, campo) => {
+    aviso.textContent = texto;
+    aviso.hidden = false;
+    if (campo) form.elements[campo].focus();
+  };
+  janela.querySelector("[data-voltar]").onclick = () => janela.close();
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    const dados = { nome: form.elements.nome.value.replace(/\s+/g, " ").trim(), email: form.elements.email.value.trim() };
+    if (dados.nome.length < 2) return erro("Informe o seu nome completo.", "nome");
+    if (!EMAIL.test(dados.email)) return erro("Informe um e-mail válido, como nome@exemplo.com.", "email");
+    enviar.disabled = true;
+    enviar.textContent = "Concluindo…";
+    try {
+      estado = await pedir("/concluir", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(dados) });
+      editando = false;
+      janela.close();
+      desenhar();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (falha) {
+      enviar.disabled = false;
+      enviar.textContent = "Concluir envio";
+      erro(falha.message, falha.campo);
+    }
+  };
+  janela.showModal();
+  (nome ? form.elements.email : form.elements.nome).focus();
 }
 
 /* ---------- tela ---------- */
@@ -143,6 +183,7 @@ function desenhar() {
       <h2>✓ Documentos enviados</h2>
       <p>Recebemos os seus documentos em ${new Date(concluidoEm).toLocaleDateString("pt-BR")} e o corretor já foi avisado. Agora é só aguardar o contato.</p>
       ${total ? `<p class="sub">${enviados} de ${total} documentos da lista enviados${faltam.length ? `. Ainda sem arquivo: ${esc(faltam.map((d) => d.nome).join(", "))}.` : "."}</p>` : ""}
+      ${estado.contato.email ? `<p class="sub">Contato informado: ${esc(estado.contato.nome)} · ${esc(fmtFone(estado.contato.fone || ""))} · ${esc(estado.contato.email)}</p>` : ""}
       ${whatsapp}
       <button type="button" class="botao claro" data-editar>Enviar mais ou trocar um documento</button>
     </section>${links}`;
@@ -150,16 +191,7 @@ function desenhar() {
     return;
   }
 
-  const rodape = confirmando
-    ? `<section class="cartao pilha" role="alertdialog" aria-label="Concluir com documentos faltando">
-        <h2>Ainda ${faltam.length === 1 ? "falta 1 documento" : `faltam ${faltam.length} documentos`}</h2>
-        <p class="sub">${esc(faltam.map((d) => d.nome).join(", "))}</p>
-        <p>Você pode concluir agora e combinar o restante com o corretor, ou continuar enviando.</p>
-        <button type="button" class="botao" data-continuar>Continuar enviando</button>
-        <button type="button" class="botao claro" data-concluir-mesmo>Concluir mesmo assim</button>
-      </section>`
-    : `<section class="rodape">
-        ${erros.get("") ? `<div class="aviso" role="alert">${esc(erros.get(""))}</div>` : ""}
+  const rodape = `<section class="rodape">
         <button type="button" class="botao" data-concluir ${!algum || ocupado ? "disabled" : ""}>${concluidoEm ? "Salvar e avisar o corretor" : "Concluir envio"}</button>
         <p class="sub centro">${!algum ? "Envie pelo menos um documento para concluir." : faltam.length ? "Não precisa terminar agora: o que você já enviou está guardado." : "Tudo certo! Toque em concluir para avisar o corretor."}</p>
         ${whatsapp}
@@ -185,12 +217,7 @@ function desenhar() {
     if (campo) campo.onchange = () => enviarArquivos(nome, [...campo.files]);
     secao.querySelectorAll("[data-tirar]").forEach((b) => (b.onclick = () => tirar(nome, b.dataset.tirar, b)));
   }
-  const botao = app.querySelector("[data-concluir]");
-  if (botao) botao.onclick = () => {
-    if (faltam.length) { confirmando = true; desenhar(); app.querySelector("[role=alertdialog]").scrollIntoView({ block: "center", behavior: "smooth" }); } else concluir(true);
-  };
-  app.querySelector("[data-continuar]")?.addEventListener("click", () => { confirmando = false; desenhar(); });
-  app.querySelector("[data-concluir-mesmo]")?.addEventListener("click", () => concluir(true));
+  app.querySelector("[data-concluir]").onclick = () => abrirConclusao(faltam);
 }
 
 // Sair da página no meio de um envio perde só o arquivo que está subindo: o navegador avisa antes.

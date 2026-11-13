@@ -42,6 +42,7 @@ export function renderAceites() {
     <div class="hq-plans"><b>${esc(a.plano)}</b> · ${esc(a.acomodacao)} · R$ ${brl(a.valor)} · ${a.categoria === "CNPJ" ? "CNPJ" : "PF"}</div>
     ${a.docsEnviadosEm ? `<div class="note">Conversa aberta com a lista em ${esc(fmtData(a.docsEnviadosEm))}</div>` : ""}
     ${a.arquivos.length || a.docsConcluidoEm ? `<div class="note">${esc(resumoDosRecebidos(a))}</div>` : ""}
+    ${a.contatoCliente ? contatoDoCliente(a.contatoCliente) : ""}
     <div class="actions">
       ${pode("aceites", "editar") ? `<button class="btn ${situacao(a).pendente ? "primary" : ""}" data-docs="1">${a.docsEnviadosEm ? "Pedir de novo no WhatsApp" : "Pedir documentos no WhatsApp"}</button>` : ""}
       <button class="btn ${a.docsConcluidoEm ? "primary" : ""}" data-recebidos aria-expanded="${recebidosAbertos === a.token}">Documentos do cliente${a.arquivos.length ? ` <span class="ctr-qtd">${a.arquivos.length}</span>` : ""}</button>
@@ -99,6 +100,11 @@ function situacao(a) {
   if (a.arquivos.length) return { rotulo: "RECEBENDO DOCUMENTOS", pendente: false };
   if (a.docsEnviadosEm) return { rotulo: "LISTA ABERTA NO WHATSAPP", pendente: false };
   return { rotulo: "PEDIR DOCUMENTOS", pendente: true };
+}
+
+// Nome, telefone e e-mail que o cliente informou ao concluir o envio dos documentos.
+function contatoDoCliente({ nome, fone, email }) {
+  return `<div class="ace-contato"><span class="label">Contato do cliente</span><span>${esc(nome)}</span>${fone ? `<span>${esc(fmtFone(fone))}</span>` : ""}<a href="mailto:${encodeURIComponent(email).replace(/%40/g, "@")}">${esc(email)}</a></div>`;
 }
 
 const enviadosDaLista = (a) => a.documentos.filter((d) => a.arquivos.some((x) => x.documento === d)).length;

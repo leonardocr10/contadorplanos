@@ -108,8 +108,11 @@ test("proposta sem número: o primeiro telefone informado vira o login", async (
   const s = await subir(t);
   const { url, token } = await proposta(s, { fone: "" });
   assert.match(await (await fetch(url + "/documentos")).text(), /Ele será o seu acesso/);
-  assert.equal((await entrar(url, "(34) 96666-0000")).status, 303);
+  const cookie = (await entrar(url, "(34) 96666-0000")).cookie;
   assert.equal(s.banco.obterProposta(token).docsFone, "34966660000");
+  // Na conclusão, o telefone gravado é o do acesso.
+  await fetch(url + "/documentos/concluir", { method: "POST", headers: { cookie, "Content-Type": "application/json" }, body: JSON.stringify({ nome: "Joana", email: "joana@exemplo.com" }) });
+  assert.equal((await (await fetch(s.admin + "/api/aceites")).json())[0].contatoCliente.fone, "34966660000");
   assert.equal((await entrar(url, "(34) 95555-0000")).status, 401);
   assert.equal((await entrar(url, "34966660000")).status, 303);
 });
@@ -154,8 +157,20 @@ test("o cliente envia aos poucos, para, volta e conclui; o corretor recebe os ar
   assert.equal(e.documentos[0].arquivos.length, 1);
   assert.equal((await fetch(`${url}/documentos/arquivos/${verso}`, { method: "DELETE", headers: { cookie } })).status, 404);
 
-  e = await (await fetch(url + "/documentos/concluir", { method: "POST", headers: { cookie, "Content-Type": "application/json" }, body: "{}" })).json();
+  // Concluir pede o nome e o e-mail; o telefone é o do acesso.
+  const concluir = (corpo) => fetch(url + "/documentos/concluir", { method: "POST", headers: { cookie, "Content-Type": "application/json" }, body: JSON.stringify(corpo) });
+  assert.equal(e.contato.nome, "Maria Silva");
+  assert.equal(e.contato.fone, "34999990000");
+  assert.equal(e.contato.email, "");
+  for (const [corpo, campo] of [[{}, "nome"], [{ nome: "M", email: "maria@exemplo.com" }, "nome"], [{ nome: "Maria Silva" }, "email"], [{ nome: "Maria Silva", email: "maria@" }, "email"], [{ nome: "Maria Silva", email: "maria @exemplo.com" }, "email"]]) {
+    const r = await concluir(corpo);
+    assert.equal(r.status, 400, JSON.stringify(corpo));
+    assert.equal((await r.json()).campo, campo);
+  }
+  assert.equal(s.banco.obterProposta(token).docsConcluidoEm, null);
+  e = await (await concluir({ nome: "  Maria   da Silva ", email: " Maria@Exemplo.com " })).json();
   assert.ok(e.concluidoEm);
+  assert.deepEqual(e.contato, { nome: "Maria da Silva", fone: "34999990000", email: "maria@exemplo.com" });
   assert.match(await (await fetch(url)).text(), /Ver documentos enviados/);
 
   // Tela Aceites: o que chegou, a conclusão e o link de envio.
@@ -164,15 +179,17 @@ test("o cliente envia aos poucos, para, volta e conclui; o corretor recebe os ar
   assert.equal(aceite.linkDocumentos, `https://teste.exemplo.com/p/${token}/documentos`);
   assert.deepEqual(aceite.arquivos.map((a) => [a.documento, a.nome, a.tipo]), [[docs[0], "rg frente.pdf", "application/pdf"], ["Outros documentos", "extra.jpg", "image/jpeg"]]);
   assert.equal(JSON.stringify(aceite).includes("docsChave"), false);
+  assert.deepEqual(aceite.contatoCliente, { nome: "Maria da Silva", fone: "34999990000", email: "maria@exemplo.com" });
   const arquivo = await fetch(`${s.admin}/api/aceites/${token}/arquivos/${aceite.arquivos[0].id}`);
   assert.equal(arquivo.status, 200);
   assert.equal(arquivo.headers.get("content-type"), "application/pdf");
   assert.deepEqual(Buffer.from(await arquivo.arrayBuffer()), PDF);
   assert.equal((await fetch(`${s.admin}/api/aceites/${token}/arquivos/nao-existe`)).status, 404);
 
-  // Reabrir tira o aviso de concluído.
-  e = await (await fetch(url + "/documentos/concluir", { method: "POST", headers: { cookie, "Content-Type": "application/json" }, body: JSON.stringify({ concluido: false }) })).json();
+  // Reabrir tira o aviso de concluído, e o contato continua para a próxima conclusão.
+  e = await (await concluir({ concluido: false })).json();
   assert.equal(e.concluidoEm, null);
+  assert.equal(e.contato.email, "maria@exemplo.com");
 
   // Sair encerra o acesso neste aparelho.
   const saida = await fetch(url + "/documentos/sair", { method: "POST", redirect: "manual", headers: { cookie } });
@@ -201,8 +218,12 @@ test("banco da versão anterior ganha o envio de documentos sem perder os aceite
   s.banco.db.exec("PRAGMA user_version = 44");
   s.banco.fechar();
   s.banco.abrir();
+  s.banco.db.exec("ALTER TABLE propostas DROP COLUMN docs_nome; ALTER TABLE propostas DROP COLUMN docs_email; PRAGMA user_version = 45");
+  s.banco.fechar();
+  s.banco.abrir();
   const p = s.banco.obterProposta(token);
   assert.ok(p.aceitoEm);
+  assert.equal(p.docsEmail, "");
   assert.equal(p.docsFone, "");
   assert.equal(p.docsConcluidoEm, null);
   assert.deepEqual(s.banco.arquivosDaProposta(token), []);

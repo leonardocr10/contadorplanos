@@ -49,6 +49,13 @@ input[type=tel]{display:block;width:100%;min-height:52px;margin-top:6px;padding:
 .enviando{display:flex;flex-direction:column;gap:6px;font-size:13.5px;color:var(--muted)}
 .rodape{display:flex;flex-direction:column;gap:10px}
 .centro{text-align:center}
+.modal{width:min(440px,calc(100% - 32px));max-height:calc(100% - 32px);overflow:auto;border:0;border-radius:18px;padding:20px;color:var(--ink);box-shadow:0 20px 60px rgba(16,36,29,.25)}
+.modal::backdrop{background:rgba(16,36,29,.5)}
+.modal h2{font-size:20px;color:var(--verde-escuro)}
+.modal input{display:block;width:100%;min-height:48px;margin-top:6px;padding:0 14px;border:1.5px solid #cfd8d3;border-radius:12px;background:var(--bg);font:600 16px Manrope,system-ui,sans-serif;letter-spacing:0}
+.modal input[readonly]{color:var(--muted);background:#e9edea}
+.modal small{display:block;margin-top:4px;font-weight:500}
+.aviso.falta{background:var(--falta-bg);color:var(--falta);font-weight:500}
 .linha-links{display:flex;flex-wrap:wrap;justify-content:center;gap:8px 20px;margin-top:6px}
 `;
 

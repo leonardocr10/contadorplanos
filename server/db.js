@@ -271,6 +271,11 @@ const MIGRACOES = [
    );
    CREATE INDEX IF NOT EXISTS propostas_arquivos_token ON propostas_arquivos (token);`);
   },
+  // Ao concluir o envio dos documentos, o cliente confirma o nome e informa o e-mail.
+  (db) => {
+    const colunas = db.prepare("PRAGMA table_info(propostas)").all().map((c) => c.name);
+    for (const nome of ["docs_nome", "docs_email"]) if (!colunas.includes(nome)) db.exec(`ALTER TABLE propostas ADD COLUMN ${nome} TEXT NOT NULL DEFAULT ''`);
+  },
 ];
 
 // Troca os documentos dos planos CNPJ pela lista empresarial; com unimed, a Unimed PME recebe a lista dela.
@@ -405,6 +410,7 @@ function linhaParaProposta(l) {
     token: l.token, dados: JSON.parse(l.dados), fone: l.fone, criadoEm: l.criado_em,
     aceitoEm: l.aceito_em, acomodacao: l.acomodacao, valor: l.valor, docsEnviadosEm: l.docs_enviados_em,
     docsFone: l.docs_fone, docsChave: l.docs_chave, docsConcluidoEm: l.docs_concluido_em,
+    docsNome: l.docs_nome ?? "", docsEmail: l.docs_email ?? "",
   };
 }
 
@@ -965,9 +971,14 @@ export class Banco {
     return apagou;
   }
 
-  // O cliente avisa que terminou; reabrir o envio tira o aviso.
-  concluirDocumentos(token, concluido) {
-    this.db.prepare("UPDATE propostas SET docs_concluido_em = ? WHERE token = ? AND aceito_em IS NOT NULL").run(concluido ? new Date().toISOString() : null, token);
+  // O cliente avisa que terminou, com o nome, o telefone e o e-mail de contato; reabrir o envio tira só o aviso.
+  concluirDocumentos(token, concluido, contato = null) {
+    if (!concluido) {
+      this.db.prepare("UPDATE propostas SET docs_concluido_em = NULL WHERE token = ? AND aceito_em IS NOT NULL").run(token);
+    } else {
+      this.db.prepare("UPDATE propostas SET docs_concluido_em = ?, docs_nome = ?, docs_email = ?, docs_fone = CASE WHEN ? <> '' THEN ? ELSE docs_fone END WHERE token = ? AND aceito_em IS NOT NULL")
+        .run(new Date().toISOString(), contato.nome, contato.email, contato.fone, contato.fone, token);
+    }
     return this.obterProposta(token);
   }
 

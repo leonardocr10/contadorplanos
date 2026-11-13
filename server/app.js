@@ -488,6 +488,8 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
         acomodacao: a.acomodacao, valor: a.valor, aceitoEm: a.aceitoEm, docsEnviadosEm: a.docsEnviadosEm,
         documentos: banco.documentosDaProposta(a.dados),
         arquivos: arquivos.get(a.token) ?? [], docsConcluidoEm: a.docsConcluidoEm,
+        // Contato que o cliente informou ao concluir o envio dos documentos.
+        contatoCliente: a.docsEmail ? { nome: a.docsNome, fone: a.docsFone || a.fone, email: a.docsEmail } : null,
         linkDocumentos: link.estado === "ativo" ? `${link.url}/p/${a.token}/documentos` : null,
         corretor: dono ? { nome: dono.nome, fone: dono.fone, empresa: dono.empresa } : donoDaProposta(a) ? a.dados.corretor : null,
         ...(eAdmin(req) ? { responsavel: responsavel(donoDaProposta(a)) } : {}),
