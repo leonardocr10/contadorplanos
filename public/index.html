@@ -169,8 +169,16 @@
         <h2>Propostas aceitas</h2>
         <span class="note" id="ace-count"></span>
       </div>
-      <div id="ace-list" class="cat"></div>
-      <p class="note" style="margin:0">O cliente que aceitou envia os documentos pelo link da proposta, entrando com o telefone dele. O botão WhatsApp abre a conversa com a lista e esse link: confira e aperte enviar. Passe o mouse sobre a situação para ver o andamento.</p>
+      <div class="ace-cards" id="ace-cards" role="group" aria-label="Aceites por situação"></div>
+      <div class="hist-filtros ace-filtros">
+        <div class="field"><label for="ace-busca">Buscar</label><input id="ace-busca" type="search" placeholder="Nome, telefone, e-mail ou plano" autocomplete="off"></div>
+        <div class="field"><label for="ace-filtro">Situação</label><select id="ace-filtro" data-icone="filtro" data-contagem="situação|situações"></select></div>
+        <div class="field"><label for="ace-por-pagina">Por página</label><select id="ace-por-pagina"><option value="10">10 por página</option><option value="25">25 por página</option><option value="50">50 por página</option><option value="100">100 por página</option></select></div>
+        <button type="button" class="btn btn-limpar" id="ace-limpar" title="Limpar filtros" aria-label="Limpar filtros" disabled><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg><span>Limpar</span></button>
+      </div>
+      <div id="ace-list"></div>
+      <nav class="ace-paginacao" id="ace-paginacao" aria-label="Páginas dos aceites"></nav>
+      <p class="note" style="margin:0">O cliente que aceitou envia os documentos pelo link da proposta, entrando com o telefone dele. Clique no título de uma coluna para ordenar e passe o mouse sobre a situação ou os ícones para ver o andamento.</p>
     </div>
   </section>
 

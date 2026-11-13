@@ -2,6 +2,7 @@
 import { brl, fmtFone } from "./calculo.js";
 import { $, S, api, avisoCentral, esc, pode, toast } from "./estado.js";
 import { copiarTexto } from "./cotacao.js";
+import { normalizar } from "./filtro-select.js";
 import { ehPdf, esquecerArquivo, fmtTamanho, miniaturaPronta, mostrarMiniaturas } from "./contratos.js";
 import { ligarVisualizacao } from "./visor-documento.js";
 import { linkConversaDireta, mensagemDocumentos, mensagemPropostaEnviada } from "./mensagem.js";
@@ -29,44 +30,158 @@ export async function carregarAceites() {
   if (novos > 0) toast(novos === 1 ? "Novo aceite de proposta" : `${novos} novos aceites de proposta`, "sucesso");
 }
 
+/* ---------- grade: situação, busca, ordenação e páginas ---------- */
+const SITUACOES = [
+  { chave: "pedir", rotulo: "Pedir documentos" },
+  { chave: "lista", rotulo: "Lista no WhatsApp" },
+  { chave: "recebendo", rotulo: "Recebendo documentos" },
+  { chave: "recebidos", rotulo: "Documentos recebidos" },
+  { chave: "enviada", rotulo: "Proposta enviada" },
+];
+const ORDEM_SITUACAO = Object.fromEntries(SITUACOES.map((s, i) => [s.chave, i]));
+const POR_PAGINA = [10, 25, 50, 100];
+const CHAVE_POR_PAGINA = "cotador.aceites.porPagina";
+
+let busca = "", filtroSituacao = "todos", pagina = 1, ordem = { campo: "aceito", dir: "desc" }, excluindo = null;
+let porPagina = 10;
+try { const v = Number(localStorage.getItem(CHAVE_POR_PAGINA)); if (POR_PAGINA.includes(v)) porPagina = v; } catch {}
+
+const emailDe = (a) => a.contatoCliente?.email || "";
+const COLUNAS = [
+  { campo: "cliente", rotulo: "Cliente", valor: (a) => normalizar(a.cliente || "") },
+  { campo: "fone", rotulo: "Telefone", valor: (a) => a.fone || "" },
+  { campo: "email", rotulo: "E-mail", valor: (a) => emailDe(a).toLowerCase() || "￿" },
+  { campo: "plano", rotulo: "Proposta", valor: (a) => normalizar(`${a.plano} ${a.acomodacao}`) },
+  { campo: "valor", rotulo: "Valor", valor: (a) => a.valor ?? 0, dir: true },
+  { campo: "aceito", rotulo: "Aceito em", valor: (a) => a.aceitoEm },
+  { campo: "situacao", rotulo: "Situação", valor: (a) => ORDEM_SITUACAO[situacao(a).chave] },
+];
+
+const combina = (a, termo) => {
+  if (!termo) return true;
+  const digitos = termo.replace(/\D/g, "");
+  if (digitos.length >= 3 && String(a.fone || "").includes(digitos)) return true;
+  return normalizar([a.cliente, emailDe(a), a.plano, a.acomodacao, a.contatoCliente?.nome].join(" ")).includes(normalizar(termo));
+};
+
+function listaVisivel() {
+  const col = COLUNAS.find((c) => c.campo === ordem.campo) ?? COLUNAS[5];
+  const sinal = ordem.dir === "asc" ? 1 : -1;
+  return aceites
+    .filter((a) => (filtroSituacao === "todos" || situacao(a).chave === filtroSituacao) && combina(a, busca.trim()))
+    .sort((x, y) => {
+      const a = col.valor(x), b = col.valor(y);
+      const r = typeof a === "number" && typeof b === "number" ? a - b : String(a).localeCompare(String(b), "pt-BR");
+      return r * sinal || String(y.aceitoEm).localeCompare(String(x.aceitoEm));
+    });
+}
+
+const ICONES = {
+  whatsapp: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M9 10h.01M12 10h.01M15 10h.01"/>',
+  documentos: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/>',
+  enviada: '<path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/>',
+  link: '<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>',
+  excluir: '<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><path d="M10 11v6M14 11v6"/>',
+};
+const icone = (nome) => `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONES[nome]}</svg>`;
+const botaoIcone = (nome, dica, atributos = "", classe = "", extra = "") => `<button type="button" class="ace-ico ${classe}" title="${esc(dica)}" aria-label="${esc(dica)}" ${atributos}>${icone(nome)}${extra}</button>`;
+
+function linhaDoAceite(a) {
+  const st = situacao(a), tipo = a.categoria === "CNPJ" ? "CNPJ" : "PF", edita = pode("aceites", "editar"), email = emailDe(a);
+  const dicaSituacao = [a.arquivos.length || a.docsConcluidoEm ? resumoDosRecebidos(a) : "", a.docsEnviadosEm ? `Lista aberta no WhatsApp em ${fmtData(a.docsEnviadosEm)}` : "", a.propostaEnviadaEm ? `Aviso da proposta enviado em ${fmtData(a.propostaEnviadaEm)}` : ""].filter(Boolean).join(" · ");
+  const acoes = [
+    edita ? botaoIcone("whatsapp", a.docsEnviadosEm ? "Pedir de novo os documentos no WhatsApp" : "Pedir os documentos no WhatsApp", `data-docs aria-expanded="${escolha?.token === a.token}"`, st.chave === "pedir" ? "primario" : "") : "",
+    botaoIcone("documentos", a.arquivos.length ? `Documentos do cliente (${a.arquivos.length})` : "Documentos do cliente", `data-recebidos aria-expanded="${recebidosAbertos === a.token}"`, "", a.arquivos.length ? `<span class="ace-num">${a.arquivos.length}</span>` : ""),
+    edita ? botaoIcone("enviada", a.propostaEnviadaEm ? `Proposta enviada em ${fmtData(a.propostaEnviadaEm)}: clique para avisar de novo` : "Avisar no WhatsApp que a proposta para assinar foi enviada ao e-mail", `data-proposta aria-expanded="${aviso?.token === a.token}"`, a.propostaEnviadaEm ? "feito" : "") : "",
+    a.linkDocumentos ? botaoIcone("link", "Copiar o link de envio dos documentos", "data-link") : "",
+    edita ? botaoIcone("excluir", "Excluir aceite", `data-excluir aria-expanded="${excluindo === a.token}"`, "perigo") : "",
+  ].join("");
+  const paineis = [
+    aviso?.token === a.token ? painelDoAviso(a) : "",
+    recebidosAbertos === a.token ? painelDeRecebidos(a) : "",
+    edita && escolha?.token === a.token ? painelDeDocumentos(a) : "",
+    edita && excluindo === a.token ? `<div class="status" data-confirma>Excluir o aceite de <b>${esc(a.cliente || "Sem nome")}</b>${a.arquivos.length ? ` e ${a.arquivos.length === 1 ? "o documento que o cliente enviou" : `os ${a.arquivos.length} documentos que o cliente enviou`}` : ""}? O link desta proposta deixa de abrir para o cliente. A cotação continua no histórico. <span class="actions" style="margin-top:8px"><button class="btn danger" data-sim>Sim, excluir</button><button class="btn" data-nao>Manter</button></span></div>` : "",
+  ].join("");
+  return `<tr class="ace-linha${st.pendente ? " ace-pendente" : ""}" data-token="${esc(a.token)}">
+      <td><div class="ace-nome" title="${esc([a.cliente || "Sem nome", a.responsavel ? `Corretor: ${a.responsavel}` : ""].filter(Boolean).join(" · "))}">${esc(a.cliente || "Sem nome")}</div></td>
+      <td class="ace-fone">${a.fone ? esc(fmtFone(a.fone)) : "Sem número"}</td>
+      <td><div class="ace-email">${email ? `<a href="mailto:${esc(email)}" title="${esc(email)}">${esc(email)}</a>` : `<span class="vazio" title="O cliente informa o e-mail ao concluir o envio dos documentos">—</span>`}</div></td>
+      <td><div class="ace-plano" title="${esc(`${a.plano} · ${a.acomodacao} · ${tipo}`)}">${esc(a.plano)} <span class="ctr-sub">· ${esc(a.acomodacao)} · ${tipo}</span></div></td>
+      <td class="ace-valor dir">R$ ${brl(a.valor)}</td>
+      <td class="ace-data" title="Aceitou em ${esc(fmtData(a.aceitoEm))}">${esc(new Date(a.aceitoEm).toLocaleDateString("pt-BR"))}</td>
+      <td><span class="pill ${st.pendente ? "st-neg" : "st-ok"}"${dicaSituacao ? ` title="${esc(dicaSituacao)}"` : ""}>${st.rotulo}</span></td>
+      <td><div class="ace-acoes">${acoes}</div></td>
+    </tr>${paineis ? `<tr class="ace-painel-linha" data-token="${esc(a.token)}"><td colspan="${COLUNAS.length + 1}">${paineis}</td></tr>` : ""}`;
+}
+
+// Números das páginas: a primeira, a última e as vizinhas da atual, com "…" no meio.
+function numerosDasPaginas(total) {
+  const n = new Set([1, total, pagina - 1, pagina, pagina + 1].filter((p) => p >= 1 && p <= total));
+  const lista = [...n].sort((a, b) => a - b), saida = [];
+  lista.forEach((p, i) => { if (i && p - lista[i - 1] > 1) saida.push(null); saida.push(p); });
+  return saida;
+}
+
 export function renderAceites() {
   const pendentes = aceites.filter((a) => situacao(a).pendente).length;
   const selo = $("#ace-selo");
   selo.textContent = pendentes;
   selo.hidden = !pendentes;
   $("#ace-count").textContent = `${aceites.length} ${aceites.length === 1 ? "aceite" : "aceites"} · ${pendentes} ${pendentes === 1 ? "pendente" : "pendentes"}`;
-  const box = $("#ace-list");
+
+  // Cards com a quantidade de cada situação; clicar filtra a grade.
+  const quantos = (k) => aceites.filter((a) => situacao(a).chave === k).length;
+  $("#ace-cards").innerHTML = [{ chave: "todos", rotulo: "Todos" }, ...SITUACOES].map((s) =>
+    `<button type="button" class="ace-card" data-chave="${s.chave}" aria-pressed="${filtroSituacao === s.chave}"><b>${s.chave === "todos" ? aceites.length : quantos(s.chave)}</b><span>${s.rotulo}</span></button>`).join("");
+  $("#ace-cards").querySelectorAll("[data-chave]").forEach((b) => (b.onclick = () => {
+    filtroSituacao = filtroSituacao === b.dataset.chave && b.dataset.chave !== "todos" ? "todos" : b.dataset.chave;
+    pagina = 1;
+    renderAceites();
+  }));
+
+  const sel = $("#ace-filtro");
+  const opcoes = `<option value="todos" data-icone="todos">Todas as situações</option><optgroup label="Situações">${SITUACOES.map((s) => `<option value="${s.chave}" data-selo="${quantos(s.chave)}">${s.rotulo}</option>`).join("")}</optgroup>`;
+  if (sel.dataset.opcoes !== opcoes) { sel.innerHTML = opcoes; sel.dataset.opcoes = opcoes; }
+  sel.value = filtroSituacao;
+  $("#ace-por-pagina").value = String(porPagina);
+  $("#ace-limpar").disabled = filtroSituacao === "todos" && !busca.trim();
+
+  const box = $("#ace-list"), nav = $("#ace-paginacao");
   if (!aceites.length) {
     box.innerHTML = `<div class="status">Nenhum aceite ainda. Quando um cliente aceitar a proposta pelo link, ele aparece aqui.</div>`;
+    nav.innerHTML = "";
     return;
   }
-  // Uma linha fina por aceite, nas mesmas colunas dos Contratos Vendidos; os detalhes ficam nas dicas e no painel.
-  box.innerHTML = aceites.map((a) => {
-    const st = situacao(a), tipo = a.categoria === "CNPJ" ? "CNPJ" : "PF";
-    const dicaSituacao = [a.arquivos.length || a.docsConcluidoEm ? resumoDosRecebidos(a) : "", a.docsEnviadosEm ? `Lista aberta no WhatsApp em ${fmtData(a.docsEnviadosEm)}` : "", a.propostaEnviadaEm ? `Aviso da proposta enviado em ${fmtData(a.propostaEnviadaEm)}` : ""].filter(Boolean).join(" · ");
-    return `<div class="hq ctr-item${st.pendente ? " ctr-pendente" : ""}" data-token="${esc(a.token)}">
-    <div class="ctr-linha">
-      <b class="ctr-nome" title="${esc([a.cliente || "Sem nome", a.responsavel ? `Corretor: ${a.responsavel}` : ""].filter(Boolean).join(" · "))}">${esc(a.cliente || "Sem nome")}</b>
-      <span class="ctr-fone">${a.fone ? esc(fmtFone(a.fone)) : "Sem número"}</span>
-      <span class="ctr-plano" title="${esc(`${a.plano} · ${a.acomodacao} · ${tipo}`)}">${esc(a.plano)} <span class="ctr-sub">· ${esc(a.acomodacao)} · ${tipo}</span></span>
-      <span class="ctr-valor">R$ ${brl(a.valor)}</span>
-      <span class="ctr-ativ" title="Aceitou em ${esc(fmtData(a.aceitoEm))}">${esc(new Date(a.aceitoEm).toLocaleDateString("pt-BR"))}</span>
-      <span class="ctr-sit"><span class="pill ${st.pendente ? "st-neg" : "st-ok"}"${dicaSituacao ? ` title="${esc(dicaSituacao)}"` : ""}>${st.rotulo}</span></span>
-      <div class="actions ctr-acoes">
-        ${pode("aceites", "editar") ? `<button class="btn ${st.pendente ? "primary" : ""}" data-docs="1" title="${a.docsEnviadosEm ? "Pedir de novo os documentos no WhatsApp" : "Pedir os documentos no WhatsApp"}">WhatsApp</button>` : ""}
-        <button class="btn" data-recebidos aria-expanded="${recebidosAbertos === a.token}" title="Documentos enviados pelo cliente">Documentos${a.arquivos.length ? ` <span class="ctr-qtd">${a.arquivos.length}</span>` : ""}</button>
-        ${pode("aceites", "editar") ? `<button class="btn" data-proposta aria-expanded="${aviso?.token === a.token}" title="${a.propostaEnviadaEm ? `Aviso enviado em ${esc(fmtData(a.propostaEnviadaEm))}. Clique para enviar de novo.` : "Avisar no WhatsApp que a proposta para assinar foi enviada ao e-mail"}">Proposta enviada${a.propostaEnviadaEm ? " ✓" : ""}</button>` : ""}
-        ${a.linkDocumentos ? `<button class="btn" data-link title="Copiar o link em que o cliente envia os documentos, entrando com o telefone">Copiar link</button>` : ""}
-        ${pode("aceites", "editar") ? `<button class="btn danger" data-excluir="1">Excluir</button>` : ""}
-      </div>
-    </div>
-    ${aviso?.token === a.token ? painelDoAviso(a) : ""}
-    ${recebidosAbertos === a.token ? painelDeRecebidos(a) : ""}
-    ${pode("aceites", "editar") ? `${escolha?.token === a.token ? painelDeDocumentos(a) : ""}
-    <div class="status" data-confirma hidden>Excluir o aceite de <b>${esc(a.cliente || "Sem nome")}</b>${a.arquivos.length ? ` e ${a.arquivos.length === 1 ? "o documento que o cliente enviou" : `os ${a.arquivos.length} documentos que o cliente enviou`}` : ""}? O link desta proposta deixa de abrir para o cliente. A cotação continua no histórico. <span class="actions" style="margin-top:8px"><button class="btn danger" data-sim>Sim, excluir</button><button class="btn" data-nao>Manter</button></span></div>` : ""}
-  </div>`;
+  const lista = listaVisivel();
+  const totalPaginas = Math.max(1, Math.ceil(lista.length / porPagina));
+  pagina = Math.min(Math.max(1, pagina), totalPaginas);
+  const inicio = (pagina - 1) * porPagina, daPagina = lista.slice(inicio, inicio + porPagina);
+
+  const cabecalho = COLUNAS.map((c) => {
+    const ativa = ordem.campo === c.campo;
+    const seta = ativa ? (ordem.dir === "asc" ? "▲" : "▼") : "▲▼";
+    return `<th class="${c.dir ? "dir" : ""}" aria-sort="${ativa ? (ordem.dir === "asc" ? "ascending" : "descending") : "none"}"><button type="button" class="ace-ordem" data-ordem="${c.campo}"${ativa ? " data-ativa" : ""} title="Ordenar por ${c.rotulo.toLowerCase()}">${c.rotulo} <i aria-hidden="true">${seta}</i></button></th>`;
   }).join("");
-  const doCartao = (b) => aceites.find((a) => a.token === b.closest(".hq").dataset.token);
+  box.innerHTML = lista.length
+    ? `<div class="ace-rolagem"><table class="ace-tabela"><thead><tr>${cabecalho}<th class="dir">Ações</th></tr></thead><tbody>${daPagina.map(linhaDoAceite).join("")}</tbody></table></div>`
+    : `<div class="status">Nenhum aceite encontrado com esses filtros.</div>`;
+
+  nav.innerHTML = lista.length ? `<span class="note">${inicio + 1}–${inicio + daPagina.length} de ${lista.length} ${lista.length === 1 ? "aceite" : "aceites"}</span>
+    ${totalPaginas > 1 ? `<div class="ace-paginas">
+      <button type="button" class="btn" data-pagina="${pagina - 1}" ${pagina === 1 ? "disabled" : ""} aria-label="Página anterior">‹ Anterior</button>
+      ${numerosDasPaginas(totalPaginas).map((p) => p === null ? `<span class="reticencias">…</span>` : `<button type="button" class="btn" data-pagina="${p}"${p === pagina ? ` aria-current="page"` : ""} aria-label="Página ${p}">${p}</button>`).join("")}
+      <button type="button" class="btn" data-pagina="${pagina + 1}" ${pagina === totalPaginas ? "disabled" : ""} aria-label="Próxima página">Próxima ›</button>
+    </div>` : ""}` : "";
+  nav.querySelectorAll("[data-pagina]").forEach((b) => (b.onclick = () => { pagina = Number(b.dataset.pagina); renderAceites(); box.scrollIntoView({ block: "nearest" }); }));
+  box.querySelectorAll("[data-ordem]").forEach((b) => (b.onclick = () => {
+    const campo = b.dataset.ordem;
+    // Texto começa de A a Z; valor, data e situação começam do maior.
+    ordem = ordem.campo === campo ? { campo, dir: ordem.dir === "asc" ? "desc" : "asc" } : { campo, dir: ["valor", "aceito"].includes(campo) ? "desc" : "asc" };
+    pagina = 1;
+    renderAceites();
+  }));
+
+  const doCartao = (b) => aceites.find((a) => a.token === b.closest("[data-token]").dataset.token);
   box.querySelectorAll("[data-docs]").forEach((b) => (b.onclick = () => escolherDocumentos(doCartao(b))));
   box.querySelectorAll("[data-proposta]").forEach((b) => (b.onclick = () => {
     const a = doCartao(b);
@@ -113,9 +228,22 @@ export function renderAceites() {
     };
     atualizar();
   }
-  box.querySelectorAll("[data-excluir]").forEach((b) => (b.onclick = () => (b.closest(".hq").querySelector("[data-confirma]").hidden = false)));
-  box.querySelectorAll("[data-nao]").forEach((b) => (b.onclick = () => (b.closest("[data-confirma]").hidden = true)));
+  box.querySelectorAll("[data-excluir]").forEach((b) => (b.onclick = () => { const a = doCartao(b); excluindo = excluindo === a.token ? null : a.token; renderAceites(); }));
+  box.querySelectorAll("[data-nao]").forEach((b) => (b.onclick = () => { excluindo = null; renderAceites(); }));
   box.querySelectorAll("[data-sim]").forEach((b) => (b.onclick = () => excluirAceite(doCartao(b), b)));
+}
+
+// Busca, situação, quantidade por página e limpar: ligados uma vez, quando a tela carrega.
+export function iniciarAceites() {
+  $("#ace-busca").oninput = () => { busca = $("#ace-busca").value; pagina = 1; renderAceites(); };
+  $("#ace-filtro").onchange = () => { filtroSituacao = $("#ace-filtro").value; pagina = 1; renderAceites(); };
+  $("#ace-por-pagina").onchange = () => {
+    porPagina = Number($("#ace-por-pagina").value) || 10;
+    try { localStorage.setItem(CHAVE_POR_PAGINA, String(porPagina)); } catch {}
+    pagina = 1;
+    renderAceites();
+  };
+  $("#ace-limpar").onclick = () => { busca = ""; $("#ace-busca").value = ""; filtroSituacao = "todos"; pagina = 1; renderAceites(); };
 }
 
 // Texto do aviso "Proposta enviada", editável antes de abrir no WhatsApp.
@@ -158,11 +286,11 @@ function ligarAviso(painel, a) {
 
 // O que mostrar no selo: o que o cliente já fez vale mais do que o pedido do corretor.
 function situacao(a) {
-  if (a.propostaEnviadaEm) return { rotulo: "PROPOSTA ENVIADA", pendente: false };
-  if (a.docsConcluidoEm) return { rotulo: "DOCUMENTOS RECEBIDOS", pendente: false };
-  if (a.arquivos.length) return { rotulo: "RECEBENDO DOCUMENTOS", pendente: false };
-  if (a.docsEnviadosEm) return { rotulo: "LISTA ABERTA NO WHATSAPP", pendente: false };
-  return { rotulo: "PEDIR DOCUMENTOS", pendente: true };
+  if (a.propostaEnviadaEm) return { chave: "enviada", rotulo: "PROPOSTA ENVIADA", pendente: false };
+  if (a.docsConcluidoEm) return { chave: "recebidos", rotulo: "DOCUMENTOS RECEBIDOS", pendente: false };
+  if (a.arquivos.length) return { chave: "recebendo", rotulo: "RECEBENDO DOCUMENTOS", pendente: false };
+  if (a.docsEnviadosEm) return { chave: "lista", rotulo: "LISTA ABERTA NO WHATSAPP", pendente: false };
+  return { chave: "pedir", rotulo: "PEDIR DOCUMENTOS", pendente: true };
 }
 
 // Nome, telefone e e-mail que o cliente informou ao concluir o envio dos documentos.

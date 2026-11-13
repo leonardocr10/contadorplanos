@@ -3,7 +3,7 @@ import { $, S, VIEWS, api, avisoCentral, carregarPlanos, definirRender, pode, re
 import { iniciarCotacao, novaCotacao, renderCotacao } from "./cotacao.js";
 import { iniciarPlanos, renderCat } from "./planos.js";
 import { carregarHistorico, iniciarHistorico, renderHist } from "./historico.js";
-import { carregarAceites, renderAceites } from "./aceites.js";
+import { carregarAceites, iniciarAceites, renderAceites } from "./aceites.js";
 import { carregarDocumentos, iniciarDocumentos, renderDocumentos } from "./documentos.js";
 import { atualizarPlanosDoContrato, carregarContratos, conferirDiaDosContratos, iniciarContratos } from "./contratos.js";
 import { abrirItem, aplicarPerfil, avatarDoUsuario, carregarUsuarios, iniciarConfiguracoes, mostrarUsuarioLogado } from "./configuracoes.js";
@@ -258,6 +258,7 @@ iniciarDocumentos();
 iniciarConfiguracoes();
 iniciarContratos();
 renderHist();
+iniciarAceites();
 renderAceites();
 render();
 carregar();
