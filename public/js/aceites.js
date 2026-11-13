@@ -4,7 +4,7 @@ import { $, S, api, avisoCentral, esc, pode, toast } from "./estado.js";
 import { copiarTexto } from "./cotacao.js";
 import { normalizar } from "./filtro-select.js";
 import { botaoIcone, cabecalho, desenharCards, desenharPaginacao, guardarPorPagina, lerPorPagina, ordenarPor, paginar, proximaOrdem } from "./grade.js";
-import { ehPdf, esquecerArquivo, fmtTamanho, miniaturaPronta, mostrarMiniaturas } from "./contratos.js";
+import { carregarContratos, ehPdf, esquecerArquivo, fmtTamanho, miniaturaPronta, mostrarMiniaturas } from "./contratos.js";
 import { ligarVisualizacao } from "./visor-documento.js";
 import { linkConversaDireta, mensagemDocumentos, mensagemPropostaEnviada } from "./mensagem.js";
 
@@ -71,14 +71,15 @@ function listaVisivel() {
 
 function linhaDoAceite(a) {
   const st = situacao(a), tipo = a.categoria === "CNPJ" ? "CNPJ" : "PF", edita = pode("aceites", "editar"), email = emailDe(a);
-  const dicaSituacao = [a.arquivos.length || a.docsConcluidoEm ? resumoDosRecebidos(a) : "", a.docsEnviadosEm ? `Lista aberta no WhatsApp em ${fmtData(a.docsEnviadosEm)}` : "", a.propostaEnviadaEm ? `Aviso da proposta enviado em ${fmtData(a.propostaEnviadaEm)}` : ""].filter(Boolean).join(" · ");
+  const dicaSituacao = [a.arquivos.length || a.docsConcluidoEm ? resumoDosRecebidos(a) : "", a.docsEnviadosEm ? `Lista aberta no WhatsApp em ${fmtData(a.docsEnviadosEm)}` : "", a.propostaEnviadaEm ? `Aviso da proposta enviado em ${fmtData(a.propostaEnviadaEm)}` : "", a.emContratos ? "Em Contratos Vendidos" : a.propostaEnviadaEm ? "Ainda não está em Contratos Vendidos" : ""].filter(Boolean).join(" · ");
   const acoes = [
     edita ? botaoIcone("whatsapp", a.docsEnviadosEm ? "Pedir de novo os documentos no WhatsApp" : "Pedir os documentos no WhatsApp", { atributos: `data-docs aria-expanded="${escolha?.token === a.token}"`, classe: st.chave === "pedir" ? "primario" : "" }) : "",
     botaoIcone("documentos", a.arquivos.length ? `Documentos do cliente (${a.arquivos.length})` : "Documentos do cliente", { atributos: `data-recebidos aria-expanded="${recebidosAbertos === a.token}"`, numero: a.arquivos.length }),
     // O aviso da proposta só faz sentido depois que o cliente concluiu o envio dos documentos.
     edita ? botaoIcone("enviada", !a.docsConcluidoEm
       ? "Disponível depois que o cliente concluir o envio dos documentos"
-      : a.propostaEnviadaEm ? `Proposta enviada em ${fmtData(a.propostaEnviadaEm)}: clique para avisar de novo` : "Avisar no WhatsApp que a proposta para assinar foi enviada ao e-mail", { atributos: `data-proposta aria-expanded="${aviso?.token === a.token}"${a.docsConcluidoEm ? "" : " disabled"}`, classe: a.propostaEnviadaEm ? "feito" : "" }) : "",
+      : a.propostaEnviadaEm && !a.emContratos ? "Aviso já enviado: clique para cadastrar em Contratos Vendidos"
+      : a.propostaEnviadaEm ? `Proposta enviada em ${fmtData(a.propostaEnviadaEm)}, já em Contratos Vendidos: clique para avisar de novo` : "Avisar no WhatsApp que a proposta foi enviada e cadastrar em Contratos Vendidos", { atributos: `data-proposta aria-expanded="${aviso?.token === a.token}"${a.docsConcluidoEm ? "" : " disabled"}`, classe: a.emContratos ? "feito" : a.propostaEnviadaEm ? "primario" : "" }) : "",
     a.linkDocumentos ? botaoIcone("link", "Copiar o link de envio dos documentos", { atributos: "data-link" }) : "",
     edita ? botaoIcone("excluir", "Excluir aceite", { atributos: `data-excluir aria-expanded="${excluindo === a.token}"`, classe: "perigo" }) : "",
   ].join("");
@@ -208,12 +209,19 @@ export function iniciarAceites() {
 }
 
 // Texto do aviso "Proposta enviada", editável antes de abrir no WhatsApp.
+// Antes do primeiro aviso, pede a data de ativação: o aceite vai junto para Contratos Vendidos.
 function painelDoAviso(a) {
+  const pedeData = !a.emContratos;
   return `<div class="ctr-msg" data-painel-aviso>
+    ${pedeData ? `<div class="ace-ativacao">
+      <div class="field"><label for="ace-aviso-ativacao">Data de ativação do plano</label><input id="ace-aviso-ativacao" type="date" value="${esc(aviso.ativacao || "")}" required></div>
+      <p class="note">Ao enviar, o contrato de ${esc(a.contatoCliente?.nome || a.cliente || "o cliente")} entra em <b>Contratos Vendidos</b> com o plano, o valor, o e-mail e os documentos enviados.</p>
+    </div>` : `<p class="note" style="margin:0">Este aceite já está em <b>Contratos Vendidos</b>.</p>`}
     <label class="label" for="ace-aviso-texto">Mensagem para ${esc(a.cliente || "o cliente")}: proposta enviada ao e-mail</label>
     <textarea id="ace-aviso-texto" rows="10" spellcheck="true">${esc(aviso.texto)}</textarea>
     <div class="actions">
-      <button class="btn primary" data-aviso-abrir>Abrir no WhatsApp</button>
+      <button class="btn primary" data-aviso-abrir>${pedeData ? "Abrir no WhatsApp e cadastrar contrato" : "Abrir no WhatsApp"}</button>
+      ${pedeData && a.propostaEnviadaEm ? `<button class="btn" data-aviso-so-contrato title="O aviso já foi enviado: só leva o aceite para Contratos Vendidos">Só cadastrar o contrato</button>` : ""}
       <button class="btn" data-aviso-copiar>Copiar mensagem</button>
       <button class="btn" data-aviso-original>Voltar ao texto original</button>
       <button class="btn" data-aviso-fechar>Fechar</button>
@@ -230,18 +238,39 @@ function ligarAviso(painel, a) {
     if (await copiarTexto(campo.value)) toast("Mensagem copiada", "sucesso");
     else toast("O navegador bloqueou a cópia: selecione o texto e copie", "erro");
   };
-  painel.querySelector("[data-aviso-abrir]").onclick = async () => {
-    const texto = campo.value.trim();
-    if (!texto) { toast("Escreva a mensagem antes de abrir o WhatsApp"); campo.focus(); return; }
-    window.open(linkConversaDireta(a.fone, texto, navigator.userAgent), "_blank", "noopener");
-    aviso = null;
-    renderAceites();
+  const data = painel.querySelector("#ace-aviso-ativacao");
+  if (data) data.oninput = () => (aviso.ativacao = data.value);
+  // A data é conferida antes de abrir o WhatsApp, para o aviso não sair sem o contrato.
+  const dataOk = () => {
+    if (!data || data.value) return true;
+    toast("Informe a data de ativação do plano", "erro");
+    data.focus();
+    return false;
+  };
+  const registrar = async (apenasContrato) => {
     try {
-      await api(`/api/aceites/${encodeURIComponent(a.token)}/proposta-enviada`, { metodo: "POST", json: {} });
-      await carregarAceites();
+      const r = await api(`/api/aceites/${encodeURIComponent(a.token)}/proposta-enviada`, { metodo: "POST", json: { ativacao: data?.value, apenasContrato } });
+      if (r.contratoCriado) avisoCentral(`Contrato de ${a.contatoCliente?.nome || a.cliente || "cliente"} cadastrado em Contratos Vendidos`);
+      await Promise.all([carregarAceites(), carregarContratos()]);
     } catch (e) {
       toast(e.message, "erro");
     }
+  };
+  painel.querySelector("[data-aviso-abrir]").onclick = async () => {
+    const texto = campo.value.trim();
+    if (!texto) { toast("Escreva a mensagem antes de abrir o WhatsApp"); campo.focus(); return; }
+    if (!dataOk()) return;
+    window.open(linkConversaDireta(a.fone, texto, navigator.userAgent), "_blank", "noopener");
+    aviso = null;
+    renderAceites();
+    await registrar(false);
+  };
+  const soContrato = painel.querySelector("[data-aviso-so-contrato]");
+  if (soContrato) soContrato.onclick = async () => {
+    if (!dataOk()) return;
+    soContrato.disabled = true;
+    aviso = null;
+    await registrar(true);
   };
 }
 

@@ -284,6 +284,10 @@ const MIGRACOES = [
   (db) => {
     if (!db.prepare("PRAGMA table_info(contratos)").all().some((c) => c.name === "email")) db.exec("ALTER TABLE contratos ADD COLUMN email TEXT NOT NULL DEFAULT ''");
   },
+  // Contrato vendido criado a partir do aceite, quando o corretor avisa que a proposta foi enviada.
+  (db) => {
+    if (!db.prepare("PRAGMA table_info(propostas)").all().some((c) => c.name === "contrato_id")) db.exec("ALTER TABLE propostas ADD COLUMN contrato_id TEXT");
+  },
 ];
 
 // Troca os documentos dos planos CNPJ pela lista empresarial; com unimed, a Unimed PME recebe a lista dela.
@@ -418,7 +422,7 @@ function linhaParaProposta(l) {
     token: l.token, dados: JSON.parse(l.dados), fone: l.fone, criadoEm: l.criado_em,
     aceitoEm: l.aceito_em, acomodacao: l.acomodacao, valor: l.valor, docsEnviadosEm: l.docs_enviados_em,
     docsFone: l.docs_fone, docsChave: l.docs_chave, docsConcluidoEm: l.docs_concluido_em,
-    docsNome: l.docs_nome ?? "", docsEmail: l.docs_email ?? "", propostaEnviadaEm: l.proposta_enviada_em ?? null,
+    docsNome: l.docs_nome ?? "", docsEmail: l.docs_email ?? "", propostaEnviadaEm: l.proposta_enviada_em ?? null, contratoId: l.contrato_id ?? null,
   };
 }
 
@@ -988,6 +992,27 @@ export class Banco {
         .run(new Date().toISOString(), contato.nome, contato.email, contato.fone, contato.fone, token);
     }
     return this.obterProposta(token);
+  }
+
+  // Leva o aceite para Contratos Vendidos, com os documentos que o cliente enviou. Um aceite gera um contrato só:
+  // se o contrato já existe, devolve o mesmo.
+  contratoDoAceite(token, contrato) {
+    const p = this.obterProposta(token);
+    if (!p?.aceitoEm) return null;
+    const existente = p.contratoId && this.obterContrato(p.contratoId);
+    if (existente) return existente;
+    this.db.exec("BEGIN");
+    try {
+      const novo = this.criarContrato(contrato);
+      this.db.prepare(`INSERT INTO contratos_arquivos (id, contrato_id, nome, tipo, tamanho, dados, criado_em)
+        SELECT lower(hex(randomblob(9))), ?, nome, tipo, tamanho, dados, criado_em FROM propostas_arquivos WHERE token = ? ORDER BY criado_em, rowid`).run(novo.id, token);
+      this.db.prepare("UPDATE propostas SET contrato_id = ? WHERE token = ?").run(novo.id, token);
+      this.db.exec("COMMIT");
+      return novo;
+    } catch (e) {
+      this.db.exec("ROLLBACK");
+      throw e;
+    }
   }
 
   marcarPropostaEnviada(token) {
