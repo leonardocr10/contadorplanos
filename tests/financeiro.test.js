@@ -130,8 +130,8 @@ test("ao atualizar, saem as regras antigas que não são de um plano cadastrado"
     const contrato = banco.criarContrato({ nome: "Maria", fone: "34999990000", plano: "AMIL OURO", valor: 300, ativacao: "2026-12-01" });
     banco.definirComissaoDoContrato(contrato.id, antiga, null);
     const versao = banco.db.prepare("PRAGMA user_version").get().user_version;
-    // Volta antes da limpeza (e da separação por login, que vem depois).
-    banco.db.exec(`PRAGMA user_version = ${versao - 2}`);
+    // Volta antes da limpeza (e das migrações que vieram depois: separação por login e ajustes).
+    banco.db.exec(`PRAGMA user_version = ${versao - 3}`);
     banco.fechar();
     banco = new Banco(arquivo, planos);
     assert.deepEqual(banco.listarCorretoras()[0].regras.map((r) => `${r.nome}|${r.segmento}`), ["AMIL OURO|PF", "AMIL OURO 30%|PME"]);
@@ -140,4 +140,27 @@ test("ao atualizar, saem as regras antigas que não são de um plano cadastrado"
   } finally {
     rmSync(pasta, { recursive: true, force: true });
   }
+});
+
+test("ajustes do contrato: percentual e data prevista de cada pagamento, por cima da regra", async (t) => {
+  const regraPF = { segmento: "PF", angariacao: 100, parcelas: [50, 50] };
+  const conta = calcularComissao({ valor: 400, ativacao: "2026-12-01", ajustes: { p1: { percentual: 30, data: "2027-02-15" }, ang: { data: "2026-12-05" } } }, regraPF);
+  assert.deepEqual(conta.itens.map((i) => [i.chave, i.percentual, i.data, i.valor, i.ajustado]), [
+    ["ang", 100, "2026-12-05", 400, true], ["p0", 50, "2026-12-01", 200, false], ["p1", 30, "2027-02-15", 120, true]]);
+  assert.equal(conta.total, 720);
+
+  const { api } = await subir(t);
+  const c = (await api("/api/financeiro/corretoras", "POST", { nome: "Corretora A" })).corpo;
+  const r = (await api(`/api/financeiro/corretoras/${c.id}/regras`, "POST", { nome: "PLAM SAÚDE", ...regraPF })).corpo;
+  const contrato = (await api("/api/contratos", "POST", { nome: "Maria", fone: "34999990000", plano: "PLAM SAÚDE", valor: 400, ativacao: "2026-12-01" })).corpo;
+  const ajustes = { p1: { percentual: "30", data: "2027-02-15" } };
+  const salvo = (await api(`/api/contratos/${contrato.id}/comissao`, "PATCH", { regraId: r.id, ajustes })).corpo;
+  assert.deepEqual(salvo.ajustes, { p1: { percentual: 30, data: "2027-02-15" } });
+  for (const ruim of [{ p9: { percentual: 1 } }, { p0: { percentual: -1 } }, { p0: { data: "2027-02-30" } }, [1]]) {
+    assert.equal((await api(`/api/contratos/${contrato.id}/comissao`, "PATCH", { regraId: r.id, ajustes: ruim })).status, 400, JSON.stringify(ruim));
+  }
+  // Excluir a regra apaga os ajustes junto.
+  await api(`/api/financeiro/regras/${r.id}`, "DELETE");
+  const [x] = (await api("/api/contratos")).corpo;
+  assert.deepEqual([x.regraId, x.ajustes], [null, {}]);
 });

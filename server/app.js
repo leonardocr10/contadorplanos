@@ -146,6 +146,29 @@ function validarRegra(b) {
 }
 
 const DATA_ISO =/^(\d{4})-(\d{2})-(\d{2})$/;
+// Ajustes de um contrato: { ang | p0..p3: { percentual?, data? } }, por cima do que a regra calcula.
+function validarAjustes(b) {
+  if (b === undefined || b === null) return {};
+  if (typeof b !== "object" || Array.isArray(b)) throw new ErroEntrada("Ajustes da comissão inválidos.");
+  const saida = {};
+  for (const [chave, v] of Object.entries(b)) {
+    if (!/^(ang|p[0-3])$/.test(chave) || !v || typeof v !== "object") throw new ErroEntrada("Ajustes da comissão inválidos.");
+    const item = {};
+    if (v.percentual !== undefined && v.percentual !== null && v.percentual !== "") {
+      const p = Number(v.percentual);
+      if (!Number.isFinite(p) || p < 0 || p > 1000) throw new ErroEntrada("O percentual precisa ficar entre 0% e 1000%.");
+      item.percentual = Math.round(p * 100) / 100;
+    }
+    if (v.data) {
+      const m = DATA_ISO.exec(String(v.data));
+      const d = m && new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+      if (!d || d.getUTCDate() !== +m[3] || d.getUTCMonth() !== +m[2] - 1) throw new ErroEntrada("Data prevista inválida.");
+      item.data = String(v.data);
+    }
+    if (Object.keys(item).length) saida[chave] = item;
+  }
+  return saida;
+}
 function validarContrato(b) {
   if (!b || typeof b !== "object") throw new ErroEntrada("Dados do contrato inválidos.");
   const nome = textoOpc(b.nome, "nome", 200), plano = textoOpc(b.plano, "plano", 200), fone = normFone(b.fone);
@@ -572,7 +595,7 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     if (!contratoDoLogin(req)) return res.status(404).json(NAO_ACHOU_CONTRATO);
     const regraId = req.body?.regraId || null;
     if (regraId && !regraDoLogin(req, regraId)) throw new ErroEntrada("Regra de comissão não encontrada.");
-    res.json(semDono(banco.definirComissaoDoContrato(req.params.id, regraId, null)));
+    res.json(semDono(banco.definirComissaoDoContrato(req.params.id, regraId, null, validarAjustes(req.body?.ajustes))));
   });
 
   /* ---------- aceites ---------- */

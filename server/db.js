@@ -335,6 +335,11 @@ const MIGRACOES = [
      DROP TABLE comissao_corretoras;
      ALTER TABLE comissao_corretoras_nova RENAME TO comissao_corretoras;`);
   },
+  // Ajustes da comissão de cada contrato: percentual e data prevista de cada pagamento, por cima da regra.
+  (db) => {
+    const colunas = db.prepare("PRAGMA table_info(contratos)").all().map((c) => c.name);
+    if (!colunas.includes("comissao_ajustes")) db.exec("ALTER TABLE contratos ADD COLUMN comissao_ajustes TEXT NOT NULL DEFAULT ''");
+  },
 ];
 
 // Troca os documentos dos planos CNPJ pela lista empresarial; com unimed, a Unimed PME recebe a lista dela.
@@ -482,7 +487,7 @@ function linhaParaRegra(l) {
 function linhaParaContrato(l) {
   return {
     id: l.id, usuarioId: l.usuario_id, nome: l.nome, fone: l.fone, email: l.email ?? "", plano: l.plano, valor: l.valor,
-    regraId: l.regra_id ?? null, adesao: l.adesao ?? null,
+    regraId: l.regra_id ?? null, adesao: l.adesao ?? null, ajustes: l.comissao_ajustes ? JSON.parse(l.comissao_ajustes) : {},
     ativacao: l.ativacao, contatoEm: l.contato_em, criadoEm: l.criado_em,
   };
 }
@@ -984,7 +989,7 @@ export class Banco {
     let apagou = false;
     this.db.exec("BEGIN");
     try {
-      this.db.prepare("UPDATE contratos SET regra_id = NULL WHERE regra_id IN (SELECT id FROM comissao_regras WHERE corretora_id = ?)").run(id);
+      this.db.prepare("UPDATE contratos SET regra_id = NULL, comissao_ajustes = '' WHERE regra_id IN (SELECT id FROM comissao_regras WHERE corretora_id = ?)").run(id);
       this.db.prepare("DELETE FROM comissao_regras WHERE corretora_id = ?").run(id);
       apagou = this.db.prepare("DELETE FROM comissao_corretoras WHERE id = ?").run(id).changes > 0;
       this.db.exec("COMMIT");
@@ -1027,12 +1032,13 @@ export class Banco {
   }
 
   excluirRegra(id) {
-    this.db.prepare("UPDATE contratos SET regra_id = NULL WHERE regra_id = ?").run(id);
+    this.db.prepare("UPDATE contratos SET regra_id = NULL, comissao_ajustes = '' WHERE regra_id = ?").run(id);
     return this.db.prepare("DELETE FROM comissao_regras WHERE id = ?").run(id).changes > 0;
   }
 
-  definirComissaoDoContrato(id, regraId, adesao) {
-    this.db.prepare("UPDATE contratos SET regra_id = ?, adesao = ? WHERE id = ?").run(regraId, adesao, id);
+  definirComissaoDoContrato(id, regraId, adesao, ajustes = {}) {
+    const json = regraId && Object.keys(ajustes).length ? JSON.stringify(ajustes) : "";
+    this.db.prepare("UPDATE contratos SET regra_id = ?, adesao = ?, comissao_ajustes = ? WHERE id = ?").run(regraId, adesao, json, id);
     return this.obterContrato(id);
   }
 

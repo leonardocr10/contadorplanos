@@ -332,16 +332,19 @@ function opcoesDeRegra(atual) {
 
 function painelDaComissao(x) {
   const regras = regraPorId(), regra = regras.get(rascunho.regraId) ?? null;
-  const conta = calcularComissao({ valor: x.c.valor, ativacao: x.c.ativacao }, regra);
+  const conta = calcularComissao({ valor: x.c.valor, ativacao: x.c.ativacao, ajustes: rascunho.ajustes }, regra);
   const podeEditar = edita();
+  const algumAjuste = conta.itens.some((i) => i.ajustado);
   return `<form class="fin-comissao" data-form-comissao novalidate>
     <div class="fin-com-campos">
       <div class="field fin-com-regra"><label for="fin-com-regra">Regra de comissão</label><select id="fin-com-regra" data-busca="Buscar operadora…" ${podeEditar ? "" : "disabled"}>${opcoesDeRegra(rascunho.regraId)}</select></div>
-      ${podeEditar ? `<div class="actions"><button class="btn primary" type="submit">Salvar</button><button class="btn" type="button" data-fechar-comissao>Fechar</button></div>` : ""}
+      ${podeEditar ? `<div class="actions">${algumAjuste ? `<button class="btn" type="button" data-restaurar-comissao title="Volta os percentuais e as datas para o que a regra calcula">Voltar ao da regra</button>` : ""}<button class="btn primary" type="submit">Salvar</button><button class="btn" type="button" data-fechar-comissao>Fechar</button></div>` : ""}
     </div>
     ${regra ? `<p class="note" style="margin:0">${esc(regra.corretora)} · ${esc(regra.nome)} (${esc(rotuloDoSegmento(regra.segmento))})${regra.observacao ? ` · ${esc(regra.observacao)}` : ""}</p>` : `<p class="note" style="margin:0">Escolha a regra da corretora para calcular a comissão.</p>`}
     ${conta.itens.length ? `<div class="grade-rolagem"><table class="grade-tabela fin-detalhe"><thead><tr><th>Pagamento</th><th>Previsto para</th><th class="dir">Percentual</th><th class="dir">Base</th><th class="dir">Valor</th></tr></thead><tbody>
-      ${conta.itens.map((i) => `<tr><td>${esc(i.rotulo)}</td><td class="grade-data">${esc(fmtDia(i.data))}</td><td class="dir">${pct(i.percentual)}</td><td class="dir">R$ ${brl(i.base)} <span class="ctr-sub">(mensalidade)</span></td><td class="dir">R$ ${brl(i.valor)}</td></tr>`).join("")}
+      ${conta.itens.map((i) => `<tr data-item="${i.chave}"${i.ajustado ? ' class="fin-ajustado"' : ""}><td>${esc(i.rotulo)}${i.ajustado ? ' <span class="ctr-sub" title="Alterado neste contrato">(alterado)</span>' : ""}</td>
+        <td class="grade-data">${podeEditar ? `<input type="date" class="fin-aj-data" data-aj-data value="${esc(i.data)}" aria-label="Data prevista: ${esc(i.rotulo)}" title="Pela regra: ${esc(fmtDia(i.dataDaRegra))}">` : esc(fmtDia(i.data))}</td>
+        <td class="dir">${podeEditar ? `<input type="text" inputmode="decimal" class="fin-aj-pct" data-aj-pct value="${esc(String(i.percentual).replace(".", ","))}" aria-label="Percentual: ${esc(i.rotulo)}" title="Pela regra: ${pct(i.percentualDaRegra)}"> %` : pct(i.percentual)}</td><td class="dir">R$ ${brl(i.base)} <span class="ctr-sub">(mensalidade)</span></td><td class="dir">R$ ${brl(i.valor)}</td></tr>`).join("")}
       <tr class="fin-total"><td colspan="4">Total da comissão</td><td class="dir">R$ ${brl(conta.total)}</td></tr>
     </tbody></table></div>` : ""}
   </form>`;
@@ -412,19 +415,39 @@ export function renderComissoes() {
   box.querySelectorAll("[data-abrir-com]").forEach((b) => (b.onclick = () => {
     const x = daLinha(b);
     abertoCom = abertoCom === x.c.id ? null : x.c.id;
-    rascunho = abertoCom ? { regraId: x.c.regraId ?? "" } : null;
+    rascunho = abertoCom ? { regraId: x.c.regraId ?? "", ajustes: structuredClone(x.c.ajustes ?? {}) } : null;
     renderComissoes();
   }));
   const form = box.querySelector("[data-form-comissao]");
   if (form) {
     const x = daLinha(form);
     // O cálculo acompanha a escolha da regra e o valor digitado, antes de salvar.
-    form.querySelector("#fin-com-regra").onchange = (e) => { rascunho.regraId = e.target.value; renderComissoes(); };
+    // Trocar a regra recomeça os ajustes, que valem para os pagamentos da regra escolhida.
+    form.querySelector("#fin-com-regra").onchange = (e) => { rascunho.regraId = e.target.value; rascunho.ajustes = {}; renderComissoes(); };
+    // Percentual e data de cada linha: o que for igual ao da regra deixa de ser ajuste.
+    const regraAberta = () => regraPorId().get(rascunho.regraId) ?? null;
+    const ajustar = (chave, campo, valor) => {
+      const item = calcularComissao({ valor: x.c.valor, ativacao: x.c.ativacao }, regraAberta()).itens.find((i) => i.chave === chave);
+      const daRegra = campo === "data" ? item?.data : item?.percentual;
+      const a = { ...(rascunho.ajustes[chave] ?? {}) };
+      if (valor === "" || valor === null || valor === daRegra) delete a[campo]; else a[campo] = valor;
+      if (Object.keys(a).length) rascunho.ajustes[chave] = a; else delete rascunho.ajustes[chave];
+      renderComissoes();
+    };
+    form.querySelectorAll("[data-aj-data]").forEach((el) => (el.onchange = () => ajustar(el.closest("[data-item]").dataset.item, "data", el.value)));
+    form.querySelectorAll("[data-aj-pct]").forEach((el) => (el.onchange = () => {
+      const t = el.value.replace("%", "").trim();
+      const n = t ? parseBRL(t) : null;
+      if (t && (n == null || n < 0 || n > 1000)) { toast("Percentual inválido.", "erro"); el.focus(); return; }
+      ajustar(el.closest("[data-item]").dataset.item, "percentual", n);
+    }));
+    form.querySelectorAll("[data-aj-pct]").forEach((el) => el.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); el.dispatchEvent(new Event("change")); } }));
+    form.querySelector("[data-restaurar-comissao]")?.addEventListener("click", () => { rascunho.ajustes = {}; renderComissoes(); });
     form.querySelector("[data-fechar-comissao]")?.addEventListener("click", () => { abertoCom = null; rascunho = null; renderComissoes(); });
     form.onsubmit = async (e) => {
       e.preventDefault();
       try {
-        const novo = await api(`/api/contratos/${encodeURIComponent(x.c.id)}/comissao`, { metodo: "PATCH", json: { regraId: rascunho.regraId || null } });
+        const novo = await api(`/api/contratos/${encodeURIComponent(x.c.id)}/comissao`, { metodo: "PATCH", json: { regraId: rascunho.regraId || null, ajustes: rascunho.ajustes } });
         contratos = contratos.map((c) => (c.id === novo.id ? novo : c));
         abertoCom = null;
         rascunho = null;

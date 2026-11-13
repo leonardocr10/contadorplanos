@@ -27,13 +27,16 @@ export function somarMeses(iso, n) {
 }
 
 // Detalhamento: a angariação no ato da venda e cada parcela no mês correspondente, tudo sobre a mensalidade.
-export function calcularComissao({ valor, ativacao }, regra) {
+// Os ajustes do contrato trocam o percentual e a data prevista de cada pagamento (chave "ang" ou "p0".."p3").
+export function calcularComissao({ valor, ativacao, ajustes = {} }, regra) {
   if (!regra) return { itens: [], total: 0 };
   const itens = [];
-  if (regra.segmento !== "PME" && regra.angariacao > 0) itens.push({ rotulo: "Angariação", percentual: regra.angariacao, base: valor, data: ativacao, valor: r2(valor * regra.angariacao / 100) });
-  regra.parcelas.forEach((p, i) => {
-    if (!p) return;
-    itens.push({ rotulo: `${i + 1}ª parcela`, percentual: p, base: valor, data: somarMeses(ativacao, i), valor: r2(valor * p / 100) });
-  });
+  const item = (chave, rotulo, percRegra, dataRegra) => {
+    const a = ajustes?.[chave] ?? {};
+    const percentual = a.percentual ?? percRegra, data = a.data || dataRegra;
+    itens.push({ chave, rotulo, percentual, percentualDaRegra: percRegra, base: valor, data, dataDaRegra: dataRegra, ajustado: a.percentual !== undefined || !!a.data, valor: r2(valor * percentual / 100) });
+  };
+  if (regra.segmento !== "PME" && regra.angariacao > 0) item("ang", "Angariação", regra.angariacao, ativacao);
+  regra.parcelas.forEach((p, i) => { if (p) item(`p${i}`, `${i + 1}ª parcela`, p, somarMeses(ativacao, i)); });
   return { itens, total: r2(itens.reduce((a, x) => a + x.valor, 0)) };
 }

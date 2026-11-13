@@ -636,6 +636,9 @@ body{margin:0}
 .fin-com-campos .field:not(.fin-com-regra){width:180px}
 .fin-com-campos .actions{margin:0}
 .fin-detalhe{min-width:0}
+.fin-detalhe input.fin-aj-data{width:150px;padding:6px 8px;font-size:14px}
+.fin-detalhe input.fin-aj-pct{width:76px;padding:6px 8px;font-size:14px;text-align:right}
+.fin-detalhe tr.fin-ajustado td:first-child{font-weight:700}
 .fin-detalhe .fin-total td{font-weight:800;color:var(--pine);border-top:2px solid var(--line)}
 /* Menu: o grupo Financeiro abre e fecha os submenus, que ficam recuados. */
 .tabs button.tabs-grupo{display:flex;align-items:center;gap:12px}
