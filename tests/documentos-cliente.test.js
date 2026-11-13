@@ -241,8 +241,14 @@ test("aviso de proposta enviada: texto pronto e registro de quando o corretor en
   assert.match(texto, /você pode me chamar que te auxilio\.$/);
 
   const s = await subir(t);
-  const { token } = await proposta(s);
+  const { url, token } = await proposta(s);
   assert.equal((await (await fetch(s.admin + "/api/aceites")).json())[0].propostaEnviadaEm, null);
+  // Antes de o cliente concluir o envio dos documentos, o aviso é recusado.
+  const cedo = await fetch(`${s.admin}/api/aceites/${token}/proposta-enviada`, { method: "POST" });
+  assert.equal(cedo.status, 400);
+  assert.match((await cedo.json()).erro, /ainda não concluiu/);
+  const cookie = (await entrar(url, "34999990000")).cookie;
+  await fetch(url + "/documentos/concluir", { method: "POST", headers: { cookie, "Content-Type": "application/json" }, body: JSON.stringify({ nome: "Maria Silva", email: "maria@exemplo.com" }) });
   const r = await fetch(`${s.admin}/api/aceites/${token}/proposta-enviada`, { method: "POST" });
   assert.equal(r.status, 200);
   const { propostaEnviadaEm } = await r.json();

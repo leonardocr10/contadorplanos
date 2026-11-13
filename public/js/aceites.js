@@ -26,6 +26,7 @@ export async function carregarAceites() {
   const concluiram = assinatura === null ? [] : lista.filter((a) => a.docsConcluidoEm && aceites.some((x) => x.token === a.token && x.docsConcluidoEm !== a.docsConcluidoEm));
   assinatura = nova;
   aceites = lista;
+  if (aviso && !aceites.find((a) => a.token === aviso.token)?.docsConcluidoEm) aviso = null;
   renderAceites();
   for (const a of concluiram) toast(`${a.cliente || "Um cliente"} concluiu o envio dos documentos`, "sucesso");
   if (novos > 0) toast(novos === 1 ? "Novo aceite de proposta" : `${novos} novos aceites de proposta`, "sucesso");
@@ -74,7 +75,10 @@ function linhaDoAceite(a) {
   const acoes = [
     edita ? botaoIcone("whatsapp", a.docsEnviadosEm ? "Pedir de novo os documentos no WhatsApp" : "Pedir os documentos no WhatsApp", { atributos: `data-docs aria-expanded="${escolha?.token === a.token}"`, classe: st.chave === "pedir" ? "primario" : "" }) : "",
     botaoIcone("documentos", a.arquivos.length ? `Documentos do cliente (${a.arquivos.length})` : "Documentos do cliente", { atributos: `data-recebidos aria-expanded="${recebidosAbertos === a.token}"`, numero: a.arquivos.length }),
-    edita ? botaoIcone("enviada", a.propostaEnviadaEm ? `Proposta enviada em ${fmtData(a.propostaEnviadaEm)}: clique para avisar de novo` : "Avisar no WhatsApp que a proposta para assinar foi enviada ao e-mail", { atributos: `data-proposta aria-expanded="${aviso?.token === a.token}"`, classe: a.propostaEnviadaEm ? "feito" : "" }) : "",
+    // O aviso da proposta só faz sentido depois que o cliente concluiu o envio dos documentos.
+    edita ? botaoIcone("enviada", !a.docsConcluidoEm
+      ? "Disponível depois que o cliente concluir o envio dos documentos"
+      : a.propostaEnviadaEm ? `Proposta enviada em ${fmtData(a.propostaEnviadaEm)}: clique para avisar de novo` : "Avisar no WhatsApp que a proposta para assinar foi enviada ao e-mail", { atributos: `data-proposta aria-expanded="${aviso?.token === a.token}"${a.docsConcluidoEm ? "" : " disabled"}`, classe: a.propostaEnviadaEm ? "feito" : "" }) : "",
     a.linkDocumentos ? botaoIcone("link", "Copiar o link de envio dos documentos", { atributos: "data-link" }) : "",
     edita ? botaoIcone("excluir", "Excluir aceite", { atributos: `data-excluir aria-expanded="${excluindo === a.token}"`, classe: "perigo" }) : "",
   ].join("");
@@ -141,6 +145,7 @@ export function renderAceites() {
   box.querySelectorAll("[data-docs]").forEach((b) => (b.onclick = () => escolherDocumentos(doCartao(b))));
   box.querySelectorAll("[data-proposta]").forEach((b) => (b.onclick = () => {
     const a = doCartao(b);
+    if (!a.docsConcluidoEm) { toast("Espere o cliente concluir o envio dos documentos"); return; }
     if (!a.fone) { toast("Este aceite não tem o número do cliente"); return; }
     aviso = aviso?.token === a.token ? null : { token: a.token, texto: mensagemPropostaEnviada() };
     renderAceites();

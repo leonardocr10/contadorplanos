@@ -508,6 +508,7 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
   // O corretor abriu no WhatsApp o aviso de que a proposta para assinar foi enviada ao e-mail do cliente.
   app.post("/api/aceites/:token/proposta-enviada", exige("aceites", "editar"), (req, res) => {
     const proposta = banco.obterProposta(req.params.token);
+    if (proposta?.aceitoEm && podeVer(req, donoDaProposta(proposta)) && !proposta.docsConcluidoEm) return res.status(400).json({ erro: "O cliente ainda não concluiu o envio dos documentos." });
     const a = proposta && podeVer(req, donoDaProposta(proposta)) ? banco.marcarPropostaEnviada(req.params.token) : null;
     if (!a) return res.status(404).json({ erro: "Aceite não encontrado." });
     res.json({ propostaEnviadaEm: a.propostaEnviadaEm });

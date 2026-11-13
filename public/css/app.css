@@ -441,6 +441,7 @@ html:has(.visor[open]){overflow:hidden}
 .grade-ico{position:relative;display:inline-grid;place-items:center;width:34px;height:34px;padding:0;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--ink);cursor:pointer}
 .grade-ico:hover{border-color:var(--accent);color:var(--accent)}
 a.grade-ico{text-decoration:none}
+.grade-ico:disabled{opacity:.35;cursor:not-allowed;border-color:var(--line);color:var(--muted)}
 .grade-ico:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
 .grade-ico.primario{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .grade-ico.feito{border-color:var(--accent);color:var(--accent)}
