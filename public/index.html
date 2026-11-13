@@ -231,16 +231,14 @@
     <div class="panel">
       <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center">
         <h2>Regras de pagamento</h2>
-        <span class="note">Comissão por corretora: angariação sobre a adesão e parcelas sobre a mensalidade</span>
+        <span class="note">Comissão por corretora: até 4 parcelas sobre a mensalidade</span>
       </div>
       <div class="fin-corretora">
         <div class="field"><label for="reg-corretora">Corretora</label><select id="reg-corretora" data-icone="filtro"></select></div>
         <div class="actions" data-edita="financeiro" hidden>
           <button type="button" class="btn" id="reg-nova">Nova corretora</button>
           <button type="button" class="btn" id="reg-renomear">Renomear</button>
-          <button type="button" class="btn" id="reg-importar" title="Arquivo JSON com a tabela de comissão da corretora">Importar tabela</button>
           <button type="button" class="btn danger" id="reg-excluir">Excluir corretora</button>
-          <input type="file" id="reg-arquivo" accept=".json,application/json" hidden>
         </div>
       </div>
       <div class="fin-acao" id="reg-acao" hidden></div>
@@ -259,7 +257,7 @@
       </div>
       <div id="reg-lista"></div>
       <nav class="grade-paginacao" id="reg-paginacao" aria-label="Páginas das regras"></nav>
-      <p class="note" style="margin:0">Parcelas em % da mensalidade, uma por mês a partir da ativação. Nos coletivos por adesão, a angariação é a % sobre o valor da adesão, paga no ato da venda.</p>
+      <p class="note" style="margin:0">Parcelas em % da mensalidade, uma por mês a partir da ativação: a 1ª no mês da ativação, a 2ª no mês seguinte e assim por diante.</p>
     </div>
   </section>
 

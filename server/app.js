@@ -132,14 +132,14 @@ function validarRegra(b) {
   if (!b || typeof b !== "object") throw new ErroEntrada("Dados da regra inválidos.");
   const nome = textoOpc(b.nome, "operadora", 120);
   if (!nome) throw new ErroEntrada("Informe a operadora ou administradora.");
-  if (!SEGMENTOS.includes(b.segmento)) throw new ErroEntrada("Escolha o segmento da regra.");
-  const angariacao = b.angariacao === undefined || b.angariacao === null || b.angariacao === "" ? 0 : Number(b.angariacao);
-  if (!Number.isFinite(angariacao) || angariacao < 0 || angariacao > 1000) throw new ErroEntrada("A taxa de angariação precisa ficar entre 0% e 1000%.");
-  const parcelas = Array.isArray(b.parcelas) ? b.parcelas.map(Number) : null;
+  if (!SEGMENTOS.includes(b.segmento)) throw new ErroEntrada("Escolha o segmento da regra: Pessoa física ou PME.");
+  const parcelas = Array.isArray(b.parcelas) ? b.parcelas.map((p) => (p === null || p === "" ? 0 : Number(p))) : null;
   if (!parcelas || parcelas.length > MAX_PARCELAS || parcelas.some((p) => !Number.isFinite(p) || p < 0 || p > 1000)) throw new ErroEntrada(`Informe até ${MAX_PARCELAS} parcelas, cada uma entre 0% e 1000%.`);
-  if (!angariacao && !parcelas.some((p) => p > 0)) throw new ErroEntrada("Informe a taxa de angariação ou ao menos uma parcela.");
+  if (!parcelas.some((p) => p > 0)) throw new ErroEntrada("Informe a porcentagem de ao menos uma parcela.");
   const r2 = (n) => Math.round(n * 100) / 100;
-  return { nome, segmento: b.segmento, angariacao: r2(angariacao), parcelas: parcelas.map(r2), observacao: textoOpc(b.observacao, "observação", 300) };
+  // As parcelas em branco no fim não contam.
+  while (parcelas.length && !parcelas.at(-1)) parcelas.pop();
+  return { nome, segmento: b.segmento, angariacao: 0, parcelas: parcelas.map(r2), observacao: textoOpc(b.observacao, "observação", 300) };
 }
 
 const DATA_ISO =/^(\d{4})-(\d{2})-(\d{2})$/;
@@ -544,10 +544,7 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     if (!contratoDoLogin(req)) return res.status(404).json(NAO_ACHOU_CONTRATO);
     const regraId = req.body?.regraId || null;
     if (regraId && !banco.obterRegra(regraId)) throw new ErroEntrada("Regra de comissão não encontrada.");
-    const bruto = req.body?.adesao;
-    const adesao = bruto === undefined || bruto === null || bruto === "" ? null : Number(bruto);
-    if (adesao !== null && (!Number.isFinite(adesao) || adesao < 0 || adesao > 1e6)) throw new ErroEntrada("Informe um valor de adesão válido.");
-    res.json(semDono(banco.definirComissaoDoContrato(req.params.id, regraId, adesao === null ? null : Math.round(adesao * 100) / 100)));
+    res.json(semDono(banco.definirComissaoDoContrato(req.params.id, regraId, null)));
   });
 
   /* ---------- aceites ---------- */
