@@ -562,6 +562,14 @@ body{margin:0}
   body.menu-recolhido header.top:hover:not(.saindo-do-mouse){z-index:30;box-shadow:0 12px 40px rgba(8,28,21,.18)}
 }
 @media (min-width:901px) and (prefers-reduced-motion:reduce){body,header.top{transition:none}}
+/* Telas baixas (ex.: 1366×600): menu mais compacto, para todos os itens caberem sem rolar. */
+@media (min-width:901px) and (max-height:820px){
+  header.top{gap:12px;padding-top:40px;padding-bottom:12px}
+  header.top h1{font-size:20px}
+  header.top h1 small{display:none}
+  .tabs{gap:1px}
+  .tabs button{padding-top:7px;padding-bottom:7px}
+}
 
 /* Salvar sempre à vista no editor do plano. */
 .modal-acoes{position:sticky;bottom:-24px;z-index:2;margin:0 -20px -20px;padding:12px 20px;background:var(--surface);border-top:1px solid var(--line)}
