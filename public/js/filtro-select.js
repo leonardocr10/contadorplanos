@@ -54,6 +54,8 @@ const CSS = `
 .fs-teclas{display:flex;align-items:center;gap:4px}
 .fs-teclas kbd{min-width:20px;padding:1px 5px;border:1px solid var(--line);border-radius:5px;background:var(--surface,#fff);font:600 11px var(--body,inherit);text-align:center;color:var(--ink)}
 @media (hover:none){.fs-teclas{display:none}}
+.fs-ok{margin-left:auto;padding:7px 18px;border:0;border-radius:8px;background:var(--pine,var(--accent));color:var(--pine-ink,#fff);font:700 13px var(--body,inherit);cursor:pointer}
+.fs-ok:hover{filter:brightness(1.1)}
 `;
 
 const icone = (corpo, tamanho = 16, classe = "fs-icone") => `<svg class="${classe}" width="${tamanho}" height="${tamanho}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${corpo}</svg>`;
@@ -113,8 +115,11 @@ function abrir(select, botao) {
   rodape.className = "fs-rodape";
   // No select múltiplo, cada clique marca ou desmarca, e a lista fica aberta.
   const multiplo = select.multiple;
-  rodape.innerHTML = `<span data-contagem></span><span class="fs-teclas"><kbd>↑</kbd><kbd>↓</kbd> navegar <kbd>Enter</kbd> ${multiplo ? "marcar" : "escolher"}</span>`;
-  rodape.hidden = !umItem;
+  rodape.innerHTML = `<span data-contagem></span><span class="fs-teclas"><kbd>↑</kbd><kbd>↓</kbd> navegar <kbd>Enter</kbd> ${multiplo ? "marcar" : "escolher"}</span>${multiplo ? `<button type="button" class="fs-ok">OK</button>` : ""}`;
+  rodape.hidden = !umItem && !multiplo;
+  // No múltiplo, o OK fecha a lista com o que foi marcado.
+  rodape.querySelector(".fs-ok")?.addEventListener("mousedown", (e) => e.preventDefault());
+  rodape.querySelector(".fs-ok")?.addEventListener("click", () => fechar(true));
   // Select múltiplo: "Selecionar todos" marca (ou desmarca) as opções que aparecem com o filtro.
   const todos = document.createElement("button");
   todos.type = "button";
