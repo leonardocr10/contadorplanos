@@ -592,7 +592,10 @@ body{margin:0}
 .ctr-botoes .btn{height:40px;white-space:nowrap}
 @media (max-width:1250px){.ctr-form{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)}}
 /* Os filtros ficam separados do cadastro por uma linha, num bloco próprio. */
-.ctr-filtros{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr) minmax(150px,170px) auto;margin-top:6px;padding-top:16px;border-top:1px solid var(--line)}
+.ctr-filtros{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr) minmax(150px,170px) auto}
+/* Contratos Vendidos em três blocos: situação, cadastro e lista. */
+.ctr-blocos:not([hidden]){display:flex;flex-direction:column;gap:16px}
+.ctr-bloco-titulo{margin:0;font-family:var(--display);font-weight:600;font-size:16px}
 /* Botão padrão de limpar: borda, ícone de borracha e texto. O compacto vai ao lado de rótulos e títulos. */
 .btn.btn-limpar{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:40px;min-height:0;padding:0 14px;box-sizing:border-box;white-space:nowrap}
 .btn.btn-limpar svg{flex:none}

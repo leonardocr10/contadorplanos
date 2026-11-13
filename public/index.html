@@ -188,13 +188,17 @@
   </section>
 
   <!-- CONTRATOS VENDIDOS -->
-  <section id="v-contratos" hidden>
+  <section id="v-contratos" class="ctr-blocos" hidden>
     <div class="panel">
       <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center">
         <h2>Contratos Vendidos</h2>
         <span class="note" id="ctr-count"></span>
       </div>
-      <form id="ctr-form" class="ctr-form" autocomplete="off" data-edita="contratos" hidden>
+      <div class="grade-cards" id="ctr-cards" role="group" aria-label="Contratos por situação"></div>
+    </div>
+    <div class="panel" data-edita="contratos" hidden>
+      <h3 class="ctr-bloco-titulo">Cadastrar contrato</h3>
+      <form id="ctr-form" class="ctr-form" autocomplete="off">
         <div class="field"><label for="ctr-nome">Nome do cliente</label><input id="ctr-nome" type="text" placeholder="Ex.: Maria da Silva"></div>
         <div class="field"><label for="ctr-fone">Telefone</label><input id="ctr-fone" type="tel" placeholder="(34) 99999-0000"></div>
         <div class="field"><label for="ctr-email">E-mail (opcional)</label><input id="ctr-email" type="email" inputmode="email" autocapitalize="none" spellcheck="false" placeholder="maria@exemplo.com"></div>
@@ -203,7 +207,8 @@
         <div class="field"><label for="ctr-ativacao">Data de ativação</label><input id="ctr-ativacao" type="date"></div>
         <div class="actions ctr-botoes"><button class="btn primary" type="submit" id="ctr-salvar">Cadastrar contrato</button></div>
       </form>
-      <div class="grade-cards" id="ctr-cards" role="group" aria-label="Contratos por situação"></div>
+    </div>
+    <div class="panel">
       <div class="hist-filtros ctr-filtros">
         <div class="field"><label for="ctr-busca">Buscar</label><input id="ctr-busca" type="search" placeholder="Nome, telefone, e-mail ou plano" autocomplete="off"></div>
         <div class="field"><label for="ctr-mes">Mês de ativação</label><select id="ctr-mes" data-icone="calendario" data-contagem="mês|meses"></select></div>
