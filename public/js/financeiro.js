@@ -325,17 +325,20 @@ const COLUNAS_COM = [
 ];
 
 // Seletor da regra: agrupado por corretora, com busca.
-// Com o plano do contrato, as regras desse plano aparecem primeiro, num grupo próprio.
+// Regras do plano do contrato: a comparação do plano é feita antes, então cada opção mostra só a corretora
+// (e o segmento, quando a mesma corretora tem regra de pessoa física e de PME para esse plano).
+// Uma regra já escolhida de outro plano continua na lista, para não sumir.
+function regrasDoPlano(plano) {
+  return corretoras.flatMap((c) => c.regras.filter((r) => r.nome === plano).map((r) => ({ ...r, corretora: c.nome })));
+}
 function opcoesDeRegra(atual, plano = "") {
-  const opcao = (r, comCorretora) => `<option value="${esc(r.id)}"${r.id === atual ? " selected" : ""}>${esc(`${comCorretora ? `${r.corretora} · ` : ""}${r.nome} · ${rotuloDoSegmento(r.segmento)} · ${pct(totalDaRegra(r))}`)}</option>`;
-  const doPlano = plano ? corretoras.flatMap((c) => c.regras.filter((r) => r.nome === plano).map((r) => ({ ...r, corretora: c.nome }))) : [];
-  const ids = new Set(doPlano.map((r) => r.id));
-  return `<option value="">Sem regra</option>`
-    + (doPlano.length ? `<optgroup label="Regras deste plano">${doPlano.map((r) => opcao(r, true)).join("")}</optgroup>` : "")
-    + corretoras.map((c) => {
-      const resto = c.regras.filter((r) => !ids.has(r.id));
-      return resto.length ? `<optgroup label="${esc(c.nome)}">${resto.map((r) => opcao(r, false)).join("")}</optgroup>` : "";
-    }).join("");
+  const doPlano = regrasDoPlano(plano);
+  const atualDeOutro = atual && !doPlano.some((r) => r.id === atual) ? regraPorId().get(atual) : null;
+  const repetida = (r) => doPlano.filter((x) => x.corretoraId === r.corretoraId).length > 1;
+  const opcao = (r, texto) => `<option value="${esc(r.id)}"${r.id === atual ? " selected" : ""}>${esc(texto)}</option>`;
+  return `<option value="">${doPlano.length ? "Sem regra" : "Nenhuma regra para este plano"}</option>`
+    + doPlano.map((r) => opcao(r, repetida(r) ? `${r.corretora} · ${rotuloDoSegmento(r.segmento)}` : r.corretora)).join("")
+    + (atualDeOutro ? `<optgroup label="Regra de outro plano">${opcao(atualDeOutro, `${atualDeOutro.corretora} · ${atualDeOutro.nome}`)}</optgroup>` : "");
 }
 
 function painelDaComissao(x) {
@@ -345,7 +348,7 @@ function painelDaComissao(x) {
   const algumAjuste = conta.itens.some((i) => i.ajustado);
   return `<form class="fin-comissao" data-form-comissao novalidate>
     <div class="fin-com-campos">
-      <div class="field fin-com-regra"><label for="fin-com-regra">Regra de comissão</label><select id="fin-com-regra" data-busca="Buscar operadora…" ${podeEditar ? "" : "disabled"}>${opcoesDeRegra(rascunho.regraId, x.c.plano)}</select></div>
+      <div class="field fin-com-regra"><label for="fin-com-regra">Regra de comissão</label><select id="fin-com-regra" data-busca="Buscar corretora…" ${podeEditar ? "" : "disabled"}>${opcoesDeRegra(rascunho.regraId, x.c.plano)}</select></div>
       ${podeEditar ? `<div class="actions">${algumAjuste ? `<button class="btn" type="button" data-restaurar-comissao title="Volta os percentuais e as datas para o que a regra calcula">Voltar ao da regra</button>` : ""}<button class="btn primary" type="submit">Salvar</button><button class="btn" type="button" data-fechar-comissao>Fechar</button></div>` : ""}
     </div>
     ${regra ? `<p class="note" style="margin:0">${esc(regra.corretora)} · ${esc(regra.nome)} (${esc(rotuloDoSegmento(regra.segmento))})${regra.observacao ? ` · ${esc(regra.observacao)}` : ""}</p>` : `<p class="note" style="margin:0">Escolha a regra da corretora para calcular a comissão.</p>`}
@@ -360,13 +363,13 @@ function painelDaComissao(x) {
 
 function linhaDaComissao(x) {
   const aberto = abertoCom === x.c.id;
-  const regraTxt = x.regra ? `${x.regra.corretora} · ${x.regra.nome}` : "";
+  const regraTxt = x.regra ? (x.regra.nome === x.c.plano ? x.regra.corretora : `${x.regra.corretora} · ${x.regra.nome}`) : "";
   return `<tr class="grade-linha${x.regra ? "" : " grade-pendente"}" data-com="${esc(x.c.id)}">
       <td><div class="grade-nome" title="${esc(x.c.nome)}">${esc(x.c.nome)}</div></td>
       <td><div class="grade-plano" title="${esc(x.c.plano)}">${esc(x.c.plano)}</div></td>
       <td class="grade-valor dir">R$ ${brl(x.c.valor)}</td>
       <td class="fin-regra-celula">${edita()
-        ? `<select data-regra-linha data-busca="Buscar operadora…" data-contagem="regra|regras" aria-label="Regra de comissão de ${esc(x.c.nome)}" class="${x.regra ? "" : "fin-sem-regra"}">${opcoesDeRegra(x.c.regraId ?? "", x.c.plano)}</select>`
+        ? `<select data-regra-linha data-busca="Buscar corretora…" data-contagem="corretora|corretoras" aria-label="Regra de comissão de ${esc(x.c.nome)}" class="${x.regra ? "" : "fin-sem-regra"}">${opcoesDeRegra(x.c.regraId ?? "", x.c.plano)}</select>`
         : `<div class="grade-plano fin-regra" title="${esc(regraTxt)}">${x.regra ? esc(regraTxt) : `<span class="fin-falta">Sem regra</span>`}</div>`}</td>
       <td class="grade-data">${esc(fmtDia(x.c.ativacao))}</td>
       <td class="grade-valor dir"><b>${x.regra ? `R$ ${brl(x.comissao.total)}` : "—"}</b></td>
