@@ -562,12 +562,12 @@ export async function copiarTexto(texto) {
 async function copiarLink() {
   if (!S.selected.length) { toast("Escolha um plano primeiro"); return; }
   const caixa = $("#links-gerados");
-  let texto;
+  let texto, links;
   try {
-    const { links } = await api("/api/propostas", {
+    ({ links } = await api("/api/propostas", {
       metodo: "POST",
       json: { planos: [...S.selected], vidas: S.vidas, over: S.over, cliente: nomeCliente(), fone: normFone($("#fone").value), opts: opcoes(), municipio: S.municipio },
-    });
+    }));
     texto = textoDosLinks(links);
   } catch (e) {
     toast(e.message, "erro");
@@ -575,7 +575,15 @@ async function copiarLink() {
   }
   caixa.textContent = texto;
   caixa.hidden = false;
-  if (await copiarTexto(texto)) toast(S.linkLocal ? "Link copiado, mas ele só abre neste computador: preencha PUBLIC_URL no .env" : "Link copiado: cole na conversa do cliente", S.linkLocal ? "aviso" : "sucesso");
+  const copiou = await copiarTexto(texto);
+  // Com várias propostas o botão é "Mostrar links": os links ficam à vista, um por plano, e também vão copiados.
+  if (links.length > 1) {
+    caixa.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    if (copiou) toast(S.linkLocal ? "Links copiados, mas só abrem neste computador: preencha PUBLIC_URL no .env" : "Links abaixo dos botões, e já copiados", S.linkLocal ? "aviso" : "sucesso");
+    else toast("Links abaixo dos botões: selecione e copie");
+    return;
+  }
+  if (copiou) toast(S.linkLocal ? "Link copiado, mas ele só abre neste computador: preencha PUBLIC_URL no .env" : "Link copiado: cole na conversa do cliente", S.linkLocal ? "aviso" : "sucesso");
   else toast("O navegador bloqueou a cópia: selecione o link abaixo dos botões", "erro");
 }
 
@@ -597,6 +605,7 @@ export function renderCotacao() {
   lastAuto = buildMsg({ items: planosEscolhidos(), vidas: S.vidas, over: S.over, nome, corretor: corretor(), opts: opcoes(), cidade: S.municipio });
   $("#nota-envio").textContent = "Abrir no WhatsApp leva o texto e copia a imagem: na conversa, aperte Ctrl+V para colar a imagem. Com vários planos, copie as outras imagens nos botões acima. A cotação fica salva no histórico automaticamente quando tem nome, WhatsApp e plano.";
   $("#links-gerados").hidden = true;
+  $("#copiar-link").textContent = planosEscolhidos().length > 1 ? "Mostrar links" : "Copiar link";
   $("#comparar").hidden = planosEscolhidos().length < 2 || !pode("cotacao", "editar");
   $("#limpar-planos").disabled = !S.selected.length;
   manual = false;
