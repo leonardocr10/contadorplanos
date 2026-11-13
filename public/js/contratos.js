@@ -105,8 +105,8 @@ function renderContratos() {
       <span class="ctr-ativ" title="Data de ativação">${esc(fmtDia(c.ativacao))}</span>
       <span class="ctr-sit"><span class="pill ${st.classe}"${contato ? ` title="${esc(contato)}"` : ""}>${esc(st.rotulo)}</span></span>
       <div class="actions ctr-acoes">
-        ${edita ? `<button class="btn ${st.chave === "pendente" ? "primary" : ""}" data-mensagem aria-expanded="${mensagem?.id === c.id}">Mensagem no WhatsApp</button>
-        ${st.chave === "aguardando" ? "" : `<button class="btn" data-contato="${c.contatoEm ? "0" : "1"}">${c.contatoEm ? "Desfazer contato" : "Marcar contato feito"}</button>`}` : ""}
+        ${edita ? `<button class="btn ${st.chave === "pendente" ? "primary" : ""}" data-mensagem aria-expanded="${mensagem?.id === c.id}" title="Mensagem no WhatsApp">WhatsApp</button>
+        ${st.chave === "aguardando" ? "" : `<button class="btn" data-contato="${c.contatoEm ? "0" : "1"}" title="${c.contatoEm ? "Desfazer o contato feito" : "Marcar contato feito"}">${c.contatoEm ? "Desfazer contato" : "Contato feito"}</button>`}` : ""}
         <button class="btn" data-documentos aria-expanded="${docsAbertos === c.id}">Documentos${c.arquivos.length ? ` <span class="ctr-qtd">${c.arquivos.length}</span>` : ""}</button>
         ${edita ? `<button class="btn" data-editar>Editar</button>
         <button class="btn danger" data-excluir>Excluir</button>` : ""}
