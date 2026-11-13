@@ -556,6 +556,26 @@ a.ctr-doc-mini:hover{border-color:var(--accent)}
 .ctr-doc-confirma{grid-column:1/-1;flex-wrap:wrap}
 .ctr-doc-confirma:not([hidden]){display:flex}
 .ctr-item.ctr-pendente{border-color:var(--danger);box-shadow:inset 4px 0 0 var(--danger)}
+/* Cada contrato numa linha fina: as colunas (nome, telefone, plano, valor, ativação, situação e botões)
+   ficam alinhadas entre os contratos; em telas menores, a linha quebra. */
+.ctr-linha{display:flex;flex-wrap:wrap;align-items:center;gap:6px 14px;font-size:14px}
+.ctr-nome,.ctr-plano{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ctr-nome{font-weight:700}
+.ctr-plano{font-weight:600}
+.ctr-fone,.ctr-ativ{color:var(--muted);font-weight:600;font-size:13px;white-space:nowrap}
+.ctr-valor{font-variant-numeric:tabular-nums;white-space:nowrap}
+.ctr-sit .pill{margin:0;white-space:nowrap}
+.ctr-acoes{margin:0;flex-wrap:nowrap;gap:6px}
+.ctr-acoes .btn{padding:6px 12px;font-size:13px;white-space:nowrap}
+@media (min-width:1251px){
+  #ctr-list{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1.4fr) auto auto auto auto;row-gap:8px}
+  #ctr-list>.ctr-item{grid-column:1/-1;display:grid;grid-template-columns:subgrid;row-gap:8px;padding-block:8px}
+  #ctr-list>.ctr-item>*,#ctr-list>.status{grid-column:1/-1}
+  .ctr-linha{display:grid;grid-template-columns:subgrid;column-gap:16px}
+  .ctr-valor{text-align:right}
+  .ctr-acoes{justify-content:flex-end}
+}
+@media (max-width:1250px){.ctr-acoes{flex-basis:100%;flex-wrap:wrap}}
 .alerta-contratos{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;width:100%;margin:0 0 14px;padding:10px 16px;border:1px solid var(--danger);border-radius:12px;background:var(--danger-soft);color:var(--danger);font:inherit;font-size:14px;text-align:left;cursor:pointer}
 .alerta-contratos[hidden]{display:none}
 .alerta-contratos span{font-weight:600;opacity:.85;text-decoration:underline}

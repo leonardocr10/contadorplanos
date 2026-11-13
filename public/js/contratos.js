@@ -94,16 +94,23 @@ function renderContratos() {
   const edita = pode("contratos", "editar");
   box.innerHTML = lista.map((c) => {
     const st = situacao(c, dia);
+    const contato = c.contatoEm ? `Contato feito em ${new Date(c.contatoEm).toLocaleDateString("pt-BR")}` : "";
     return `<div class="hq ctr-item${st.chave === "pendente" ? " ctr-pendente" : ""}" data-id="${esc(c.id)}">
-      <div class="hq-top"><span class="hg-name">${esc(c.nome)}</span><span class="pill ${st.classe}">${esc(st.rotulo)}</span></div>
-      ${edita && edicao?.id === c.id ? formularioDeEdicao(c) : `<div class="hq-date">${esc(fmtFone(c.fone))} · ativação em ${esc(fmtDia(c.ativacao))}${c.contatoEm ? ` · contato feito em ${esc(new Date(c.contatoEm).toLocaleDateString("pt-BR"))}` : ""}</div>
-      <div class="hq-plans"><b>${esc(c.plano)}</b> · R$ ${brl(c.valor)}</div>
-      <div class="actions">
+      ${edita && edicao?.id === c.id ? `<div class="hq-top"><span class="hg-name">${esc(c.nome)}</span><span class="pill ${st.classe}">${esc(st.rotulo)}</span></div>
+      ${formularioDeEdicao(c)}` : `<div class="ctr-linha">
+      <b class="ctr-nome" title="${esc(c.nome)}">${esc(c.nome)}</b>
+      <span class="ctr-fone">${esc(fmtFone(c.fone))}</span>
+      <span class="ctr-plano" title="${esc(c.plano)}">${esc(c.plano)}</span>
+      <span class="ctr-valor">R$ ${brl(c.valor)}</span>
+      <span class="ctr-ativ" title="Data de ativação">${esc(fmtDia(c.ativacao))}</span>
+      <span class="ctr-sit"><span class="pill ${st.classe}"${contato ? ` title="${esc(contato)}"` : ""}>${esc(st.rotulo)}</span></span>
+      <div class="actions ctr-acoes">
         ${edita ? `<button class="btn ${st.chave === "pendente" ? "primary" : ""}" data-mensagem aria-expanded="${mensagem?.id === c.id}">Mensagem no WhatsApp</button>
         ${st.chave === "aguardando" ? "" : `<button class="btn" data-contato="${c.contatoEm ? "0" : "1"}">${c.contatoEm ? "Desfazer contato" : "Marcar contato feito"}</button>`}` : ""}
         <button class="btn" data-documentos aria-expanded="${docsAbertos === c.id}">Documentos${c.arquivos.length ? ` <span class="ctr-qtd">${c.arquivos.length}</span>` : ""}</button>
         ${edita ? `<button class="btn" data-editar>Editar</button>
         <button class="btn danger" data-excluir>Excluir</button>` : ""}
+      </div>
       </div>`}
       ${docsAbertos === c.id ? painelDeDocumentos(c, edita) : ""}
       ${edita ? `${mensagem?.id === c.id ? `<div class="ctr-msg" data-painel-msg>
