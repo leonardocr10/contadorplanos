@@ -442,6 +442,8 @@ html:has(.visor[open]){overflow:hidden}
 .grade-ico:hover{border-color:var(--accent);color:var(--accent)}
 a.grade-ico{text-decoration:none}
 .grade-ico:disabled{opacity:.35;cursor:not-allowed;border-color:var(--line);color:var(--muted)}
+/* Já feito (ex.: aceite já em Contratos Vendidos): não clica, mas continua verde. */
+.grade-ico.feito:disabled{opacity:1;cursor:default;border-color:var(--accent);color:var(--accent)}
 .grade-ico:focus-visible{outline:3px solid var(--accent);outline-offset:1px}
 .grade-ico.primario{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .grade-ico.feito{border-color:var(--accent);color:var(--accent)}
@@ -459,7 +461,7 @@ a.grade-ico{text-decoration:none}
 .grade-paginas .reticencias{padding:0 4px;color:var(--muted)}
 .ace-ativacao{display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px 16px}
 .ace-ativacao .field{width:200px}
-.ace-ativacao .note{flex:1 1 280px;margin:0}
+.ace-ativacao .actions{margin:0}
 .ace-contato{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 14px;font-size:14px;font-weight:600}
 .ace-contato .label{margin:0}
 .ace-contato a{color:var(--accent);overflow-wrap:anywhere}

@@ -13,6 +13,8 @@ let aceites = [], assinatura = null;
 let escolha = null;
 // Mensagem "Proposta enviada" aberta para edição: o texto sobrevive às atualizações automáticas da lista.
 let aviso = null;
+// Cadastro em Contratos Vendidos aberto: { token, ativacao }.
+let cadastro = null;
 // Aceite com a lista de documentos recebidos aberta.
 let recebidosAbertos = null;
 const fmtData = (iso) => new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
@@ -78,13 +80,19 @@ function linhaDoAceite(a) {
     // O aviso da proposta só faz sentido depois que o cliente concluiu o envio dos documentos.
     edita ? botaoIcone("enviada", !a.docsConcluidoEm
       ? "Disponível depois que o cliente concluir o envio dos documentos"
-      : a.propostaEnviadaEm && !a.emContratos ? "Aviso já enviado: clique para cadastrar em Contratos Vendidos"
-      : a.propostaEnviadaEm ? `Proposta enviada em ${fmtData(a.propostaEnviadaEm)}, já em Contratos Vendidos: clique para avisar de novo` : "Avisar no WhatsApp que a proposta foi enviada e cadastrar em Contratos Vendidos", { atributos: `data-proposta aria-expanded="${aviso?.token === a.token}"${a.docsConcluidoEm ? "" : " disabled"}`, classe: a.emContratos ? "feito" : a.propostaEnviadaEm ? "primario" : "" }) : "",
+      : a.propostaEnviadaEm ? `Proposta enviada em ${fmtData(a.propostaEnviadaEm)}: clique para avisar de novo` : "Avisar no WhatsApp que a proposta para assinar foi enviada ao e-mail", { atributos: `data-proposta aria-expanded="${aviso?.token === a.token}"${a.docsConcluidoEm ? "" : " disabled"}`, classe: a.propostaEnviadaEm ? "feito" : "" }) : "",
+    // Cadastrar em Contratos Vendidos: só depois do aviso da proposta enviada, e uma vez só.
+    edita && pode("contratos", "editar") ? botaoIcone("contrato", a.emContratos ? "Já está em Contratos Vendidos"
+      : a.propostaEnviadaEm ? "Cadastrar em Contratos Vendidos (informe a data de ativação)" : "Disponível depois de avisar o cliente de que a proposta foi enviada", {
+      atributos: `data-cadastrar aria-expanded="${cadastro?.token === a.token}"${a.propostaEnviadaEm && !a.emContratos ? "" : " disabled"}`,
+      classe: a.emContratos ? "feito" : a.propostaEnviadaEm ? "primario" : "",
+    }) : "",
     a.linkDocumentos ? botaoIcone("link", "Copiar o link de envio dos documentos", { atributos: "data-link" }) : "",
     edita ? botaoIcone("excluir", "Excluir aceite", { atributos: `data-excluir aria-expanded="${excluindo === a.token}"`, classe: "perigo" }) : "",
   ].join("");
   const paineis = [
     aviso?.token === a.token ? painelDoAviso(a) : "",
+    cadastro?.token === a.token ? painelDoCadastro(a) : "",
     recebidosAbertos === a.token ? painelDeRecebidos(a) : "",
     edita && escolha?.token === a.token ? painelDeDocumentos(a) : "",
     edita && excluindo === a.token ? `<div class="status" data-confirma>Excluir o aceite de <b>${esc(a.cliente || "Sem nome")}</b>${a.arquivos.length ? ` e ${a.arquivos.length === 1 ? "o documento que o cliente enviou" : `os ${a.arquivos.length} documentos que o cliente enviou`}` : ""}? O link desta proposta deixa de abrir para o cliente. A cotação continua no histórico. <span class="actions" style="margin-top:8px"><button class="btn danger" data-sim>Sim, excluir</button><button class="btn" data-nao>Manter</button></span></div>` : "",
@@ -152,6 +160,15 @@ export function renderAceites() {
     renderAceites();
     if (aviso) box.querySelector("#ace-aviso-texto")?.focus();
   }));
+  box.querySelectorAll("[data-cadastrar]").forEach((b) => (b.onclick = () => {
+    const a = doCartao(b);
+    if (!a.propostaEnviadaEm || a.emContratos) return;
+    cadastro = cadastro?.token === a.token ? null : { token: a.token, ativacao: "" };
+    renderAceites();
+    box.querySelector("#ace-cad-ativacao")?.focus();
+  }));
+  const painelCadastro = box.querySelector("[data-painel-cadastro]");
+  if (painelCadastro) ligarCadastro(painelCadastro, doCartao(painelCadastro));
   const painelAviso = box.querySelector("[data-painel-aviso]");
   if (painelAviso) ligarAviso(painelAviso, doCartao(painelAviso));
   const recebidos = box.querySelector("[data-painel-docs]");
@@ -209,19 +226,13 @@ export function iniciarAceites() {
 }
 
 // Texto do aviso "Proposta enviada", editável antes de abrir no WhatsApp.
-// Antes do primeiro aviso, pede a data de ativação: o aceite vai junto para Contratos Vendidos.
+// Texto do aviso "Proposta enviada", editável antes de abrir no WhatsApp.
 function painelDoAviso(a) {
-  const pedeData = !a.emContratos;
   return `<div class="ctr-msg" data-painel-aviso>
-    ${pedeData ? `<div class="ace-ativacao">
-      <div class="field"><label for="ace-aviso-ativacao">Data de ativação do plano</label><input id="ace-aviso-ativacao" type="date" value="${esc(aviso.ativacao || "")}" required></div>
-      <p class="note">Ao enviar, o contrato de ${esc(a.contatoCliente?.nome || a.cliente || "o cliente")} entra em <b>Contratos Vendidos</b> com o plano, o valor, o e-mail e os documentos enviados.</p>
-    </div>` : `<p class="note" style="margin:0">Este aceite já está em <b>Contratos Vendidos</b>.</p>`}
     <label class="label" for="ace-aviso-texto">Mensagem para ${esc(a.cliente || "o cliente")}: proposta enviada ao e-mail</label>
     <textarea id="ace-aviso-texto" rows="10" spellcheck="true">${esc(aviso.texto)}</textarea>
     <div class="actions">
-      <button class="btn primary" data-aviso-abrir>${pedeData ? "Abrir no WhatsApp e cadastrar contrato" : "Abrir no WhatsApp"}</button>
-      ${pedeData && a.propostaEnviadaEm ? `<button class="btn" data-aviso-so-contrato title="O aviso já foi enviado: só leva o aceite para Contratos Vendidos">Só cadastrar o contrato</button>` : ""}
+      <button class="btn primary" data-aviso-abrir>Abrir no WhatsApp</button>
       <button class="btn" data-aviso-copiar>Copiar mensagem</button>
       <button class="btn" data-aviso-original>Voltar ao texto original</button>
       <button class="btn" data-aviso-fechar>Fechar</button>
@@ -238,39 +249,52 @@ function ligarAviso(painel, a) {
     if (await copiarTexto(campo.value)) toast("Mensagem copiada", "sucesso");
     else toast("O navegador bloqueou a cópia: selecione o texto e copie", "erro");
   };
-  const data = painel.querySelector("#ace-aviso-ativacao");
-  if (data) data.oninput = () => (aviso.ativacao = data.value);
-  // A data é conferida antes de abrir o WhatsApp, para o aviso não sair sem o contrato.
-  const dataOk = () => {
-    if (!data || data.value) return true;
-    toast("Informe a data de ativação do plano", "erro");
-    data.focus();
-    return false;
-  };
-  const registrar = async (apenasContrato) => {
+  painel.querySelector("[data-aviso-abrir]").onclick = async () => {
+    const texto = campo.value.trim();
+    if (!texto) { toast("Escreva a mensagem antes de abrir o WhatsApp"); campo.focus(); return; }
+    window.open(linkConversaDireta(a.fone, texto, navigator.userAgent), "_blank", "noopener");
+    aviso = null;
+    renderAceites();
     try {
-      const r = await api(`/api/aceites/${encodeURIComponent(a.token)}/proposta-enviada`, { metodo: "POST", json: { ativacao: data?.value, apenasContrato } });
-      if (r.contratoCriado) avisoCentral(`Contrato de ${a.contatoCliente?.nome || a.cliente || "cliente"} cadastrado em Contratos Vendidos`);
-      await Promise.all([carregarAceites(), carregarContratos()]);
+      await api(`/api/aceites/${encodeURIComponent(a.token)}/proposta-enviada`, { metodo: "POST", json: {} });
+      await carregarAceites();
     } catch (e) {
       toast(e.message, "erro");
     }
   };
-  painel.querySelector("[data-aviso-abrir]").onclick = async () => {
-    const texto = campo.value.trim();
-    if (!texto) { toast("Escreva a mensagem antes de abrir o WhatsApp"); campo.focus(); return; }
-    if (!dataOk()) return;
-    window.open(linkConversaDireta(a.fone, texto, navigator.userAgent), "_blank", "noopener");
-    aviso = null;
-    renderAceites();
-    await registrar(false);
-  };
-  const soContrato = painel.querySelector("[data-aviso-so-contrato]");
-  if (soContrato) soContrato.onclick = async () => {
-    if (!dataOk()) return;
-    soContrato.disabled = true;
-    aviso = null;
-    await registrar(true);
+}
+
+// Cadastro em Contratos Vendidos: pede a data de ativação; o resto vem do aceite.
+function painelDoCadastro(a) {
+  const nome = a.contatoCliente?.nome || a.cliente || "o cliente";
+  return `<form class="ctr-msg ace-cadastro" data-painel-cadastro novalidate>
+    <span class="label">Cadastrar em Contratos Vendidos</span>
+    <p class="note" style="margin:0">${esc(nome)} · ${esc(a.plano)} · ${esc(a.acomodacao)} · R$ ${brl(a.valor)}${a.contatoCliente?.email ? ` · ${esc(a.contatoCliente.email)}` : ""}${a.arquivos.length ? ` · ${a.arquivos.length} ${a.arquivos.length === 1 ? "documento" : "documentos"}` : ""}</p>
+    <div class="ace-ativacao">
+      <div class="field"><label for="ace-cad-ativacao">Data de ativação do plano</label><input id="ace-cad-ativacao" type="date" value="${esc(cadastro.ativacao)}" required></div>
+      <div class="actions"><button class="btn primary" type="submit">Cadastrar contrato</button><button class="btn" type="button" data-cad-fechar>Cancelar</button></div>
+    </div>
+  </form>`;
+}
+
+function ligarCadastro(form, a) {
+  const data = form.querySelector("#ace-cad-ativacao");
+  data.oninput = () => (cadastro.ativacao = data.value);
+  form.querySelector("[data-cad-fechar]").onclick = () => { cadastro = null; renderAceites(); };
+  form.onsubmit = async (e) => {
+    e.preventDefault();
+    if (!data.value) { toast("Informe a data de ativação do plano", "erro"); data.focus(); return; }
+    const botao = form.querySelector("[type=submit]");
+    botao.disabled = true;
+    try {
+      await api(`/api/aceites/${encodeURIComponent(a.token)}/contrato`, { metodo: "POST", json: { ativacao: data.value } });
+      cadastro = null;
+      avisoCentral(`Contrato de ${a.contatoCliente?.nome || a.cliente || "cliente"} cadastrado em Contratos Vendidos`);
+      await Promise.all([carregarAceites(), carregarContratos()]);
+    } catch (erro) {
+      botao.disabled = false;
+      toast(`Não deu para cadastrar: ${erro.message}`, "erro");
+    }
   };
 }
 

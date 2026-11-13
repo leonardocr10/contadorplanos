@@ -507,24 +507,28 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
   });
 
   // O corretor abriu no WhatsApp o aviso de que a proposta para assinar foi enviada ao e-mail do cliente.
-  // Também leva o aceite para Contratos Vendidos, com a data de ativação informada e os documentos do cliente.
-  // Com apenasContrato, só cadastra o contrato (aviso já enviado antes desta função existir).
-  app.post("/api/aceites/:token/proposta-enviada", exige("aceites", "editar"), express.json({ limit: "2kb" }), (req, res) => {
+  // Aviso no WhatsApp de que a proposta para assinar foi enviada ao e-mail: só depois dos documentos concluídos.
+  app.post("/api/aceites/:token/proposta-enviada", exige("aceites", "editar"), (req, res) => {
     const proposta = banco.obterProposta(req.params.token);
     if (!proposta?.aceitoEm || !podeVer(req, donoDaProposta(proposta))) return res.status(404).json({ erro: "Aceite não encontrado." });
     if (!proposta.docsConcluidoEm) return res.status(400).json({ erro: "O cliente ainda não concluiu o envio dos documentos." });
-    const temContrato = !!(proposta.contratoId && banco.obterContrato(proposta.contratoId));
-    let contrato = null;
-    if (!temContrato) {
-      const dados = validarContrato({
-        nome: proposta.docsNome || proposta.dados.cliente, fone: proposta.docsFone || proposta.fone, email: proposta.docsEmail,
-        plano: proposta.dados.plano.nome, valor: proposta.valor, ativacao: req.body?.ativacao,
-      });
-      // O contrato fica com o corretor da proposta, mesmo quando o administrador avisa por ele.
-      contrato = banco.contratoDoAceite(proposta.token, { ...dados, usuarioId: donoDaProposta(proposta) || donoDoLogin(req) });
-    }
-    const a = req.body?.apenasContrato ? banco.obterProposta(proposta.token) : banco.marcarPropostaEnviada(proposta.token);
-    res.json({ propostaEnviadaEm: a.propostaEnviadaEm, contratoId: a.contratoId, contratoCriado: !!contrato });
+    res.json({ propostaEnviadaEm: banco.marcarPropostaEnviada(proposta.token).propostaEnviadaEm });
+  });
+
+  // Leva o aceite para Contratos Vendidos, com a data de ativação informada e os documentos que o cliente enviou.
+  // Só depois do aviso da proposta enviada; um aceite gera um contrato só.
+  app.post("/api/aceites/:token/contrato", exige("aceites", "editar"), exige("contratos", "editar"), (req, res) => {
+    const proposta = banco.obterProposta(req.params.token);
+    if (!proposta?.aceitoEm || !podeVer(req, donoDaProposta(proposta))) return res.status(404).json({ erro: "Aceite não encontrado." });
+    if (!proposta.propostaEnviadaEm) return res.status(400).json({ erro: "Avise o cliente de que a proposta foi enviada antes de cadastrar o contrato." });
+    if (proposta.contratoId && banco.obterContrato(proposta.contratoId)) return res.status(409).json({ erro: "Este aceite já está em Contratos Vendidos." });
+    const dados = validarContrato({
+      nome: proposta.docsNome || proposta.dados.cliente, fone: proposta.docsFone || proposta.fone, email: proposta.docsEmail,
+      plano: proposta.dados.plano.nome, valor: proposta.valor, ativacao: req.body?.ativacao,
+    });
+    // O contrato fica com o corretor da proposta, mesmo quando o administrador cadastra por ele.
+    const contrato = banco.contratoDoAceite(proposta.token, { ...dados, usuarioId: donoDaProposta(proposta) || donoDoLogin(req) });
+    res.status(201).json({ contratoId: contrato.id });
   });
 
   // Documento enviado pelo cliente: só abre com login, para quem pode ver o aceite.

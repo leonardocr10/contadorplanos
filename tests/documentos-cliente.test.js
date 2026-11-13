@@ -250,15 +250,22 @@ test("aviso de proposta enviada: texto pronto e registro de quando o corretor en
   const cookie = (await entrar(url, "34999990000")).cookie;
   await enviar(url, cookie, "Outros documentos", PDF, "rg.pdf");
   await fetch(url + "/documentos/concluir", { method: "POST", headers: { cookie, "Content-Type": "application/json" }, body: JSON.stringify({ nome: "Maria Silva", email: "maria@exemplo.com" }) });
-  // O aviso leva o aceite para Contratos Vendidos: sem a data de ativação, é recusado.
-  const avisar = (corpo) => fetch(`${s.admin}/api/aceites/${token}/proposta-enviada`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) });
-  assert.equal((await avisar({})).status, 400);
-  assert.equal(s.banco.obterProposta(token).propostaEnviadaEm, null);
-  const r = await avisar({ ativacao: "2026-12-01" });
+  // Cadastrar em Contratos Vendidos só depois do aviso da proposta enviada.
+  const cadastrar = (corpo) => fetch(`${s.admin}/api/aceites/${token}/contrato`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(corpo) });
+  const antesDoAviso = await cadastrar({ ativacao: "2026-12-01" });
+  assert.equal(antesDoAviso.status, 400);
+  assert.match((await antesDoAviso.json()).erro, /Avise o cliente/);
+  const r = await fetch(`${s.admin}/api/aceites/${token}/proposta-enviada`, { method: "POST" });
   assert.equal(r.status, 200);
-  const { propostaEnviadaEm, contratoCriado, contratoId } = await r.json();
+  const { propostaEnviadaEm } = await r.json();
   assert.ok(propostaEnviadaEm);
-  assert.equal(contratoCriado, true);
+  // O aviso sozinho não cria contrato.
+  assert.equal((await (await fetch(s.admin + "/api/contratos")).json()).length, 0);
+  // Sem a data de ativação, o cadastro é recusado.
+  assert.equal((await cadastrar({})).status, 400);
+  const criado = await cadastrar({ ativacao: "2026-12-01" });
+  assert.equal(criado.status, 201);
+  const { contratoId } = await criado.json();
   const [contrato] = await (await fetch(s.admin + "/api/contratos")).json();
   assert.equal(contrato.id, contratoId);
   assert.deepEqual([contrato.nome, contrato.fone, contrato.email, contrato.plano, contrato.valor, contrato.ativacao], ["Maria Silva", "34999990000", "maria@exemplo.com", "PLAM SAÚDE", s.banco.obterProposta(token).valor, "2026-12-01"]);
@@ -266,8 +273,9 @@ test("aviso de proposta enviada: texto pronto e registro de quando o corretor en
   // Os documentos que o cliente enviou vão junto para o contrato.
   assert.deepEqual(contrato.arquivos.map((x) => x.nome), ["rg.pdf"]);
   assert.deepEqual(Buffer.from(await (await fetch(`${s.admin}/api/contratos/${contrato.id}/arquivos/${contrato.arquivos[0].id}`)).arrayBuffer()), PDF);
-  // Avisar de novo não cria outro contrato.
-  assert.equal((await (await avisar({})).json()).contratoCriado, false);
+  // Um aceite gera um contrato só; avisar de novo também não cria outro.
+  assert.equal((await cadastrar({ ativacao: "2026-12-02" })).status, 409);
+  await fetch(`${s.admin}/api/aceites/${token}/proposta-enviada`, { method: "POST" });
   assert.equal((await (await fetch(s.admin + "/api/contratos")).json()).length, 1);
   // O segundo aviso atualiza a data do aviso.
   assert.ok((await (await fetch(s.admin + "/api/aceites")).json())[0].propostaEnviadaEm >= propostaEnviadaEm);
@@ -298,15 +306,16 @@ test("contrato vendido guarda o e-mail do cliente, que é opcional", async (t) =
   assert.deepEqual(lista.map((c) => c.email).sort(), ["maria@exemplo.com", "nova@exemplo.com"]);
 });
 
-test("aceite avisado antes desta função vai para Contratos Vendidos sem novo aviso", async (t) => {
+test("contrato excluído pode ser cadastrado de novo a partir do aceite", async (t) => {
   const s = await subir(t);
   const { url, token } = await proposta(s);
   const cookie = (await entrar(url, "34999990000")).cookie;
   await fetch(url + "/documentos/concluir", { method: "POST", headers: { cookie, "Content-Type": "application/json" }, body: JSON.stringify({ nome: "Maria Silva", email: "maria@exemplo.com" }) });
   s.banco.marcarPropostaEnviada(token);
-  const antes = s.banco.obterProposta(token).propostaEnviadaEm;
-  const r = await (await fetch(`${s.admin}/api/aceites/${token}/proposta-enviada`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ativacao: "2026-12-10", apenasContrato: true }) })).json();
-  assert.equal(r.contratoCriado, true);
-  assert.equal(r.propostaEnviadaEm, antes);
-  assert.equal((await (await fetch(s.admin + "/api/contratos")).json())[0].ativacao, "2026-12-10");
+  const cadastrar = (ativacao) => fetch(`${s.admin}/api/aceites/${token}/contrato`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ativacao }) });
+  const { contratoId } = await (await cadastrar("2026-12-10")).json();
+  await fetch(`${s.admin}/api/contratos/${contratoId}`, { method: "DELETE" });
+  assert.equal((await (await fetch(s.admin + "/api/aceites")).json())[0].emContratos, false);
+  assert.equal((await cadastrar("2026-12-11")).status, 201);
+  assert.equal((await (await fetch(s.admin + "/api/contratos")).json())[0].ativacao, "2026-12-11");
 });
