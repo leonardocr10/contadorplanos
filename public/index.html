@@ -122,7 +122,10 @@
     <div class="panel">
       <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center">
         <h2>Histórico de cotações</h2>
-        <span class="note" id="hist-count"></span>
+        <div class="fin-mes-pag">
+          <span class="note" id="hist-count"></span>
+          <div class="field"><label for="hist-mes" title="Mês da última cotação de cada cliente">Mês</label><select id="hist-mes" data-icone="calendario" data-contagem="mês|meses"></select></div>
+        </div>
       </div>
       <div class="grade-cards" id="hist-cards" role="group" aria-label="Clientes por situação"></div>
       <div class="hist-filtros grade-filtros">
@@ -178,7 +181,10 @@
     <div class="panel">
       <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center">
         <h2>Propostas aceitas</h2>
-        <span class="note" id="ace-count"></span>
+        <div class="fin-mes-pag">
+          <span class="note" id="ace-count"></span>
+          <div class="field"><label for="ace-mes" title="Mês em que o cliente aceitou a proposta">Mês do aceite</label><select id="ace-mes" data-icone="calendario" data-contagem="mês|meses"></select></div>
+        </div>
       </div>
       <div class="grade-cards" id="ace-cards" role="group" aria-label="Aceites por situação"></div>
       <div class="hist-filtros grade-filtros">

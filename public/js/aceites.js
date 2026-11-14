@@ -3,7 +3,7 @@ import { brl, fmtFone } from "./calculo.js";
 import { $, S, api, avisoCentral, esc, pode, toast } from "./estado.js";
 import { copiarTexto } from "./cotacao.js";
 import { normalizar } from "./filtro-select.js";
-import { botaoIcone, cabecalho, desenharCards, desenharPaginacao, guardarPorPagina, lerPorPagina, ordenarPor, paginar, proximaOrdem } from "./grade.js";
+import { botaoIcone, cabecalho, desenharCards, desenharPaginacao, desenharSeletorDeMes, mesLocal, guardarPorPagina, lerPorPagina, ordenarPor, paginar, proximaOrdem } from "./grade.js";
 import { carregarContratos, ehPdf, esquecerArquivo, fmtTamanho, miniaturaPronta, mostrarMiniaturas } from "./contratos.js";
 import { ligarVisualizacao } from "./visor-documento.js";
 import { linkConversaDireta, mensagemDocumentos, mensagemPropostaEnviada } from "./mensagem.js";
@@ -45,7 +45,7 @@ const SITUACOES = [
 const ORDEM_SITUACAO = Object.fromEntries(SITUACOES.map((s, i) => [s.chave, i]));
 const CHAVE_POR_PAGINA = "cotador.aceites.porPagina";
 
-let busca = "", filtroSituacao = "todos", pagina = 1, ordem = { campo: "aceito", dir: "desc" }, excluindo = null;
+let busca = "", filtroSituacao = "todos", mesAceite = "todos", pagina = 1, ordem = { campo: "aceito", dir: "desc" }, excluindo = null;
 let porPagina = lerPorPagina(CHAVE_POR_PAGINA);
 
 const emailDe = (a) => a.contatoCliente?.email || "";
@@ -66,8 +66,10 @@ const combina = (a, termo) => {
   return normalizar([a.cliente, emailDe(a), a.plano, a.acomodacao, a.contatoCliente?.nome].join(" ")).includes(normalizar(termo));
 };
 
+const doMesAceite = () => aceites.filter((a) => mesAceite === "todos" || mesLocal(a.aceitoEm) === mesAceite);
+
 function listaVisivel() {
-  const filtrados = aceites.filter((a) => (filtroSituacao === "todos" || situacao(a).chave === filtroSituacao) && combina(a, busca.trim()));
+  const filtrados = doMesAceite().filter((a) => (filtroSituacao === "todos" || situacao(a).chave === filtroSituacao) && combina(a, busca.trim()));
   return ordenarPor(filtrados, COLUNAS, ordem, (x, y) => String(y.aceitoEm).localeCompare(String(x.aceitoEm)));
 }
 
@@ -116,9 +118,11 @@ export function renderAceites() {
   selo.hidden = !pendentes;
   $("#ace-count").textContent = `${aceites.length} ${aceites.length === 1 ? "aceite" : "aceites"} · ${pendentes} ${pendentes === 1 ? "pendente" : "pendentes"}`;
 
-  // Cards com a quantidade de cada situação; clicar filtra a grade.
-  const quantos = (k) => aceites.filter((a) => situacao(a).chave === k).length;
-  desenharCards($("#ace-cards"), [{ chave: "todos", rotulo: "Todos", qtd: aceites.length }, ...SITUACOES.map((s) => ({ ...s, qtd: quantos(s.chave) }))], filtroSituacao, (chave) => {
+  // Cards com a quantidade de cada situação, no mês do aceite escolhido no topo; clicar filtra a grade.
+  mesAceite = desenharSeletorDeMes($("#ace-mes"), aceites.map((a) => mesLocal(a.aceitoEm)), mesAceite);
+  const doMes = doMesAceite();
+  const quantos = (k) => doMes.filter((a) => situacao(a).chave === k).length;
+  desenharCards($("#ace-cards"), [{ chave: "todos", rotulo: "Todos", qtd: doMes.length }, ...SITUACOES.map((s) => ({ ...s, qtd: quantos(s.chave) }))], filtroSituacao, (chave) => {
     filtroSituacao = chave;
     pagina = 1;
     renderAceites();

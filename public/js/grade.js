@@ -35,6 +35,27 @@ export function desenharCards(caixa, itens, ativo, aoEscolher) {
   caixa.querySelectorAll("[data-chave]").forEach((b) => (b.onclick = () => aoEscolher(ativo === b.dataset.chave && b.dataset.chave !== "todos" ? "todos" : b.dataset.chave)));
 }
 
+/* ---------- mês no card do topo (Histórico e Aceites) ---------- */
+const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+export const nomeDoMes = (aaaamm) => `${MESES[Number(aaaamm.slice(5, 7)) - 1]} de ${aaaamm.slice(0, 4)}`;
+// "aaaa-mm" de uma data e hora, no fuso de quem usa (o dia do aceite ou da cotação como a pessoa vê).
+export function mesLocal(iso) {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "" : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
+// Preenche o seletor de mês com os meses que têm itens (mais recente primeiro) e a quantidade de cada um.
+// Devolve o mês que continua valendo ("todos" quando o escolhido sumiu da lista).
+export function desenharSeletorDeMes(sel, mesesDosItens, atual) {
+  const contagem = new Map();
+  for (const m of mesesDosItens) if (m) contagem.set(m, (contagem.get(m) ?? 0) + 1);
+  const meses = [...contagem.keys()].sort().reverse();
+  const valido = atual === "todos" || contagem.has(atual) ? atual : "todos";
+  const html = `<option value="todos" data-icone="todos">Todos os meses</option>${meses.length ? `<optgroup label="Meses">${meses.map((m) => `<option value="${m}" data-selo="${contagem.get(m)}">${nomeDoMes(m)}</option>`).join("")}</optgroup>` : ""}`;
+  if (sel.dataset.opcoes !== html) { sel.innerHTML = html; sel.dataset.opcoes = html; }
+  sel.value = valido;
+  return valido;
+}
+
 // Ordena pela coluna escolhida; o desempate mantém uma ordem estável e previsível.
 export function ordenarPor(lista, colunas, ordem, desempate = () => 0) {
   const col = colunas.find((c) => c.campo === ordem.campo) ?? colunas[0];

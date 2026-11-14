@@ -3,7 +3,7 @@ import { brl, fmtFone, normFone } from "./calculo.js";
 import { $, S, api, avisoCentral, esc, pode, render, show, toast } from "./estado.js";
 import { linkConversaDireta, waHtml } from "./mensagem.js";
 import { normalizar } from "./filtro-select.js";
-import { botaoIcone, cabecalho, desenharCards, desenharPaginacao, guardarPorPagina, lerPorPagina, ordenarPor, paginar, proximaOrdem } from "./grade.js";
+import { botaoIcone, cabecalho, desenharCards, desenharPaginacao, desenharSeletorDeMes, mesLocal, guardarPorPagina, lerPorPagina, ordenarPor, paginar, proximaOrdem } from "./grade.js";
 
 const STATUS = ["Enviada", "Em Negociação", "Vendida", "Negativa"];
 const stClass = (s) => ({ "Em Negociação": "st-neg", "Vendida": "st-ok", "Negativa": "st-off" }[s] || "st-env");
@@ -131,7 +131,7 @@ export function renderHistCli() {
 
 /* ---------- grade: um cliente por linha, com as cotações dele num painel ---------- */
 const CHAVE_POR_PAGINA = "cotador.historico.porPagina";
-let filtroSt = "Todas", pagina = 1, ordem = { campo: "ultima", dir: "desc" };
+let filtroSt = "Todas", mesHist = "todos", pagina = 1, ordem = { campo: "ultima", dir: "desc" };
 let porPagina = lerPorPagina(CHAVE_POR_PAGINA);
 // Clientes com as cotações abertas.
 const abertos = new Set();
@@ -178,7 +178,9 @@ function linhaDoCliente(g) {
 
 export function renderHist() {
   const box = $("#hist-list"), nav = $("#hist-paginacao");
-  const todos = grupos();
+  const todosOsGrupos = grupos();
+  mesHist = desenharSeletorDeMes($("#hist-mes"), todosOsGrupos.map((g) => mesLocal(g.lista[0].criadoEm)), mesHist);
+  const todos = todosOsGrupos.filter((g) => mesHist === "todos" || mesLocal(g.lista[0].criadoEm) === mesHist);
   // Situação de cada cliente é a da cotação mais recente dele.
   const quantas = (s) => todos.filter((g) => (g.lista[0].status || "Enviada") === s).length;
   const sel = $("#hist-filtro");
@@ -192,7 +194,7 @@ export function renderHist() {
   desenharCards($("#hist-cards"), [{ chave: "Todas", rotulo: "Todos os clientes", qtd: todos.length }, ...STATUS.map((s) => ({ chave: s, rotulo: s, qtd: quantas(s) }))], filtroSt,
     (chave) => { filtroSt = chave === "todos" ? "Todas" : chave; pagina = 1; renderHist(); });
   if (!S.histLoaded) { box.innerHTML = `<div class="status">${S.histErr ? esc(S.histErr) : "Carregando histórico…"}</div>`; nav.innerHTML = ""; return; }
-  $("#hist-count").textContent = `${todos.length} ${todos.length === 1 ? "cliente" : "clientes"} · ${S.hist.length} ${S.hist.length === 1 ? "cotação" : "cotações"}`;
+  $("#hist-count").textContent = `${todosOsGrupos.length} ${todosOsGrupos.length === 1 ? "cliente" : "clientes"} · ${S.hist.length} ${S.hist.length === 1 ? "cotação" : "cotações"}`;
   if (!S.hist.length) { box.innerHTML = `<div class="status">Nenhuma cotação salva ainda. Monte uma cotação em <b>Nova Cotação</b>: ela aparece aqui automaticamente.</div>`; nav.innerHTML = ""; return; }
   const qn = normalizar(q), qd = q.replace(/\D/g, "");
   const filtrados = todos.filter(({ lista: l }) => {
@@ -220,6 +222,7 @@ export function renderHist() {
 export function iniciarHistorico() {
   $("#hist-busca").addEventListener("input", () => { pagina = 1; renderHist(); });
   $("#hist-filtro").onchange = () => { filtroSt = $("#hist-filtro").value; pagina = 1; renderHist(); };
+  $("#hist-mes").onchange = () => { mesHist = $("#hist-mes").value; pagina = 1; renderHist(); };
   $("#hist-por-pagina").onchange = () => {
     porPagina = Number($("#hist-por-pagina").value) || 10;
     guardarPorPagina(CHAVE_POR_PAGINA, porPagina);
