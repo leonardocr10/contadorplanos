@@ -437,6 +437,17 @@ html:has(.visor[open]){overflow:hidden}
 .grade-plano{max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}
 .grade-valor{font-variant-numeric:tabular-nums;white-space:nowrap}
 .grade-tabela .pill{margin:0;white-space:nowrap}
+/* No computador, as grades cabem na largura da tela sem rolar para o lado: textos longos quebram em até duas
+   linhas e os ícones ficam um pouco menores. No celular, a grade continua rolando para o lado. */
+@media (min-width:901px){
+  .grade-tabela,.grade-hist{min-width:0}
+  .grade-tabela th,.grade-tabela td{padding-left:6px;padding-right:6px}
+  .grade-tabela .grade-nome,.grade-tabela .grade-plano{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow-wrap:anywhere}
+  .grade-tabela .grade-email{white-space:normal;overflow-wrap:anywhere;max-width:180px}
+  .grade-tabela .pill{white-space:normal;text-align:center;line-height:1.25}
+  .grade-tabela .grade-acoes{gap:4px;flex-wrap:nowrap}
+  .grade-tabela .grade-ico{width:30px;height:30px}
+}
 .grade-acoes{display:flex;justify-content:flex-end;gap:6px}
 .grade-ico{position:relative;display:inline-grid;place-items:center;width:34px;height:34px;padding:0;border:1px solid var(--line);border-radius:9px;background:var(--surface);color:var(--ink);cursor:pointer}
 .grade-ico:hover{border-color:var(--accent);color:var(--accent)}
