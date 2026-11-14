@@ -352,11 +352,12 @@ function painelDaComissao(x) {
       ${regra ? `<p class="note" style="margin:0">${esc(regra.corretora)} · ${esc(regra.nome)} (${esc(rotuloDoSegmento(regra.segmento))})${regra.observacao ? ` · ${esc(regra.observacao)}` : ""}${podeEditar ? " · altere o percentual ou a data de um pagamento: salva na hora." : ""}</p>` : `<p class="note" style="margin:0">Escolha a regra na coluna Regra para calcular a comissão.</p>`}
       ${podeEditar && algumAjuste ? `<button class="btn" type="button" data-restaurar-comissao title="Volta os percentuais e as datas para o que a regra calcula">Voltar ao da regra</button>` : ""}
     </div>
-    ${conta.itens.length ? `<div class="grade-rolagem"><table class="grade-tabela fin-detalhe"><thead><tr><th>Pagamento</th><th>Previsto para</th><th class="dir">Percentual</th><th class="dir">Base</th><th class="dir">Valor</th></tr></thead><tbody>
+    ${conta.itens.length ? `<div class="grade-rolagem"><table class="grade-tabela fin-detalhe"><thead><tr><th>Pagamento</th><th>Previsto para</th><th class="dir">Percentual</th><th class="centro">Base</th><th class="dir">Valor</th><th class="centro" title="Marque Sim quando a comissão foi paga: só os pagos entram no card de comissão">Pago</th></tr></thead><tbody>
       ${conta.itens.map((i) => `<tr data-item="${i.chave}"${i.ajustado ? ' class="fin-ajustado"' : ""}><td>${esc(i.rotulo)}${i.ajustado ? ' <span class="ctr-sub" title="Alterado neste contrato">(alterado)</span>' : ""}</td>
         <td class="grade-data">${podeEditar ? `<input type="date" class="fin-aj-data" data-aj-data value="${esc(i.data)}" aria-label="Data prevista: ${esc(i.rotulo)}" title="Pela regra: ${esc(fmtDia(i.dataDaRegra))}">` : esc(fmtDia(i.data))}</td>
-        <td class="dir">${podeEditar ? `<input type="text" inputmode="decimal" class="fin-aj-pct" data-aj-pct value="${esc(String(i.percentual).replace(".", ","))}" aria-label="Percentual: ${esc(i.rotulo)}" title="Pela regra: ${pct(i.percentualDaRegra)}"> %` : pct(i.percentual)}</td><td class="dir">R$ ${brl(i.base)} <span class="ctr-sub">(mensalidade)</span></td><td class="dir">R$ ${brl(i.valor)}</td></tr>`).join("")}
-      <tr class="fin-total"><td colspan="4">Total da comissão</td><td class="dir">R$ ${brl(conta.total)}</td></tr>
+        <td class="dir">${podeEditar ? `<input type="text" inputmode="decimal" class="fin-aj-pct" data-aj-pct value="${esc(String(i.percentual).replace(".", ","))}" aria-label="Percentual: ${esc(i.rotulo)}" title="Pela regra: ${pct(i.percentualDaRegra)}"> %` : pct(i.percentual)}</td><td class="centro">R$ ${brl(i.base)}</td><td class="dir">R$ ${brl(i.valor)}</td>
+        <td class="centro">${podeEditar ? `<select class="fin-aj-pago" data-aj-pago aria-label="Pago: ${esc(i.rotulo)}"><option value="nao"${i.pago ? "" : " selected"}>Não</option><option value="sim"${i.pago ? " selected" : ""}>Sim</option></select>` : (i.pago ? "Sim" : "Não")}</td></tr>`).join("")}
+      <tr class="fin-total"><td colspan="4">Total da comissão</td><td class="dir">R$ ${brl(conta.total)}</td><td class="centro ctr-sub">Pago: R$ ${brl(conta.itens.filter((i) => i.pago).reduce((a, i) => a + i.valor, 0))}</td></tr>
     </tbody></table></div>` : ""}
   </form>`;
 }
@@ -413,7 +414,8 @@ export function renderComissoes() {
   const opPag = `<option value="todos" data-icone="todos">Todos os meses</option><optgroup label="Meses">${mesesPag.map((m) => `<option value="${m}">${nomeDoMes(m)}${m === mesDeHoje() ? " (atual)" : ""}</option>`).join("")}</optgroup>`;
   if (selPag.dataset.opcoes !== opPag) { selPag.innerHTML = opPag; selPag.dataset.opcoes = opPag; }
   selPag.value = mesPagamento;
-  const doMes = (x) => x.comissao.itens.filter((i) => mesPagamento === "todos" || i.data?.startsWith(mesPagamento)).reduce((a, i) => a + i.valor, 0);
+  // Só entram os pagamentos marcados como pagos (Sim) na calculadora.
+  const doMes = (x) => x.comissao.itens.filter((i) => i.pago && (mesPagamento === "todos" || i.data?.startsWith(mesPagamento))).reduce((a, i) => a + i.valor, 0);
   const vendidos = base.filter((x) => mesPagamento === "todos" || x.c.ativacao.startsWith(mesPagamento));
   const vendas = vendidos.reduce((a, x) => a + x.c.valor, 0), comissao = Math.round(base.reduce((a, x) => a + doMes(x), 0) * 100) / 100, semRegra = base.filter((x) => !x.regra).length;
   desenharCards($("#com-cards"), [
@@ -476,13 +478,14 @@ export function renderComissoes() {
     const regraAberta = () => regraPorId().get(rascunho.regraId) ?? null;
     const ajustar = (chave, campo, valor) => {
       const item = calcularComissao({ valor: x.c.valor, ativacao: x.c.ativacao }, regraAberta()).itens.find((i) => i.chave === chave);
-      const daRegra = campo === "data" ? item?.data : item?.percentual;
+      const daRegra = campo === "data" ? item?.data : campo === "pago" ? false : item?.percentual;
       const a = { ...(rascunho.ajustes[chave] ?? {}) };
       if (valor === "" || valor === null || valor === daRegra) delete a[campo]; else a[campo] = valor;
       if (Object.keys(a).length) rascunho.ajustes[chave] = a; else delete rascunho.ajustes[chave];
       salvar();
     };
     form.querySelectorAll("[data-aj-data]").forEach((el) => (el.onchange = () => ajustar(el.closest("[data-item]").dataset.item, "data", el.value)));
+    form.querySelectorAll("[data-aj-pago]").forEach((el) => (el.onchange = () => ajustar(el.closest("[data-item]").dataset.item, "pago", el.value === "sim")));
     form.querySelectorAll("[data-aj-pct]").forEach((el) => (el.onchange = () => {
       const t = el.value.replace("%", "").trim();
       const n = t ? parseBRL(t) : null;
@@ -490,7 +493,11 @@ export function renderComissoes() {
       ajustar(el.closest("[data-item]").dataset.item, "percentual", n);
     }));
     form.querySelectorAll("[data-aj-pct]").forEach((el) => el.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); el.dispatchEvent(new Event("change")); } }));
-    form.querySelector("[data-restaurar-comissao]")?.addEventListener("click", () => { rascunho.ajustes = {}; salvar(); });
+    // Voltar ao da regra desfaz percentual e data, mas mantém o que já foi marcado como pago.
+    form.querySelector("[data-restaurar-comissao]")?.addEventListener("click", () => {
+      rascunho.ajustes = Object.fromEntries(Object.entries(rascunho.ajustes).filter(([, a]) => a.pago).map(([k]) => [k, { pago: true }]));
+      salvar();
+    });
     form.onsubmit = (e) => e.preventDefault();
   }
 }

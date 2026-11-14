@@ -146,7 +146,7 @@ function validarRegra(b) {
 }
 
 const DATA_ISO =/^(\d{4})-(\d{2})-(\d{2})$/;
-// Ajustes de um contrato: { ang | p0..p3: { percentual?, data? } }, por cima do que a regra calcula.
+// Ajustes de um contrato: { ang | p0..p3: { percentual?, data?, pago? } }, por cima do que a regra calcula.
 function validarAjustes(b) {
   if (b === undefined || b === null) return {};
   if (typeof b !== "object" || Array.isArray(b)) throw new ErroEntrada("Ajustes da comissão inválidos.");
@@ -165,6 +165,8 @@ function validarAjustes(b) {
       if (!d || d.getUTCDate() !== +m[3] || d.getUTCMonth() !== +m[2] - 1) throw new ErroEntrada("Data prevista inválida.");
       item.data = String(v.data);
     }
+    if (v.pago === true) item.pago = true;
+    else if (v.pago !== undefined && v.pago !== false && v.pago !== null) throw new ErroEntrada("Informe se o pagamento foi feito (sim ou não).");
     if (Object.keys(item).length) saida[chave] = item;
   }
   return saida;

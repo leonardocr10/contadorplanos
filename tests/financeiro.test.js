@@ -164,3 +164,15 @@ test("ajustes do contrato: percentual e data prevista de cada pagamento, por cim
   const [x] = (await api("/api/contratos")).corpo;
   assert.deepEqual([x.regraId, x.ajustes], [null, {}]);
 });
+
+test("pagamento marcado como pago fica no contrato, sem contar como alteração", async (t) => {
+  const conta = calcularComissao({ valor: 400, ativacao: "2026-12-01", ajustes: { p0: { pago: true } } }, { segmento: "PF", angariacao: 0, parcelas: [50, 50] });
+  assert.deepEqual(conta.itens.map((i) => [i.chave, i.pago, i.ajustado]), [["p0", true, false], ["p1", false, false]]);
+  const { api } = await subir(t);
+  const c = (await api("/api/financeiro/corretoras", "POST", { nome: "Corretora A" })).corpo;
+  const r = (await api(`/api/financeiro/corretoras/${c.id}/regras`, "POST", { nome: "PLAM SAÚDE", segmento: "PF", parcelas: [50, 50] })).corpo;
+  const contrato = (await api("/api/contratos", "POST", { nome: "Maria", fone: "34999990000", plano: "PLAM SAÚDE", valor: 400, ativacao: "2026-12-01" })).corpo;
+  const salvo = (await api(`/api/contratos/${contrato.id}/comissao`, "PATCH", { regraId: r.id, ajustes: { p0: { pago: true }, p1: { pago: false } } })).corpo;
+  assert.deepEqual(salvo.ajustes, { p0: { pago: true } });
+  assert.equal((await api(`/api/contratos/${contrato.id}/comissao`, "PATCH", { regraId: r.id, ajustes: { p0: { pago: "sim" } } })).status, 400);
+});

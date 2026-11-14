@@ -27,14 +27,15 @@ export function somarMeses(iso, n) {
 }
 
 // Detalhamento: a angariação no ato da venda e cada parcela no mês correspondente, tudo sobre a mensalidade.
-// Os ajustes do contrato trocam o percentual e a data prevista de cada pagamento (chave "ang" ou "p0".."p3").
+// Os ajustes do contrato trocam o percentual e a data prevista de cada pagamento (chave "ang" ou "p0".."p3")
+// e marcam os pagamentos já recebidos (pago).
 export function calcularComissao({ valor, ativacao, ajustes = {} }, regra) {
   if (!regra) return { itens: [], total: 0 };
   const itens = [];
   const item = (chave, rotulo, percRegra, dataRegra) => {
     const a = ajustes?.[chave] ?? {};
     const percentual = a.percentual ?? percRegra, data = a.data || dataRegra;
-    itens.push({ chave, rotulo, percentual, percentualDaRegra: percRegra, base: valor, data, dataDaRegra: dataRegra, ajustado: a.percentual !== undefined || !!a.data, valor: r2(valor * percentual / 100) });
+    itens.push({ chave, rotulo, percentual, percentualDaRegra: percRegra, base: valor, data, dataDaRegra: dataRegra, ajustado: a.percentual !== undefined || !!a.data, pago: a.pago === true, valor: r2(valor * percentual / 100) });
   };
   if (regra.segmento !== "PME" && regra.angariacao > 0) item("ang", "Angariação", regra.angariacao, ativacao);
   regra.parcelas.forEach((p, i) => { if (p) item(`p${i}`, `${i + 1}ª parcela`, p, somarMeses(ativacao, i)); });
