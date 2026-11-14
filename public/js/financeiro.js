@@ -309,6 +309,9 @@ function abrirNovaCorretora() {
 
 /* =================== Comissões =================== */
 const CHAVE_PP_COM = "cotador.comissoes.porPagina";
+// Mês do card "Comissão prevista": começa no mês atual.
+const mesDeHoje = () => { const h = new Date(); return `${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, "0")}`; };
+let mesPagamento = mesDeHoje();
 let buscaCom = "", filtroCom = "todos", corretoraCom = "todas", mesCom = "todos", paginaCom = 1, ordemCom = { campo: "ativacao", dir: "desc" }, porPaginaCom = lerPorPagina(CHAVE_PP_COM);
 let abertoCom = null, rascunho = null;
 
@@ -401,13 +404,19 @@ export function renderComissoes() {
     (mesCom === "todos" || x.c.ativacao.startsWith(mesCom))
     && (corretoraCom === "todas" || (corretoraCom === "sem" ? !x.regra : x.regra?.corretoraId === corretoraCom))
     && (!termo || normalizar(`${x.c.nome} ${x.c.plano} ${x.regra?.nome ?? ""} ${x.regra?.corretora ?? ""}`).includes(termo)));
-  // Comissão prevista: só os pagamentos com data prevista no mês atual (a angariação e as parcelas que caem nele).
-  const hoje = new Date(), mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}`;
-  const doMes = (x) => x.comissao.itens.filter((i) => i.data?.startsWith(mesAtual)).reduce((a, i) => a + i.valor, 0);
+  // Comissão prevista: só os pagamentos com data prevista no mês escolhido (a angariação e as parcelas que caem nele).
+  // A lista traz o mês atual e todos os meses com algum pagamento previsto.
+  const mesesPag = [...new Set([mesDeHoje(), ...linhas.flatMap((x) => x.comissao.itens.map((i) => i.data?.slice(0, 7)).filter(Boolean))])].sort();
+  if (mesPagamento !== "todos" && !mesesPag.includes(mesPagamento)) mesPagamento = mesDeHoje();
+  const selPag = $("#com-mes-pag");
+  const opPag = `<option value="todos" data-icone="todos">Todos os meses</option><optgroup label="Mês do pagamento">${mesesPag.map((m) => `<option value="${m}">${nomeDoMes(m)}${m === mesDeHoje() ? " (atual)" : ""}</option>`).join("")}</optgroup>`;
+  if (selPag.dataset.opcoes !== opPag) { selPag.innerHTML = opPag; selPag.dataset.opcoes = opPag; }
+  selPag.value = mesPagamento;
+  const doMes = (x) => x.comissao.itens.filter((i) => mesPagamento === "todos" || i.data?.startsWith(mesPagamento)).reduce((a, i) => a + i.valor, 0);
   const vendas = base.reduce((a, x) => a + x.c.valor, 0), comissao = Math.round(base.reduce((a, x) => a + doMes(x), 0) * 100) / 100, semRegra = base.filter((x) => !x.regra).length;
   desenharCards($("#com-cards"), [
     { chave: "todos", rotulo: `Total de vendas · ${base.length} ${base.length === 1 ? "contrato" : "contratos"}`, qtd: `R$ ${brl(vendas)}` },
-    { chave: "com", rotulo: `Comissão prevista · ${nomeDoMes(mesAtual)}`, qtd: `R$ ${brl(comissao)}` },
+    { chave: "com", rotulo: `Comissão prevista · ${mesPagamento === "todos" ? "todos os meses" : nomeDoMes(mesPagamento)}`, qtd: `R$ ${brl(comissao)}` },
     { chave: "sem", rotulo: "Contratos sem regra", qtd: semRegra },
   ], filtroCom, (chave) => { filtroCom = chave; paginaCom = 1; renderComissoes(); });
   $("#com-count").textContent = `${contratos.length} ${contratos.length === 1 ? "contrato" : "contratos"} · ${corretoras.length} ${corretoras.length === 1 ? "corretora" : "corretoras"}`;
@@ -521,6 +530,7 @@ export function iniciarFinanceiro() {
   $("#com-busca").oninput = () => { buscaCom = $("#com-busca").value; paginaCom = 1; renderComissoes(); };
   $("#com-corretora").onchange = () => { corretoraCom = $("#com-corretora").value; paginaCom = 1; renderComissoes(); };
   $("#com-mes").onchange = () => { mesCom = $("#com-mes").value; paginaCom = 1; renderComissoes(); };
+  $("#com-mes-pag").onchange = () => { mesPagamento = $("#com-mes-pag").value; renderComissoes(); };
   $("#com-por-pagina").onchange = () => { porPaginaCom = Number($("#com-por-pagina").value) || 10; guardarPorPagina(CHAVE_PP_COM, porPaginaCom); paginaCom = 1; renderComissoes(); };
   $("#com-limpar").onclick = () => { buscaCom = ""; $("#com-busca").value = ""; filtroCom = "todos"; corretoraCom = "todas"; mesCom = "todos"; paginaCom = 1; renderComissoes(); };
 }

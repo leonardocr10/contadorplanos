@@ -626,6 +626,12 @@ body{margin:0}
 #reg-form-bloco input[type=text]{padding-top:7px;padding-bottom:7px;font-size:14px}
 #reg-form-bloco .fs-botao{min-height:34px;padding-top:7px;padding-bottom:7px;font-size:14px}
 #reg-form-bloco .fin-botoes .btn{padding-top:8px;padding-bottom:8px}
+/* Comissões: mês da comissão prevista, no topo à direita. */
+.fin-mes-pag{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px}
+.fin-mes-pag .field{flex-direction:row;align-items:center;gap:8px;width:auto}
+.fin-mes-pag .field label{white-space:nowrap;font-size:12px}
+.fin-mes-pag .fs{width:210px}
+.fin-mes-pag .fs-botao{min-height:34px;padding-top:6px;padding-bottom:6px;font-size:14px}
 /* Comissões: barra de filtros mais baixa. */
 #v-comissoes .fin-filtros{gap:8px 10px}
 #v-comissoes .fin-filtros .field{gap:4px}
