@@ -419,6 +419,7 @@ html:has(.visor[open]){overflow:hidden}
 .grade-tabela{width:100%;min-width:960px;border-collapse:collapse;font-size:14px}
 .grade-tabela th{padding:10px 8px;border-bottom:1px solid var(--line);background:var(--bg);font-size:11.5px;font-weight:700;letter-spacing:.03em;text-align:left;text-transform:uppercase;color:var(--muted);white-space:nowrap}
 .grade-tabela th.dir,.grade-tabela td.dir{text-align:right}
+.grade-tabela th.centro,.grade-tabela td.centro{text-align:center}
 .grade-ordem{display:inline-flex;align-items:center;gap:4px;padding:0;border:0;background:none;color:inherit;font:inherit;letter-spacing:inherit;text-transform:inherit;cursor:pointer}
 .grade-ordem:hover,.grade-ordem[data-ativa]{color:var(--ink)}
 .grade-ordem i{font-style:normal;font-size:10px;opacity:.35}
@@ -444,6 +445,7 @@ html:has(.visor[open]){overflow:hidden}
   .grade-tabela th,.grade-tabela td{padding-left:6px;padding-right:6px}
   .grade-tabela .grade-nome,.grade-tabela .grade-plano{white-space:normal;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow-wrap:anywhere}
   .grade-tabela .grade-email{white-space:normal;overflow-wrap:anywhere;max-width:180px}
+  .grade-tabela .grade-plano.grade-plano-uma{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .grade-tabela .pill{white-space:normal;text-align:center;line-height:1.25}
   .grade-tabela .grade-acoes{gap:4px;flex-wrap:nowrap}
   .grade-tabela .grade-ico{width:30px;height:30px}

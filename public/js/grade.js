@@ -56,7 +56,7 @@ export function cabecalho(colunas, ordem, comAcoes = true) {
   return `<thead><tr>${colunas.map((c) => {
     const ativa = ordem.campo === c.campo;
     const seta = ativa ? (ordem.dir === "asc" ? "▲" : "▼") : "▲▼";
-    return `<th class="${c.dir ? "dir" : ""}" aria-sort="${ativa ? (ordem.dir === "asc" ? "ascending" : "descending") : "none"}"><button type="button" class="grade-ordem" data-ordem="${c.campo}"${ativa ? " data-ativa" : ""} title="Ordenar por ${esc(c.rotulo.toLowerCase())}">${esc(c.rotulo)} <i aria-hidden="true">${seta}</i></button></th>`;
+    return `<th class="${c.centro ? "centro" : c.dir ? "dir" : ""}" aria-sort="${ativa ? (ordem.dir === "asc" ? "ascending" : "descending") : "none"}"><button type="button" class="grade-ordem" data-ordem="${c.campo}"${ativa ? " data-ativa" : ""} title="Ordenar por ${esc(c.rotulo.toLowerCase())}">${esc(c.rotulo)} <i aria-hidden="true">${seta}</i></button></th>`;
   }).join("")}${comAcoes ? `<th class="dir">Ações</th>` : ""}</tr></thead>`;
 }
 

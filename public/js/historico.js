@@ -10,6 +10,10 @@ const stClass = (s) => ({ "Em Negociação": "st-neg", "Vendida": "st-ok", "Nega
 const fmtData = (iso) => {
   try { return new Date(iso).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }); } catch { return ""; }
 };
+// Na grade, só a data (a hora continua nas cotações abertas abaixo da linha).
+const fmtDiaHist = (iso) => {
+  try { return new Date(iso).toLocaleDateString("pt-BR"); } catch { return ""; }
+};
 
 export async function carregarHistorico() {
   if (!pode("historico")) return;
@@ -137,7 +141,7 @@ const COLUNAS = [
   { campo: "cliente", rotulo: "Cliente", valor: (g) => normalizar(nomeDoGrupo(g.lista)) },
   { campo: "fone", rotulo: "Telefone", valor: (g) => g.lista[0].fone || "￿" },
   { campo: "planos", rotulo: "Última cotação", valor: (g) => normalizar((g.lista[0].planos || []).map((p) => p.nome).join(" ")) },
-  { campo: "qtd", rotulo: "Cotações", valor: (g) => g.lista.length, dir: true, desc: true },
+  { campo: "qtd", rotulo: "Cotações", valor: (g) => g.lista.length, centro: true, desc: true },
   { campo: "ultima", rotulo: "Última em", valor: (g) => g.lista[0].criadoEm, desc: true },
   { campo: "situacao", rotulo: "Situação", valor: (g) => STATUS.indexOf(g.lista[0].status || "Enviada") },
 ];
@@ -164,9 +168,9 @@ function linhaDoCliente(g) {
   return `<tr class="grade-linha" data-grupo="${esc(g.chave)}">
       <td><div class="grade-nome" title="${esc(nomeDoGrupo(l))}">${esc(nomeDoGrupo(l))}</div></td>
       <td class="grade-fone">${f ? esc(fmtFone(f)) : "Sem WhatsApp"}</td>
-      <td><div class="grade-plano" title="${esc(planos.join(", "))}">${esc(planos.join(", ") || "—")} <span class="ctr-sub">· ${h.tipo === "CNPJ" ? "CNPJ" : "PF"}</span></div></td>
-      <td class="dir">${l.length}</td>
-      <td class="grade-data">${esc(fmtData(h.criadoEm))}</td>
+      <td><div class="grade-plano grade-plano-uma" title="${esc(planos.join(", "))}">${esc(planos[0] || "—")}${planos.length > 1 ? ` <span class="ctr-sub">+${planos.length - 1}</span>` : ""} <span class="ctr-sub">· ${h.tipo === "CNPJ" ? "CNPJ" : "PF"}</span></div></td>
+      <td class="centro">${l.length}</td>
+      <td class="grade-data">${esc(fmtDiaHist(h.criadoEm))}</td>
       <td><span class="pill ${stClass(h.status)}">${esc(h.status || "Enviada")}</span></td>
       <td><div class="grade-acoes">${acoes}</div></td>
     </tr>${aberto ? `<tr class="grade-painel-linha" data-grupo="${esc(g.chave)}"><td colspan="${COLUNAS.length + 1}"><div class="cat">${l.map((x) => quoteRow(x, true)).join("")}</div></td></tr>` : ""}`;
