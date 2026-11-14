@@ -83,8 +83,9 @@ const COLUNAS = [
   { campo: "plano", rotulo: "Plano", valor: (c) => normalizar(c.plano) },
   { campo: "valor", rotulo: "Valor", valor: (c) => c.valor, dir: true, desc: true },
   { campo: "ativacao", rotulo: "Ativação", valor: (c) => c.ativacao, desc: true },
-  { campo: "situacao", rotulo: "Situação", valor: (c) => ORDEM[situacao(c).chave] },
 ];
+// A situação não tem mais coluna (os cards e o filtro mostram), mas continua sendo a ordem padrão da grade.
+const ORDENAVEIS = [...COLUNAS, { campo: "situacao", valor: (c) => ORDEM[situacao(c).chave] }];
 
 const combina = (c, termo) => {
   if (!termo) return true;
@@ -121,13 +122,12 @@ function linhaDoContrato(c, dia, edita) {
     edita && excluindo === c.id ? `<div class="status" data-confirma>Excluir o contrato de <b>${esc(c.nome)}</b>${c.arquivos.length ? ` e ${c.arquivos.length === 1 ? "o documento salvo" : `os ${c.arquivos.length} documentos salvos`}` : ""}? Não dá para desfazer. <span class="actions" style="margin-top:8px"><button class="btn danger" data-sim>Sim, excluir</button><button class="btn" data-nao>Manter</button></span></div>` : "",
   ].join("");
   return `<tr class="grade-linha${st.chave === "pendente" ? " grade-pendente" : ""}" data-id="${esc(c.id)}">
-      <td><div class="grade-nome" title="${esc(c.nome)}">${esc(c.nome)}</div></td>
+      <td><div class="grade-nome" title="${esc(`${c.nome} · ${st.rotulo}${contato ? ` · ${contato}` : ""}`)}">${esc(c.nome)}</div></td>
       <td class="grade-fone">${esc(fmtFone(c.fone))}</td>
       <td><div class="grade-email">${c.email ? `<a href="mailto:${esc(c.email)}" title="${esc(c.email)}">${esc(c.email)}</a>` : `<span class="vazio" title="Sem e-mail: dá para incluir em Editar">—</span>`}</div></td>
       <td><div class="grade-plano" title="${esc(c.plano)}">${esc(c.plano)}</div></td>
       <td class="grade-valor dir">R$ ${brl(c.valor)}</td>
       <td class="grade-data">${esc(fmtDia(c.ativacao))}</td>
-      <td><span class="pill ${st.classe}"${contato ? ` title="${esc(contato)}"` : ""}>${esc(st.rotulo)}</span></td>
       <td><div class="grade-acoes">${acoes}</div></td>
     </tr>${paineis ? `<tr class="grade-painel-linha" data-id="${esc(c.id)}"><td colspan="${COLUNAS.length + 1}">${paineis}</td></tr>` : ""}`;
 }
@@ -162,7 +162,7 @@ function renderContratos() {
     (filtro === "todos" || situacao(c, dia).chave === filtro) && (mes === "todos" || c.ativacao.startsWith(mes)) && combina(c, busca.trim()));
   // Desempate: dentro da mesma situação, a ordem de antes (próximas ativações primeiro; contato feito, as mais recentes).
   const ordemAntiga = ordenar(filtrados, dia), posicao = new Map(ordemAntiga.map((c, i) => [c.id, i]));
-  const pag = paginar(ordenarPor(filtrados, COLUNAS, ordem, (x, y) => posicao.get(x.id) - posicao.get(y.id)), pagina, porPagina);
+  const pag = paginar(ordenarPor(filtrados, ORDENAVEIS, ordem, (x, y) => posicao.get(x.id) - posicao.get(y.id)), pagina, porPagina);
   pagina = pag.pagina;
   const edita = pode("contratos", "editar");
   box.innerHTML = pag.quantos
