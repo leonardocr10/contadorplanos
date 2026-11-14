@@ -604,8 +604,10 @@ body{margin:0}
 .fin-acao[hidden]{display:none}
 .fin-acao .field{flex:1 1 260px;max-width:420px}
 .fin-acao .actions{margin:0}
-.fin-form{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;align-items:end}
-.fin-form .fin-nome,.fin-form .fin-obs{grid-column:span 2}
+/* Linha 1: segmento, operadoras e observação. Linha 2: angariação (só pessoa física), as 4 parcelas e os botões na última coluna. */
+.fin-form{display:grid;grid-template-columns:repeat(5,minmax(0,1fr)) auto;gap:10px;align-items:end}
+.fin-form .fin-nome{grid-column:span 3}
+.fin-form .fin-obs{grid-column:span 2}
 .fin-form .fin-ang[hidden]{display:none}
 .fin-cabecalho{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
 .fin-cabecalho h2{margin:0}
@@ -613,9 +615,18 @@ body{margin:0}
 .fin-linha-cor{cursor:pointer}
 .fin-linha-cor:hover td{background:var(--accent-soft,#e2f4e9)}
 .fin-btn-linha{padding:6px 12px;font-size:13px;white-space:nowrap}
-.fin-form .fin-botoes{grid-column:1/-1;margin:0;align-items:center;justify-content:flex-end}
-.fin-form .fin-botoes [data-total]{margin-right:auto;font-weight:700;color:var(--pine)}
-@media (max-width:1100px){.fin-form{grid-template-columns:repeat(2,minmax(0,1fr))}.fin-form .fin-seg,.fin-form .fin-nome,.fin-form .fin-obs{grid-column:1/-1}}
+.fin-form .fin-botoes{grid-column:6;margin:0;flex-wrap:nowrap;align-items:center;justify-content:flex-end}
+.fin-form .fin-botoes .btn{white-space:nowrap}
+/* Card de nova regra mais compacto: menos espaço, campos e botões mais baixos. */
+#reg-form-bloco{padding:14px 16px;gap:10px}
+#reg-form-bloco .ctr-bloco-titulo{font-size:15px}
+#reg-form-bloco .fin-form{gap:8px 10px}
+#reg-form-bloco .field{gap:4px}
+#reg-form-bloco .field label{font-size:12px}
+#reg-form-bloco input[type=text]{padding-top:7px;padding-bottom:7px;font-size:14px}
+#reg-form-bloco .fs-botao{min-height:34px;padding-top:7px;padding-bottom:7px;font-size:14px}
+#reg-form-bloco .fin-botoes .btn{padding-top:8px;padding-bottom:8px}
+@media (max-width:1100px){.fin-form{grid-template-columns:repeat(2,minmax(0,1fr))}.fin-form .fin-seg,.fin-form .fin-nome,.fin-form .fin-obs,.fin-form .fin-botoes{grid-column:1/-1}}
 .fin-obs-linha{margin:2px 0 0;max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}
 .fin-tabela .grade-nome{max-width:300px}
 /* Regras: cabe na largura da tela (1366 px) sem rolar para o lado; o nome do plano quebra em duas linhas. */

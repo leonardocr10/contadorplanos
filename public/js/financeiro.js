@@ -116,17 +116,11 @@ export function atualizarPlanosDaRegra() {
   document.querySelectorAll("#reg-form, [data-form-regra]").forEach((f) => f.querySelector("[data-plano-regra]") && trocarPlanos(f));
 }
 
-// Total ao vivo enquanto a regra é digitada.
-function ligarTotal(form) {
-  const saida = form.querySelector("[data-total]");
-  const atualizar = () => {
-    try { const r = lerCamposDaRegra(form); saida.textContent = `Total: ${pct(totalDaRegra(r))}`; } catch (e) { saida.textContent = e.message; }
-  };
-  form.querySelectorAll("input,select").forEach((el) => el.addEventListener("input", atualizar));
+// Trocar o segmento troca a lista de planos e mostra a angariação só para pessoa física.
+function ligarSegmento(form) {
   const seg = form.querySelector("[data-campo=segmento]"), plano = form.querySelector("[data-plano-regra]");
   plano.dataset.original ??= plano.multiple ? "" : plano.value;
-  seg.addEventListener("change", () => { trocarPlanos(form); form.querySelector(".fin-ang").hidden = seg.value !== "PF"; atualizar(); });
-  atualizar();
+  seg.addEventListener("change", () => { trocarPlanos(form); form.querySelector(".fin-ang").hidden = seg.value !== "PF"; });
 }
 
 function linhaDaRegra(r) {
@@ -135,7 +129,7 @@ function linhaDaRegra(r) {
     botaoIcone("excluir", "Excluir regra", { atributos: `data-excluir-regra aria-expanded="${excluindoRegra === r.id}"`, classe: "perigo" }),
   ].join("") : "";
   const paineis = [
-    editandoRegra === r.id ? `<form class="fin-form" data-form-regra="${esc(r.id)}" novalidate>${camposDaRegra("fin-ed", r)}<div class="actions fin-botoes"><span class="note" data-total></span><button class="btn primary" type="submit">Salvar</button><button class="btn" type="button" data-cancelar-regra>Cancelar</button></div></form>` : "",
+    editandoRegra === r.id ? `<form class="fin-form" data-form-regra="${esc(r.id)}" novalidate>${camposDaRegra("fin-ed", r)}<div class="actions fin-botoes"><button class="btn primary" type="submit">Salvar</button><button class="btn" type="button" data-cancelar-regra>Cancelar</button></div></form>` : "",
     excluindoRegra === r.id ? `<div class="status" data-confirma>Excluir a regra <b>${esc(r.nome)} (${esc(rotuloDoSegmento(r.segmento))})</b>? Os contratos que usam esta regra ficam sem regra. <span class="actions" style="margin-top:8px"><button class="btn danger" data-sim-regra>Sim, excluir</button><button class="btn" data-nao-regra>Manter</button></span></div>` : "",
   ].join("");
   return `<tr class="grade-linha" data-regra="${esc(r.id)}">
@@ -273,7 +267,7 @@ export function renderRegras() {
   }));
   const form = box.querySelector("[data-form-regra]");
   if (form) {
-    ligarTotal(form);
+    ligarSegmento(form);
     form.querySelector("[data-cancelar-regra]").onclick = () => { editandoRegra = null; renderRegras(); };
     form.onsubmit = async (e) => {
       e.preventDefault();
@@ -494,8 +488,8 @@ export function iniciarFinanceiro() {
   $("#cor-busca").oninput = () => { buscaCor = $("#cor-busca").value; renderCorretoras(); };
   $("#reg-voltar").onclick = () => { corretoraAtual = null; renderRegras(); };
   const form = $("#reg-form");
-  form.innerHTML = `${camposDaRegra("fin-nova", {}, { multiplo: true })}<div class="actions fin-botoes"><span class="note" data-total></span><button class="btn primary" type="submit">Adicionar regra</button><button class="btn" type="button" data-fechar-nova>Fechar</button></div>`;
-  ligarTotal(form);
+  form.innerHTML = `${camposDaRegra("fin-nova", {}, { multiplo: true })}<div class="actions fin-botoes"><button class="btn primary" type="submit">Adicionar regra</button><button class="btn" type="button" data-fechar-nova>Fechar</button></div>`;
+  ligarSegmento(form);
   $("#reg-nova-regra").onclick = () => {
     formRegraAberto = !formRegraAberto;
     renderRegras();
@@ -514,7 +508,6 @@ export function iniciarFinanceiro() {
       form.querySelectorAll("[data-campo=angariacao],[data-campo=observacao],[data-parcela]").forEach((el) => (el.value = ""));
       avisoCentral(regras.length === 1 ? "Regra cadastrada com sucesso" : `${regras.length} regras cadastradas com sucesso`);
       await carregarFinanceiro();
-      form.querySelector("[data-parcela]").dispatchEvent(new Event("input", { bubbles: true }));
     } catch (erro) { toast(`Não deu para cadastrar: ${erro.message}`, "erro"); }
   };
   $("#reg-busca").oninput = () => { buscaRegra = $("#reg-busca").value; paginaRegra = 1; renderRegras(); };
