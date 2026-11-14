@@ -417,7 +417,8 @@ export function renderComissoes() {
   selPag.value = mesPagamento;
   // Só entram os pagamentos marcados como pagos (Sim) na calculadora.
   const doMes = (x) => x.comissao.itens.filter((i) => i.pago && (mesPagamento === "todos" || i.data?.startsWith(mesPagamento))).reduce((a, i) => a + i.valor, 0);
-  const doMesTodos = (x) => x.comissao.itens.filter((i) => mesPagamento === "todos" || i.data?.startsWith(mesPagamento)).reduce((a, i) => a + i.valor, 0);
+  // Comissão prevista: os pagamentos do mês ainda não pagos (Pago = Não); recebidas: os marcados como pagos.
+  const doMesTodos = (x) => x.comissao.itens.filter((i) => !i.pago && (mesPagamento === "todos" || i.data?.startsWith(mesPagamento))).reduce((a, i) => a + i.valor, 0);
   const prevista = Math.round(base.reduce((a, x) => a + doMesTodos(x), 0) * 100) / 100, comissao = Math.round(base.reduce((a, x) => a + doMes(x), 0) * 100) / 100, semRegra = base.filter((x) => !x.regra).length;
   desenharCards($("#com-cards"), [
     { chave: "prevista", rotulo: `Comissão prevista · ${mesPagamento === "todos" ? "todos os meses" : nomeDoMes(mesPagamento)}`, qtd: `R$ ${brl(prevista)}` },
@@ -522,7 +523,7 @@ function abrirListaCom(tipo) {
 // Os pagamentos do card: os do mês escolhido (todos, ou só os pagos), dos contratos que os filtros mostram.
 function pagamentosDaLista() {
   return ultimaBase.flatMap((x) => x.comissao.itens
-    .filter((i) => (mesPagamento === "todos" || i.data?.startsWith(mesPagamento)) && (listaCom === "prevista" || i.pago))
+    .filter((i) => (mesPagamento === "todos" || i.data?.startsWith(mesPagamento)) && (listaCom === "prevista" ? !i.pago : i.pago))
     .map((i) => ({ x, i })))
     .sort((a, b) => (a.i.data || "").localeCompare(b.i.data || "") || a.x.c.nome.localeCompare(b.x.c.nome, "pt-BR"));
 }
