@@ -664,8 +664,8 @@ body{margin:0}
 @media (max-width:1100px){.fin-filtros{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
 @media (max-width:560px){.fin-filtros{grid-template-columns:minmax(0,1fr)}}
 .fin-cards{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
-.fin-cards [data-chave="todos"]{--cor:var(--pine)}
-.fin-cards [data-chave="com"]{--cor:var(--accent)}
+.fin-cards [data-chave="prevista"]{--cor:var(--pine)}
+.fin-cards [data-chave="recebidas"]{--cor:var(--accent)}
 .fin-cards [data-chave="sem"]{--cor:var(--danger)}
 .grade-cards [data-chave="pf"]{--cor:#3b82c4}
 .grade-cards [data-chave="pme"]{--cor:var(--accent)}

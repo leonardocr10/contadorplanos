@@ -23,6 +23,7 @@
 <link rel="modulepreload" href="js/grade.js">
 <link rel="modulepreload" href="js/financeiro.js">
 <link rel="modulepreload" href="js/comissao.js">
+<link rel="modulepreload" href="js/xlsx.js">
 <link rel="modulepreload" href="js/configuracoes.js">
 <link rel="modulepreload" href="js/filtro-select.js">
 </head>
@@ -279,17 +280,17 @@
 
   <!-- FINANCEIRO: COMISSÕES -->
   <section id="v-comissoes" class="ctr-blocos" hidden>
-    <div class="panel">
+    <div class="panel" id="com-topo">
       <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center">
         <h2>Comissões</h2>
         <div class="fin-mes-pag">
           <span class="note" id="com-count"></span>
-          <div class="field"><label for="com-mes-pag" title="Vale para o total de vendas (pela ativação) e para a comissão prevista (pela data de cada pagamento)">Mês dos totais</label><select id="com-mes-pag" data-icone="calendario"></select></div>
+          <div class="field"><label for="com-mes-pag" title="Os cards somam os pagamentos com data prevista neste mês">Mês dos totais</label><select id="com-mes-pag" data-icone="calendario"></select></div>
         </div>
       </div>
       <div class="grade-cards fin-cards" id="com-cards" role="group" aria-label="Totais das comissões"></div>
     </div>
-    <div class="panel">
+    <div class="panel" id="com-grade">
       <div class="hist-filtros fin-filtros">
         <div class="field"><label for="com-busca">Buscar</label><input id="com-busca" type="search" placeholder="Cliente, plano ou regra" autocomplete="off"></div>
         <div class="field"><label for="com-corretora">Corretora</label><select id="com-corretora" data-icone="filtro"></select></div>
@@ -299,7 +300,16 @@
       </div>
       <div id="com-lista"></div>
       <nav class="grade-paginacao" id="com-paginacao" aria-label="Páginas das comissões"></nav>
-      <p class="note" style="margin:0">Os contratos vêm de Contratos Vendidos, com a mensalidade cadastrada. Escolha a regra direto na linha. Na calculadora, veja cada pagamento previsto e ajuste o percentual ou a data de um pagamento.</p>
+      <p class="note" style="margin:0">Clique num card para ver a lista das comissões e gerar o Excel. Os contratos vêm de Contratos Vendidos, com a mensalidade cadastrada. Escolha a regra direto na linha. Na calculadora, veja cada pagamento previsto e ajuste o percentual ou a data de um pagamento.</p>
+    </div>
+    <div class="panel" id="com-tela-lista" hidden>
+      <div class="fin-cabecalho">
+        <button type="button" class="btn" id="com-voltar" title="Voltar para as comissões">← Comissões</button>
+        <h2 id="com-lista-titulo">Comissões</h2>
+        <button type="button" class="btn primary" id="com-excel" style="margin-left:auto">Gerar Excel</button>
+      </div>
+      <p class="note" id="com-lista-resumo" style="margin:0"></p>
+      <div id="com-lista-pag"></div>
     </div>
   </section>
 

@@ -1,9 +1,10 @@
 // Menu Financeiro: "Regras de pagamento" (corretoras e as regras de comissão de cada uma) e
 // "Comissões" (a comissão de cada contrato vendido, pela regra escolhida).
-import { brl, parseBRL } from "./calculo.js";
+import { brl, fmtFone, parseBRL } from "./calculo.js";
 import { $, S, api, avisoCentral, esc, pode, toast } from "./estado.js";
 import { normalizar } from "./filtro-select.js";
 import { calcularComissao, CATEGORIA_DO_SEGMENTO, MAX_PARCELAS, parcelaDe, rotuloDoSegmento, SEGMENTOS, totalDaRegra } from "./comissao.js";
+import { gerarXlsx } from "./xlsx.js";
 import { botaoIcone, cabecalho, desenharCards, desenharPaginacao, guardarPorPagina, lerPorPagina, ordenarPor, paginar, proximaOrdem } from "./grade.js";
 
 let corretoras = [], contratos = [], carregado = false, erro = null;
@@ -416,20 +417,26 @@ export function renderComissoes() {
   selPag.value = mesPagamento;
   // Só entram os pagamentos marcados como pagos (Sim) na calculadora.
   const doMes = (x) => x.comissao.itens.filter((i) => i.pago && (mesPagamento === "todos" || i.data?.startsWith(mesPagamento))).reduce((a, i) => a + i.valor, 0);
-  const vendidos = base.filter((x) => mesPagamento === "todos" || x.c.ativacao.startsWith(mesPagamento));
-  const vendas = vendidos.reduce((a, x) => a + x.c.valor, 0), comissao = Math.round(base.reduce((a, x) => a + doMes(x), 0) * 100) / 100, semRegra = base.filter((x) => !x.regra).length;
+  const doMesTodos = (x) => x.comissao.itens.filter((i) => mesPagamento === "todos" || i.data?.startsWith(mesPagamento)).reduce((a, i) => a + i.valor, 0);
+  const prevista = Math.round(base.reduce((a, x) => a + doMesTodos(x), 0) * 100) / 100, comissao = Math.round(base.reduce((a, x) => a + doMes(x), 0) * 100) / 100, semRegra = base.filter((x) => !x.regra).length;
   desenharCards($("#com-cards"), [
-    { chave: "todos", rotulo: `Total de vendas · ${mesPagamento === "todos" ? "todos os meses" : nomeDoMes(mesPagamento)} · ${vendidos.length} ${vendidos.length === 1 ? "contrato" : "contratos"}`, qtd: `R$ ${brl(vendas)}` },
-    { chave: "com", rotulo: `Comissão prevista · ${mesPagamento === "todos" ? "todos os meses" : nomeDoMes(mesPagamento)}`, qtd: `R$ ${brl(comissao)}` },
+    { chave: "prevista", rotulo: `Comissão prevista · ${mesPagamento === "todos" ? "todos os meses" : nomeDoMes(mesPagamento)}`, qtd: `R$ ${brl(prevista)}` },
+    { chave: "recebidas", rotulo: `Comissões recebidas · ${mesPagamento === "todos" ? "todos os meses" : nomeDoMes(mesPagamento)}`, qtd: `R$ ${brl(comissao)}` },
     { chave: "sem", rotulo: "Contratos sem regra", qtd: semRegra },
-  ], filtroCom, (chave) => { filtroCom = chave; paginaCom = 1; renderComissoes(); });
+  ], filtroCom, (chave) => {
+    // Comissão prevista e recebidas abrem a lista dos pagamentos; Contratos sem regra filtra a grade.
+    if (chave === "prevista" || chave === "recebidas") { abrirListaCom(chave); return; }
+    filtroCom = chave; paginaCom = 1; renderComissoes();
+  });
+  ultimaBase = base;
+  if (listaCom) renderListaCom();
   $("#com-count").textContent = `${contratos.length} ${contratos.length === 1 ? "contrato" : "contratos"} · ${corretoras.length} ${corretoras.length === 1 ? "corretora" : "corretoras"}`;
 
   const box = $("#com-lista"), nav = $("#com-paginacao");
   if (!carregado) { box.innerHTML = `<div class="status">${erro ? esc(erro) : "Carregando comissões…"}</div>`; nav.innerHTML = ""; return; }
   if (!pode("contratos")) { box.innerHTML = `<div class="status">Para ver as comissões, peça ao administrador acesso à tela Contratos Vendidos.</div>`; nav.innerHTML = ""; return; }
   if (!contratos.length) { box.innerHTML = `<div class="status">Nenhum contrato vendido ainda. Os contratos de <b>Contratos Vendidos</b> aparecem aqui.</div>`; nav.innerHTML = ""; return; }
-  const filtrados = base.filter((x) => filtroCom === "todos" || (filtroCom === "com" ? !!x.regra : !x.regra));
+  const filtrados = base.filter((x) => filtroCom !== "sem" || !x.regra);
   const pag = paginar(ordenarPor(filtrados, COLUNAS_COM, ordemCom, (x, y) => y.c.ativacao.localeCompare(x.c.ativacao)), paginaCom, porPaginaCom);
   paginaCom = pag.pagina;
   box.innerHTML = pag.quantos
@@ -502,6 +509,67 @@ export function renderComissoes() {
   }
 }
 
+/* ---------- Lista das comissões de um card (prevista ou recebidas), com o Excel ---------- */
+let listaCom = null, ultimaBase = [];
+const TITULO_LISTA = { prevista: "Comissão prevista", recebidas: "Comissões recebidas" };
+
+function abrirListaCom(tipo) {
+  listaCom = tipo;
+  renderListaCom();
+  $("#v-comissoes").scrollIntoView({ block: "start" });
+}
+
+// Os pagamentos do card: os do mês escolhido (todos, ou só os pagos), dos contratos que os filtros mostram.
+function pagamentosDaLista() {
+  return ultimaBase.flatMap((x) => x.comissao.itens
+    .filter((i) => (mesPagamento === "todos" || i.data?.startsWith(mesPagamento)) && (listaCom === "prevista" || i.pago))
+    .map((i) => ({ x, i })))
+    .sort((a, b) => (a.i.data || "").localeCompare(b.i.data || "") || a.x.c.nome.localeCompare(b.x.c.nome, "pt-BR"));
+}
+
+function renderListaCom() {
+  const aberta = !!listaCom;
+  $("#com-topo").hidden = $("#com-grade").hidden = aberta;
+  $("#com-tela-lista").hidden = !aberta;
+  if (!aberta) return;
+  const mes = mesPagamento === "todos" ? "todos os meses" : nomeDoMes(mesPagamento);
+  const lista = pagamentosDaLista(), total = lista.reduce((a, p) => a + p.i.valor, 0);
+  $("#com-lista-titulo").textContent = `${TITULO_LISTA[listaCom]} · ${mes}`;
+  $("#com-lista-resumo").textContent = `${lista.length} ${lista.length === 1 ? "pagamento" : "pagamentos"} · total R$ ${brl(total)}`;
+  $("#com-excel").disabled = !lista.length;
+  $("#com-lista-pag").innerHTML = lista.length
+    ? `<div class="grade-rolagem"><table class="grade-tabela"><thead><tr><th>Cliente</th><th>Plano</th><th>Corretora</th><th>Pagamento</th><th>Previsto para</th><th class="dir">Percentual</th><th class="centro">Base</th><th class="dir">Valor</th><th class="centro">Pago</th></tr></thead><tbody>
+      ${lista.map(({ x, i }) => `<tr class="grade-linha"><td><div class="grade-nome" title="${esc(x.c.nome)}">${esc(x.c.nome)}</div></td><td><div class="grade-plano grade-plano-uma" title="${esc(x.c.plano)}">${esc(x.c.plano)}</div></td><td>${esc(x.regra?.corretora ?? "")}</td><td>${esc(i.rotulo)}</td><td class="grade-data">${esc(fmtDia(i.data))}</td><td class="dir">${pct(i.percentual)}</td><td class="centro">R$ ${brl(i.base)}</td><td class="dir"><b>R$ ${brl(i.valor)}</b></td><td class="centro">${i.pago ? "Sim" : "Não"}</td></tr>`).join("")}
+      <tr class="fin-total"><td colspan="7">Total</td><td class="dir">R$ ${brl(total)}</td><td></td></tr>
+    </tbody></table></div>`
+    : `<div class="status">Nenhum pagamento ${listaCom === "recebidas" ? "marcado como pago" : "previsto"} em ${mes}.</div>`;
+}
+
+function gerarExcelDaLista() {
+  const lista = pagamentosDaLista();
+  if (!lista.length) return;
+  const mes = mesPagamento === "todos" ? "todos os meses" : nomeDoMes(mesPagamento);
+  const bytes = gerarXlsx({
+    aba: TITULO_LISTA[listaCom],
+    colunas: [
+      { titulo: "Cliente", tipo: "texto", largura: 28 }, { titulo: "Telefone", tipo: "texto", largura: 16 }, { titulo: "Plano", tipo: "texto", largura: 34 },
+      { titulo: "Corretora", tipo: "texto", largura: 20 }, { titulo: "Pagamento", tipo: "texto", largura: 14 }, { titulo: "Ativação", tipo: "data", largura: 12 },
+      { titulo: "Previsto para", tipo: "data", largura: 14 }, { titulo: "Percentual", tipo: "percentual", largura: 11 }, { titulo: "Base (mensalidade)", tipo: "moeda", largura: 18 },
+      { titulo: "Valor", tipo: "moeda", largura: 14 }, { titulo: "Pago", tipo: "texto", largura: 8 },
+    ],
+    linhas: lista.map(({ x, i }) => [x.c.nome, fmtFone(x.c.fone), x.c.plano, x.regra?.corretora ?? "", i.rotulo, x.c.ativacao, i.data, i.percentual, i.base, i.valor, i.pago ? "Sim" : "Não"]),
+  });
+  const nome = `${TITULO_LISTA[listaCom]} - ${mes}.xlsx`.replace(/[\\/:*?"<>|]/g, "-");
+  const link = document.createElement("a");
+  link.href = URL.createObjectURL(new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }));
+  link.download = nome;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(link.href), 60_000);
+  avisoCentral("Excel gerado com sucesso");
+}
+
 /* =================== ligações da tela =================== */
 export function iniciarFinanceiro() {
   // Regras
@@ -540,6 +608,8 @@ export function iniciarFinanceiro() {
   $("#com-corretora").onchange = () => { corretoraCom = $("#com-corretora").value; paginaCom = 1; renderComissoes(); };
   $("#com-mes").onchange = () => { mesCom = $("#com-mes").value; paginaCom = 1; renderComissoes(); };
   $("#com-mes-pag").onchange = () => { mesPagamento = $("#com-mes-pag").value; renderComissoes(); };
+  $("#com-voltar").onclick = () => { listaCom = null; renderListaCom(); renderComissoes(); };
+  $("#com-excel").onclick = gerarExcelDaLista;
   $("#com-por-pagina").onchange = () => { porPaginaCom = Number($("#com-por-pagina").value) || 10; guardarPorPagina(CHAVE_PP_COM, porPaginaCom); paginaCom = 1; renderComissoes(); };
   $("#com-limpar").onclick = () => { buscaCom = ""; $("#com-busca").value = ""; filtroCom = "todos"; corretoraCom = "todas"; mesCom = "todos"; paginaCom = 1; renderComissoes(); };
 }
