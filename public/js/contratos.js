@@ -3,6 +3,7 @@ import { brl, fmtFone, normFone, parseBRL } from "./calculo.js";
 import { $, S, api, avisoCentral, esc, pode, show, toast } from "./estado.js";
 import { linkConversaDireta, mensagemAtivacao } from "./mensagem.js";
 import { ligarVisualizacao } from "./visor-documento.js";
+import { carregarFinanceiro } from "./financeiro.js";
 import { normalizar } from "./filtro-select.js";
 import { botaoIcone, cabecalho, desenharCards, desenharPaginacao, lerPorPagina, ordenarPor, paginar, proximaOrdem } from "./grade.js";
 
@@ -73,6 +74,8 @@ function avisar() {
 
 /* ---------- grade: situação (pelos cards), mês (no topo), ordenação e páginas ---------- */
 const CHAVE_POR_PAGINA = "cotador.contratos.porPagina";
+// Contrato recém-cadastrado: aparece no topo da primeira página, destacado, até a próxima troca de filtro ou ordem.
+let destaque = null;
 let pagina = 1, ordem = { campo: "situacao", dir: "asc" }, excluindo = null;
 let porPagina = lerPorPagina(CHAVE_POR_PAGINA);
 
@@ -114,7 +117,7 @@ function linhaDoContrato(c, dia, edita) {
       </div>` : "",
     edita && excluindo === c.id ? `<div class="status" data-confirma>Excluir o contrato de <b>${esc(c.nome)}</b>${c.arquivos.length ? ` e ${c.arquivos.length === 1 ? "o documento salvo" : `os ${c.arquivos.length} documentos salvos`}` : ""}? Não dá para desfazer. <span class="actions" style="margin-top:8px"><button class="btn danger" data-sim>Sim, excluir</button><button class="btn" data-nao>Manter</button></span></div>` : "",
   ].join("");
-  return `<tr class="grade-linha${st.chave === "pendente" ? " grade-pendente" : ""}" data-id="${esc(c.id)}">
+  return `<tr class="grade-linha${st.chave === "pendente" ? " grade-pendente" : ""}${c.id === destaque ? " grade-novo" : ""}" data-id="${esc(c.id)}">
       <td><div class="grade-nome" title="${esc(`${c.nome} · ${st.rotulo}${contato ? ` · ${contato}` : ""}`)}">${esc(c.nome)}</div></td>
       <td class="grade-fone">${esc(fmtFone(c.fone))}</td>
       <td><div class="grade-email">${c.email ? `<a href="mailto:${esc(c.email)}" title="${esc(c.email)}">${esc(c.email)}</a>` : `<span class="vazio" title="Sem e-mail: dá para incluir em Editar">—</span>`}</div></td>
@@ -142,7 +145,7 @@ function renderContratos() {
   desenharCards($("#ctr-cards"), [
     { chave: "todos", rotulo: "Todos", qtd: doMes.length },
     ...["pendente", "aguardando", "feito"].map((k) => ({ chave: k, rotulo: FILTROS[k], qtd: quantos(k) })),
-  ], filtro, (chave) => { filtro = chave; pagina = 1; renderContratos(); });
+  ], filtro, (chave) => { destaque = null; filtro = chave; pagina = 1; renderContratos(); });
   const box = $("#ctr-list"), nav = $("#ctr-paginacao");
   if (!carregados) { box.innerHTML = `<div class="status">${erro ? esc(erro) : "Carregando contratos…"}</div>`; nav.innerHTML = ""; return; }
   const pendentes = contratos.filter((c) => situacao(c, dia).chave === "pendente").length;
@@ -152,14 +155,16 @@ function renderContratos() {
     (filtro === "todos" || situacao(c, dia).chave === filtro) && (mes === "todos" || c.ativacao.startsWith(mes)));
   // Desempate: dentro da mesma situação, a ordem de antes (próximas ativações primeiro; contato feito, as mais recentes).
   const ordemAntiga = ordenar(filtrados, dia), posicao = new Map(ordemAntiga.map((c, i) => [c.id, i]));
-  const pag = paginar(ordenarPor(filtrados, ORDENAVEIS, ordem, (x, y) => posicao.get(x.id) - posicao.get(y.id)), pagina, porPagina);
+  const ordenados = ordenarPor(filtrados, ORDENAVEIS, ordem, (x, y) => posicao.get(x.id) - posicao.get(y.id));
+  const novo = destaque && ordenados.find((c) => c.id === destaque);
+  const pag = paginar(novo ? [novo, ...ordenados.filter((c) => c !== novo)] : ordenados, pagina, porPagina);
   pagina = pag.pagina;
   const edita = pode("contratos", "editar");
   box.innerHTML = pag.quantos
     ? `<div class="grade-rolagem"><table class="grade-tabela">${cabecalho(COLUNAS, ordem)}<tbody>${pag.itens.map((c) => linhaDoContrato(c, dia, edita)).join("")}</tbody></table></div>`
     : `<div class="status">Nenhum contrato encontrado com esses filtros.</div>`;
-  desenharPaginacao(nav, pag, ["contrato", "contratos"], (p) => { pagina = p; renderContratos(); box.scrollIntoView({ block: "nearest" }); });
-  box.querySelectorAll("[data-ordem]").forEach((b) => (b.onclick = () => { ordem = proximaOrdem(ordem, b.dataset.ordem, COLUNAS); pagina = 1; renderContratos(); }));
+  desenharPaginacao(nav, pag, ["contrato", "contratos"], (p) => { destaque = null; pagina = p; renderContratos(); box.scrollIntoView({ block: "nearest" }); });
+  box.querySelectorAll("[data-ordem]").forEach((b) => (b.onclick = () => { destaque = null; ordem = proximaOrdem(ordem, b.dataset.ordem, COLUNAS); pagina = 1; renderContratos(); }));
 
   const doItem = (el) => contratos.find((c) => c.id === el.closest("[data-id]").dataset.id);
   box.querySelectorAll("[data-contato]").forEach((b) => (b.onclick = () => marcarContato(doItem(b), b.dataset.contato === "1", b)));
@@ -455,12 +460,19 @@ async function salvar(e) {
   const botao = $("#ctr-salvar");
   botao.disabled = true;
   try {
-    contratos = [await api("/api/contratos", { metodo: "POST", json: d }), ...contratos];
+    const novo = await api("/api/contratos", { metodo: "POST", json: d });
+    contratos = [novo, ...contratos];
+    destaque = novo.id;
+    filtro = "todos";
+    if (mes !== "todos" && !novo.ativacao.startsWith(mes)) mes = "todos";
+    pagina = 1;
     avisoCentral(d.ativacao <= hoje() ? "Contrato cadastrado. O plano já está ativo: entre em contato com o cliente" : `Contrato cadastrado. No dia ${fmtDia(d.ativacao)} o sistema avisa para entrar em contato`);
     limparFormulario();
     // O aviso do cadastro já basta: não repete a caixa por causa deste contrato.
     avisados = Math.max(avisados, pendentes().length);
     renderContratos();
+    await carregarContratos();
+    carregarFinanceiro();
   } catch (erro) {
     toast(`Não deu para salvar: ${erro.message}`, "erro");
   }
@@ -569,7 +581,7 @@ export function conferirDiaDosContratos() {
 
 export function iniciarContratos() {
   $("#ctr-form").onsubmit = salvar;
-  $("#ctr-mes").onchange = () => { mes = $("#ctr-mes").value; pagina = 1; renderContratos(); };
+  $("#ctr-mes").onchange = () => { destaque = null; mes = $("#ctr-mes").value; pagina = 1; renderContratos(); };
   $("#ctr-fone").addEventListener("blur", () => {
     const f = normFone($("#ctr-fone").value);
     if (f.length >= 10) $("#ctr-fone").value = fmtFone(f);
