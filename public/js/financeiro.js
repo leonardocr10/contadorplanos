@@ -322,7 +322,7 @@ const COLUNAS_COM = [
   { campo: "valor", rotulo: "Mensalidade", valor: (x) => x.c.valor, dir: true, desc: true },
   { campo: "regra", rotulo: "Regra", valor: (x) => (x.regra ? normalizar(`${x.regra.corretora} ${x.regra.nome}`) : "￿") },
   { campo: "ativacao", rotulo: "Ativação", valor: (x) => x.c.ativacao, desc: true },
-  { campo: "comissao", rotulo: "Comissão", valor: (x) => x.comissao.total, dir: true, desc: true },
+  { campo: "comissao", rotulo: "Comissão", valor: (x) => valorDaLinha(x), dir: true, desc: true },
 ];
 
 // Seletor da regra: agrupado por corretora, com busca.
@@ -363,6 +363,9 @@ function painelDaComissao(x) {
   </form>`;
 }
 
+// Valor da linha: com um mês escolhido, só os pagamentos previstos nele; em todos os meses, o total do contrato.
+const valorDaLinha = (x) => (mesPagamento === "todos" || !x.itensDoMes ? x.comissao.total : Math.round(x.itensDoMes.reduce((a, i) => a + i.valor, 0) * 100) / 100);
+
 function linhaDaComissao(x) {
   const aberto = abertoCom === x.c.id;
   const regraTxt = x.regra ? (x.regra.nome === x.c.plano ? x.regra.corretora : `${x.regra.corretora} · ${x.regra.nome}`) : "";
@@ -374,7 +377,7 @@ function linhaDaComissao(x) {
         ? `<select data-regra-linha data-busca="Buscar corretora…" data-contagem="corretora|corretoras" aria-label="Regra de comissão de ${esc(x.c.nome)}" class="${x.regra ? "" : "fin-sem-regra"}">${opcoesDeRegra(x.c.regraId ?? "", x.c.plano)}</select>`
         : `<div class="grade-plano fin-regra" title="${esc(regraTxt)}">${x.regra ? esc(regraTxt) : `<span class="fin-falta">Sem regra</span>`}</div>`}</td>
       <td class="grade-data">${esc(fmtDia(x.c.ativacao))}</td>
-      <td class="grade-valor dir"><b>${x.regra ? `R$ ${brl(x.comissao.total)}` : "—"}</b></td>
+      <td class="grade-valor dir" title="${x.regra && mesPagamento !== "todos" ? `No mês: R$ ${brl(valorDaLinha(x))} · total do contrato: R$ ${brl(x.comissao.total)}` : ""}"><b>${x.regra ? `R$ ${brl(valorDaLinha(x))}` : "—"}</b></td>
       <td><div class="grade-acoes">${botaoIcone("calculadora", edita() ? "Ver o cálculo da comissão e ajustar os pagamentos" : "Ver o cálculo da comissão", { atributos: `data-abrir-com aria-expanded="${aberto}"` })}</div></td>
     </tr>${aberto ? `<tr class="grade-painel-linha" data-com="${esc(x.c.id)}"><td colspan="${COLUNAS_COM.length + 1}">${painelDaComissao(x)}</td></tr>` : ""}`;
 }
@@ -386,7 +389,7 @@ export function renderComissoes() {
     const regra = c.regraId ? regras.get(c.regraId) ?? null : null;
     return { c, regra, comissao: calcularComissao(c, regra) };
   });
-  // O mês de ativação (no topo) e os filtros de corretora e busca valem para os cards e a grade.
+  // O mês do topo é o da data prevista de cada pagamento: vale para os cards, a grade e a lista. A corretora e a busca também.
   if (corretoraCom !== "todas" && corretoraCom !== "sem" && !corretoras.some((c) => c.id === corretoraCom)) corretoraCom = "todas";
   const selCor = $("#com-corretora");
   const opCor = `<option value="todas" data-icone="todos">Todas as corretoras</option><option value="sem">Sem regra</option>${corretoras.length ? `<optgroup label="Corretoras">${corretoras.map((c) => `<option value="${esc(c.id)}">${esc(c.nome)}</option>`).join("")}</optgroup>` : ""}`;
@@ -396,21 +399,23 @@ export function renderComissoes() {
   $("#com-limpar").disabled = !buscaCom.trim() && filtroCom === "todos" && corretoraCom === "todas";
 
   const termo = normalizar(buscaCom.trim());
+  // Pagamentos de um contrato no mês escolhido; contrato sem regra (sem pagamentos) entra pelo mês de ativação.
+  const noMes = (i) => mesPagamento === "todos" || i.data?.startsWith(mesPagamento);
+  for (const x of linhas) x.itensDoMes = x.comissao.itens.filter(noMes);
   const base = linhas.filter((x) =>
-    (mesPagamento === "todos" || x.c.ativacao.startsWith(mesPagamento))
+    (mesPagamento === "todos" || (x.regra ? x.itensDoMes.length > 0 : x.c.ativacao.startsWith(mesPagamento)))
     && (corretoraCom === "todas" || (corretoraCom === "sem" ? !x.regra : x.regra?.corretoraId === corretoraCom))
     && (!termo || normalizar(`${x.c.nome} ${x.c.plano} ${x.regra?.nome ?? ""} ${x.regra?.corretora ?? ""}`).includes(termo)));
-  // A lista de meses traz o mês atual e os meses com contratos ativados.
-  const mesesPag = [...new Set([mesDeHoje(), ...linhas.map((x) => x.c.ativacao.slice(0, 7))])].sort();
+  // A lista de meses traz o mês atual e os meses com algum pagamento previsto.
+  const mesesPag = [...new Set([mesDeHoje(), ...linhas.flatMap((x) => x.comissao.itens.map((i) => i.data?.slice(0, 7)).filter(Boolean))])].sort();
   if (mesPagamento !== "todos" && !mesesPag.includes(mesPagamento)) mesPagamento = mesDeHoje();
   const selPag = $("#com-mes-pag");
   const opPag = `<option value="todos" data-icone="todos">Todos os meses</option><optgroup label="Meses">${mesesPag.map((m) => `<option value="${m}">${nomeDoMes(m)}${m === mesDeHoje() ? " (atual)" : ""}</option>`).join("")}</optgroup>`;
   if (selPag.dataset.opcoes !== opPag) { selPag.innerHTML = opPag; selPag.dataset.opcoes = opPag; }
   selPag.value = mesPagamento;
-  // Só entram os pagamentos marcados como pagos (Sim) na calculadora.
-  const doMes = (x) => x.comissao.itens.filter((i) => i.pago).reduce((a, i) => a + i.valor, 0);
-  // Comissão prevista: os pagamentos do mês ainda não pagos (Pago = Não); recebidas: os marcados como pagos.
-  const doMesTodos = (x) => x.comissao.itens.filter((i) => !i.pago).reduce((a, i) => a + i.valor, 0);
+  // Comissão prevista: os pagamentos previstos no mês ainda com Pago = Não; recebidas: os do mês marcados Sim.
+  const doMes = (x) => x.itensDoMes.filter((i) => i.pago).reduce((a, i) => a + i.valor, 0);
+  const doMesTodos = (x) => x.itensDoMes.filter((i) => !i.pago).reduce((a, i) => a + i.valor, 0);
   const prevista = Math.round(base.reduce((a, x) => a + doMesTodos(x), 0) * 100) / 100, comissao = Math.round(base.reduce((a, x) => a + doMes(x), 0) * 100) / 100, semRegra = base.filter((x) => !x.regra).length;
   desenharCards($("#com-cards"), [
     { chave: "prevista", rotulo: `Comissão prevista · ${mesPagamento === "todos" ? "todos os meses" : nomeDoMes(mesPagamento)}`, qtd: `R$ ${brl(prevista)}` },
@@ -515,7 +520,7 @@ function abrirListaCom(tipo) {
 // Os pagamentos do card: os do mês escolhido (todos, ou só os pagos), dos contratos que os filtros mostram.
 function pagamentosDaLista() {
   return ultimaBase.flatMap((x) => x.comissao.itens
-    .filter((i) => (listaCom === "prevista" ? !i.pago : i.pago))
+    .filter((i) => (mesPagamento === "todos" || i.data?.startsWith(mesPagamento)) && (listaCom === "prevista" ? !i.pago : i.pago))
     .map((i) => ({ x, i })))
     .sort((a, b) => (a.i.data || "").localeCompare(b.i.data || "") || a.x.c.nome.localeCompare(b.x.c.nome, "pt-BR"));
 }
