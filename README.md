@@ -34,7 +34,7 @@ Se o administrador esquecer a senha, coloque a nova senha em `LOGIN_SENHA`, acre
 
 ### Acesso às telas
 
-Em **Configurações > Usuários**, o administrador escolhe, para cada usuário e cada tela (Nova Cotação, Planos e Valores, Documentos, Histórico, Aceites e Contratos Vendidos), entre **Sem acesso**, **Visualização** e **Edição**. O administrador sempre tem acesso a tudo. Quem só visualiza a Nova Cotação pode simular, mas não envia nem salva.
+Em **Configurações > Usuários** (a lista mostra o nome e pagina de 10 em 10), o administrador escolhe, para cada usuário e cada tela (Nova Cotação, Planos e Valores, Documentos, Histórico, Aceites e Contratos Vendidos), entre **Sem acesso**, **Visualização** e **Edição**. O administrador sempre tem acesso a tudo. Quem só visualiza a Nova Cotação pode simular, mas não envia nem salva.
 
 No **Histórico**, cada usuário vê e altera só as próprias cotações, inclusive o administrador. O backup guarda as cotações de todos.
 

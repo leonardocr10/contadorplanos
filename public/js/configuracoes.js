@@ -1,5 +1,6 @@
 // Aba "Configurações": senha de cada login e, para o administrador, usuários e atualização do sistema.
 import { $, api, avisoCentral, esc, pode, telaDaView, toast } from "./estado.js";
+import { desenharPaginacao, paginar } from "./grade.js";
 
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 const msg = (t) => ($("#cfg-msg").textContent = t);
@@ -10,7 +11,10 @@ const NIVEIS = { nenhum: "Sem acesso", ver: "Ver", editar: "Editar" };
 const NOMES_NIVEIS = { nenhum: "sem acesso", ver: "visualização", editar: "edição" };
 const PADRAO = { cotacao: "editar", planos: "ver", documentos: "ver", historico: "editar", aceites: "editar", contratos: "editar" };
 
-let eu = null, usuarios = [], editando = null;
+let eu = null, usuarios = [], editando = null, paginaUsr = 1;
+const POR_PAGINA_USR = 10;
+// Clicar numa tela troca o acesso nesta ordem.
+const PROXIMO_NIVEL = { editar: "ver", ver: "nenhum", nenhum: "editar" };
 
 const camposDePermissao = (atuais) => Object.entries(TELAS).map(([tela, nome]) => `<div class="usr-tela"><span>${nome}</span><div class="usr-niveis" role="radiogroup" aria-label="Acesso a ${nome}">${Object.entries(NIVEIS).map(([n, rotulo]) => `<label><input type="radio" name="perm-${tela}" value="${n}" ${atuais[tela] === n ? "checked" : ""}><span>${rotulo}</span></label>`).join("")}</div></div>`).join("");
 const lerPermissoes = () => Object.fromEntries([...$("#usr-permissoes").querySelectorAll("input:checked")].map((r) => [r.name.slice(5), r.value]));
@@ -18,7 +22,8 @@ const perfilEscolhido = () => document.querySelector('[name="usr-perfil"]:checke
 const nivelNaTela = (u, tela) => (u.perfil === "admin" ? "editar" : u.permissoes?.[tela] ?? "nenhum");
 const chipsDeAcesso = (u) => Object.entries(TELAS).map(([tela, nome]) => {
   const nivel = nivelNaTela(u, tela);
-  return `<span class="chip-tela ${nivel}">${nome}<span class="so-leitor">: ${NOMES_NIVEIS[nivel]}</span></span>`;
+  if (u.perfil === "admin") return `<span class="chip-tela ${nivel}" title="Administrador tem acesso a todas as telas">${nome}<span class="so-leitor">: ${NOMES_NIVEIS[nivel]}</span></span>`;
+  return `<button type="button" class="chip-tela ${nivel}" data-tela="${tela}" title="${nome}: ${NOMES_NIVEIS[nivel]}. Clique para mudar para ${NOMES_NIVEIS[PROXIMO_NIVEL[nivel]]}">${nome}<span class="so-leitor">: ${NOMES_NIVEIS[nivel]}</span></button>`;
 }).join("");
 
 // Foto do usuário ou, sem foto, a inicial do nome.
@@ -70,11 +75,14 @@ export async function carregarUsuarios() {
 function renderUsuarios() {
   $("#usr-total").textContent = `· ${usuarios.length}`;
   const box = $("#usr-lista");
-  box.innerHTML = usuarios.map((u) => {
+  const pag = paginar(usuarios, paginaUsr, POR_PAGINA_USR);
+  paginaUsr = pag.pagina;
+  box.innerHTML = pag.itens.map((u) => {
     const proprio = u.id === eu?.id;
-    const detalhes = [u.nome, u.email || "Sem e-mail"].filter(Boolean).join(" · ");
+    // Na lista, só o nome; o login e o e-mail aparecem ao passar o mouse.
+    const dica = [`Login: ${u.login}`, u.email || "Sem e-mail"].join(" · ");
     return `<tr data-id="${esc(u.id)}" class="${u.ativo ? "" : "usr-inativo"}">
-      <td><div class="usr-quem"><span class="usr-avatar" aria-hidden="true">${u.foto ? avatarDoUsuario(u) : esc(u.login.charAt(0).toUpperCase())}</span><div><b>${esc(u.login)}</b>${proprio ? " <span class=\"usr-voce\">(você)</span>" : ""}<small>${esc(detalhes)}</small></div></div></td>
+      <td><div class="usr-quem" title="${esc(dica)}"><span class="usr-avatar" aria-hidden="true">${avatarDoUsuario(u)}</span><b>${esc(u.nome || u.login)}</b>${proprio ? " <span class=\"usr-voce\">(você)</span>" : ""}</div></td>
       <td><span class="usr-selo ${u.perfil}">${PERFIS[u.perfil]}</span>${u.ativo ? "" : '<span class="usr-selo desativado">Desativado</span>'}</td>
       <td><div class="usr-chips">${chipsDeAcesso(u)}</div></td>
       <td><div class="usr-acoes">
@@ -83,9 +91,25 @@ function renderUsuarios() {
       </div></td>
     </tr>`;
   }).join("");
+  desenharPaginacao($("#usr-paginacao"), pag, ["usuário", "usuários"], (p) => { paginaUsr = p; renderUsuarios(); });
   box.querySelectorAll("tr[data-id]").forEach((linha) => {
     const u = usuarios.find((x) => x.id === linha.dataset.id);
     linha.querySelector("[data-editar]").onclick = () => abrirGaveta(u);
+    // Acesso às telas direto na linha: cada clique passa para o próximo nível e salva.
+    linha.querySelectorAll("[data-tela]").forEach((chip) => (chip.onclick = async () => {
+      const tela = chip.dataset.tela, nivel = PROXIMO_NIVEL[nivelNaTela(u, tela)];
+      const permissoes = { ...Object.fromEntries(Object.keys(TELAS).map((t) => [t, nivelNaTela(u, t)])), [tela]: nivel };
+      linha.querySelectorAll("[data-tela]").forEach((b) => (b.disabled = true));
+      try {
+        const salvo = await api(`/api/usuarios/${encodeURIComponent(u.id)}`, { metodo: "PUT", json: { permissoes } });
+        usuarios = usuarios.map((x) => (x.id === salvo.id ? salvo : x));
+        renderUsuarios();
+        avisoCentral(`${u.nome || u.login}: ${TELAS[tela]} com ${NOMES_NIVEIS[nivel]}`);
+      } catch (e) {
+        msgUsuarios(e.message);
+        renderUsuarios();
+      }
+    }));
     if (!linha.querySelector("[data-ativo]")) return;
     linha.querySelector("[data-ativo]").onclick = async () => {
       try {
