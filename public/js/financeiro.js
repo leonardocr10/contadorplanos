@@ -406,16 +406,18 @@ export function renderComissoes() {
     && (!termo || normalizar(`${x.c.nome} ${x.c.plano} ${x.regra?.nome ?? ""} ${x.regra?.corretora ?? ""}`).includes(termo)));
   // Comissão prevista: só os pagamentos com data prevista no mês escolhido (a angariação e as parcelas que caem nele).
   // A lista traz o mês atual e todos os meses com algum pagamento previsto.
-  const mesesPag = [...new Set([mesDeHoje(), ...linhas.flatMap((x) => x.comissao.itens.map((i) => i.data?.slice(0, 7)).filter(Boolean))])].sort();
+  // O mês do topo vale para os dois cards: vendas com ativação nele e comissão com pagamento previsto nele.
+  const mesesPag = [...new Set([mesDeHoje(), ...linhas.map((x) => x.c.ativacao.slice(0, 7)), ...linhas.flatMap((x) => x.comissao.itens.map((i) => i.data?.slice(0, 7)).filter(Boolean))])].sort();
   if (mesPagamento !== "todos" && !mesesPag.includes(mesPagamento)) mesPagamento = mesDeHoje();
   const selPag = $("#com-mes-pag");
-  const opPag = `<option value="todos" data-icone="todos">Todos os meses</option><optgroup label="Mês do pagamento">${mesesPag.map((m) => `<option value="${m}">${nomeDoMes(m)}${m === mesDeHoje() ? " (atual)" : ""}</option>`).join("")}</optgroup>`;
+  const opPag = `<option value="todos" data-icone="todos">Todos os meses</option><optgroup label="Meses">${mesesPag.map((m) => `<option value="${m}">${nomeDoMes(m)}${m === mesDeHoje() ? " (atual)" : ""}</option>`).join("")}</optgroup>`;
   if (selPag.dataset.opcoes !== opPag) { selPag.innerHTML = opPag; selPag.dataset.opcoes = opPag; }
   selPag.value = mesPagamento;
   const doMes = (x) => x.comissao.itens.filter((i) => mesPagamento === "todos" || i.data?.startsWith(mesPagamento)).reduce((a, i) => a + i.valor, 0);
-  const vendas = base.reduce((a, x) => a + x.c.valor, 0), comissao = Math.round(base.reduce((a, x) => a + doMes(x), 0) * 100) / 100, semRegra = base.filter((x) => !x.regra).length;
+  const vendidos = base.filter((x) => mesPagamento === "todos" || x.c.ativacao.startsWith(mesPagamento));
+  const vendas = vendidos.reduce((a, x) => a + x.c.valor, 0), comissao = Math.round(base.reduce((a, x) => a + doMes(x), 0) * 100) / 100, semRegra = base.filter((x) => !x.regra).length;
   desenharCards($("#com-cards"), [
-    { chave: "todos", rotulo: `Total de vendas · ${base.length} ${base.length === 1 ? "contrato" : "contratos"}`, qtd: `R$ ${brl(vendas)}` },
+    { chave: "todos", rotulo: `Total de vendas · ${mesPagamento === "todos" ? "todos os meses" : nomeDoMes(mesPagamento)} · ${vendidos.length} ${vendidos.length === 1 ? "contrato" : "contratos"}`, qtd: `R$ ${brl(vendas)}` },
     { chave: "com", rotulo: `Comissão prevista · ${mesPagamento === "todos" ? "todos os meses" : nomeDoMes(mesPagamento)}`, qtd: `R$ ${brl(comissao)}` },
     { chave: "sem", rotulo: "Contratos sem regra", qtd: semRegra },
   ], filtroCom, (chave) => { filtroCom = chave; paginaCom = 1; renderComissoes(); });
