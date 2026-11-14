@@ -15,10 +15,16 @@ const opcoes = () => ({ copart: true, rede: true, acom: true });
 const prices = (p) => planPrices(p, S.vidas, S.over);
 
 /* ---------- beneficiários ---------- */
+// Nome e WhatsApp do cliente são obrigatórios: as faixas etárias só liberam depois dos dois.
+const clienteIdentificado = () => !!nomeCliente() && normFone($("#fone").value).length >= 10;
+
 function renderFaixas() {
-  const tv = totalVidas(S.vidas);
+  const tv = totalVidas(S.vidas), liberado = clienteIdentificado();
   $("#vidas-total").textContent = `${tv} ${tv === 1 ? "vida" : "vidas"}`;
-  $("#faixas").innerHTML = FAIXAS.map((f, i) => `<div class="fx" data-on="${S.vidas[i] ? 1 : 0}"><span>${f}</span><div class="ctr"><button class="iconbtn" data-m="${i}" aria-label="Menos uma pessoa de ${f} anos">−</button><b>${S.vidas[i]}</b><button class="iconbtn" data-p="${i}" aria-label="Mais uma pessoa de ${f} anos">+</button></div></div>`).join("");
+  $("#faixas-aviso").hidden = liberado;
+  $("#faixas").setAttribute("aria-disabled", String(!liberado));
+  const trava = liberado ? "" : " disabled";
+  $("#faixas").innerHTML = FAIXAS.map((f, i) => `<div class="fx" data-on="${S.vidas[i] ? 1 : 0}"><span>${f}</span><div class="ctr"><button class="iconbtn" data-m="${i}" aria-label="Menos uma pessoa de ${f} anos"${trava}>−</button><b>${S.vidas[i]}</b><button class="iconbtn" data-p="${i}" aria-label="Mais uma pessoa de ${f} anos"${trava}>+</button></div></div>`).join("");
   $("#faixas").querySelectorAll("[data-m]").forEach((b) => (b.onclick = () => { const i = +b.dataset.m; S.vidas[i] = Math.max(0, S.vidas[i] - 1); render(); }));
   $("#faixas").querySelectorAll("[data-p]").forEach((b) => (b.onclick = () => { const i = +b.dataset.p; S.vidas[i]++; render(); }));
 }

@@ -369,6 +369,11 @@ html:has(.visor[open]){overflow:hidden}
 .faixas{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 16px}
 .fx{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 6px 6px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
 .fx[data-on="1"]{border-color:var(--accent);background:var(--accent-soft)}
+.faixas[aria-disabled="true"]{opacity:.5}
+.faixas[aria-disabled="true"] .iconbtn{cursor:not-allowed}
+.faixas-aviso{margin:0;padding:8px 12px;border-radius:10px;background:var(--accent-soft);color:var(--pine)}
+.faixas-aviso[hidden]{display:none}
+.obrigatorio{color:var(--danger);font-weight:700}
 .fx span{font-size:14px;font-weight:600}
 .fx .ctr{display:flex;align-items:center;gap:6px}
 .fx .ctr b{min-width:22px;text-align:center;font-variant-numeric:tabular-nums}

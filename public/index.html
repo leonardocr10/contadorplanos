@@ -55,8 +55,8 @@
     <div class="stack">
       <div class="panel">
         <div class="contratacao">
-          <div class="field"><label for="cliente">Nome do cliente</label><input id="cliente" type="text" placeholder="Ex.: Maria" autocomplete="off"></div>
-          <div class="field"><label for="fone">WhatsApp do cliente</label><input id="fone" type="tel" placeholder="(34) 99999-0000" autocomplete="off"></div>
+          <div class="field"><label for="cliente">Nome do cliente <span class="obrigatorio" title="Obrigatório">*</span></label><input id="cliente" type="text" placeholder="Ex.: Maria" autocomplete="off" required></div>
+          <div class="field"><label for="fone">WhatsApp do cliente <span class="obrigatorio" title="Obrigatório">*</span></label><input id="fone" type="tel" placeholder="(34) 99999-0000" autocomplete="off" required></div>
           <div class="field"><label>Tipo de contratação</label>
             <div class="seg" id="tipo"><button aria-pressed="true" data-t="PF">Pessoa física</button><button aria-pressed="false" data-t="CNPJ">CNPJ</button></div>
           </div>
@@ -67,6 +67,7 @@
 
       <div class="panel">
         <div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center"><div class="label">Beneficiários por faixa etária (anos)</div><div style="display:flex;gap:12px;align-items:center"><span class="note" id="vidas-total">0 vidas</span><button type="button" class="btn btn-limpar compacto" id="limpar-vidas" title="Limpar as idades"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg><span>Limpar</span></button></div></div>
+        <p class="note faixas-aviso" id="faixas-aviso" hidden>Preencha o <b>nome</b> e o <b>WhatsApp</b> do cliente para informar os beneficiários.</p>
         <div class="faixas" id="faixas"></div>
       </div>
 
