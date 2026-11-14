@@ -343,12 +343,12 @@ function painelDaComissao(x) {
   const conta = calcularComissao({ valor: x.c.valor, ativacao: x.c.ativacao, ajustes: rascunho.ajustes }, regra);
   const podeEditar = edita();
   const algumAjuste = conta.itens.some((i) => i.ajustado);
+  // A regra é escolhida na linha da grade; aqui ficam o detalhamento e os ajustes, salvos ao mudar cada campo.
   return `<form class="fin-comissao" data-form-comissao novalidate>
-    <div class="fin-com-campos">
-      <div class="field fin-com-regra"><label for="fin-com-regra">Regra de comissão</label><select id="fin-com-regra" data-busca="Buscar corretora…" ${podeEditar ? "" : "disabled"}>${opcoesDeRegra(rascunho.regraId, x.c.plano)}</select></div>
-      ${podeEditar ? `<div class="actions">${algumAjuste ? `<button class="btn" type="button" data-restaurar-comissao title="Volta os percentuais e as datas para o que a regra calcula">Voltar ao da regra</button>` : ""}<button class="btn primary" type="submit">Salvar</button><button class="btn" type="button" data-fechar-comissao>Fechar</button></div>` : ""}
+    <div class="fin-com-cabecalho">
+      ${regra ? `<p class="note" style="margin:0">${esc(regra.corretora)} · ${esc(regra.nome)} (${esc(rotuloDoSegmento(regra.segmento))})${regra.observacao ? ` · ${esc(regra.observacao)}` : ""}${podeEditar ? " · altere o percentual ou a data de um pagamento: salva na hora." : ""}</p>` : `<p class="note" style="margin:0">Escolha a regra na coluna Regra para calcular a comissão.</p>`}
+      ${podeEditar && algumAjuste ? `<button class="btn" type="button" data-restaurar-comissao title="Volta os percentuais e as datas para o que a regra calcula">Voltar ao da regra</button>` : ""}
     </div>
-    ${regra ? `<p class="note" style="margin:0">${esc(regra.corretora)} · ${esc(regra.nome)} (${esc(rotuloDoSegmento(regra.segmento))})${regra.observacao ? ` · ${esc(regra.observacao)}` : ""}</p>` : `<p class="note" style="margin:0">Escolha a regra da corretora para calcular a comissão.</p>`}
     ${conta.itens.length ? `<div class="grade-rolagem"><table class="grade-tabela fin-detalhe"><thead><tr><th>Pagamento</th><th>Previsto para</th><th class="dir">Percentual</th><th class="dir">Base</th><th class="dir">Valor</th></tr></thead><tbody>
       ${conta.itens.map((i) => `<tr data-item="${i.chave}"${i.ajustado ? ' class="fin-ajustado"' : ""}><td>${esc(i.rotulo)}${i.ajustado ? ' <span class="ctr-sub" title="Alterado neste contrato">(alterado)</span>' : ""}</td>
         <td class="grade-data">${podeEditar ? `<input type="date" class="fin-aj-data" data-aj-data value="${esc(i.data)}" aria-label="Data prevista: ${esc(i.rotulo)}" title="Pela regra: ${esc(fmtDia(i.dataDaRegra))}">` : esc(fmtDia(i.data))}</td>
@@ -370,7 +370,7 @@ function linhaDaComissao(x) {
         : `<div class="grade-plano fin-regra" title="${esc(regraTxt)}">${x.regra ? esc(regraTxt) : `<span class="fin-falta">Sem regra</span>`}</div>`}</td>
       <td class="grade-data">${esc(fmtDia(x.c.ativacao))}</td>
       <td class="grade-valor dir"><b>${x.regra ? `R$ ${brl(x.comissao.total)}` : "—"}</b></td>
-      <td><div class="grade-acoes">${botaoIcone("calculadora", edita() ? "Definir a regra e ver o cálculo da comissão" : "Ver o cálculo da comissão", { atributos: `data-abrir-com aria-expanded="${aberto}"`, classe: x.regra ? "" : edita() ? "primario" : "" })}</div></td>
+      <td><div class="grade-acoes">${botaoIcone("calculadora", edita() ? "Ver o cálculo da comissão e ajustar os pagamentos" : "Ver o cálculo da comissão", { atributos: `data-abrir-com aria-expanded="${aberto}"` })}</div></td>
     </tr>${aberto ? `<tr class="grade-painel-linha" data-com="${esc(x.c.id)}"><td colspan="${COLUNAS_COM.length + 1}">${painelDaComissao(x)}</td></tr>` : ""}`;
 }
 
@@ -401,10 +401,13 @@ export function renderComissoes() {
     (mesCom === "todos" || x.c.ativacao.startsWith(mesCom))
     && (corretoraCom === "todas" || (corretoraCom === "sem" ? !x.regra : x.regra?.corretoraId === corretoraCom))
     && (!termo || normalizar(`${x.c.nome} ${x.c.plano} ${x.regra?.nome ?? ""} ${x.regra?.corretora ?? ""}`).includes(termo)));
-  const vendas = base.reduce((a, x) => a + x.c.valor, 0), comissao = base.reduce((a, x) => a + x.comissao.total, 0), semRegra = base.filter((x) => !x.regra).length;
+  // Comissão prevista: só os pagamentos com data prevista no mês atual (a angariação e as parcelas que caem nele).
+  const hoje = new Date(), mesAtual = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}`;
+  const doMes = (x) => x.comissao.itens.filter((i) => i.data?.startsWith(mesAtual)).reduce((a, i) => a + i.valor, 0);
+  const vendas = base.reduce((a, x) => a + x.c.valor, 0), comissao = Math.round(base.reduce((a, x) => a + doMes(x), 0) * 100) / 100, semRegra = base.filter((x) => !x.regra).length;
   desenharCards($("#com-cards"), [
     { chave: "todos", rotulo: `Total de vendas · ${base.length} ${base.length === 1 ? "contrato" : "contratos"}`, qtd: `R$ ${brl(vendas)}` },
-    { chave: "com", rotulo: "Comissão prevista", qtd: `R$ ${brl(comissao)}` },
+    { chave: "com", rotulo: `Comissão prevista · ${nomeDoMes(mesAtual)}`, qtd: `R$ ${brl(comissao)}` },
     { chave: "sem", rotulo: "Contratos sem regra", qtd: semRegra },
   ], filtroCom, (chave) => { filtroCom = chave; paginaCom = 1; renderComissoes(); });
   $("#com-count").textContent = `${contratos.length} ${contratos.length === 1 ? "contrato" : "contratos"} · ${corretoras.length} ${corretoras.length === 1 ? "corretora" : "corretoras"}`;
@@ -444,9 +447,20 @@ export function renderComissoes() {
   const form = box.querySelector("[data-form-comissao]");
   if (form) {
     const x = daLinha(form);
-    // O cálculo acompanha a escolha da regra e o valor digitado, antes de salvar.
-    // Trocar a regra recomeça os ajustes, que valem para os pagamentos da regra escolhida.
-    form.querySelector("#fin-com-regra").onchange = (e) => { rascunho.regraId = e.target.value; rascunho.ajustes = {}; renderComissoes(); };
+    // Os ajustes são salvos na hora; se o servidor recusar, a tela volta ao que estava salvo.
+    const salvar = async () => {
+      try {
+        const novo = await api(`/api/contratos/${encodeURIComponent(x.c.id)}/comissao`, { metodo: "PATCH", json: { regraId: x.c.regraId || null, ajustes: rascunho.ajustes } });
+        contratos = contratos.map((c) => (c.id === novo.id ? novo : c));
+        if (abertoCom === novo.id) rascunho = { regraId: novo.regraId ?? "", ajustes: structuredClone(novo.ajustes ?? {}) };
+        renderComissoes();
+        avisoCentral("Comissão salva com sucesso");
+      } catch (erro) {
+        rascunho = { regraId: x.c.regraId ?? "", ajustes: structuredClone(x.c.ajustes ?? {}) };
+        renderComissoes();
+        toast(`Não deu para salvar: ${erro.message}`, "erro");
+      }
+    };
     // Percentual e data de cada linha: o que for igual ao da regra deixa de ser ajuste.
     const regraAberta = () => regraPorId().get(rascunho.regraId) ?? null;
     const ajustar = (chave, campo, valor) => {
@@ -455,7 +469,7 @@ export function renderComissoes() {
       const a = { ...(rascunho.ajustes[chave] ?? {}) };
       if (valor === "" || valor === null || valor === daRegra) delete a[campo]; else a[campo] = valor;
       if (Object.keys(a).length) rascunho.ajustes[chave] = a; else delete rascunho.ajustes[chave];
-      renderComissoes();
+      salvar();
     };
     form.querySelectorAll("[data-aj-data]").forEach((el) => (el.onchange = () => ajustar(el.closest("[data-item]").dataset.item, "data", el.value)));
     form.querySelectorAll("[data-aj-pct]").forEach((el) => (el.onchange = () => {
@@ -465,19 +479,8 @@ export function renderComissoes() {
       ajustar(el.closest("[data-item]").dataset.item, "percentual", n);
     }));
     form.querySelectorAll("[data-aj-pct]").forEach((el) => el.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); el.dispatchEvent(new Event("change")); } }));
-    form.querySelector("[data-restaurar-comissao]")?.addEventListener("click", () => { rascunho.ajustes = {}; renderComissoes(); });
-    form.querySelector("[data-fechar-comissao]")?.addEventListener("click", () => { abertoCom = null; rascunho = null; renderComissoes(); });
-    form.onsubmit = async (e) => {
-      e.preventDefault();
-      try {
-        const novo = await api(`/api/contratos/${encodeURIComponent(x.c.id)}/comissao`, { metodo: "PATCH", json: { regraId: rascunho.regraId || null, ajustes: rascunho.ajustes } });
-        contratos = contratos.map((c) => (c.id === novo.id ? novo : c));
-        abertoCom = null;
-        rascunho = null;
-        renderComissoes();
-        avisoCentral("Comissão salva com sucesso");
-      } catch (erro) { toast(`Não deu para salvar: ${erro.message}`, "erro"); }
-    };
+    form.querySelector("[data-restaurar-comissao]")?.addEventListener("click", () => { rascunho.ajustes = {}; salvar(); });
+    form.onsubmit = (e) => e.preventDefault();
   }
 }
 

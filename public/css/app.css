@@ -658,10 +658,7 @@ body{margin:0}
 .fin-regra-celula .fs-botao{min-height:34px;padding:6px 10px;font-size:13.5px}
 .fin-regra-celula .fs-botao.fin-sem-regra{border-color:var(--danger);color:var(--danger)}
 .fin-comissao{display:flex;flex-direction:column;gap:10px}
-.fin-com-campos{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px}
-.fin-com-campos .fin-com-regra{flex:1 1 360px;max-width:560px}
-.fin-com-campos .field:not(.fin-com-regra){width:180px}
-.fin-com-campos .actions{margin:0}
+.fin-com-cabecalho{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 12px}
 .fin-detalhe{min-width:0}
 .fin-detalhe input.fin-aj-data{width:150px;padding:6px 8px;font-size:14px}
 .fin-detalhe input.fin-aj-pct{width:76px;padding:6px 8px;font-size:14px;text-align:right}
