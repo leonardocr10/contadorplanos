@@ -402,9 +402,10 @@ export function renderComissoes() {
   // Pagamentos de um contrato no mês escolhido; contrato sem regra (sem pagamentos) entra pelo mês de ativação.
   const noMes = (i) => mesPagamento === "todos" || i.data?.startsWith(mesPagamento);
   for (const x of linhas) x.itensDoMes = x.comissao.itens.filter(noMes);
+  // Contrato sem regra aparece sempre, seja qual for o mês ou a corretora, até a regra ser escolhida (a busca vale).
   const base = linhas.filter((x) =>
-    (mesPagamento === "todos" || (x.regra ? x.itensDoMes.length > 0 : x.c.ativacao.startsWith(mesPagamento)))
-    && (corretoraCom === "todas" || (corretoraCom === "sem" ? !x.regra : x.regra?.corretoraId === corretoraCom))
+    (!x.regra || mesPagamento === "todos" || x.itensDoMes.length > 0)
+    && (!x.regra || corretoraCom === "todas" || (corretoraCom !== "sem" && x.regra.corretoraId === corretoraCom))
     && (!termo || normalizar(`${x.c.nome} ${x.c.plano} ${x.regra?.nome ?? ""} ${x.regra?.corretora ?? ""}`).includes(termo)));
   // A lista de meses traz o mês atual e os meses com algum pagamento previsto.
   const mesesPag = [...new Set([mesDeHoje(), ...linhas.flatMap((x) => x.comissao.itens.map((i) => i.data?.slice(0, 7)).filter(Boolean))])].sort();
@@ -435,7 +436,9 @@ export function renderComissoes() {
   if (!pode("contratos")) { box.innerHTML = `<div class="status">Para ver as comissões, peça ao administrador acesso à tela Contratos Vendidos.</div>`; nav.innerHTML = ""; return; }
   if (!contratos.length) { box.innerHTML = `<div class="status">Nenhum contrato vendido ainda. Os contratos de <b>Contratos Vendidos</b> aparecem aqui.</div>`; nav.innerHTML = ""; return; }
   const filtrados = base.filter((x) => filtroCom !== "sem" || !x.regra);
-  const pag = paginar(ordenarPor(filtrados, COLUNAS_COM, ordemCom, (x, y) => y.c.ativacao.localeCompare(x.c.ativacao)), paginaCom, porPaginaCom);
+  // Os sem regra vêm primeiro; depois, a ordem escolhida.
+  const ordenados = ordenarPor(filtrados, COLUNAS_COM, ordemCom, (x, y) => y.c.ativacao.localeCompare(x.c.ativacao));
+  const pag = paginar([...ordenados.filter((x) => !x.regra), ...ordenados.filter((x) => x.regra)], paginaCom, porPaginaCom);
   paginaCom = pag.pagina;
   box.innerHTML = pag.quantos
     ? `<div class="grade-rolagem"><table class="grade-tabela">${cabecalho(COLUNAS_COM, ordemCom)}<tbody>${pag.itens.map(linhaDaComissao).join("")}</tbody></table></div>`
