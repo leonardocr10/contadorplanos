@@ -198,7 +198,10 @@
     <div class="panel">
       <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center">
         <h2>Contratos Vendidos</h2>
-        <span class="note" id="ctr-count"></span>
+        <div class="fin-mes-pag">
+          <span class="note" id="ctr-count"></span>
+          <div class="field"><label for="ctr-mes">Mês de ativação</label><select id="ctr-mes" data-icone="calendario" data-contagem="mês|meses"></select></div>
+        </div>
       </div>
       <div class="grade-cards" id="ctr-cards" role="group" aria-label="Contratos por situação"></div>
     </div>
@@ -215,13 +218,6 @@
       </form>
     </div>
     <div class="panel">
-      <div class="hist-filtros ctr-filtros">
-        <div class="field"><label for="ctr-busca">Buscar</label><input id="ctr-busca" type="search" placeholder="Nome, telefone, e-mail ou plano" autocomplete="off"></div>
-        <div class="field"><label for="ctr-mes">Mês de ativação</label><select id="ctr-mes" data-icone="calendario" data-contagem="mês|meses"></select></div>
-        <div class="field"><label for="ctr-filtro">Situação</label><select id="ctr-filtro" data-icone="filtro" data-contagem="situação|situações"></select></div>
-        <div class="field"><label for="ctr-por-pagina">Por página</label><select id="ctr-por-pagina"><option value="10">10 por página</option><option value="25">25 por página</option><option value="50">50 por página</option><option value="100">100 por página</option></select></div>
-        <button type="button" class="btn btn-limpar" id="ctr-limpar" title="Limpar filtros" aria-label="Limpar filtros" disabled><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg><span>Limpar</span></button>
-      </div>
       <div id="ctr-list"></div>
       <nav class="grade-paginacao" id="ctr-paginacao" aria-label="Páginas dos contratos"></nav>
     </div>

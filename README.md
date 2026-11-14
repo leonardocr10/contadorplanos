@@ -90,7 +90,7 @@ Na tela **Documentos**, escolha o plano na lista para cadastrar ou excluir os do
 
 ## Contratos Vendidos
 
-Cadastre cada venda com o nome e o telefone do cliente, o plano contratado, o valor e a data de ativação. A partir da data de ativação, até você marcar **Contato feito**, o sistema avisa que é preciso falar com o cliente: um número na tela, uma faixa no topo e um aviso ao abrir o cotador. O botão **Mensagem no WhatsApp** abre um texto pronto, que pode ser editado antes de enviar.
+Cadastre cada venda com o nome e o telefone do cliente, o plano contratado, o valor e a data de ativação. A partir da data de ativação, até você marcar **Contato feito**, o sistema avisa que é preciso falar com o cliente: um número na tela, uma faixa no topo e um aviso ao abrir o cotador. O botão **Mensagem no WhatsApp** abre um texto pronto, que pode ser editado antes de enviar. No topo, o **Mês de ativação** escolhe o mês dos cards e da grade; clicar num card mostra só os contratos daquela situação.
 
 Em **Documentos**, cada contrato guarda os arquivos que o cliente enviou (PDF, JPG, PNG ou WebP), sem limite de quantidade. As fotos são reduzidas antes do envio. Os arquivos ficam dentro do banco: entram no backup e não têm link público. Cada usuário vê só os contratos que cadastrou, inclusive o administrador. Excluir um contrato apaga também os documentos dele.
 

@@ -4,7 +4,7 @@ import { $, S, api, avisoCentral, esc, pode, show, toast } from "./estado.js";
 import { linkConversaDireta, mensagemAtivacao } from "./mensagem.js";
 import { ligarVisualizacao } from "./visor-documento.js";
 import { normalizar } from "./filtro-select.js";
-import { botaoIcone, cabecalho, desenharCards, desenharPaginacao, guardarPorPagina, lerPorPagina, ordenarPor, paginar, proximaOrdem } from "./grade.js";
+import { botaoIcone, cabecalho, desenharCards, desenharPaginacao, lerPorPagina, ordenarPor, paginar, proximaOrdem } from "./grade.js";
 
 let contratos = [], carregados = false, erro = null, filtro = "todos", mes = "todos";
 const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
@@ -71,9 +71,9 @@ function avisar() {
   avisados = n;
 }
 
-/* ---------- grade: situação, busca, ordenação e páginas ---------- */
+/* ---------- grade: situação (pelos cards), mês (no topo), ordenação e páginas ---------- */
 const CHAVE_POR_PAGINA = "cotador.contratos.porPagina";
-let busca = "", pagina = 1, ordem = { campo: "situacao", dir: "asc" }, excluindo = null;
+let pagina = 1, ordem = { campo: "situacao", dir: "asc" }, excluindo = null;
 let porPagina = lerPorPagina(CHAVE_POR_PAGINA);
 
 const COLUNAS = [
@@ -86,13 +86,6 @@ const COLUNAS = [
 ];
 // A situação não tem mais coluna (os cards e o filtro mostram), mas continua sendo a ordem padrão da grade.
 const ORDENAVEIS = [...COLUNAS, { campo: "situacao", valor: (c) => ORDEM[situacao(c).chave] }];
-
-const combina = (c, termo) => {
-  if (!termo) return true;
-  const digitos = termo.replace(/\D/g, "");
-  if (digitos.length >= 3 && c.fone.includes(digitos)) return true;
-  return normalizar([c.nome, c.email, c.plano].join(" ")).includes(normalizar(termo));
-};
 
 function linhaDoContrato(c, dia, edita) {
   const st = situacao(c, dia);
@@ -136,10 +129,6 @@ function renderContratos() {
   if (!pode("contratos")) return;
   avisar();
   const dia = hoje();
-  const sel = $("#ctr-filtro"), quantos = (k) => contratos.filter((c) => situacao(c, dia).chave === k).length;
-  const opcoes = `<option value="todos" data-icone="todos">${FILTROS.todos}</option><optgroup label="Situações">${["pendente", "aguardando", "feito"].map((k) => `<option value="${k}"${carregados ? ` data-selo="${quantos(k)}"` : ""}>${FILTROS[k]}</option>`).join("")}</optgroup>`;
-  if (sel.dataset.opcoes !== opcoes) { sel.innerHTML = opcoes; sel.dataset.opcoes = opcoes; }
-  sel.value = filtro;
   // Meses que têm contrato, do mais recente para o mais antigo, com a quantidade de cada um.
   const meses = [...new Set(contratos.map((c) => c.ativacao.slice(0, 7)))].sort().reverse();
   if (mes !== "todos" && !meses.includes(mes)) mes = "todos";
@@ -147,19 +136,20 @@ function renderContratos() {
   const opcoesMes = `<option value="todos" data-icone="todos">Todos os meses</option>${meses.length ? `<optgroup label="Meses">${meses.map((m) => `<option value="${m}" data-selo="${contratos.filter((c) => c.ativacao.startsWith(m)).length}">${nomeDoMes(m)}</option>`).join("")}</optgroup>` : ""}`;
   if (selMes.dataset.opcoes !== opcoesMes) { selMes.innerHTML = opcoesMes; selMes.dataset.opcoes = opcoesMes; }
   selMes.value = mes;
-  $("#ctr-por-pagina").value = String(porPagina);
-  $("#ctr-limpar").disabled = filtro === "todos" && mes === "todos" && !busca.trim();
-  // Cards com a quantidade de cada situação; clicar filtra a grade.
+  // Cards com a quantidade de cada situação, no mês escolhido no topo; clicar filtra a grade.
+  const doMes = contratos.filter((c) => mes === "todos" || c.ativacao.startsWith(mes));
+  const quantos = (k) => doMes.filter((c) => situacao(c, dia).chave === k).length;
   desenharCards($("#ctr-cards"), [
-    { chave: "todos", rotulo: "Todos", qtd: contratos.length },
+    { chave: "todos", rotulo: "Todos", qtd: doMes.length },
     ...["pendente", "aguardando", "feito"].map((k) => ({ chave: k, rotulo: FILTROS[k], qtd: quantos(k) })),
   ], filtro, (chave) => { filtro = chave; pagina = 1; renderContratos(); });
   const box = $("#ctr-list"), nav = $("#ctr-paginacao");
   if (!carregados) { box.innerHTML = `<div class="status">${erro ? esc(erro) : "Carregando contratos…"}</div>`; nav.innerHTML = ""; return; }
-  $("#ctr-count").textContent = `${contratos.length} ${contratos.length === 1 ? "contrato" : "contratos"} · ${quantos("pendente")} para contatar`;
+  const pendentes = contratos.filter((c) => situacao(c, dia).chave === "pendente").length;
+  $("#ctr-count").textContent = `${contratos.length} ${contratos.length === 1 ? "contrato" : "contratos"} · ${pendentes} para contatar`;
   if (!contratos.length) { box.innerHTML = `<div class="status">Nenhum contrato cadastrado ainda. Preencha os dados acima e clique em <b>Cadastrar contrato</b>.</div>`; nav.innerHTML = ""; return; }
   const filtrados = contratos.filter((c) =>
-    (filtro === "todos" || situacao(c, dia).chave === filtro) && (mes === "todos" || c.ativacao.startsWith(mes)) && combina(c, busca.trim()));
+    (filtro === "todos" || situacao(c, dia).chave === filtro) && (mes === "todos" || c.ativacao.startsWith(mes)));
   // Desempate: dentro da mesma situação, a ordem de antes (próximas ativações primeiro; contato feito, as mais recentes).
   const ordemAntiga = ordenar(filtrados, dia), posicao = new Map(ordemAntiga.map((c, i) => [c.id, i]));
   const pag = paginar(ordenarPor(filtrados, ORDENAVEIS, ordem, (x, y) => posicao.get(x.id) - posicao.get(y.id)), pagina, porPagina);
@@ -579,16 +569,7 @@ export function conferirDiaDosContratos() {
 
 export function iniciarContratos() {
   $("#ctr-form").onsubmit = salvar;
-  $("#ctr-filtro").onchange = () => { filtro = $("#ctr-filtro").value; pagina = 1; renderContratos(); };
   $("#ctr-mes").onchange = () => { mes = $("#ctr-mes").value; pagina = 1; renderContratos(); };
-  $("#ctr-busca").oninput = () => { busca = $("#ctr-busca").value; pagina = 1; renderContratos(); };
-  $("#ctr-por-pagina").onchange = () => {
-    porPagina = Number($("#ctr-por-pagina").value) || 10;
-    guardarPorPagina(CHAVE_POR_PAGINA, porPagina);
-    pagina = 1;
-    renderContratos();
-  };
-  $("#ctr-limpar").onclick = () => { filtro = "todos"; mes = "todos"; busca = ""; $("#ctr-busca").value = ""; pagina = 1; renderContratos(); };
   $("#ctr-fone").addEventListener("blur", () => {
     const f = normFone($("#ctr-fone").value);
     if (f.length >= 10) $("#ctr-fone").value = fmtFone(f);
