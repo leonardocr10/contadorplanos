@@ -313,7 +313,7 @@ const CHAVE_PP_COM = "cotador.comissoes.porPagina";
 // Mês do card "Comissão prevista": começa no mês atual.
 const mesDeHoje = () => { const h = new Date(); return `${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, "0")}`; };
 let mesPagamento = mesDeHoje();
-let buscaCom = "", filtroCom = "todos", corretoraCom = "todas", mesCom = "todos", paginaCom = 1, ordemCom = { campo: "ativacao", dir: "desc" }, porPaginaCom = lerPorPagina(CHAVE_PP_COM);
+let buscaCom = "", filtroCom = "todos", corretoraCom = "todas", paginaCom = 1, ordemCom = { campo: "ativacao", dir: "desc" }, porPaginaCom = lerPorPagina(CHAVE_PP_COM);
 let abertoCom = null, rascunho = null;
 
 const COLUNAS_COM = [
@@ -386,39 +386,31 @@ export function renderComissoes() {
     const regra = c.regraId ? regras.get(c.regraId) ?? null : null;
     return { c, regra, comissao: calcularComissao(c, regra) };
   });
-  // Filtros de corretora e mês valem para os cards também: eles mostram o total do que está na grade.
-  const meses = [...new Set(contratos.map((c) => c.ativacao.slice(0, 7)))].sort().reverse();
-  if (mesCom !== "todos" && !meses.includes(mesCom)) mesCom = "todos";
-  const selMes = $("#com-mes");
-  const opMes = `<option value="todos" data-icone="todos">Todos os meses</option>${meses.length ? `<optgroup label="Meses">${meses.map((m) => `<option value="${m}">${nomeDoMes(m)}</option>`).join("")}</optgroup>` : ""}`;
-  if (selMes.dataset.opcoes !== opMes) { selMes.innerHTML = opMes; selMes.dataset.opcoes = opMes; }
-  selMes.value = mesCom;
+  // O mês de ativação (no topo) e os filtros de corretora e busca valem para os cards e a grade.
   if (corretoraCom !== "todas" && corretoraCom !== "sem" && !corretoras.some((c) => c.id === corretoraCom)) corretoraCom = "todas";
   const selCor = $("#com-corretora");
   const opCor = `<option value="todas" data-icone="todos">Todas as corretoras</option><option value="sem">Sem regra</option>${corretoras.length ? `<optgroup label="Corretoras">${corretoras.map((c) => `<option value="${esc(c.id)}">${esc(c.nome)}</option>`).join("")}</optgroup>` : ""}`;
   if (selCor.dataset.opcoes !== opCor) { selCor.innerHTML = opCor; selCor.dataset.opcoes = opCor; }
   selCor.value = corretoraCom;
   $("#com-por-pagina").value = String(porPaginaCom);
-  $("#com-limpar").disabled = !buscaCom.trim() && filtroCom === "todos" && corretoraCom === "todas" && mesCom === "todos";
+  $("#com-limpar").disabled = !buscaCom.trim() && filtroCom === "todos" && corretoraCom === "todas";
 
   const termo = normalizar(buscaCom.trim());
   const base = linhas.filter((x) =>
-    (mesCom === "todos" || x.c.ativacao.startsWith(mesCom))
+    (mesPagamento === "todos" || x.c.ativacao.startsWith(mesPagamento))
     && (corretoraCom === "todas" || (corretoraCom === "sem" ? !x.regra : x.regra?.corretoraId === corretoraCom))
     && (!termo || normalizar(`${x.c.nome} ${x.c.plano} ${x.regra?.nome ?? ""} ${x.regra?.corretora ?? ""}`).includes(termo)));
-  // Comissão prevista: só os pagamentos com data prevista no mês escolhido (a angariação e as parcelas que caem nele).
-  // A lista traz o mês atual e todos os meses com algum pagamento previsto.
-  // O mês do topo vale para os dois cards: vendas com ativação nele e comissão com pagamento previsto nele.
-  const mesesPag = [...new Set([mesDeHoje(), ...linhas.map((x) => x.c.ativacao.slice(0, 7)), ...linhas.flatMap((x) => x.comissao.itens.map((i) => i.data?.slice(0, 7)).filter(Boolean))])].sort();
+  // A lista de meses traz o mês atual e os meses com contratos ativados.
+  const mesesPag = [...new Set([mesDeHoje(), ...linhas.map((x) => x.c.ativacao.slice(0, 7))])].sort();
   if (mesPagamento !== "todos" && !mesesPag.includes(mesPagamento)) mesPagamento = mesDeHoje();
   const selPag = $("#com-mes-pag");
   const opPag = `<option value="todos" data-icone="todos">Todos os meses</option><optgroup label="Meses">${mesesPag.map((m) => `<option value="${m}">${nomeDoMes(m)}${m === mesDeHoje() ? " (atual)" : ""}</option>`).join("")}</optgroup>`;
   if (selPag.dataset.opcoes !== opPag) { selPag.innerHTML = opPag; selPag.dataset.opcoes = opPag; }
   selPag.value = mesPagamento;
   // Só entram os pagamentos marcados como pagos (Sim) na calculadora.
-  const doMes = (x) => x.comissao.itens.filter((i) => i.pago && (mesPagamento === "todos" || i.data?.startsWith(mesPagamento))).reduce((a, i) => a + i.valor, 0);
+  const doMes = (x) => x.comissao.itens.filter((i) => i.pago).reduce((a, i) => a + i.valor, 0);
   // Comissão prevista: os pagamentos do mês ainda não pagos (Pago = Não); recebidas: os marcados como pagos.
-  const doMesTodos = (x) => x.comissao.itens.filter((i) => !i.pago && (mesPagamento === "todos" || i.data?.startsWith(mesPagamento))).reduce((a, i) => a + i.valor, 0);
+  const doMesTodos = (x) => x.comissao.itens.filter((i) => !i.pago).reduce((a, i) => a + i.valor, 0);
   const prevista = Math.round(base.reduce((a, x) => a + doMesTodos(x), 0) * 100) / 100, comissao = Math.round(base.reduce((a, x) => a + doMes(x), 0) * 100) / 100, semRegra = base.filter((x) => !x.regra).length;
   desenharCards($("#com-cards"), [
     { chave: "prevista", rotulo: `Comissão prevista · ${mesPagamento === "todos" ? "todos os meses" : nomeDoMes(mesPagamento)}`, qtd: `R$ ${brl(prevista)}` },
@@ -523,7 +515,7 @@ function abrirListaCom(tipo) {
 // Os pagamentos do card: os do mês escolhido (todos, ou só os pagos), dos contratos que os filtros mostram.
 function pagamentosDaLista() {
   return ultimaBase.flatMap((x) => x.comissao.itens
-    .filter((i) => (mesPagamento === "todos" || i.data?.startsWith(mesPagamento)) && (listaCom === "prevista" ? !i.pago : i.pago))
+    .filter((i) => (listaCom === "prevista" ? !i.pago : i.pago))
     .map((i) => ({ x, i })))
     .sort((a, b) => (a.i.data || "").localeCompare(b.i.data || "") || a.x.c.nome.localeCompare(b.x.c.nome, "pt-BR"));
 }
@@ -607,10 +599,9 @@ export function iniciarFinanceiro() {
   // Comissões
   $("#com-busca").oninput = () => { buscaCom = $("#com-busca").value; paginaCom = 1; renderComissoes(); };
   $("#com-corretora").onchange = () => { corretoraCom = $("#com-corretora").value; paginaCom = 1; renderComissoes(); };
-  $("#com-mes").onchange = () => { mesCom = $("#com-mes").value; paginaCom = 1; renderComissoes(); };
-  $("#com-mes-pag").onchange = () => { mesPagamento = $("#com-mes-pag").value; renderComissoes(); };
+  $("#com-mes-pag").onchange = () => { mesPagamento = $("#com-mes-pag").value; paginaCom = 1; renderComissoes(); };
   $("#com-voltar").onclick = () => { listaCom = null; renderListaCom(); renderComissoes(); };
   $("#com-excel").onclick = gerarExcelDaLista;
   $("#com-por-pagina").onchange = () => { porPaginaCom = Number($("#com-por-pagina").value) || 10; guardarPorPagina(CHAVE_PP_COM, porPaginaCom); paginaCom = 1; renderComissoes(); };
-  $("#com-limpar").onclick = () => { buscaCom = ""; $("#com-busca").value = ""; filtroCom = "todos"; corretoraCom = "todas"; mesCom = "todos"; paginaCom = 1; renderComissoes(); };
+  $("#com-limpar").onclick = () => { buscaCom = ""; $("#com-busca").value = ""; filtroCom = "todos"; corretoraCom = "todas"; paginaCom = 1; renderComissoes(); };
 }
