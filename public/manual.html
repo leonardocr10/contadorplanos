@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Manual de uso · Cotador de Planos</title>
+<link rel="stylesheet" href="css/app.css">
+<style>
+  body{padding:0}
+  .manual{max-width:860px;margin:0 auto;padding:32px 24px 64px;line-height:1.6;color:var(--ink)}
+  .manual-topo{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .manual h1{margin:0;font-size:30px}
+  .manual h2{margin:36px 0 8px;padding-top:12px;border-top:1px solid var(--line);font-size:22px}
+  .manual h3{margin:20px 0 6px;font-size:17px}
+  .manual p,.manual li{font-size:15.5px}
+  .manual ul,.manual ol{padding-left:22px}
+  .manual li{margin:4px 0}
+  .manual table{width:100%;border-collapse:collapse;margin:8px 0;font-size:15px}
+  .manual th,.manual td{padding:8px 10px;border:1px solid var(--line);text-align:left}
+  .manual th{background:var(--bg)}
+  .manual code{padding:1px 6px;border-radius:6px;background:var(--bg);font-size:14px}
+  .manual nav.indice{margin:16px 0 8px;padding:14px 18px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+  .manual nav.indice ol{margin:6px 0 0;columns:2;column-gap:32px}
+  @media (max-width:640px){.manual nav.indice ol{columns:1}}
+  .manual .faq p{margin:10px 0}
+</style>
+</head>
+<body>
+<main class="manual">
+  <div class="manual-topo">
+    <h1>Manual de uso do Cotador de Planos</h1>
+    <a class="btn" href="./">← Voltar ao cotador</a>
+  </div>
+  <p class="note">Como usar cada tela do sistema, na ordem em que uma venda acontece.</p>
+
+  <nav class="indice" aria-label="Índice">
+    <b>Índice</b>
+    <ol>
+      <li><a href="#primeiros-passos">Primeiros passos</a></li>
+      <li><a href="#nova-cotacao">Nova Cotação</a></li>
+      <li><a href="#planos-documentos">Planos e Valores e Documentos</a></li>
+      <li><a href="#historico">Histórico</a></li>
+      <li><a href="#aceites">Aceites</a></li>
+      <li><a href="#contratos">Contratos Vendidos</a></li>
+      <li><a href="#financeiro">Financeiro</a></li>
+      <li><a href="#configuracoes">Configurações</a></li>
+      <li><a href="#duvidas">Dúvidas frequentes</a></li>
+    </ol>
+  </nav>
+
+  <h2 id="primeiros-passos">Primeiros passos</h2>
+  <p>O Cotador monta cotações de planos de saúde, envia a proposta pelo WhatsApp e acompanha a venda até a comissão. Uma venda percorre as telas nesta ordem:</p>
+  <ol>
+    <li><b>Nova Cotação</b>: escolha os planos e envie a mensagem com a imagem ou o link da proposta.</li>
+    <li><b>Aceites</b>: o cliente aceita pelo link e envia os documentos.</li>
+    <li><b>Contratos Vendidos</b>: o contrato é cadastrado com a data de ativação.</li>
+    <li><b>Financeiro &gt; Comissões</b>: o contrato recebe a regra da corretora e os pagamentos previstos.</li>
+  </ol>
+  <h3>Entrar</h3>
+  <ul>
+    <li>Abra o endereço do cotador e entre com o seu login e a sua senha.</li>
+    <li>Cada login é de uso individual. Se o mesmo login entrar em outro aparelho, o acesso anterior é encerrado.</li>
+    <li>Esqueceu a senha? Use <b>Esqueci minha senha</b> na tela de entrada; o link chega no e-mail cadastrado e vale uma vez.</li>
+  </ul>
+  <h3>Menu lateral</h3>
+  <ul>
+    <li>O menu fica à esquerda. <b>Financeiro</b> abre e fecha os itens Regras de pagamento e Comissões.</li>
+    <li>O <b>cadeado</b> no topo do menu fixa o menu aberto ou o recolhe para uma faixa de ícones, que abre ao passar o mouse.</li>
+    <li>O ícone <b>?</b>, ao lado do cadeado, abre este manual.</li>
+    <li>O seu nome e a sua foto ficam no topo; clicar neles abre <b>Meus dados</b>.</li>
+  </ul>
+  <h3>Perfis e acesso</h3>
+  <ul>
+    <li><b>Administrador</b> vê todas as telas e ainda Usuários, Backup e Atualizar sistema.</li>
+    <li><b>Usuário</b> vê só as telas que o administrador liberou, em edição, visualização ou sem acesso.</li>
+    <li>Cotações, aceites, contratos, corretoras e comissões são de cada login: cada um vê só os seus, inclusive o administrador.</li>
+  </ul>
+
+  <h2 id="nova-cotacao">Nova Cotação</h2>
+  <p>A cotação é montada em uma tela só e salva sozinha no Histórico quando tem nome, WhatsApp e plano.</p>
+  <ol>
+    <li>Preencha <b>Nome do cliente</b> e <b>WhatsApp do cliente</b> (com DDD). Os dois são obrigatórios: as faixas etárias só liberam depois deles.</li>
+    <li>Escolha <b>Pessoa física</b> ou <b>CNPJ</b> e a <b>Cidade</b>. A cidade mostra só os planos vendidos nela.</li>
+    <li>Em <b>Beneficiários por faixa etária</b>, use + e − para informar quantas pessoas há em cada faixa.</li>
+    <li>Em <b>Planos da proposta</b>, busque e marque os planos. Planos com opções (total, parcial, coparticipação) abrem a escolha ao clicar.</li>
+    <li>Confira a prévia da mensagem à direita. Em <b>Ajustar o texto antes de enviar</b>, dá para editar o texto.</li>
+    <li>Envie: <b>Abrir no WhatsApp</b> abre a conversa com o texto e copia a imagem (na conversa, Ctrl+V cola a imagem); <b>Copiar mensagem</b> e <b>Copiar link</b> copiam só o texto ou o link da proposta.</li>
+  </ol>
+  <p>Dicas:</p>
+  <ul>
+    <li>Com o WhatsApp de um cliente que já tem cotações, o nome aparece sozinho e o histórico dele é mostrado abaixo dos campos.</li>
+    <li><b>Limpar</b> zera as faixas; zerar as faixas também desmarca os planos.</li>
+    <li>O link da proposta leva o cliente a uma página onde ele aceita o plano; o aceite aparece em <b>Aceites</b>.</li>
+    <li>O botão <b>Nova Cotação</b> do menu recomeça do zero.</li>
+  </ul>
+
+  <h2 id="planos-documentos">Planos e Valores e Documentos</h2>
+  <p>Essas duas telas guardam o que vai na proposta: os preços e regras de cada plano e os documentos pedidos ao cliente. Quem não tem acesso de edição só consulta.</p>
+  <h3>Planos e Valores</h3>
+  <ul>
+    <li><b>Novo plano</b> abre o editor. Os campos principais: nome, subtítulo, tipo (PF ou CNPJ), taxa associativa, mínimo de vidas e ordem na lista.</li>
+    <li><b>Preços</b>: em <b>Colar da planilha</b>, copie do Excel as 10 linhas (faixa, enfermaria, apartamento) e cole; os valores entram nas faixas.</li>
+    <li><b>Área de comercialização</b>: uma linha por estado, como <code>MG: Uberlândia, Araguari</code>. Define em que cidades o plano aparece na cotação.</li>
+    <li><b>Proposta</b>: coparticipação e carências (imagem ou tabela), rede hospitalar, benefícios, observação e as cores da operadora.</li>
+    <li>Os valores salvos valem para todas as próximas cotações. <b>Excluir plano</b> fica no próprio editor.</li>
+  </ul>
+  <h3>Documentos</h3>
+  <ol>
+    <li>Escolha o plano na lista.</li>
+    <li>Em <b>Novo documento</b>, digite o nome do documento e clique em <b>Adicionar</b>; para tirar um, exclua-o da lista.</li>
+    <li><b>Copiar mensagem</b> copia a lista pronta para mandar ao cliente pelo WhatsApp.</li>
+  </ol>
+  <p>Essa lista é a mesma que o cliente vê ao enviar os documentos depois do aceite.</p>
+
+  <h2 id="historico">Histórico</h2>
+  <p>O Histórico mostra um cliente por linha, com a última cotação dele e a situação da negociação.</p>
+  <ul>
+    <li><b>Cards do topo</b>: Enviada, Em Negociação, Vendida e Negativa. Clicar num card mostra só os clientes daquela situação.</li>
+    <li><b>Mês</b>: filtra pelo mês da última cotação de cada cliente.</li>
+    <li><b>Buscar</b>: por nome, telefone ou plano.</li>
+    <li><b>Ícones da linha</b>:
+      <ul>
+        <li>olho: abre as cotações do cliente logo abaixo da linha;</li>
+        <li>balão: abre a conversa no WhatsApp;</li>
+        <li>seta circular: reabre a última cotação em Nova Cotação.</li>
+      </ul>
+    </li>
+    <li><b>Cotações abertas</b>: em cada uma dá para mudar a situação, ver a mensagem enviada, reabrir ou excluir.</li>
+  </ul>
+  <p>Mude a situação conforme a conversa avança: os cards contam a situação da cotação mais recente de cada cliente.</p>
+
+  <h2 id="aceites">Aceites</h2>
+  <p>Quando o cliente aceita a proposta pelo link, ela aparece em <b>Aceites</b>. Daqui sai o pedido de documentos e, no fim, o contrato.</p>
+  <ol>
+    <li><b>Pedir documentos</b> (ícone do WhatsApp): abre a conversa com a lista de documentos do plano e o link de envio. O cliente entra com o telefone dele, envia os documentos aos poucos e pode parar e continuar depois.</li>
+    <li><b>Recebendo documentos</b>: a cada envio, a contagem aparece no ícone de documentos. Clique nele para ver e abrir os arquivos.</li>
+    <li><b>Documentos recebidos</b>: o cliente clicou em <b>Concluir envio</b> e informou nome e e-mail.</li>
+    <li><b>Proposta enviada</b> (ícone do avião de papel): só libera depois que o cliente concluiu o envio. Abre a mensagem pronta para o WhatsApp, que pode ser editada antes de enviar.</li>
+    <li><b>Cadastrar em Contratos Vendidos</b> (ícone do contrato): só libera depois do aviso de proposta enviada. Pede a data de ativação e leva os documentos junto.</li>
+  </ol>
+  <p>Outros recursos:</p>
+  <ul>
+    <li><b>Cards e mês do aceite</b> no topo filtram a grade; a busca encontra nome, telefone, e-mail ou plano.</li>
+    <li><b>Copiar o link de envio</b> manda de novo o link dos documentos ao cliente.</li>
+    <li><b>Excluir aceite</b> remove o aceite e os documentos dele, e o link da proposta deixa de abrir para o cliente.</li>
+  </ul>
+
+  <h2 id="contratos">Contratos Vendidos</h2>
+  <p>Cada venda fica aqui com a data de ativação. A partir dessa data, o sistema avisa que é hora de falar com o cliente, até você marcar o contato como feito.</p>
+  <h3>Cadastrar um contrato</h3>
+  <ul>
+    <li>Preencha nome, telefone, e-mail (opcional), plano, valor da mensalidade e data de ativação, e clique em <b>Cadastrar contrato</b>.</li>
+    <li>O contrato novo aparece no topo da lista, destacado em verde.</li>
+    <li>Contratos vindos de Aceites já chegam preenchidos e com os documentos.</li>
+  </ul>
+  <h3>Acompanhar</h3>
+  <ul>
+    <li><b>Mês de ativação</b> (no topo) escolhe o mês dos cards e da grade.</li>
+    <li><b>Cards</b>: Todos, Entrar em contato (ativou e o contato não foi feito, com faixa vermelha na linha), Aguardando ativação e Contato feito. Clicar num card filtra a grade.</li>
+    <li>No dia da ativação aparece um aviso ao abrir o cotador e uma faixa no topo da tela.</li>
+  </ul>
+  <h3>Ícones da linha</h3>
+  <ul>
+    <li><b>Mensagem no WhatsApp</b>: texto pronto para o contato, editável antes de enviar.</li>
+    <li><b>Documentos</b>: guarda PDF, JPG, PNG ou WebP do cliente, sem limite de quantidade; abrem num visualizador na própria tela.</li>
+    <li><b>Contato feito</b>: marca (ou desmarca) o contato com o cliente.</li>
+    <li><b>Editar</b> e <b>Excluir</b>: excluir apaga também os documentos do contrato.</li>
+  </ul>
+
+  <h2 id="financeiro">Financeiro</h2>
+  <p>O Financeiro calcula a comissão de cada contrato vendido pela regra da corretora. Primeiro cadastre as regras; depois, em Comissões, ligue cada contrato à sua regra.</p>
+  <h3>Regras de pagamento</h3>
+  <ol>
+    <li>Clique em <b>Nova corretora</b> e dê o nome dela. Ela entra na lista de corretoras.</li>
+    <li>Clique na corretora para abrir as regras dela, ou em <b>Nova regra</b> na linha para já cadastrar.</li>
+    <li>Na nova regra, escolha o <b>Segmento</b> (Pessoa física ou PME) e, em <b>Operadoras</b>, marque um ou mais planos. <b>Selecionar todos</b> marca os planos que aparecem na busca, e <b>OK</b> fecha a lista.</li>
+    <li>Preencha os percentuais, todos sobre a mensalidade:
+      <ul>
+        <li><b>Angariação</b> (só Pessoa física): paga no ato da venda;</li>
+        <li><b>1ª a 4ª parcela</b>: uma por mês a partir da ativação. Campo em branco vale zero.</li>
+      </ul>
+    </li>
+    <li>Clique em <b>Adicionar regra</b>: a mesma regra é criada para cada plano marcado.</li>
+  </ol>
+  <p>Na grade, o lápis edita e a lixeira exclui uma regra. Excluir uma regra ou uma corretora deixa sem regra os contratos que a usavam.</p>
+  <h3>Comissões</h3>
+  <ul>
+    <li><b>Previsto para</b> (no topo) escolhe o mês pela data prevista de cada pagamento. Vale para os cards, a grade e a lista.</li>
+    <li><b>Regra na linha</b>: na coluna Regra, escolha a corretora. A lista já traz só as corretoras com regra para o plano do contrato, e salva na hora.</li>
+    <li><b>Contratos sem regra</b> aparecem sempre, em primeiro, até a regra ser escolhida.</li>
+    <li><b>Calculadora</b> (ícone da linha): mostra cada pagamento com data, percentual, base e valor. Dá para alterar o percentual (por exemplo, um desconto na angariação) e a data prevista, só para aquele contrato; <b>Voltar ao da regra</b> desfaz.</li>
+    <li><b>Pago</b>: marque <b>Sim</b> quando a comissão for recebida.</li>
+  </ul>
+  <table>
+    <thead><tr><th>Card</th><th>O que soma</th></tr></thead>
+    <tbody>
+      <tr><td>Comissão prevista</td><td>pagamentos do mês ainda com Pago = Não</td></tr>
+      <tr><td>Comissões recebidas</td><td>pagamentos do mês marcados Sim</td></tr>
+      <tr><td>Contratos sem regra</td><td>contratos que ainda não têm regra</td></tr>
+    </tbody>
+  </table>
+  <p>Clicar em Comissão prevista ou em Comissões recebidas abre a lista dos pagamentos, com o botão <b>Gerar Excel</b>.</p>
+
+  <h2 id="configuracoes">Configurações</h2>
+  <p>Cada login cuida dos próprios dados e da senha; o administrador também cuida dos usuários, do backup e das atualizações.</p>
+  <ul>
+    <li><b>Meus dados</b>: nome, telefone, empresa, e-mail e foto. Nome, telefone e empresa vão na proposta enviada ao cliente.</li>
+    <li><b>Alterar senha</b>: informe a senha atual e a nova (mínimo de 8 caracteres).</li>
+  </ul>
+  <p>Só o administrador:</p>
+  <ul>
+    <li><b>Usuários</b>:
+      <ul>
+        <li><b>Novo usuário</b> cria um login com e-mail, senha inicial e perfil;</li>
+        <li>clicar numa tela de um usuário troca o acesso (edição → visualização → sem acesso) e salva na hora;</li>
+        <li><b>Desativar</b> bloqueia o login, mas guarda as cotações, os contratos e os documentos dele; <b>Ativar</b> libera de novo.</li>
+      </ul>
+    </li>
+    <li><b>Backup</b>: <b>Fazer backup</b> baixa um arquivo com planos, usuários, histórico, contratos com documentos e imagens. <b>Restaurar backup</b> troca todos os dados pelos do arquivo; uma cópia dos dados atuais fica na pasta backups.</li>
+    <li><b>Atualizar sistema</b>: baixa a versão mais recente e reinicia o cotador. Os dados não mudam; os links dos clientes ficam fora do ar por alguns instantes.</li>
+  </ul>
+
+  <h2 id="duvidas">Dúvidas frequentes</h2>
+  <div class="faq">
+    <p><b>Fui desconectado sozinho.</b> O mesmo login entrou em outro aparelho. Cada login é individual; peça ao administrador um login seu.</p>
+    <p><b>Não consigo mexer nas faixas etárias.</b> Preencha antes o nome e o WhatsApp do cliente, com DDD.</p>
+    <p><b>Um plano não aparece na cotação.</b> Confira a cidade escolhida e a área de comercialização do plano em Planos e Valores.</p>
+    <p><b>O botão Proposta enviada está apagado.</b> O cliente ainda não concluiu o envio dos documentos.</p>
+    <p><b>O contrato não tem corretora na coluna Regra.</b> Ainda não há regra para o plano dele: cadastre em Regras de pagamento.</p>
+    <p><b>Uma tela não aparece no menu.</b> O seu usuário está sem acesso a ela; o administrador libera em Configurações &gt; Usuários.</p>
+    <p><b>Uma mudança nova não apareceu.</b> O administrador roda Atualizar sistema; depois, recarregue a página com Ctrl+Shift+R.</p>
+  </div>
+</main>
+</body>
+</html>

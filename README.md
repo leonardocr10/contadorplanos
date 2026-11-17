@@ -11,6 +11,8 @@ Se o Node.js não puder ser instalado automaticamente, baixe a versão LTS em ht
 
 Em **Configurações > Meus dados**, preencha seu nome, telefone e corretora. Eles aparecem na imagem e na mensagem.
 
+O **manual de uso** abre pelo ícone **?** no topo do menu, ao lado do cadeado (`public/manual.html`, só para quem entrou no sistema). Ao mudar uma tela, atualize o manual junto.
+
 ## Atualizar o sistema
 
 Com o login de administrador, em **Configurações > Atualizar sistema**, clique em **Atualizar agora**. O cotador baixa a versão nova do GitHub e reinicia sozinho, desde que tenha sido aberto pelo `iniciar.bat`. Quando ele volta, a tela recarrega com a versão nova: o navegador sempre confere com o servidor as telas e os scripts, então não precisa limpar o cache.

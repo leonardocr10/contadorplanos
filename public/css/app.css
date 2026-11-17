@@ -556,13 +556,17 @@ body{margin:0}
 
 /* Menu fixo ou recolhido (só no computador). O cadeado no topo fixa (fechado) ou recolhe (aberto) o menu;
    recolhido, fica só a faixa com os ícones das telas, e passar o mouse abre o menu por cima, sem empurrar o conteúdo. */
-.menu-cadeado,.tab-ico{display:none}
+.menu-cadeado,.menu-ajuda,.tab-ico{display:none}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 @media (min-width:901px){
   body{transition:padding-left .18s ease}
   header.top{padding-top:48px;overflow-x:hidden;transition:width .18s ease,box-shadow .18s ease}
   .menu-cadeado{position:absolute;top:12px;right:12px;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;padding:0;border:1px solid transparent;border-radius:9px;background:transparent;color:var(--accent);cursor:pointer}
   .menu-cadeado:hover{background:var(--accent-soft);border-color:var(--accent)}
+  /* Manual de uso: à esquerda do cadeado; some com o menu recolhido e volta ao passar o mouse. */
+  .menu-ajuda{position:absolute;top:12px;right:48px;display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border:1px solid transparent;border-radius:9px;color:var(--accent)}
+  .menu-ajuda:hover{background:var(--accent-soft);border-color:var(--accent)}
+  body.menu-recolhido header.top:not(:hover) .menu-ajuda,body.menu-recolhido header.top.saindo-do-mouse .menu-ajuda{display:none}
   .menu-cadeado .ico-aberto,.menu-cadeado:not(.fixado) .ico-fechado{display:none}
   .menu-cadeado:not(.fixado) .ico-aberto{display:block}
   .tab-ico{display:block;flex:none}
