@@ -610,8 +610,20 @@ body{margin:0}
 .manual code{padding:1px 6px;border-radius:6px;background:var(--bg);font-size:14px}
 .manual nav.indice{margin:16px 0 8px;padding:14px 18px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
 .manual nav.indice ol{margin:6px 0 0;columns:2;column-gap:32px}
+.manual nav.indice li{margin:0 0 6px;break-inside:avoid}
 @media (max-width:640px){.manual nav.indice ol{columns:1}}
 .manual .faq p{margin:10px 0}
+.manual figure{margin:14px 0 20px}
+.manual figure img{display:block;width:100%;height:auto;border:1px solid var(--line);border-radius:12px;box-shadow:0 2px 12px rgba(8,28,21,.08);cursor:zoom-in}
+.manual figcaption{margin-top:6px;font-size:13.5px;color:var(--muted)}
+.manual ol.passos>li{margin:6px 0}
+.manual .dica,.manual .atencao,.manual .exemplo{margin:14px 0;padding:12px 16px;border-left:4px solid var(--accent);border-radius:0 10px 10px 0;background:var(--accent-soft);font-size:15px}
+.manual .atencao{border-left-color:var(--danger);background:var(--danger-soft)}
+.manual .exemplo{border-left-color:var(--pine);background:var(--surface);border-top:1px solid var(--line);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.manual .exemplo table{margin:10px 0;background:var(--surface)}
+dialog.manual-zoom{max-width:96vw;max-height:94vh;padding:0;border:0;border-radius:12px;background:transparent;cursor:zoom-out}
+dialog.manual-zoom::backdrop{background:var(--scrim)}
+dialog.manual-zoom img{display:block;max-width:96vw;max-height:94vh;border-radius:12px}
 #v-manual .manual{padding-top:8px}
 /* Salvar sempre à vista no editor do plano. */
 .modal-acoes{position:sticky;bottom:-24px;z-index:2;margin:0 -20px -20px;padding:12px 20px;background:var(--surface);border-top:1px solid var(--line)}

@@ -53,6 +53,16 @@ async function carregarManual() {
       e.preventDefault();
       document.getElementById(a.getAttribute("href").slice(1))?.scrollIntoView({ behavior: "smooth", block: "start" });
     }));
+    // Clicar numa imagem abre em tamanho grande; clicar de novo (ou Esc) fecha.
+    const zoom = document.createElement("dialog");
+    zoom.className = "manual-zoom";
+    zoom.innerHTML = `<img alt="">`;
+    zoom.onclick = () => zoom.close();
+    $("#v-manual").append(zoom);
+    $("#manual-conteudo").querySelectorAll("figure img").forEach((img) => (img.onclick = () => {
+      Object.assign(zoom.querySelector("img"), { src: img.src, alt: img.alt });
+      zoom.showModal();
+    }));
   } catch {
     manualCarregado = false;
     $("#manual-conteudo").innerHTML = `<p class="status">Não deu para abrir o manual agora. Tente de novo.</p>`;

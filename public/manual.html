@@ -13,7 +13,7 @@
     <h1>Manual de uso do Cotador de Planos</h1>
     <a class="btn" href="./">← Voltar ao cotador</a>
   </div>
-  <p class="note">Como usar cada tela do sistema, na ordem em que uma venda acontece.</p>
+  <p class="note">Passo a passo de cada tela, na ordem em que uma venda acontece: da cotação até a comissão. As imagens usam clientes fictícios; clique numa imagem para ampliar.</p>
 
   <nav class="indice" aria-label="Índice">
     <b>Índice</b>
@@ -30,166 +30,274 @@
     </ol>
   </nav>
 
-  <h2 id="primeiros-passos">Primeiros passos</h2>
-  <p>O Cotador monta cotações de planos de saúde, envia a proposta pelo WhatsApp e acompanha a venda até a comissão. Uma venda percorre as telas nesta ordem:</p>
-  <ol>
-    <li><b>Nova Cotação</b>: escolha os planos e envie a mensagem com a imagem ou o link da proposta.</li>
-    <li><b>Aceites</b>: o cliente aceita pelo link e envia os documentos.</li>
-    <li><b>Contratos Vendidos</b>: o contrato é cadastrado com a data de ativação.</li>
-    <li><b>Financeiro &gt; Comissões</b>: o contrato recebe a regra da corretora e os pagamentos previstos.</li>
+  <!-- ===================================================================== -->
+  <h2 id="primeiros-passos">1. Primeiros passos</h2>
+  <p>O Cotador monta cotações de planos de saúde, envia a proposta pelo WhatsApp e acompanha a venda até a comissão. Uma venda passa por quatro telas:</p>
+  <ol class="passos">
+    <li><b>Nova Cotação</b>: você escolhe os planos e envia ao cliente a mensagem com a imagem ou o link da proposta.</li>
+    <li><b>Aceites</b>: o cliente aceita pelo link, e você pede e recebe os documentos dele.</li>
+    <li><b>Contratos Vendidos</b>: a venda vira contrato, com a data de ativação do plano.</li>
+    <li><b>Financeiro &gt; Comissões</b>: o contrato recebe a regra da corretora, e o sistema calcula quanto e quando você recebe.</li>
   </ol>
-  <h3>Entrar</h3>
+  <div class="exemplo"><b>Exemplo de uma venda completa.</b> Você cota o PLAMEDH para a Mariana (2 adultos e 1 criança) e envia o link pelo WhatsApp. Ela aceita a proposta pelo link e envia RG, CPF e comprovante de residência pelo celular. Você cadastra o contrato com ativação em 10/11, escolhe a corretora na coluna Regra e a comissão de cada mês aparece em Comissões.</div>
+
+  <h3>Entrar no sistema</h3>
   <ul>
     <li>Abra o endereço do cotador e entre com o seu login e a sua senha.</li>
     <li>Cada login é de uso individual. Se o mesmo login entrar em outro aparelho, o acesso anterior é encerrado.</li>
-    <li>Esqueceu a senha? Use <b>Esqueci minha senha</b> na tela de entrada; o link chega no e-mail cadastrado e vale uma vez.</li>
+    <li>Esqueceu a senha? Clique em <b>Esqueci minha senha</b> na tela de entrada. O link chega no e-mail cadastrado e só funciona uma vez.</li>
   </ul>
+
   <h3>Menu lateral</h3>
+  <figure>
+    <img src="img/manual/comissoes.webp" alt="Tela do cotador com o menu lateral à esquerda, o Financeiro aberto e a tela Comissões" width="1366" height="768" loading="lazy">
+    <figcaption>O menu fica à esquerda, aqui com o Financeiro aberto. No topo dele ficam o ícone <b>?</b> (este manual), o cadeado e o seu nome.</figcaption>
+  </figure>
   <ul>
-    <li>O menu fica à esquerda. <b>Financeiro</b> abre e fecha os itens Regras de pagamento e Comissões.</li>
-    <li>O <b>cadeado</b> no topo do menu fixa o menu aberto ou o recolhe para uma faixa de ícones, que abre ao passar o mouse.</li>
+    <li><b>Financeiro</b> abre e fecha os itens Regras de pagamento e Comissões.</li>
+    <li>O <b>cadeado</b> fixa o menu aberto ou o recolhe numa faixa de ícones, que abre ao passar o mouse. Recolher o menu dá mais espaço às grades em telas pequenas.</li>
     <li>O ícone <b>?</b>, ao lado do cadeado, abre este manual.</li>
     <li>O seu nome e a sua foto ficam no topo; clicar neles abre <b>Meus dados</b>.</li>
+    <li>Os números ao lado de <b>Aceites</b> e <b>Contratos Vendidos</b> mostram o que espera por você: aceites pendentes e clientes a contatar.</li>
+    <li>A faixa vermelha no topo avisa os planos que ativaram e cujo cliente ainda não recebeu o contato. Clique nela para ir aos contratos.</li>
   </ul>
+
   <h3>Perfis e acesso</h3>
   <ul>
     <li><b>Administrador</b> vê todas as telas e ainda Usuários, Backup e Atualizar sistema.</li>
-    <li><b>Usuário</b> vê só as telas que o administrador liberou, em edição, visualização ou sem acesso.</li>
+    <li><b>Usuário</b> vê só as telas que o administrador liberou. Cada tela pode ser de edição, só visualização ou sem acesso.</li>
     <li>Cotações, aceites, contratos, corretoras e comissões são de cada login: cada um vê só os seus, inclusive o administrador.</li>
   </ul>
 
-  <h2 id="nova-cotacao">Nova Cotação</h2>
-  <p>A cotação é montada em uma tela só e salva sozinha no Histórico quando tem nome, WhatsApp e plano.</p>
-  <ol>
-    <li>Preencha <b>Nome do cliente</b> e <b>WhatsApp do cliente</b> (com DDD). Os dois são obrigatórios: as faixas etárias só liberam depois deles.</li>
-    <li>Escolha <b>Pessoa física</b> ou <b>CNPJ</b> e a <b>Cidade</b>. A cidade mostra só os planos vendidos nela.</li>
-    <li>Em <b>Beneficiários por faixa etária</b>, use + e − para informar quantas pessoas há em cada faixa.</li>
-    <li>Em <b>Planos da proposta</b>, busque e marque os planos. Planos com opções (total, parcial, coparticipação) abrem a escolha ao clicar.</li>
-    <li>Confira a prévia da mensagem à direita. Em <b>Ajustar o texto antes de enviar</b>, dá para editar o texto.</li>
-    <li>Envie: <b>Abrir no WhatsApp</b> abre a conversa com o texto e copia a imagem (na conversa, Ctrl+V cola a imagem); <b>Copiar mensagem</b> e <b>Copiar link</b> copiam só o texto ou o link da proposta.</li>
+  <!-- ===================================================================== -->
+  <h2 id="nova-cotacao">2. Nova Cotação</h2>
+  <p>A cotação é montada numa tela só. Ela vai sozinha para o Histórico assim que tem nome, WhatsApp e ao menos um plano: não existe botão de salvar.</p>
+  <figure>
+    <img src="img/manual/cotacao.webp" alt="Nova Cotação com o nome e o WhatsApp da cliente preenchidos e a prévia da mensagem à direita" width="1366" height="768" loading="lazy">
+    <figcaption>À esquerda, os dados do cliente; à direita, a prévia da mensagem do WhatsApp e os botões de envio.</figcaption>
+  </figure>
+
+  <h3>Passo a passo</h3>
+  <ol class="passos">
+    <li><b>Cliente</b>: preencha <b>Nome do cliente</b> e <b>WhatsApp do cliente</b> com DDD, como <code>(34) 99111-0001</code>. Os dois são obrigatórios: as faixas etárias só liberam depois deles.</li>
+    <li><b>Tipo e cidade</b>: escolha <b>Pessoa física</b> ou <b>CNPJ</b> e a <b>Cidade</b>. A lista mostra só os planos vendidos na cidade escolhida.</li>
+    <li><b>Beneficiários</b>: em <b>Beneficiários por faixa etária</b>, use <b>+</b> e <b>−</b> para dizer quantas pessoas há em cada faixa.</li>
+    <li><b>Planos</b>: em <b>Planos da proposta</b>, marque os planos. A busca e o filtro de operadora ajudam a achar; planos com opções (total, parcial, coparticipação) abrem a escolha ao clicar na seta.</li>
+    <li><b>Conferir</b>: a prévia à direita mostra a mensagem como o cliente vai ver. Em <b>Ajustar o texto antes de enviar</b> dá para mudar o texto.</li>
+    <li><b>Enviar</b>: veja a tabela abaixo.</li>
   </ol>
-  <p>Dicas:</p>
+  <figure>
+    <img src="img/manual/cotacao-planos.webp" alt="Faixas etárias com 1 pessoa de 0 a 18 anos e 2 de 29 a 33 anos, e a lista de planos com o PLAMEDH marcado" width="1366" height="768" loading="lazy">
+    <figcaption>Exemplo: um casal de 30 anos e um filho. A faixa 0 a 18 tem 1 pessoa, a faixa 29 a 33 tem 2, e o PLAMEDH está marcado com o total por acomodação.</figcaption>
+  </figure>
+
+  <h3>Formas de enviar</h3>
+  <table>
+    <thead><tr><th>Botão</th><th>O que faz</th><th>Quando usar</th></tr></thead>
+    <tbody>
+      <tr><td><b>Abrir no WhatsApp</b></td><td>Abre a conversa do cliente com o texto pronto e copia a imagem da proposta.</td><td>No dia a dia. Na conversa, aperte <b>Ctrl+V</b> para colar a imagem.</td></tr>
+      <tr><td><b>Copiar e baixar</b></td><td>Copia e baixa a imagem de um plano.</td><td>Para mandar a imagem de cada plano quando há vários.</td></tr>
+      <tr><td><b>Baixar PDF</b></td><td>Baixa a proposta do plano em PDF.</td><td>Quando o cliente pede um arquivo, ou por e-mail.</td></tr>
+      <tr><td><b>Comparativo</b></td><td>Monta uma imagem com os planos lado a lado.</td><td>Quando o cliente quer comparar dois ou mais planos.</td></tr>
+      <tr><td><b>Copiar mensagem</b> / <b>Copiar link</b></td><td>Copia só o texto ou só o link da proposta.</td><td>Para colar em outro aplicativo.</td></tr>
+    </tbody>
+  </table>
+  <div class="dica"><b>Dica:</b> envie sempre o <b>link da proposta</b>. É por ele que o cliente aceita o plano e manda os documentos, e o aceite aparece sozinho em <b>Aceites</b>.</div>
+
+  <h3>Outras dicas</h3>
   <ul>
-    <li>Com o WhatsApp de um cliente que já tem cotações, o nome aparece sozinho e o histórico dele é mostrado abaixo dos campos.</li>
+    <li>Ao digitar o WhatsApp de um cliente que já tem cotações, o nome aparece sozinho e as cotações anteriores dele aparecem abaixo dos campos, com o botão <b>Reabrir cotação</b>.</li>
     <li><b>Limpar</b> zera as faixas; zerar as faixas também desmarca os planos.</li>
-    <li>O link da proposta leva o cliente a uma página onde ele aceita o plano; o aceite aparece em <b>Aceites</b>.</li>
-    <li>O botão <b>Nova Cotação</b> do menu recomeça do zero.</li>
+    <li>O item <b>Nova Cotação</b> do menu recomeça do zero.</li>
   </ul>
 
-  <h2 id="planos-documentos">Planos e Valores e Documentos</h2>
-  <p>Essas duas telas guardam o que vai na proposta: os preços e regras de cada plano e os documentos pedidos ao cliente. Quem não tem acesso de edição só consulta.</p>
+  <!-- ===================================================================== -->
+  <h2 id="planos-documentos">3. Planos e Valores e Documentos</h2>
+  <p>Essas duas telas guardam o que vai na proposta: os preços e as regras de cada plano e os documentos pedidos ao cliente. Quem não tem acesso de edição só consulta.</p>
+
   <h3>Planos e Valores</h3>
+  <p>A lista mostra os planos por tipo (Pessoa física ou CNPJ). Clique num plano para ver as informações dele, ou em <b>Editar</b> para mudar.</p>
+  <figure>
+    <img src="img/manual/plano-editor.webp" alt="Editor do plano PLAMEDH com a tabela de preços por faixa, a área de comercialização e a rede hospitalar" width="1366" height="768" loading="lazy">
+    <figcaption>O editor do plano: preços por faixa à esquerda, área de comercialização e rede hospitalar à direita.</figcaption>
+  </figure>
   <ul>
-    <li><b>Novo plano</b> abre o editor. Os campos principais: nome, subtítulo, tipo (PF ou CNPJ), taxa associativa, mínimo de vidas e ordem na lista.</li>
-    <li><b>Preços</b>: em <b>Colar da planilha</b>, copie do Excel as 10 linhas (faixa, enfermaria, apartamento) e cole; os valores entram nas faixas.</li>
-    <li><b>Área de comercialização</b>: uma linha por estado, como <code>MG: Uberlândia, Araguari</code>. Define em que cidades o plano aparece na cotação.</li>
+    <li><b>Novo plano</b> abre o editor vazio. Os campos principais são nome, subtítulo, tipo (PF ou CNPJ), taxa associativa, mínimo de vidas e ordem na lista.</li>
+    <li><b>Preços</b>: em <b>Colar da planilha</b>, copie do Excel as 10 linhas (faixa, enfermaria, apartamento) e cole. Os valores entram nas faixas.</li>
+    <li><b>Área de comercialização</b>: uma linha por estado. Ela define em que cidades o plano aparece na cotação.</li>
     <li><b>Proposta</b>: coparticipação e carências (imagem ou tabela), rede hospitalar, benefícios, observação e as cores da operadora.</li>
-    <li>Os valores salvos valem para todas as próximas cotações. <b>Excluir plano</b> fica no próprio editor.</li>
+    <li>Os valores salvos valem para todas as próximas cotações; as cotações já enviadas não mudam. <b>Excluir plano</b> fica no próprio editor.</li>
   </ul>
+  <div class="exemplo"><b>Exemplo de área de comercialização:</b><br><code>MG: Uberlândia, Araguari, Araxá</code><br><code>GO: Catalão</code><br>Com isso, o plano aparece para quem escolher uma dessas quatro cidades e some nas outras.</div>
+  <div class="exemplo"><b>Exemplo de linha para colar da planilha:</b> <code>0 a 18 anos&nbsp;&nbsp;173,03&nbsp;&nbsp;271,74</code>. São 10 linhas assim, uma por faixa, copiadas direto das colunas do Excel.</div>
+
   <h3>Documentos</h3>
-  <ol>
+  <figure>
+    <img src="img/manual/documentos.webp" alt="Tela Documentos com o PLAMEDH escolhido, quatro documentos cadastrados e a mensagem para o WhatsApp" width="1366" height="768" loading="lazy">
+    <figcaption>Os documentos do PLAMEDH e a mensagem pronta para mandar ao cliente.</figcaption>
+  </figure>
+  <ol class="passos">
     <li>Escolha o plano na lista.</li>
-    <li>Em <b>Novo documento</b>, digite o nome do documento e clique em <b>Adicionar</b>; para tirar um, exclua-o da lista.</li>
+    <li>Em <b>Novo documento</b>, digite o nome, como <i>Comprovante de residência</i>, e clique em <b>Adicionar</b>. O lápis renomeia e a lixeira exclui.</li>
+    <li>Desmarque os documentos que não quer pedir desta vez: eles saem só da mensagem, não do plano.</li>
     <li><b>Copiar mensagem</b> copia a lista pronta para mandar ao cliente pelo WhatsApp.</li>
   </ol>
-  <p>Essa lista é a mesma que o cliente vê ao enviar os documentos depois do aceite.</p>
+  <p>Essa lista é a mesma que o cliente vê na página de envio de documentos, depois do aceite.</p>
 
-  <h2 id="historico">Histórico</h2>
+  <!-- ===================================================================== -->
+  <h2 id="historico">4. Histórico</h2>
   <p>O Histórico mostra um cliente por linha, com a última cotação dele e a situação da negociação.</p>
+  <figure>
+    <img src="img/manual/historico.webp" alt="Histórico com os cards de situação no topo e as duas cotações da cliente Mariana abertas abaixo da linha" width="1366" height="768" loading="lazy">
+    <figcaption>As duas cotações da Mariana abertas pelo ícone do olho, cada uma com a sua situação.</figcaption>
+  </figure>
   <ul>
     <li><b>Cards do topo</b>: Enviada, Em Negociação, Vendida e Negativa. Clicar num card mostra só os clientes daquela situação.</li>
     <li><b>Mês</b>: filtra pelo mês da última cotação de cada cliente.</li>
     <li><b>Buscar</b>: por nome, telefone ou plano.</li>
-    <li><b>Ícones da linha</b>:
-      <ul>
-        <li>olho: abre as cotações do cliente logo abaixo da linha;</li>
-        <li>balão: abre a conversa no WhatsApp;</li>
-        <li>seta circular: reabre a última cotação em Nova Cotação.</li>
-      </ul>
-    </li>
+    <li><b>Ícones da linha</b>: o <b>olho</b> abre as cotações do cliente logo abaixo da linha (o número mostra quantas são); o <b>balão</b> abre a conversa no WhatsApp; a <b>seta circular</b> reabre a última cotação em Nova Cotação.</li>
     <li><b>Cotações abertas</b>: em cada uma dá para mudar a situação, ver a mensagem enviada, reabrir ou excluir.</li>
   </ul>
-  <p>Mude a situação conforme a conversa avança: os cards contam a situação da cotação mais recente de cada cliente.</p>
+  <div class="dica"><b>Dica:</b> mude a situação conforme a conversa avança. Os cards contam a situação da cotação mais recente de cada cliente, então o Histórico vira o seu funil de vendas.</div>
 
-  <h2 id="aceites">Aceites</h2>
+  <!-- ===================================================================== -->
+  <h2 id="aceites">5. Aceites</h2>
   <p>Quando o cliente aceita a proposta pelo link, ela aparece em <b>Aceites</b>. Daqui sai o pedido de documentos e, no fim, o contrato.</p>
-  <ol>
-    <li><b>Pedir documentos</b> (ícone do WhatsApp): abre a conversa com a lista de documentos do plano e o link de envio. O cliente entra com o telefone dele, envia os documentos aos poucos e pode parar e continuar depois.</li>
-    <li><b>Recebendo documentos</b>: a cada envio, a contagem aparece no ícone de documentos. Clique nele para ver e abrir os arquivos.</li>
-    <li><b>Documentos recebidos</b>: o cliente clicou em <b>Concluir envio</b> e informou nome e e-mail.</li>
-    <li><b>Proposta enviada</b> (ícone do avião de papel): só libera depois que o cliente concluiu o envio. Abre a mensagem pronta para o WhatsApp, que pode ser editada antes de enviar.</li>
-    <li><b>Cadastrar em Contratos Vendidos</b> (ícone do contrato): só libera depois do aviso de proposta enviada. Pede a data de ativação e leva os documentos junto.</li>
-  </ol>
-  <p>Outros recursos:</p>
+  <figure>
+    <img src="img/manual/aceites.webp" alt="Tela Aceites com os cards de etapa e três aceites em situações diferentes" width="1366" height="768" loading="lazy">
+    <figcaption>Cada card é uma etapa. A linha com faixa vermelha ainda precisa do pedido de documentos.</figcaption>
+  </figure>
+  <h3>As etapas, na ordem</h3>
+  <table>
+    <thead><tr><th>Situação</th><th>O que aconteceu</th><th>O que fazer</th></tr></thead>
+    <tbody>
+      <tr><td><b>Pedir documentos</b></td><td>O cliente aceitou a proposta.</td><td>Clique no ícone do WhatsApp: ele abre a conversa com a lista de documentos e o link de envio.</td></tr>
+      <tr><td><b>Lista no WhatsApp</b></td><td>Você mandou a lista.</td><td>Aguardar o cliente enviar.</td></tr>
+      <tr><td><b>Recebendo documentos</b></td><td>O cliente começou a enviar.</td><td>A contagem aparece no ícone de documentos; clique nele para ver e abrir os arquivos.</td></tr>
+      <tr><td><b>Documentos recebidos</b></td><td>O cliente clicou em <b>Concluir envio</b> e informou nome e e-mail.</td><td>Conferir os arquivos e enviar a proposta à operadora.</td></tr>
+      <tr><td><b>Proposta enviada</b></td><td>Você avisou o cliente pelo ícone do avião de papel.</td><td>Quando o plano for aprovado, cadastrar o contrato.</td></tr>
+    </tbody>
+  </table>
   <ul>
-    <li><b>Cards e mês do aceite</b> no topo filtram a grade; a busca encontra nome, telefone, e-mail ou plano.</li>
-    <li><b>Copiar o link de envio</b> manda de novo o link dos documentos ao cliente.</li>
-    <li><b>Excluir aceite</b> remove o aceite e os documentos dele, e o link da proposta deixa de abrir para o cliente.</li>
+    <li>O <b>avião de papel</b> só libera depois que o cliente concluiu o envio. Ele abre a mensagem pronta para o WhatsApp, que pode ser editada antes de enviar.</li>
+    <li>O ícone do <b>contrato</b> (maleta) só libera depois da proposta enviada. Ele pede a data de ativação e leva os documentos junto para Contratos Vendidos.</li>
+    <li>O cliente entra na página de envio com o telefone dele, pode mandar os documentos aos poucos e continuar depois.</li>
+    <li>O ícone de <b>link</b> copia de novo o link de envio, para reenviar ao cliente.</li>
+    <li>A <b>lixeira</b> exclui o aceite e os documentos dele, e o link da proposta deixa de abrir para o cliente.</li>
+    <li>Os cards e o <b>Mês do aceite</b> filtram a grade; a busca encontra nome, telefone, e-mail ou plano.</li>
   </ul>
 
-  <h2 id="contratos">Contratos Vendidos</h2>
+  <!-- ===================================================================== -->
+  <h2 id="contratos">6. Contratos Vendidos</h2>
   <p>Cada venda fica aqui com a data de ativação. A partir dessa data, o sistema avisa que é hora de falar com o cliente, até você marcar o contato como feito.</p>
+  <figure>
+    <img src="img/manual/contratos.webp" alt="Contratos Vendidos com os cards, o formulário de cadastro e a grade com dois contratos marcados em vermelho" width="1366" height="768" loading="lazy">
+    <figcaption>Os contratos com faixa vermelha já ativaram e o cliente ainda não recebeu o contato.</figcaption>
+  </figure>
   <h3>Cadastrar um contrato</h3>
-  <ul>
-    <li>Preencha nome, telefone, e-mail (opcional), plano, valor da mensalidade e data de ativação, e clique em <b>Cadastrar contrato</b>.</li>
-    <li>O contrato novo aparece no topo da lista, destacado em verde.</li>
-    <li>Contratos vindos de Aceites já chegam preenchidos e com os documentos.</li>
-  </ul>
+  <ol class="passos">
+    <li>Preencha nome, telefone, e-mail (opcional), plano, valor da mensalidade e data de ativação.</li>
+    <li>Clique em <b>Cadastrar contrato</b>. O contrato novo aparece no topo da lista, destacado em verde.</li>
+  </ol>
+  <p>Contratos vindos de Aceites já chegam preenchidos e com os documentos.</p>
+  <div class="atencao"><b>Atenção:</b> o <b>valor</b> é a mensalidade total do contrato. É sobre ele que a comissão é calculada; um valor errado aqui muda a comissão.</div>
   <h3>Acompanhar</h3>
   <ul>
     <li><b>Mês de ativação</b> (no topo) escolhe o mês dos cards e da grade.</li>
-    <li><b>Cards</b>: Todos, Entrar em contato (ativou e o contato não foi feito, com faixa vermelha na linha), Aguardando ativação e Contato feito. Clicar num card filtra a grade.</li>
-    <li>No dia da ativação aparece um aviso ao abrir o cotador e uma faixa no topo da tela.</li>
+    <li><b>Cards</b>: Todos, Entrar em contato, Aguardando ativação e Contato feito. Clicar num card filtra a grade.</li>
+    <li>No dia da ativação aparece um aviso ao abrir o cotador e a faixa vermelha no topo da tela.</li>
   </ul>
   <h3>Ícones da linha</h3>
   <ul>
-    <li><b>Mensagem no WhatsApp</b>: texto pronto para o contato, editável antes de enviar.</li>
-    <li><b>Documentos</b>: guarda PDF, JPG, PNG ou WebP do cliente, sem limite de quantidade; abrem num visualizador na própria tela.</li>
-    <li><b>Contato feito</b>: marca (ou desmarca) o contato com o cliente.</li>
-    <li><b>Editar</b> e <b>Excluir</b>: excluir apaga também os documentos do contrato.</li>
+    <li><b>Balão do WhatsApp</b>: abre o texto pronto para o contato, editável antes de enviar. Fica verde enquanto o contato está pendente.</li>
+    <li><b>Visto</b>: marca o contato como feito; a seta curva desfaz.</li>
+    <li><b>Documentos</b>: guarda PDF, JPG, PNG ou WebP do cliente, sem limite de quantidade. Os arquivos abrem num visualizador na própria tela.</li>
+    <li><b>Lápis</b> edita e <b>lixeira</b> exclui. Excluir apaga também os documentos do contrato.</li>
   </ul>
 
-  <h2 id="financeiro">Financeiro</h2>
-  <p>O Financeiro calcula a comissão de cada contrato vendido pela regra da corretora. Primeiro cadastre as regras; depois, em Comissões, ligue cada contrato à sua regra.</p>
+  <!-- ===================================================================== -->
+  <h2 id="financeiro">7. Financeiro</h2>
+  <p>O Financeiro calcula a comissão de cada contrato pela regra da corretora. Primeiro cadastre as corretoras e as regras; depois, em Comissões, ligue cada contrato à sua regra.</p>
+
   <h3>Regras de pagamento</h3>
-  <ol>
-    <li>Clique em <b>Nova corretora</b> e dê o nome dela. Ela entra na lista de corretoras.</li>
-    <li>Clique na corretora para abrir as regras dela, ou em <b>Nova regra</b> na linha para já cadastrar.</li>
-    <li>Na nova regra, escolha o <b>Segmento</b> (Pessoa física ou PME) e, em <b>Operadoras</b>, marque um ou mais planos. <b>Selecionar todos</b> marca os planos que aparecem na busca, e <b>OK</b> fecha a lista.</li>
+  <figure>
+    <img src="img/manual/corretoras.webp" alt="Lista de corretoras com a quantidade de regras de pessoa física e PME de cada uma" width="1366" height="768" loading="lazy">
+    <figcaption>A lista de corretoras. Clique numa linha para ver as regras dela.</figcaption>
+  </figure>
+  <ol class="passos">
+    <li>Clique em <b>Nova corretora</b> e dê o nome dela.</li>
+    <li>Clique na corretora para abrir as regras dela, ou em <b>Nova regra</b> na própria linha.</li>
+    <li>Escolha o <b>Segmento</b>: Pessoa física ou PME.</li>
+    <li>Em <b>Operadoras</b>, marque um ou mais planos. <b>Selecionar todos</b> marca os planos que aparecem na busca, e <b>OK</b> fecha a lista.</li>
     <li>Preencha os percentuais, todos sobre a mensalidade:
       <ul>
-        <li><b>Angariação</b> (só Pessoa física): paga no ato da venda;</li>
-        <li><b>1ª a 4ª parcela</b>: uma por mês a partir da ativação. Campo em branco vale zero.</li>
+        <li><b>Angariação</b> (só Pessoa física): prevista para a data de ativação;</li>
+        <li><b>1ª a 4ª parcela</b>: uma por mês, a 1ª no mês da ativação. Campo em branco vale zero.</li>
       </ul>
     </li>
     <li>Clique em <b>Adicionar regra</b>: a mesma regra é criada para cada plano marcado.</li>
   </ol>
-  <p>Na grade, o lápis edita e a lixeira exclui uma regra. Excluir uma regra ou uma corretora deixa sem regra os contratos que a usavam.</p>
+  <figure>
+    <img src="img/manual/regra-nova.webp" alt="Formulário Nova regra com a lista de planos aberta e dois planos Amil marcados" width="1366" height="768" loading="lazy">
+    <figcaption>Uma regra para vários planos de uma vez: marque os planos e clique em OK.</figcaption>
+  </figure>
+  <div class="dica"><b>Dica:</b> se a corretora paga igual para vários planos, como todas as opções da Amil, digite <i>amil</i> na busca da lista, clique em <b>Selecionar todos</b> e cadastre tudo de uma vez.</div>
+  <p>Na grade das regras, o lápis edita e a lixeira exclui. Excluir uma regra ou uma corretora deixa sem regra os contratos que a usavam.</p>
+
   <h3>Comissões</h3>
+  <figure>
+    <img src="img/manual/comissoes-calculadora.webp" alt="Grade de comissões com a calculadora aberta mostrando angariação e três parcelas com datas, percentuais e valores" width="1366" height="768" loading="lazy">
+    <figcaption>A calculadora aberta: a angariação foi alterada para 80% só neste contrato.</figcaption>
+  </figure>
   <ul>
     <li><b>Previsto para</b> (no topo) escolhe o mês pela data prevista de cada pagamento. Vale para os cards, a grade e a lista.</li>
     <li><b>Regra na linha</b>: na coluna Regra, escolha a corretora. A lista já traz só as corretoras com regra para o plano do contrato, e salva na hora.</li>
-    <li><b>Contratos sem regra</b> aparecem sempre, em primeiro, até a regra ser escolhida.</li>
-    <li><b>Calculadora</b> (ícone da linha): mostra cada pagamento com data, percentual, base e valor. Dá para alterar o percentual (por exemplo, um desconto na angariação) e a data prevista, só para aquele contrato; <b>Voltar ao da regra</b> desfaz.</li>
-    <li><b>Pago</b>: marque <b>Sim</b> quando a comissão for recebida.</li>
+    <li><b>Contratos sem regra</b> aparecem sempre, em primeiro e em vermelho, até a regra ser escolhida. <i>Nenhuma regra para este plano</i> quer dizer que nenhuma corretora tem regra para ele: cadastre em Regras de pagamento.</li>
+    <li><b>Calculadora</b> (ícone da linha): mostra cada pagamento com data, percentual, base e valor. Dá para mudar o percentual e a data prevista só deste contrato; <b>Voltar ao da regra</b> desfaz.</li>
+    <li><b>Pago</b>: marque <b>Sim</b> quando a comissão cair na conta. O valor sai de Comissão prevista e passa para Comissões recebidas.</li>
   </ul>
+  <div class="exemplo">
+    <b>Exemplo de cálculo.</b> Contrato de <b>R$ 640,75</b> por mês, ativado em <b>10/11/2026</b>, na regra da Corretora Alfa: angariação 100%, 1ª parcela 100%, 2ª 50% e 3ª 30%.
+    <table>
+      <thead><tr><th>Pagamento</th><th>Previsto para</th><th>Conta</th><th>Valor</th></tr></thead>
+      <tbody>
+        <tr><td>Angariação</td><td>10/11/2026</td><td>100% de R$ 640,75</td><td>R$ 640,75</td></tr>
+        <tr><td>1ª parcela</td><td>10/11/2026</td><td>100% de R$ 640,75</td><td>R$ 640,75</td></tr>
+        <tr><td>2ª parcela</td><td>10/12/2026</td><td>50% de R$ 640,75</td><td>R$ 320,38</td></tr>
+        <tr><td>3ª parcela</td><td>10/01/2027</td><td>30% de R$ 640,75</td><td>R$ 192,23</td></tr>
+        <tr><td colspan="3"><b>Total da comissão</b></td><td><b>R$ 1.794,11</b></td></tr>
+      </tbody>
+    </table>
+    Se você deu um desconto ao cliente e a angariação caiu para 80%, mude o percentual na calculadora: a angariação passa a R$ 512,60 e o total, a R$ 1.665,96.
+  </div>
+
+  <h3>Cards e lista das comissões</h3>
   <table>
     <thead><tr><th>Card</th><th>O que soma</th></tr></thead>
     <tbody>
-      <tr><td>Comissão prevista</td><td>pagamentos do mês ainda com Pago = Não</td></tr>
-      <tr><td>Comissões recebidas</td><td>pagamentos do mês marcados Sim</td></tr>
+      <tr><td>Comissão prevista</td><td>pagamentos previstos no mês e ainda com Pago = Não</td></tr>
+      <tr><td>Comissões recebidas</td><td>pagamentos previstos no mês e marcados Sim</td></tr>
       <tr><td>Contratos sem regra</td><td>contratos que ainda não têm regra</td></tr>
     </tbody>
   </table>
-  <p>Clicar em Comissão prevista ou em Comissões recebidas abre a lista dos pagamentos, com o botão <b>Gerar Excel</b>.</p>
+  <p>Clicar em <b>Comissão prevista</b> ou em <b>Comissões recebidas</b> abre a lista dos pagamentos do mês, com o botão <b>Gerar Excel</b>.</p>
+  <figure>
+    <img src="img/manual/comissoes-lista.webp" alt="Lista da comissão prevista de novembro com cinco pagamentos e o botão Gerar Excel" width="1366" height="768" loading="lazy">
+    <figcaption>A lista da comissão prevista de novembro. Use <b>Gerar Excel</b> para conferir com o extrato da corretora.</figcaption>
+  </figure>
 
-  <h2 id="configuracoes">Configurações</h2>
+  <!-- ===================================================================== -->
+  <h2 id="configuracoes">8. Configurações</h2>
   <p>Cada login cuida dos próprios dados e da senha; o administrador também cuida dos usuários, do backup e das atualizações.</p>
   <ul>
-    <li><b>Meus dados</b>: nome, telefone, empresa, e-mail e foto. Nome, telefone e empresa vão na proposta enviada ao cliente.</li>
-    <li><b>Alterar senha</b>: informe a senha atual e a nova (mínimo de 8 caracteres).</li>
+    <li><b>Meus dados</b>: nome, telefone, empresa, e-mail e foto. Nome, telefone e empresa vão na proposta enviada ao cliente, e o e-mail serve para recuperar a senha.</li>
+    <li><b>Alterar senha</b>: informe a senha atual e a nova, com no mínimo 8 caracteres.</li>
   </ul>
-  <p>Só o administrador:</p>
+  <h3>Só o administrador</h3>
+  <figure>
+    <img src="img/manual/usuarios.webp" alt="Tela Usuários com três usuários e as telas que cada um acessa" width="1366" height="768" loading="lazy">
+    <figcaption>Verde-escuro é edição, verde-claro é só visualização e riscado é sem acesso.</figcaption>
+  </figure>
   <ul>
     <li><b>Usuários</b>:
       <ul>
@@ -201,14 +309,18 @@
     <li><b>Backup</b>: <b>Fazer backup</b> baixa um arquivo com planos, usuários, histórico, contratos com documentos e imagens. <b>Restaurar backup</b> troca todos os dados pelos do arquivo; uma cópia dos dados atuais fica na pasta backups.</li>
     <li><b>Atualizar sistema</b>: baixa a versão mais recente e reinicia o cotador. Os dados não mudam; os links dos clientes ficam fora do ar por alguns instantes.</li>
   </ul>
+  <div class="dica"><b>Dica:</b> faça um backup por semana e guarde o arquivo fora do computador do cotador, como num pen drive ou na nuvem.</div>
 
-  <h2 id="duvidas">Dúvidas frequentes</h2>
+  <!-- ===================================================================== -->
+  <h2 id="duvidas">9. Dúvidas frequentes</h2>
   <div class="faq">
     <p><b>Fui desconectado sozinho.</b> O mesmo login entrou em outro aparelho. Cada login é individual; peça ao administrador um login seu.</p>
     <p><b>Não consigo mexer nas faixas etárias.</b> Preencha antes o nome e o WhatsApp do cliente, com DDD.</p>
-    <p><b>Um plano não aparece na cotação.</b> Confira a cidade escolhida e a área de comercialização do plano em Planos e Valores.</p>
+    <p><b>Um plano não aparece na cotação.</b> Confira a cidade e o tipo (Pessoa física ou CNPJ) escolhidos, e a área de comercialização do plano em Planos e Valores.</p>
+    <p><b>O cliente aceitou, mas não aparece em Aceites.</b> Ele precisa abrir o link da proposta e clicar em <b>Confirmar aceite</b>. Só abrir o link, ou ver a prévia no WhatsApp, não conta como aceite.</p>
     <p><b>O botão Proposta enviada está apagado.</b> O cliente ainda não concluiu o envio dos documentos.</p>
-    <p><b>O contrato não tem corretora na coluna Regra.</b> Ainda não há regra para o plano dele: cadastre em Regras de pagamento.</p>
+    <p><b>O contrato aparece como "Nenhuma regra para este plano".</b> Nenhuma corretora tem regra para o plano dele: cadastre em Regras de pagamento.</p>
+    <p><b>A comissão do mês está diferente do esperado.</b> Confira o mês em <b>Previsto para</b>, o valor da mensalidade do contrato e, na calculadora, se algum pagamento foi alterado (aparece como <i>alterado</i>).</p>
     <p><b>Uma tela não aparece no menu.</b> O seu usuário está sem acesso a ela; o administrador libera em Configurações &gt; Usuários.</p>
     <p><b>Uma mudança nova não apareceu.</b> O administrador roda Atualizar sistema; depois, recarregue a página com Ctrl+Shift+R.</p>
   </div>

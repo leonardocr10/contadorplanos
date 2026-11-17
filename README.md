@@ -11,7 +11,7 @@ Se o Node.js não puder ser instalado automaticamente, baixe a versão LTS em ht
 
 Em **Configurações > Meus dados**, preencha seu nome, telefone e corretora. Eles aparecem na imagem e na mensagem.
 
-O **manual de uso** abre como uma tela do sistema pelo ícone **?** no topo do menu, ao lado do cadeado. O conteúdo fica em `public/manual.html` (só para quem entrou no sistema). Ao mudar uma tela, atualize o manual junto.
+O **manual de uso** abre como uma tela do sistema pelo ícone **?** no topo do menu, ao lado do cadeado. O conteúdo fica em `public/manual.html` (só para quem entrou no sistema). As imagens ficam em `public/img/manual/` e usam só clientes fictícios, nunca dados reais. Ao mudar uma tela, atualize o manual e a imagem dela junto.
 
 ## Atualizar o sistema
 
