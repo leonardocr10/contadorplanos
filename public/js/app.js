@@ -38,8 +38,29 @@ $("#tab-cot").onclick = async () => {
   carregarHistorico();
 };
 const viewDoHash = () => (VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "cotacao");
-addEventListener("hashchange", () => show(viewDoHash()));
+// Manual de uso: a tela traz o conteúdo de manual.html na primeira vez que abre.
+let manualCarregado = false;
+async function carregarManual() {
+  if (manualCarregado || viewDoHash() !== "manual") return;
+  manualCarregado = true;
+  try {
+    const pagina = new DOMParser().parseFromString(await (await fetch("manual.html")).text(), "text/html");
+    const conteudo = pagina.querySelector("main.manual");
+    conteudo.querySelector(".manual-topo .btn")?.remove();
+    $("#manual-conteudo").innerHTML = conteudo.innerHTML;
+    // O índice rola até a seção, sem trocar de tela.
+    $("#manual-conteudo").querySelectorAll('a[href^="#"]').forEach((a) => (a.onclick = (e) => {
+      e.preventDefault();
+      document.getElementById(a.getAttribute("href").slice(1))?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }));
+  } catch {
+    manualCarregado = false;
+    $("#manual-conteudo").innerHTML = `<p class="status">Não deu para abrir o manual agora. Tente de novo.</p>`;
+  }
+}
+addEventListener("hashchange", () => { show(viewDoHash()); carregarManual(); if (viewDoHash() === "manual") scrollTo({ top: 0 }); });
 show(viewDoHash());
+carregarManual();
 
 /* ---------- meus dados ---------- */
 const EMAIL_VALIDO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

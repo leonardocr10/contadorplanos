@@ -595,6 +595,24 @@ body{margin:0}
   .tabs button{padding-top:7px;padding-bottom:7px}
 }
 
+/* Manual de uso: a tela do sistema e a página manual.html. */
+.manual{max-width:860px;margin:0 auto;padding:32px 24px 64px;line-height:1.6;color:var(--ink)}
+.manual-topo{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;margin-bottom:8px}
+.manual h1{margin:0;font-size:30px}
+.manual h2{margin:36px 0 8px;padding-top:12px;border-top:1px solid var(--line);font-size:22px}
+.manual h3{margin:20px 0 6px;font-size:17px}
+.manual p,.manual li{font-size:15.5px}
+.manual ul,.manual ol{padding-left:22px}
+.manual li{margin:4px 0}
+.manual table{width:100%;border-collapse:collapse;margin:8px 0;font-size:15px}
+.manual th,.manual td{padding:8px 10px;border:1px solid var(--line);text-align:left}
+.manual th{background:var(--bg)}
+.manual code{padding:1px 6px;border-radius:6px;background:var(--bg);font-size:14px}
+.manual nav.indice{margin:16px 0 8px;padding:14px 18px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+.manual nav.indice ol{margin:6px 0 0;columns:2;column-gap:32px}
+@media (max-width:640px){.manual nav.indice ol{columns:1}}
+.manual .faq p{margin:10px 0}
+#v-manual .manual{padding-top:8px}
 /* Salvar sempre à vista no editor do plano. */
 .modal-acoes{position:sticky;bottom:-24px;z-index:2;margin:0 -20px -20px;padding:12px 20px;background:var(--surface);border-top:1px solid var(--line)}
 
