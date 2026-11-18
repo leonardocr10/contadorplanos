@@ -50,7 +50,7 @@ function desenharWhatsApp() {
   const conectado = wa?.estado === "open";
   if (!wa) { caixa.textContent = "Verificando a conexão…"; return; }
   if (!wa.configurado) {
-    caixa.innerHTML = "O envio automático ainda não foi ligado no servidor. A lista abaixo continua sendo montada; as mensagens começam a sair quando o administrador configurar a Evolution API.";
+    caixa.innerHTML = "O envio automático ainda não foi ligado no servidor. A lista acima continua sendo montada; as mensagens começam a sair quando o administrador configurar a Evolution API.";
   } else if (wa.estado === "falha") {
     caixa.innerHTML = `Não deu para ver a conexão agora: ${esc(wa.erro)}`;
   } else if (conectado) {
