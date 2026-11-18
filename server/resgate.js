@@ -1,8 +1,8 @@
-// Resgate de clientes: quem cotou há mais de 90 dias e não fechou recebe, uma vez só, uma mensagem no WhatsApp
+// Resgate de clientes: quem cotou há mais dias que o escolhido pelo corretor (padrão: 90) e não fechou recebe, uma vez só, uma mensagem no WhatsApp
 // do vendedor que fez a cotação. O envio é automático, pela Evolution API (EVOLUTION_URL e EVOLUTION_API_KEY no .env).
 // Para o número não ser bloqueado, as mensagens saem devagar: só em horário comercial, com intervalo e limite por dia.
 
-export const DIAS_RESGATE = 90;
+export { DIAS_RESGATE_PADRAO as DIAS_RESGATE, DIAS_RESGATE_MIN, DIAS_RESGATE_MAX } from "./db.js";
 export const LIMITE_POR_DIA = 30;
 // Horário de Brasília, de segunda a sexta.
 export const HORARIO = { inicio: 9, fim: 18 };
@@ -98,11 +98,7 @@ export function criarResgate({ banco, env = process.env, evolution = criarEvolut
   const proximo = new Map();
   let rodando = false, timer = null;
 
-  const limite = (agora) => new Date(agora.getTime() - DIAS_RESGATE * DIA).toISOString();
-  const coletar = () => {
-    const agora = relogio();
-    return banco.coletarResgates(limite(agora), agora.toISOString());
-  };
+  const coletar = () => banco.coletarResgates(relogio().toISOString());
 
   async function enviar(r, usuario, cfg) {
     const texto = montarMensagem(cfg.mensagem, { cliente: r.cliente, plano: r.plano, corretor: usuario.nome || usuario.login, empresa: usuario.empresa });

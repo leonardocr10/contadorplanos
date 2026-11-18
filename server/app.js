@@ -12,7 +12,7 @@ import { cacheDoArquivo, cacheDoEnvio, naoGuardar } from "./cache.js";
 import { comprimir } from "./compressao.js";
 import { conferirSenha, gerarHashSemTravar } from "./senhas.js";
 import { criarEnviadorDeEmail } from "./email.js";
-import { DIAS_RESGATE, ErroWhatsApp, HORARIO, LIMITE_POR_DIA, MENSAGEM_PADRAO, criarResgate, instanciaDe } from "./resgate.js";
+import { DIAS_RESGATE_MAX, DIAS_RESGATE_MIN, ErroWhatsApp, HORARIO, LIMITE_POR_DIA, MENSAGEM_PADRAO, criarResgate, instanciaDe } from "./resgate.js";
 import { NIVEIS, PERMISSOES_PADRAO, TELAS, TELAS_COM_PLANOS, atende } from "./permissoes.js";
 import { CATEGORIA_DO_SEGMENTO, MAX_PARCELAS, SEGMENTOS } from "../public/js/comissao.js";
 import { montarSnapshot, renderizarProposta } from "./proposta-html.js";
@@ -420,7 +420,7 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     const dono = req.usuario?.id ?? "";
     res.json({
       ...banco.lerConfigResgate(dono), configurado: resgate.configurado, mensagemPadrao: MENSAGEM_PADRAO,
-      regras: { dias: DIAS_RESGATE, limitePorDia: LIMITE_POR_DIA, horario: HORARIO },
+      regras: { diasMin: DIAS_RESGATE_MIN, diasMax: DIAS_RESGATE_MAX, limitePorDia: LIMITE_POR_DIA, horario: HORARIO },
       itens: banco.listarResgates(dono).map(resgateParaTela),
     });
   });
@@ -429,7 +429,13 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     const b = req.body ?? {};
     const mensagem = b.mensagem === undefined ? undefined : textoOpc(b.mensagem, "mensagem", 1000);
     if (b.ativo !== undefined && typeof b.ativo !== "boolean") throw new ErroEntrada("Escolha se o envio automático fica ligado.");
-    res.json(banco.gravarConfigResgate(precisaDeLogin(req), { ativo: b.ativo, mensagem }));
+    if (b.dias !== undefined && (!Number.isInteger(b.dias) || b.dias < DIAS_RESGATE_MIN || b.dias > DIAS_RESGATE_MAX)) {
+      throw new ErroEntrada(`Os dias sem cotar precisam ser um número inteiro de ${DIAS_RESGATE_MIN} a ${DIAS_RESGATE_MAX}.`);
+    }
+    const cfg = banco.gravarConfigResgate(precisaDeLogin(req), { ativo: b.ativo, mensagem, dias: b.dias });
+    // Com outros dias, a fila muda na hora: entra quem passou do novo limite e sai quem ainda não chegou nele.
+    if (b.dias !== undefined) resgate.coletar();
+    res.json(cfg);
   });
 
   app.patch("/api/resgate/:id", exige("historico", "editar"), (req, res) => {

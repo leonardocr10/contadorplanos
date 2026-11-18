@@ -8,6 +8,10 @@ import { completarCarencias, linhaDoPlano, redeDaCidade } from "../public/js/cal
 import { permissoesDoUsuario } from "./permissoes.js";
 
 export const STATUS = ["Enviada", "Em Negociação", "Vendida", "Negativa"];
+// Dias sem cotar até o cliente entrar no resgate: o padrão e o intervalo que o corretor pode escolher.
+export const DIAS_RESGATE_PADRAO = 90;
+export const DIAS_RESGATE_MIN = 1;
+export const DIAS_RESGATE_MAX = 730;
 
 const MIGRACOES = [
   `CREATE TABLE planos (
@@ -365,6 +369,12 @@ const MIGRACOES = [
      ativo INTEGER NOT NULL DEFAULT 1,
      mensagem TEXT NOT NULL DEFAULT ''
    );`,
+  // Cada corretor escolhe depois de quantos dias sem cotar o cliente entra no resgate.
+  (db) => {
+    if (!db.prepare("PRAGMA table_info(resgate_config)").all().some((c) => c.name === "dias")) {
+      db.exec(`ALTER TABLE resgate_config ADD COLUMN dias INTEGER NOT NULL DEFAULT ${DIAS_RESGATE_PADRAO}`);
+    }
+  },
 ];
 
 // Troca os documentos dos planos CNPJ pela lista empresarial; com unimed, a Unimed PME recebe a lista dela.
@@ -900,17 +910,19 @@ export class Banco {
   }
 
   /* ---------- resgate ---------- */
-  // A última cotação de cada cliente (usuário e telefone) feita antes do limite. Fica de fora quem já fechou:
-  // alguma cotação vendida ou um contrato com o mesmo telefone. Cotações de antes dos logins não têm WhatsApp de quem enviar.
-  clientesParaResgate(limiteIso) {
+  // A última cotação de cada cliente (usuário e telefone), quando ela tem mais dias que o escolhido pelo dono
+  // (limiteDe devolve a data limite de cada usuário). Fica de fora quem já fechou: alguma cotação vendida ou um
+  // contrato com o mesmo telefone. Cotações de antes dos logins não têm WhatsApp de quem enviar.
+  clientesParaResgate(limiteDe) {
     const linhas = this.db.prepare(`SELECT c.usuario_id, c.fone, c.cliente, c.planos, c.criado_em FROM cotacoes c
       JOIN (SELECT usuario_id, fone, MAX(criado_em) AS ultima FROM cotacoes WHERE usuario_id <> '' AND length(fone) >= 10 GROUP BY usuario_id, fone) u
         ON u.usuario_id = c.usuario_id AND u.fone = c.fone AND u.ultima = c.criado_em
-      WHERE u.ultima < ?
-        AND NOT EXISTS (SELECT 1 FROM cotacoes v WHERE v.usuario_id = c.usuario_id AND v.fone = c.fone AND v.status = 'Vendida')
-        AND NOT EXISTS (SELECT 1 FROM contratos k WHERE k.usuario_id = c.usuario_id AND k.fone = c.fone)`).all(limiteIso);
-    const unicos = new Map();
+      WHERE NOT EXISTS (SELECT 1 FROM cotacoes v WHERE v.usuario_id = c.usuario_id AND v.fone = c.fone AND v.status = 'Vendida')
+        AND NOT EXISTS (SELECT 1 FROM contratos k WHERE k.usuario_id = c.usuario_id AND k.fone = c.fone)`).all();
+    const unicos = new Map(), limites = new Map();
     for (const l of linhas) {
+      if (!limites.has(l.usuario_id)) limites.set(l.usuario_id, limiteDe(l.usuario_id));
+      if (l.criado_em >= limites.get(l.usuario_id)) continue;
       let planos = [];
       try { planos = JSON.parse(l.planos); } catch { /* lista inválida fica vazia */ }
       unicos.set(`${l.usuario_id}|${l.fone}`, { usuarioId: l.usuario_id, fone: l.fone, cliente: l.cliente, plano: planos[0]?.nome ?? "", cotacaoEm: l.criado_em });
@@ -918,10 +930,12 @@ export class Banco {
     return unicos;
   }
 
-  // Põe na lista quem passou do limite e tira o que ainda não foi enviado de quem cotou de novo ou fechou.
-  // Quem já está na lista (enviado, com erro ou cancelado) não entra outra vez.
-  coletarResgates(limiteIso, agoraIso = new Date().toISOString()) {
-    const clientes = this.clientesParaResgate(limiteIso);
+  // Põe na lista quem passou dos dias de cada corretor e tira o que ainda não foi enviado de quem cotou de novo,
+  // fechou ou deixou de passar do limite (o corretor aumentou os dias). Quem já está na lista (enviado, com erro
+  // ou cancelado) não entra outra vez.
+  coletarResgates(agoraIso = new Date().toISOString()) {
+    const agora = new Date(agoraIso).getTime();
+    const clientes = this.clientesParaResgate((usuarioId) => new Date(agora - this.lerConfigResgate(usuarioId).dias * 86_400_000).toISOString());
     const incluir = this.db.prepare("INSERT OR IGNORE INTO resgates (id, usuario_id, fone, cliente, plano, cotacao_em, status, criado_em) VALUES (?,?,?,?,?,?,'pendente',?)");
     const tirar = this.db.prepare("DELETE FROM resgates WHERE id = ?");
     let novos = 0;
@@ -960,14 +974,14 @@ export class Banco {
   }
 
   lerConfigResgate(usuarioId) {
-    const l = this.db.prepare("SELECT ativo, mensagem FROM resgate_config WHERE usuario_id = ?").get(usuarioId);
-    return { ativo: l ? !!l.ativo : true, mensagem: l?.mensagem ?? "" };
+    const l = this.db.prepare("SELECT ativo, mensagem, dias FROM resgate_config WHERE usuario_id = ?").get(usuarioId);
+    return { ativo: l ? !!l.ativo : true, mensagem: l?.mensagem ?? "", dias: l?.dias ?? DIAS_RESGATE_PADRAO };
   }
 
-  gravarConfigResgate(usuarioId, { ativo, mensagem }) {
+  gravarConfigResgate(usuarioId, { ativo, mensagem, dias }) {
     const atual = this.lerConfigResgate(usuarioId);
-    this.db.prepare("INSERT INTO resgate_config (usuario_id, ativo, mensagem) VALUES (?, ?, ?) ON CONFLICT (usuario_id) DO UPDATE SET ativo = excluded.ativo, mensagem = excluded.mensagem")
-      .run(usuarioId, (ativo ?? atual.ativo) ? 1 : 0, mensagem ?? atual.mensagem);
+    this.db.prepare("INSERT INTO resgate_config (usuario_id, ativo, mensagem, dias) VALUES (?, ?, ?, ?) ON CONFLICT (usuario_id) DO UPDATE SET ativo = excluded.ativo, mensagem = excluded.mensagem, dias = excluded.dias")
+      .run(usuarioId, (ativo ?? atual.ativo) ? 1 : 0, mensagem ?? atual.mensagem, dias ?? atual.dias);
     return this.lerConfigResgate(usuarioId);
   }
 

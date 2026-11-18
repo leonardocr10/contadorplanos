@@ -30,7 +30,7 @@ function cotou(banco, usuarioId, fone, cliente, dias, extra = {}) {
   banco.db.prepare("UPDATE cotacoes SET criado_em = ? WHERE id = ?").run(new Date(SEGUNDA_14H.getTime() - dias * DIA).toISOString(), c.id);
   return c;
 }
-const limite = (agora = SEGUNDA_14H) => new Date(agora.getTime() - 90 * DIA).toISOString();
+const AGORA = SEGUNDA_14H.toISOString();
 
 // Evolution de mentira: guarda o que foi enviado e responde como o serviço de verdade.
 function evolutionFalsa({ estado = "open", semWhatsApp = [], falhar = false } = {}) {
@@ -83,23 +83,44 @@ test("entra no resgate quem cotou há mais de 90 dias e não fechou, uma vez só
   const outro = banco.criarUsuario({ login: "joao", senhaHash: "x" });
   cotou(banco, outro.id, "34999990001", "Antigo", 100);
 
-  assert.equal(banco.coletarResgates(limite()), 2);
+  assert.equal(banco.coletarResgates(AGORA), 2);
   const lista = banco.listarResgates(u.id);
   assert.deepEqual(lista.map((r) => [r.cliente, r.plano, r.status]), [["Antigo", "AMIL PRATA", "pendente"]]);
   assert.equal(banco.listarResgates(outro.id).length, 1);
   // Coletar de novo não repete.
-  assert.equal(banco.coletarResgates(limite()), 0);
+  assert.equal(banco.coletarResgates(AGORA), 0);
 
   // Quem estava na fila e cotou de novo sai da fila.
   cotou(banco, outro.id, "34999990001", "Antigo", 1, { planos: [{ id: "c", nome: "C", enf: 1, apto: 2 }] });
-  banco.coletarResgates(limite());
+  banco.coletarResgates(AGORA);
   assert.equal(banco.listarResgates(outro.id).length, 0);
 
   // Depois de enviado, o cliente não recebe outra vez, mesmo que fique mais 90 dias sem cotar.
   banco.marcarResgate(lista[0].id, { status: "enviado", enviadoEm: SEGUNDA_14H.toISOString() });
   cotou(banco, u.id, "34999990001", "Antigo", 95, { planos: [{ id: "d", nome: "D", enf: 1, apto: 2 }] });
-  banco.coletarResgates(limite());
+  banco.coletarResgates(AGORA);
   assert.deepEqual(banco.listarResgates(u.id).map((r) => r.status), ["enviado"]);
+});
+
+test("cada corretor escolhe os dias sem cotar; mudar os dias refaz a fila", (t) => {
+  const banco = abrirBanco(t);
+  const ana = banco.criarUsuario({ login: "ana", senhaHash: "x" });
+  const joao = banco.criarUsuario({ login: "joao", senhaHash: "x" });
+  cotou(banco, ana.id, "34999990001", "Cliente 40 dias", 40);
+  cotou(banco, ana.id, "34999990002", "Cliente 100 dias", 100);
+  cotou(banco, joao.id, "34999990003", "Cliente 40 dias", 40);
+  assert.equal(banco.lerConfigResgate(ana.id).dias, 90);
+  banco.gravarConfigResgate(ana.id, { dias: 30 });
+  // Os outros campos ficam como estavam.
+  assert.deepEqual(banco.lerConfigResgate(ana.id), { ativo: true, mensagem: "", dias: 30 });
+  banco.coletarResgates(AGORA);
+  assert.deepEqual(banco.listarResgates(ana.id).map((r) => r.cliente), ["Cliente 40 dias", "Cliente 100 dias"]);
+  // O João continua nos 90 dias.
+  assert.equal(banco.listarResgates(joao.id).length, 0);
+  // Ao aumentar os dias, quem ainda não chegou no novo limite sai da fila (o que já foi enviado fica).
+  banco.gravarConfigResgate(ana.id, { dias: 60 });
+  banco.coletarResgates(AGORA);
+  assert.deepEqual(banco.listarResgates(ana.id).map((r) => r.cliente), ["Cliente 100 dias"]);
 });
 
 test("a rodada envia uma mensagem por vendedor conectado, no horário, com intervalo e limite por dia", async (t) => {
@@ -237,6 +258,8 @@ test("pela API, cada login vê só o próprio resgate, ajusta a mensagem e conec
   assert.equal(meu.corpo.configurado, true);
   assert.equal(meu.corpo.ativo, true);
   assert.equal(meu.corpo.mensagem, "");
+  assert.equal(meu.corpo.dias, 90);
+  assert.deepEqual([meu.corpo.regras.diasMin, meu.corpo.regras.diasMax], [1, 730]);
   assert.equal(meu.corpo.mensagemPadrao, MENSAGEM_RESGATE_PADRAO);
   assert.deepEqual(meu.corpo.itens.map((r) => [r.cliente, r.status]), [["Mariana Alves", "pendente"]]);
   assert.equal(meu.corpo.itens[0].usuarioId, undefined);
@@ -250,7 +273,13 @@ test("pela API, cada login vê só o próprio resgate, ajusta a mensagem e conec
   assert.equal((await pedir(corretor, `/api/resgate/${id}`, "PATCH", { acao: "reenviar" })).corpo.status, "pendente");
 
   const cfg = await pedir(corretor, "/api/resgate/config", "PUT", { ativo: false, mensagem: "Oi {nome}!" });
-  assert.deepEqual(cfg.corpo, { ativo: false, mensagem: "Oi {nome}!" });
+  assert.deepEqual(cfg.corpo, { ativo: false, mensagem: "Oi {nome}!", dias: 90 });
+  for (const dias of [0, 731, 2.5, "30"]) assert.equal((await pedir(corretor, "/api/resgate/config", "PUT", { dias })).status, 400);
+  // Com 200 dias, a Mariana (100 dias sem cotar) sai da fila na hora; voltando a 90, ela volta.
+  assert.equal((await pedir(corretor, "/api/resgate/config", "PUT", { dias: 200 })).corpo.dias, 200);
+  assert.deepEqual(banco.listarResgates(idCorretor), []);
+  await pedir(corretor, "/api/resgate/config", "PUT", { dias: 90 });
+  assert.equal(banco.listarResgates(idCorretor).length, 1);
   assert.equal((await pedir(corretor, "/api/resgate/config", "PUT", { ativo: "sim" })).status, 400);
   assert.equal((await pedir(corretor, "/api/resgate/config", "PUT", { mensagem: "x".repeat(1001) })).status, 400);
 

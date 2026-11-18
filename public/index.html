@@ -151,6 +151,10 @@
         <h2>Resgate de clientes</h2>
         <span class="note" id="res-count"></span>
       </div>
+      <div class="res-dias" data-edita="historico" hidden>
+        <div class="field"><label for="res-dias">Dias sem nova cotação para entrar no resgate</label><input id="res-dias" type="text" inputmode="numeric" maxlength="3" autocomplete="off"></div>
+        <button type="button" class="btn primary" id="res-dias-salvar">Aplicar</button>
+      </div>
       <p class="note" id="res-regras" style="margin:0"></p>
       <div class="grade-cards" id="res-cards" role="group" aria-label="Clientes do resgate por situação"></div>
       <div class="hist-filtros grade-filtros">
@@ -161,7 +165,7 @@
       </div>
       <div id="res-list"></div>
       <nav class="grade-paginacao" id="res-paginacao" aria-label="Páginas do resgate"></nav>
-      <p class="note" style="margin:0">Entra aqui, sozinho, quem fez a última cotação há mais de 90 dias e não fechou. Cada cliente recebe a mensagem uma vez só, pelo WhatsApp de quem fez a cotação.</p>
+      <p class="note" style="margin:0">Entra aqui, sozinho, quem passou dos dias escolhidos acima sem fazer nova cotação e não fechou. Cada cliente recebe a mensagem uma vez só, pelo WhatsApp de quem fez a cotação.</p>
     </div>
     <div class="res-blocos">
       <div class="panel">

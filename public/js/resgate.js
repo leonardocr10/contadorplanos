@@ -1,4 +1,4 @@
-// Tela "Resgate": clientes que cotaram há mais de 90 dias e não fecharam. A mensagem sai sozinha pelo WhatsApp
+// Tela "Resgate": clientes que estão sem cotar há mais dias que o escolhido pelo corretor (padrão: 90) e não fecharam. A mensagem sai sozinha pelo WhatsApp
 // de cada vendedor (Evolution API, no servidor); aqui ele conecta o número, ajusta o texto e acompanha os envios.
 import { fmtFone } from "./calculo.js";
 import { $, S, api, avisoCentral, esc, pode, toast } from "./estado.js";
@@ -128,6 +128,28 @@ async function salvarConfig(json, aviso) {
   }
 }
 
+// Com outros dias, o servidor refaz a fila na hora; a lista é carregada de novo para mostrar quem entrou e quem saiu.
+async function salvarDias() {
+  const { diasMin, diasMax } = dados.regras;
+  const texto = $("#res-dias").value.trim();
+  const dias = Number(texto);
+  if (!/^\d+$/.test(texto) || dias < diasMin || dias > diasMax) {
+    toast(`Informe um número de dias de ${diasMin} a ${diasMax}.`, "erro");
+    return;
+  }
+  if (dias === dados.dias) return;
+  $("#res-dias-salvar").disabled = true;
+  try {
+    await api("/api/resgate/config", { metodo: "PUT", json: { dias } });
+    $("#res-dias").blur();
+    await carregarResgate();
+    avisoCentral(`Resgate ajustado para ${dias} ${dias === 1 ? "dia" : "dias"} sem cotar`);
+  } catch (e) {
+    toast(`Não deu para salvar: ${e.message}`, "erro");
+  }
+  $("#res-dias-salvar").disabled = false;
+}
+
 /* ---------- grade ---------- */
 const COLUNAS = [
   { campo: "cliente", rotulo: "Cliente", valor: (r) => normalizar(r.cliente || "") },
@@ -164,7 +186,8 @@ export function renderResgate() {
   $("#res-selo").hidden = !naFila;
   $("#res-selo").textContent = naFila;
   if (!dados) { box.innerHTML = `<div class="status">${erro ? esc(erro) : "Carregando o resgate…"}</div>`; nav.innerHTML = ""; return; }
-  const { dias, limitePorDia, horario } = dados.regras;
+  const { dias } = dados, { limitePorDia, horario } = dados.regras;
+  if (document.activeElement !== $("#res-dias")) $("#res-dias").value = String(dias);
   $("#res-regras").textContent = `Clientes cuja última cotação tem mais de ${dias} dias e que não fecharam. As mensagens saem de segunda a sexta, das ${horario.inicio}h às ${horario.fim}h (horário de Brasília), até ${limitePorDia} por dia e com alguns minutos entre uma e outra, para o WhatsApp não bloquear o número.`;
   $("#res-count").textContent = `${itens.length} ${itens.length === 1 ? "cliente" : "clientes"}`;
   // O texto só é trocado quando a pessoa não está editando.
@@ -228,6 +251,8 @@ export function iniciarResgate() {
     $("#res-mensagem").dataset.alterado = "1";
     previa();
   };
+  $("#res-dias-salvar").onclick = salvarDias;
+  $("#res-dias").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); salvarDias(); } });
   $("#res-ativo").onchange = () => salvarConfig({ ativo: $("#res-ativo").checked }, $("#res-ativo").checked ? "Envio automático ligado" : "Envio automático desligado");
   $("#res-busca").addEventListener("input", () => { pagina = 1; renderResgate(); });
   $("#res-filtro").onchange = () => { filtro = $("#res-filtro").value; pagina = 1; renderResgate(); };

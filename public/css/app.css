@@ -801,3 +801,5 @@ a.ctr-doc-mini:hover{border-color:var(--accent)}
 .res-previa{align-self:flex-start;max-width:560px}
 .res-quando{font-size:12px;margin-top:2px}
 #res-mensagem{min-height:170px}
+.res-dias:not([hidden]){display:flex;flex-wrap:wrap;gap:10px;align-items:end}
+.res-dias .field{width:300px;max-width:100%}
