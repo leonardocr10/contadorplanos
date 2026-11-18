@@ -4,7 +4,7 @@ import { fmtFone } from "./calculo.js";
 import { $, S, api, avisoCentral, esc, pode, toast } from "./estado.js";
 import { MENSAGEM_RESGATE_PADRAO, linkConversaDireta, mensagemResgate, waHtml } from "./mensagem.js";
 import { normalizar } from "./filtro-select.js";
-import { botaoIcone, cabecalho, desenharCards, desenharPaginacao, guardarPorPagina, lerPorPagina, ordenarPor, paginar, proximaOrdem } from "./grade.js";
+import { botaoIcone, cabecalho, desenharCards, desenharPaginacao, desenharSeletorDeMes, guardarPorPagina, lerPorPagina, mesLocal, ordenarPor, paginar, proximaOrdem } from "./grade.js";
 
 const SITUACOES = [
   { chave: "pendente", rotulo: "Na fila", classe: "st-neg" },
@@ -18,7 +18,7 @@ const diaHora = (iso) => { try { return new Date(iso).toLocaleString("pt-BR", { 
 
 let dados = null, erro = null, wa = null;
 const CHAVE_POR_PAGINA = "cotador.resgate.porPagina";
-let filtro = "todos", pagina = 1, ordem = { campo: "cotacao", dir: "asc" }, porPagina = lerPorPagina(CHAVE_POR_PAGINA);
+let filtro = "todos", mes = "todos", pagina = 1, ordem = { campo: "cotacao", dir: "asc" }, porPagina = lerPorPagina(CHAVE_POR_PAGINA);
 const abertos = new Set();
 
 export async function carregarResgate({ comWhatsApp = false } = {}) {
@@ -157,6 +157,7 @@ const COLUNAS = [
   { campo: "plano", rotulo: "Plano cotado", valor: (r) => normalizar(r.plano || "") },
   { campo: "cotacao", rotulo: "Última cotação", valor: (r) => r.cotacaoEm },
   { campo: "situacao", rotulo: "Situação", valor: (r) => SITUACOES.findIndex((s) => s.chave === r.status) },
+  { campo: "envio", rotulo: "Data do envio", valor: (r) => (r.status === "enviado" && r.enviadoEm) || "" },
 ];
 
 function linha(r) {
@@ -173,28 +174,33 @@ function linha(r) {
       <td class="grade-fone">${esc(fmtFone(r.fone))}</td>
       <td><div class="grade-plano grade-plano-uma" title="${esc(r.plano)}">${esc(r.plano || "—")}</div></td>
       <td class="grade-data">${esc(dia(r.cotacaoEm))}</td>
-      <td><span class="pill ${s.classe}" title="${esc(dica)}">${s.rotulo}</span>${r.status === "enviado" ? `<div class="ctr-sub res-quando">${esc(diaHora(r.enviadoEm))}</div>` : ""}</td>
+      <td><span class="pill ${s.classe}" title="${esc(dica)}">${s.rotulo}</span></td>
+      <td class="grade-data">${r.status === "enviado" && r.enviadoEm ? esc(diaHora(r.enviadoEm)) : "—"}</td>
       <td><div class="grade-acoes">${acoes}</div></td>
     </tr>${aberto ? `<tr class="grade-painel-linha" data-id="${esc(r.id)}"><td colspan="${COLUNAS.length + 1}"><div class="bubble res-previa">${waHtml(r.mensagem)}</div></td></tr>` : ""}`;
 }
 
 export function renderResgate() {
   const box = $("#res-list"), nav = $("#res-paginacao");
-  const itens = dados?.itens ?? [];
-  const quantos = (chave) => itens.filter((r) => r.status === chave).length;
-  const naFila = quantos("pendente");
+  const todosOsItens = dados?.itens ?? [];
+  const naFila = todosOsItens.filter((r) => r.status === "pendente").length;
   $("#res-selo").hidden = !naFila;
   $("#res-selo").textContent = naFila;
   if (!dados) { box.innerHTML = `<div class="status">${erro ? esc(erro) : "Carregando o resgate…"}</div>`; nav.innerHTML = ""; return; }
   const { dias } = dados, { limitePorDia, horario } = dados.regras;
   if (document.activeElement !== $("#res-dias")) $("#res-dias").value = String(dias);
   $("#res-regras").textContent = `Clientes cuja última cotação tem mais de ${dias} dias, que não fecharam e não estão como Negativa. As mensagens saem de segunda a sexta, das ${horario.inicio}h às ${horario.fim}h (horário de Brasília), até ${limitePorDia} por dia e com alguns minutos entre uma e outra, para o WhatsApp não bloquear o número.`;
-  $("#res-count").textContent = `${itens.length} ${itens.length === 1 ? "cliente" : "clientes"}`;
+  $("#res-count").textContent = `${todosOsItens.length} ${todosOsItens.length === 1 ? "cliente" : "clientes"}`;
+  // O mês do topo é o da última cotação, como no Histórico; vale para os cards e a lista.
+  mes = desenharSeletorDeMes($("#res-mes"), todosOsItens.map((r) => mesLocal(r.cotacaoEm)), mes);
+  const itens = todosOsItens.filter((r) => mes === "todos" || mesLocal(r.cotacaoEm) === mes);
+  const quantos = (chave) => itens.filter((r) => r.status === chave).length;
   // O texto só é trocado quando a pessoa não está editando.
   if (document.activeElement !== $("#res-mensagem") && !$("#res-mensagem").dataset.alterado) $("#res-mensagem").value = dados.mensagem || dados.mensagemPadrao;
   $("#res-ativo").checked = dados.ativo;
   previa();
-  desenharCards($("#res-cards"), [{ chave: "todos", rotulo: "Todos os clientes", qtd: itens.length }, ...SITUACOES.map((s) => ({ chave: s.chave, rotulo: s.rotulo, qtd: quantos(s.chave) }))], filtro,
+  // Sem card de "todos": clicar de novo no card escolhido volta a mostrar todas as situações.
+  desenharCards($("#res-cards"), [...SITUACOES.map((s) => ({ chave: s.chave, rotulo: s.rotulo, qtd: quantos(s.chave) }))], filtro,
     (chave) => { filtro = chave; pagina = 1; renderResgate(); });
   const sel = $("#res-filtro");
   const opcoes = `<option value="todos" data-icone="todos">Todas as situações</option><optgroup label="Situações">${SITUACOES.map((s) => `<option value="${s.chave}" data-selo="${quantos(s.chave)}">${s.rotulo}</option>`).join("")}</optgroup>`;
@@ -203,7 +209,7 @@ export function renderResgate() {
   $("#res-por-pagina").value = String(porPagina);
   const q = $("#res-busca").value.trim(), qn = normalizar(q), qd = q.replace(/\D/g, "");
   $("#res-limpar").disabled = filtro === "todos" && !q;
-  if (!itens.length) {
+  if (!todosOsItens.length) {
     box.innerHTML = `<div class="status">Nenhum cliente para resgatar ainda. Quem fizer a última cotação há mais de ${dias} dias, não fechar e não estiver como Negativa aparece aqui sozinho.</div>`;
     nav.innerHTML = "";
     return;
@@ -256,6 +262,7 @@ export function iniciarResgate() {
   $("#res-ativo").onchange = () => salvarConfig({ ativo: $("#res-ativo").checked }, $("#res-ativo").checked ? "Envio automático ligado" : "Envio automático desligado");
   $("#res-busca").addEventListener("input", () => { pagina = 1; renderResgate(); });
   $("#res-filtro").onchange = () => { filtro = $("#res-filtro").value; pagina = 1; renderResgate(); };
+  $("#res-mes").onchange = () => { mes = $("#res-mes").value; pagina = 1; renderResgate(); };
   $("#res-por-pagina").onchange = () => {
     porPagina = Number($("#res-por-pagina").value) || 10;
     guardarPorPagina(CHAVE_POR_PAGINA, porPagina);

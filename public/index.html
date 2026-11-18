@@ -149,7 +149,10 @@
     <div class="panel">
       <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center">
         <h2>Resgate de clientes</h2>
-        <span class="note" id="res-count"></span>
+        <div class="fin-mes-pag">
+          <span class="note" id="res-count"></span>
+          <div class="field"><label for="res-mes" title="Mês da última cotação de cada cliente">Mês</label><select id="res-mes" data-icone="calendario" data-contagem="mês|meses"></select></div>
+        </div>
       </div>
       <div class="res-dias" data-edita="historico" hidden>
         <div class="field"><label for="res-dias">Dias sem nova cotação para entrar no resgate</label><input id="res-dias" type="text" inputmode="numeric" maxlength="3" autocomplete="off"></div>
