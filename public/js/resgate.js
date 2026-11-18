@@ -1,4 +1,4 @@
-// Tela "Resgate": clientes que estão sem cotar há mais dias que o escolhido pelo corretor (padrão: 90) e não fecharam. A mensagem sai sozinha pelo WhatsApp
+// Tela "Resgate": clientes que estão sem cotar há mais dias que o escolhido pelo corretor (padrão: 90), que não fecharam e não estão como Negativa. A mensagem sai sozinha pelo WhatsApp
 // de cada vendedor (Evolution API, no servidor); aqui ele conecta o número, ajusta o texto e acompanha os envios.
 import { fmtFone } from "./calculo.js";
 import { $, S, api, avisoCentral, esc, pode, toast } from "./estado.js";
@@ -188,7 +188,7 @@ export function renderResgate() {
   if (!dados) { box.innerHTML = `<div class="status">${erro ? esc(erro) : "Carregando o resgate…"}</div>`; nav.innerHTML = ""; return; }
   const { dias } = dados, { limitePorDia, horario } = dados.regras;
   if (document.activeElement !== $("#res-dias")) $("#res-dias").value = String(dias);
-  $("#res-regras").textContent = `Clientes cuja última cotação tem mais de ${dias} dias e que não fecharam. As mensagens saem de segunda a sexta, das ${horario.inicio}h às ${horario.fim}h (horário de Brasília), até ${limitePorDia} por dia e com alguns minutos entre uma e outra, para o WhatsApp não bloquear o número.`;
+  $("#res-regras").textContent = `Clientes cuja última cotação tem mais de ${dias} dias, que não fecharam e não estão como Negativa. As mensagens saem de segunda a sexta, das ${horario.inicio}h às ${horario.fim}h (horário de Brasília), até ${limitePorDia} por dia e com alguns minutos entre uma e outra, para o WhatsApp não bloquear o número.`;
   $("#res-count").textContent = `${itens.length} ${itens.length === 1 ? "cliente" : "clientes"}`;
   // O texto só é trocado quando a pessoa não está editando.
   if (document.activeElement !== $("#res-mensagem") && !$("#res-mensagem").dataset.alterado) $("#res-mensagem").value = dados.mensagem || dados.mensagemPadrao;
@@ -204,7 +204,7 @@ export function renderResgate() {
   const q = $("#res-busca").value.trim(), qn = normalizar(q), qd = q.replace(/\D/g, "");
   $("#res-limpar").disabled = filtro === "todos" && !q;
   if (!itens.length) {
-    box.innerHTML = `<div class="status">Nenhum cliente para resgatar ainda. Quem fizer a última cotação há mais de ${dias} dias e não fechar aparece aqui sozinho.</div>`;
+    box.innerHTML = `<div class="status">Nenhum cliente para resgatar ainda. Quem fizer a última cotação há mais de ${dias} dias, não fechar e não estiver como Negativa aparece aqui sozinho.</div>`;
     nav.innerHTML = "";
     return;
   }

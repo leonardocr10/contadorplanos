@@ -911,13 +911,14 @@ export class Banco {
 
   /* ---------- resgate ---------- */
   // A última cotação de cada cliente (usuário e telefone), quando ela tem mais dias que o escolhido pelo dono
-  // (limiteDe devolve a data limite de cada usuário). Fica de fora quem já fechou: alguma cotação vendida ou um
+  // (limiteDe devolve a data limite de cada usuário). Fica de fora quem está como Negativa (a situação da última cotação, como no Histórico) e quem já fechou: alguma cotação vendida ou um
   // contrato com o mesmo telefone. Cotações de antes dos logins não têm WhatsApp de quem enviar.
   clientesParaResgate(limiteDe) {
     const linhas = this.db.prepare(`SELECT c.usuario_id, c.fone, c.cliente, c.planos, c.criado_em FROM cotacoes c
       JOIN (SELECT usuario_id, fone, MAX(criado_em) AS ultima FROM cotacoes WHERE usuario_id <> '' AND length(fone) >= 10 GROUP BY usuario_id, fone) u
         ON u.usuario_id = c.usuario_id AND u.fone = c.fone AND u.ultima = c.criado_em
-      WHERE NOT EXISTS (SELECT 1 FROM cotacoes v WHERE v.usuario_id = c.usuario_id AND v.fone = c.fone AND v.status = 'Vendida')
+      WHERE c.status <> 'Negativa'
+        AND NOT EXISTS (SELECT 1 FROM cotacoes v WHERE v.usuario_id = c.usuario_id AND v.fone = c.fone AND v.status = 'Vendida')
         AND NOT EXISTS (SELECT 1 FROM contratos k WHERE k.usuario_id = c.usuario_id AND k.fone = c.fone)`).all();
     const unicos = new Map(), limites = new Map();
     for (const l of linhas) {

@@ -161,7 +161,7 @@
   <div class="dica"><b>Dica:</b> mude a situação conforme a conversa avança. Os cards contam a situação da cotação mais recente de cada cliente, então o Histórico vira o seu funil de vendas.</div>
 
   <h3>Resgate</h3>
-  <p>O cliente que está sem cotar há mais dias que o escolhido por você (o padrão é <b>90 dias</b>) e não fechou vai sozinho para a tela <b>Resgate</b>. Ele recebe, <b>uma vez só</b>, uma mensagem no seu WhatsApp perguntando se ainda tem interesse, sem você precisar clicar em nada.</p>
+  <p>O cliente que está sem cotar há mais dias que o escolhido por você (o padrão é <b>90 dias</b>), não fechou e não está como <b>Negativa</b> vai sozinho para a tela <b>Resgate</b>. Ele recebe, <b>uma vez só</b>, uma mensagem no seu WhatsApp perguntando se ainda tem interesse, sem você precisar clicar em nada.</p>
   <figure>
     <img src="img/manual/resgate.webp" alt="Tela Resgate com o WhatsApp conectado e o texto da mensagem automática, com o exemplo pronto para o cliente Carlos" width="1366" height="768" loading="lazy">
     <figcaption>WhatsApp conectado e a mensagem automática, com o exemplo de como ela chega ao cliente.</figcaption>
@@ -177,7 +177,7 @@
     <li><b>Variáveis do texto</b>: <b>{nome}</b> vira o primeiro nome do cliente, <b>{plano}</b> o plano cotado, <b>{corretor}</b> o seu nome e <b>{empresa}</b> a sua corretora.</li>
     <li><b>Lixeira</b> na linha: o cliente não recebe a mensagem. A <b>seta</b> coloca de volta na fila quem foi cancelado ou deu erro.</li>
     <li><b>Olho</b>: mostra a mensagem que foi enviada.</li>
-    <li>Quem faz uma nova cotação, fecha a venda ou ganha um contrato sai da fila sozinho.</li>
+    <li>Quem faz uma nova cotação, fecha a venda, ganha um contrato ou é marcado como <b>Negativa</b> no Histórico sai da fila sozinho.</li>
   </ul>
   <div class="exemplo"><b>Exemplo:</b> o Carlos cotou o PLAMEDH em 28/07 e não respondeu mais. Em 26/10 ele entra na fila e, no próximo horário de envio, recebe: “Olá, Carlos! Tudo bem? Aqui é Ana Souza. Há alguns meses fizemos uma cotação do plano PLAMEDH para você…”. Se ele responder, a conversa continua no seu WhatsApp, como sempre.</div>
   <div class="atencao"><b>Atenção:</b> para o WhatsApp não bloquear o seu número, as mensagens saem só de segunda a sexta, das 9h às 18h, até 30 por dia e com alguns minutos entre uma e outra. Uma fila grande leva alguns dias para terminar.</div>

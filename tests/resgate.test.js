@@ -75,6 +75,7 @@ test("entra no resgate quem cotou há mais de 90 dias e não fechou, uma vez só
   cotou(banco, u.id, "34999990003", "Cotou de novo", 150);
   cotou(banco, u.id, "34999990003", "Cotou de novo", 10, { planos: [{ id: "b", nome: "B", enf: 1, apto: 2 }] });
   cotou(banco, u.id, "34999990004", "Vendido", 200, { status: "Vendida" });
+  cotou(banco, u.id, "34999990007", "Negativa", 200, { status: "Negativa" });
   cotou(banco, u.id, "34999990005", "Com contrato", 200);
   const contrato = banco.criarContrato({ nome: "Com contrato", fone: "34999990005", plano: "AMIL PRATA", valor: 300, ativacao: "2026-08-01" });
   banco.db.prepare("UPDATE contratos SET usuario_id = ? WHERE id = ?").run(u.id, contrato.id);
@@ -89,6 +90,14 @@ test("entra no resgate quem cotou há mais de 90 dias e não fechou, uma vez só
   assert.equal(banco.listarResgates(outro.id).length, 1);
   // Coletar de novo não repete.
   assert.equal(banco.coletarResgates(AGORA), 0);
+
+  // Quem estava na fila e foi marcado como Negativa sai da fila.
+  const c8 = cotou(banco, u.id, "34999990008", "Desistiu", 120);
+  banco.coletarResgates(AGORA);
+  assert.ok(banco.listarResgates(u.id).some((r) => r.cliente === "Desistiu"));
+  banco.mudarStatus(c8.id, "Negativa");
+  banco.coletarResgates(AGORA);
+  assert.ok(!banco.listarResgates(u.id).some((r) => r.cliente === "Desistiu"));
 
   // Quem estava na fila e cotou de novo sai da fila.
   cotou(banco, outro.id, "34999990001", "Antigo", 1, { planos: [{ id: "c", nome: "C", enf: 1, apto: 2 }] });

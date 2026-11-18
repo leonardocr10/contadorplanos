@@ -98,7 +98,7 @@ Em **Documentos**, cada contrato guarda os arquivos que o cliente enviou (PDF, J
 
 ## Resgate
 
-A tela **Resgate** junta, sozinha, os clientes que estão sem cotar há mais dias que o escolhido e que não fecharam (nenhuma cotação Vendida e nenhum contrato com o mesmo telefone). Cada corretor define os dias no topo da tela (de 1 a 730; o padrão é 90): ao mudar, a fila é refeita na hora. Cada cliente recebe **uma vez só** uma mensagem no WhatsApp de quem fez a cotação, sem ninguém precisar clicar em enviar. Cada vendedor conecta o próprio número na tela, lendo um QR Code com o celular, e pode ajustar o texto, desligar o envio, tirar um cliente da fila ou colocá-lo de volta.
+A tela **Resgate** junta, sozinha, os clientes que estão sem cotar há mais dias que o escolhido e que não fecharam (nenhuma cotação Vendida e nenhum contrato com o mesmo telefone). Quem está como **Negativa** no Histórico (a situação da última cotação) também fica de fora. Cada corretor define os dias no topo da tela (de 1 a 730; o padrão é 90): ao mudar, a fila é refeita na hora. Cada cliente recebe **uma vez só** uma mensagem no WhatsApp de quem fez a cotação, sem ninguém precisar clicar em enviar. Cada vendedor conecta o próprio número na tela, lendo um QR Code com o celular, e pode ajustar o texto, desligar o envio, tirar um cliente da fila ou colocá-lo de volta.
 
 Para o número não ser bloqueado pelo WhatsApp, as mensagens saem de segunda a sexta, das 9h às 18h (horário de Brasília), até 30 por dia por vendedor e com 2 a 5 minutos entre uma e outra. Se o número do cliente não tiver WhatsApp, ele fica como **Não enviada**; outras falhas são tentadas mais 2 vezes.
 
