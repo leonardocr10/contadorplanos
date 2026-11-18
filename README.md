@@ -96,6 +96,54 @@ Cadastre cada venda com o nome e o telefone do cliente, o plano contratado, o va
 
 Em **Documentos**, cada contrato guarda os arquivos que o cliente enviou (PDF, JPG, PNG ou WebP), sem limite de quantidade. As fotos são reduzidas antes do envio. Os arquivos ficam dentro do banco: entram no backup e não têm link público. Cada usuário vê só os contratos que cadastrou, inclusive o administrador. Excluir um contrato apaga também os documentos dele.
 
+## Resgate
+
+A tela **Resgate** junta, sozinha, os clientes cuja última cotação tem mais de 90 dias e que não fecharam (nenhuma cotação Vendida e nenhum contrato com o mesmo telefone). Cada cliente recebe **uma vez só** uma mensagem no WhatsApp de quem fez a cotação, sem ninguém precisar clicar em enviar. Cada vendedor conecta o próprio número na tela, lendo um QR Code com o celular, e pode ajustar o texto, desligar o envio, tirar um cliente da fila ou colocá-lo de volta.
+
+Para o número não ser bloqueado pelo WhatsApp, as mensagens saem de segunda a sexta, das 9h às 18h (horário de Brasília), até 30 por dia por vendedor e com 2 a 5 minutos entre uma e outra. Se o número do cliente não tiver WhatsApp, ele fica como **Não enviada**; outras falhas são tentadas mais 2 vezes.
+
+O envio usa a [Evolution API](https://doc.evolution-api.com/v2/pt/install/docker), que roda na própria VPS. Ela não é oficial do WhatsApp: use com moderação. Sem a Evolution, a lista continua sendo montada, mas nada é enviado.
+
+1. Na VPS, suba a Evolution com Docker. Exemplo de `docker-compose.yml` (troque as duas senhas):
+
+   ```yaml
+   services:
+     evolution:
+       image: evoapicloud/evolution-api:v2.3.7
+       restart: always
+       ports: ["127.0.0.1:8080:8080"]
+       environment:
+         SERVER_URL: http://127.0.0.1:8080
+         AUTHENTICATION_API_KEY: troque-por-uma-chave-longa
+         DATABASE_ENABLED: "true"
+         DATABASE_PROVIDER: postgresql
+         DATABASE_CONNECTION_URI: postgresql://evolution:troque-esta-senha@postgres:5432/evolution
+         CACHE_REDIS_ENABLED: "false"
+         CACHE_LOCAL_ENABLED: "true"
+       volumes: ["evolution_instances:/evolution/instances"]
+       depends_on: [postgres]
+     postgres:
+       image: postgres:16
+       restart: always
+       environment:
+         POSTGRES_USER: evolution
+         POSTGRES_PASSWORD: troque-esta-senha
+         POSTGRES_DB: evolution
+       volumes: ["postgres_data:/var/lib/postgresql/data"]
+   volumes:
+     evolution_instances:
+     postgres_data:
+   ```
+
+   A porta fica presa ao `127.0.0.1`: só o cotador, na mesma máquina, fala com a Evolution.
+2. No `.env` do cotador na VPS, coloque o endereço e a mesma chave:
+
+   ```
+   EVOLUTION_URL=http://127.0.0.1:8080
+   EVOLUTION_API_KEY=troque-por-uma-chave-longa
+   ```
+3. Reinicie o cotador. Cada vendedor abre **Resgate** e clica em **Conectar meu WhatsApp**.
+
 ## Financeiro
 
 O menu **Financeiro** abre dois itens ao ser clicado. Quem não é administrador começa sem acesso: libere em **Configurações > Usuários**. Cada login vê e altera só as próprias corretoras, regras e comissões, inclusive o administrador. As corretoras de antes dessa separação ficam com o primeiro administrador que abrir o Financeiro.

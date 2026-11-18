@@ -16,6 +16,7 @@
 <link rel="modulepreload" href="js/planos.js">
 <link rel="modulepreload" href="js/atualizar.js">
 <link rel="modulepreload" href="js/historico.js">
+<link rel="modulepreload" href="js/resgate.js">
 <link rel="modulepreload" href="js/aceites.js">
 <link rel="modulepreload" href="js/documentos.js">
 <link rel="modulepreload" href="js/contratos.js">
@@ -40,6 +41,7 @@
       <button role="tab" aria-selected="false" data-view="planos" title="Planos e Valores"><svg class="tab-ico" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12V4a1 1 0 0 1 1-1h8l9 9-9 9z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg><span class="tab-rotulo">Planos e Valores</span></button>
       <button role="tab" aria-selected="false" data-view="documentos" title="Documentos"><svg class="tab-ico" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M9 13h6M9 17h6"/></svg><span class="tab-rotulo">Documentos</span></button>
       <button role="tab" aria-selected="false" data-view="historico" title="Histórico"><svg class="tab-ico" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span class="tab-rotulo">Histórico</span></button>
+      <button role="tab" aria-selected="false" data-view="resgate" title="Resgate"><svg class="tab-ico" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/><path d="m5.6 5.6 3.6 3.6M14.8 14.8l3.6 3.6M14.8 9.2l3.6-3.6M5.6 18.4l3.6-3.6"/></svg><span class="tab-rotulo">Resgate</span> <span class="pill" id="res-selo" hidden style="margin:0 0 0 4px"></span></button>
       <button role="tab" aria-selected="false" data-view="aceites" title="Aceites"><svg class="tab-ico" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg><span class="tab-rotulo">Aceites</span> <span class="pill" id="ace-selo" hidden style="margin:0 0 0 4px"></span></button>
       <button role="tab" aria-selected="false" data-view="contratos" title="Contratos Vendidos"><svg class="tab-ico" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2M3 13h18"/></svg><span class="tab-rotulo">Contratos Vendidos</span> <span class="pill st-off" id="ctr-selo" hidden style="margin:0 0 0 4px"></span></button>
       <button type="button" class="tabs-grupo" data-tela="financeiro" aria-expanded="false" title="Financeiro"><svg class="tab-ico" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="6" width="20" height="13" rx="2"/><circle cx="12" cy="12.5" r="2.5"/><path d="M6 12.5h.01M18 12.5h.01"/></svg><span class="tab-rotulo">Financeiro</span><svg class="tab-seta" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
@@ -139,6 +141,51 @@
       <div id="hist-list"></div>
       <nav class="grade-paginacao" id="hist-paginacao" aria-label="Páginas do histórico"></nav>
       <p class="note" style="margin:0">Cada usuário vê só as próprias cotações, inclusive o administrador. O backup em Configurações guarda as de todos.</p>
+    </div>
+  </section>
+
+  <!-- RESGATE -->
+  <section id="v-resgate" class="ctr-blocos" hidden>
+    <div class="panel">
+      <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:space-between;align-items:center">
+        <h2>Resgate de clientes</h2>
+        <span class="note" id="res-count"></span>
+      </div>
+      <p class="note" id="res-regras" style="margin:0"></p>
+      <div class="grade-cards" id="res-cards" role="group" aria-label="Clientes do resgate por situação"></div>
+    </div>
+    <div class="res-blocos">
+      <div class="panel">
+        <h3 class="ctr-bloco-titulo">Meu WhatsApp</h3>
+        <div id="res-wa-estado" class="status">Verificando a conexão…</div>
+        <div id="res-qr" class="res-qr" hidden>
+          <img alt="QR Code para conectar o WhatsApp" width="240" height="240">
+          <p class="note">No celular, abra o WhatsApp, toque em <b>Aparelhos conectados</b> › <b>Conectar um aparelho</b> e aponte a câmera para este código. Ele muda a cada poucos segundos.</p>
+        </div>
+        <div class="actions" data-edita="historico" hidden>
+          <button type="button" class="btn primary" id="res-conectar">Conectar meu WhatsApp</button>
+          <button type="button" class="btn" id="res-desconectar" hidden>Desconectar</button>
+        </div>
+      </div>
+      <div class="panel" data-edita="historico" hidden>
+        <h3 class="ctr-bloco-titulo">Mensagem automática</h3>
+        <label class="uchk res-ativo"><input type="checkbox" id="res-ativo"> Enviar a mensagem automaticamente</label>
+        <div class="field"><label for="res-mensagem">Texto da mensagem</label><textarea id="res-mensagem" maxlength="1000" rows="5"></textarea></div>
+        <p class="note" style="margin:0">Use <b>{nome}</b> (primeiro nome do cliente), <b>{plano}</b>, <b>{corretor}</b> (o seu nome) e <b>{empresa}</b>. Exemplo com o primeiro cliente da lista:</p>
+        <div class="bubble res-previa" id="res-previa"></div>
+        <div class="actions"><button type="button" class="btn primary" id="res-salvar">Salvar</button><button type="button" class="btn" id="res-padrao">Voltar ao texto padrão</button></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="hist-filtros grade-filtros">
+        <div class="field"><label for="res-busca">Buscar</label><input id="res-busca" type="search" placeholder="Nome, telefone ou plano" autocomplete="off"></div>
+        <div class="field"><label for="res-filtro">Situação</label><select id="res-filtro" data-icone="filtro" data-contagem="situação|situações"></select></div>
+        <div class="field"><label for="res-por-pagina">Por página</label><select id="res-por-pagina"><option value="10">10 por página</option><option value="25">25 por página</option><option value="50">50 por página</option><option value="100">100 por página</option></select></div>
+        <button type="button" class="btn btn-limpar" id="res-limpar" title="Limpar filtros" aria-label="Limpar filtros" disabled><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg><span>Limpar</span></button>
+      </div>
+      <div id="res-list"></div>
+      <nav class="grade-paginacao" id="res-paginacao" aria-label="Páginas do resgate"></nav>
+      <p class="note" style="margin:0">Entra aqui, sozinho, quem fez a última cotação há mais de 90 dias e não fechou. Cada cliente recebe a mensagem uma vez só, pelo WhatsApp de quem fez a cotação.</p>
     </div>
   </section>
 

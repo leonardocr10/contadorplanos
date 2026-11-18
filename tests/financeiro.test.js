@@ -130,8 +130,8 @@ test("ao atualizar, saem as regras antigas que não são de um plano cadastrado"
     const contrato = banco.criarContrato({ nome: "Maria", fone: "34999990000", plano: "AMIL OURO", valor: 300, ativacao: "2026-12-01" });
     banco.definirComissaoDoContrato(contrato.id, antiga);
     const versao = banco.db.prepare("PRAGMA user_version").get().user_version;
-    // Volta antes da limpeza (e das migrações que vieram depois: separação por login, ajustes e fim da adesão).
-    banco.db.exec(`PRAGMA user_version = ${versao - 4}`);
+    // Volta antes da limpeza (e das migrações que vieram depois: separação por login, ajustes, fim da adesão e resgate).
+    banco.db.exec(`PRAGMA user_version = ${versao - 5}`);
     banco.fechar();
     banco = new Banco(arquivo, planos);
     assert.deepEqual(banco.listarCorretoras()[0].regras.map((r) => `${r.nome}|${r.segmento}`), ["AMIL OURO|PF", "AMIL OURO 30%|PME"]);

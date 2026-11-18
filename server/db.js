@@ -344,6 +344,27 @@ const MIGRACOES = [
   (db) => {
     if (db.prepare("PRAGMA table_info(contratos)").all().some((c) => c.name === "adesao")) db.exec("ALTER TABLE contratos DROP COLUMN adesao");
   },
+  // Resgate: o cliente que cotou há mais de 90 dias recebe uma mensagem automática, uma vez só (um por usuário e telefone).
+  `CREATE TABLE IF NOT EXISTS resgates (
+     id TEXT PRIMARY KEY,
+     usuario_id TEXT NOT NULL,
+     fone TEXT NOT NULL,
+     cliente TEXT NOT NULL DEFAULT '',
+     plano TEXT NOT NULL DEFAULT '',
+     cotacao_em TEXT NOT NULL,
+     status TEXT NOT NULL DEFAULT 'pendente',
+     criado_em TEXT NOT NULL,
+     enviado_em TEXT,
+     tentativas INTEGER NOT NULL DEFAULT 0,
+     erro TEXT NOT NULL DEFAULT '',
+     mensagem TEXT NOT NULL DEFAULT '',
+     UNIQUE (usuario_id, fone)
+   );
+   CREATE TABLE IF NOT EXISTS resgate_config (
+     usuario_id TEXT PRIMARY KEY,
+     ativo INTEGER NOT NULL DEFAULT 1,
+     mensagem TEXT NOT NULL DEFAULT ''
+   );`,
 ];
 
 // Troca os documentos dos planos CNPJ pela lista empresarial; com unimed, a Unimed PME recebe a lista dela.
@@ -479,6 +500,13 @@ function linhaParaProposta(l) {
     aceitoEm: l.aceito_em, acomodacao: l.acomodacao, valor: l.valor, docsEnviadosEm: l.docs_enviados_em,
     docsFone: l.docs_fone, docsChave: l.docs_chave, docsConcluidoEm: l.docs_concluido_em,
     docsNome: l.docs_nome ?? "", docsEmail: l.docs_email ?? "", propostaEnviadaEm: l.proposta_enviada_em ?? null, contratoId: l.contrato_id ?? null,
+  };
+}
+
+function linhaParaResgate(l) {
+  return {
+    id: l.id, usuarioId: l.usuario_id, fone: l.fone, cliente: l.cliente, plano: l.plano, cotacaoEm: l.cotacao_em, status: l.status,
+    criadoEm: l.criado_em, enviadoEm: l.enviado_em, tentativas: l.tentativas, erro: l.erro, mensagem: l.mensagem,
   };
 }
 
@@ -869,6 +897,78 @@ export class Banco {
 
   excluirCotacao(id) {
     return this.db.prepare("DELETE FROM cotacoes WHERE id = ?").run(id).changes > 0;
+  }
+
+  /* ---------- resgate ---------- */
+  // A última cotação de cada cliente (usuário e telefone) feita antes do limite. Fica de fora quem já fechou:
+  // alguma cotação vendida ou um contrato com o mesmo telefone. Cotações de antes dos logins não têm WhatsApp de quem enviar.
+  clientesParaResgate(limiteIso) {
+    const linhas = this.db.prepare(`SELECT c.usuario_id, c.fone, c.cliente, c.planos, c.criado_em FROM cotacoes c
+      JOIN (SELECT usuario_id, fone, MAX(criado_em) AS ultima FROM cotacoes WHERE usuario_id <> '' AND length(fone) >= 10 GROUP BY usuario_id, fone) u
+        ON u.usuario_id = c.usuario_id AND u.fone = c.fone AND u.ultima = c.criado_em
+      WHERE u.ultima < ?
+        AND NOT EXISTS (SELECT 1 FROM cotacoes v WHERE v.usuario_id = c.usuario_id AND v.fone = c.fone AND v.status = 'Vendida')
+        AND NOT EXISTS (SELECT 1 FROM contratos k WHERE k.usuario_id = c.usuario_id AND k.fone = c.fone)`).all(limiteIso);
+    const unicos = new Map();
+    for (const l of linhas) {
+      let planos = [];
+      try { planos = JSON.parse(l.planos); } catch { /* lista inválida fica vazia */ }
+      unicos.set(`${l.usuario_id}|${l.fone}`, { usuarioId: l.usuario_id, fone: l.fone, cliente: l.cliente, plano: planos[0]?.nome ?? "", cotacaoEm: l.criado_em });
+    }
+    return unicos;
+  }
+
+  // Põe na lista quem passou do limite e tira o que ainda não foi enviado de quem cotou de novo ou fechou.
+  // Quem já está na lista (enviado, com erro ou cancelado) não entra outra vez.
+  coletarResgates(limiteIso, agoraIso = new Date().toISOString()) {
+    const clientes = this.clientesParaResgate(limiteIso);
+    const incluir = this.db.prepare("INSERT OR IGNORE INTO resgates (id, usuario_id, fone, cliente, plano, cotacao_em, status, criado_em) VALUES (?,?,?,?,?,?,'pendente',?)");
+    const tirar = this.db.prepare("DELETE FROM resgates WHERE id = ?");
+    let novos = 0;
+    for (const c of clientes.values()) novos += incluir.run("r" + randomUUID(), c.usuarioId, c.fone, c.cliente, c.plano, c.cotacaoEm, agoraIso).changes;
+    for (const r of this.db.prepare("SELECT id, usuario_id, fone FROM resgates WHERE status = 'pendente'").all()) {
+      if (!clientes.has(`${r.usuario_id}|${r.fone}`)) tirar.run(r.id);
+    }
+    return novos;
+  }
+
+  listarResgates(usuarioId) {
+    return this.db.prepare("SELECT * FROM resgates WHERE usuario_id = ? ORDER BY cotacao_em DESC").all(usuarioId).map(linhaParaResgate);
+  }
+
+  obterResgate(id) {
+    const l = this.db.prepare("SELECT * FROM resgates WHERE id = ?").get(id);
+    return l ? linhaParaResgate(l) : null;
+  }
+
+  // O próximo a enviar: o cliente que está esperando há mais tempo.
+  proximoResgate(usuarioId) {
+    const l = this.db.prepare("SELECT * FROM resgates WHERE usuario_id = ? AND status = 'pendente' ORDER BY cotacao_em, id LIMIT 1").get(usuarioId);
+    return l ? linhaParaResgate(l) : null;
+  }
+
+  contarResgatesEnviados(usuarioId, desdeIso) {
+    return this.db.prepare("SELECT COUNT(*) AS n FROM resgates WHERE usuario_id = ? AND status = 'enviado' AND enviado_em >= ?").get(usuarioId, desdeIso).n;
+  }
+
+  marcarResgate(id, { status, enviadoEm = null, tentativas, erro = "", mensagem }) {
+    const atual = this.obterResgate(id);
+    if (!atual) return null;
+    this.db.prepare("UPDATE resgates SET status = ?, enviado_em = ?, tentativas = ?, erro = ?, mensagem = ? WHERE id = ?")
+      .run(status, enviadoEm, tentativas ?? atual.tentativas, erro, mensagem ?? atual.mensagem, id);
+    return this.obterResgate(id);
+  }
+
+  lerConfigResgate(usuarioId) {
+    const l = this.db.prepare("SELECT ativo, mensagem FROM resgate_config WHERE usuario_id = ?").get(usuarioId);
+    return { ativo: l ? !!l.ativo : true, mensagem: l?.mensagem ?? "" };
+  }
+
+  gravarConfigResgate(usuarioId, { ativo, mensagem }) {
+    const atual = this.lerConfigResgate(usuarioId);
+    this.db.prepare("INSERT INTO resgate_config (usuario_id, ativo, mensagem) VALUES (?, ?, ?) ON CONFLICT (usuario_id) DO UPDATE SET ativo = excluded.ativo, mensagem = excluded.mensagem")
+      .run(usuarioId, (ativo ?? atual.ativo) ? 1 : 0, mensagem ?? atual.mensagem);
+    return this.lerConfigResgate(usuarioId);
   }
 
   /* ---------- contratos vendidos ---------- */

@@ -12,6 +12,7 @@ import { cacheDoArquivo, cacheDoEnvio, naoGuardar } from "./cache.js";
 import { comprimir } from "./compressao.js";
 import { conferirSenha, gerarHashSemTravar } from "./senhas.js";
 import { criarEnviadorDeEmail } from "./email.js";
+import { DIAS_RESGATE, ErroWhatsApp, HORARIO, LIMITE_POR_DIA, MENSAGEM_PADRAO, criarResgate, instanciaDe } from "./resgate.js";
 import { NIVEIS, PERMISSOES_PADRAO, TELAS, TELAS_COM_PLANOS, atende } from "./permissoes.js";
 import { CATEGORIA_DO_SEGMENTO, MAX_PARCELAS, SEGMENTOS } from "../public/js/comissao.js";
 import { montarSnapshot, renderizarProposta } from "./proposta-html.js";
@@ -270,7 +271,7 @@ function validarPedidoDeLinks(b) {
   };
 }
 
-export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env = process.env, exigirLogin = false, aceitarQualquerHost = false, sistema, clienteClaude, linkPublico = () => ({ estado: "indisponivel", url: null }), enviarEmail = criarEnviadorDeEmail(env) }) {
+export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env = process.env, exigirLogin = false, aceitarQualquerHost = false, sistema, clienteClaude, linkPublico = () => ({ estado: "indisponivel", url: null }), enviarEmail = criarEnviadorDeEmail(env), resgate = criarResgate({ banco, env }) }) {
   const app = express();
   app.disable("x-powered-by");
   // Respostas comprimidas: a lista de planos tem centenas de KB de texto repetido (rede, área).
@@ -398,6 +399,60 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
   app.delete("/api/cotacoes/:id", exige("historico", "editar"), (req, res) => {
     if (!cotacaoVisivel(req) || !banco.excluirCotacao(req.params.id)) return res.status(404).json(NAO_ACHOU_COTACAO);
     res.status(204).end();
+  });
+
+  /* ---------- resgate ---------- */
+  // Cada login vê e envia só os próprios clientes, inclusive o administrador; o WhatsApp é o dele.
+  const precisaDeLogin = (req) => {
+    if (!req.usuario) throw new ErroEntrada("Entre com o seu login para usar o resgate.");
+    return req.usuario.id;
+  };
+  const whatsappDoServidor = () => {
+    if (!resgate.evolution) throw new ErroEntrada("O envio automático pelo WhatsApp ainda não foi configurado no servidor. Fale com o administrador.");
+    return resgate.evolution;
+  };
+  // Cancelar tira da fila; tentar de novo devolve à fila o que foi cancelado ou deu erro.
+  const ACOES_DO_RESGATE = { cancelar: ["pendente"], reenviar: ["erro", "cancelado"] };
+  const resgateParaTela = ({ usuarioId, ...r }) => r;
+
+  app.get("/api/resgate", exige("historico", "ver"), (req, res) => {
+    resgate.coletar();
+    const dono = req.usuario?.id ?? "";
+    res.json({
+      ...banco.lerConfigResgate(dono), configurado: resgate.configurado, mensagemPadrao: MENSAGEM_PADRAO,
+      regras: { dias: DIAS_RESGATE, limitePorDia: LIMITE_POR_DIA, horario: HORARIO },
+      itens: banco.listarResgates(dono).map(resgateParaTela),
+    });
+  });
+
+  app.put("/api/resgate/config", exige("historico", "editar"), (req, res) => {
+    const b = req.body ?? {};
+    const mensagem = b.mensagem === undefined ? undefined : textoOpc(b.mensagem, "mensagem", 1000);
+    if (b.ativo !== undefined && typeof b.ativo !== "boolean") throw new ErroEntrada("Escolha se o envio automático fica ligado.");
+    res.json(banco.gravarConfigResgate(precisaDeLogin(req), { ativo: b.ativo, mensagem }));
+  });
+
+  app.patch("/api/resgate/:id", exige("historico", "editar"), (req, res) => {
+    const r = banco.obterResgate(req.params.id);
+    if (!r || r.usuarioId !== precisaDeLogin(req)) return res.status(404).json({ erro: "Cliente não encontrado no resgate." });
+    const acao = req.body?.acao;
+    if (!ACOES_DO_RESGATE[acao]) throw new ErroEntrada("Ação inválida.");
+    if (!ACOES_DO_RESGATE[acao].includes(r.status)) throw new ErroEntrada(acao === "cancelar" ? "Esta mensagem já não está na fila." : "Só dá para tentar de novo uma mensagem cancelada ou com erro.");
+    res.json(resgateParaTela(banco.marcarResgate(r.id, acao === "cancelar" ? { status: "cancelado" } : { status: "pendente", tentativas: 0 })));
+  });
+
+  app.get("/api/resgate/whatsapp", exige("historico", "ver"), async (req, res) => {
+    if (!resgate.evolution) return res.json({ configurado: false, estado: "inexistente", numero: "" });
+    res.json({ configurado: true, ...(await resgate.evolution.estado(instanciaDe(precisaDeLogin(req)))) });
+  });
+
+  app.post("/api/resgate/whatsapp/conectar", exige("historico", "editar"), async (req, res) => {
+    res.json(await whatsappDoServidor().conectar(instanciaDe(precisaDeLogin(req))));
+  });
+
+  app.post("/api/resgate/whatsapp/desconectar", exige("historico", "editar"), async (req, res) => {
+    await whatsappDoServidor().desconectar(instanciaDe(precisaDeLogin(req)));
+    res.json({ ok: true });
   });
 
   /* ---------- contratos vendidos ---------- */
@@ -854,6 +909,7 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
   // eslint-disable-next-line no-unused-vars
   app.use((err, _req, res, _next) => {
     if (err instanceof ErroEntrada || err instanceof ErroBackup) return res.status(400).json({ erro: err.message });
+    if (err instanceof ErroWhatsApp) return res.status(502).json({ erro: err.message });
     if (err instanceof ErroNaoEncontrado) return res.status(404).json({ erro: err.message });
     if (err instanceof ErroLeitura) return res.status(err.status).json({ erro: err.message, codigo: err.codigo });
     if (err.type === "entity.too.large") return res.status(413).json({ erro: "O arquivo enviado é grande demais." });

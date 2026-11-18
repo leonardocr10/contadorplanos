@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { Banco } from "./db.js";
 import { CODIGO_REINICIAR, criarSistema } from "./sistema.js";
 import { criarApp } from "./app.js";
+import { criarResgate } from "./resgate.js";
 import { criarAppExterna, criarAppPublica, enderecoDosLinks } from "./publico.js";
 
 const raiz = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -40,9 +41,12 @@ const sistema = criarSistema({
     process.exit(CODIGO_REINICIAR);
   },
 });
+// O resgate é um só para as duas portas: a fila de envio e o intervalo entre as mensagens ficam juntos.
+const resgate = criarResgate({ banco });
 const opcoesCotador = {
   sistema,
   banco,
+  resgate,
   pastaPublica,
   pastaUploads,
   pastaBackups: join(raiz, "backups"),
@@ -54,6 +58,8 @@ const app = criarApp(opcoesCotador);
 const servidor = app.listen(porta, "127.0.0.1", (erro) => {
   if (erro) return tratarErroDePorta(erro);
   console.log(`Cotador disponível em ${endereco}`);
+  resgate.iniciar();
+  if (resgate.configurado) console.log("Resgate: envio automático pelo WhatsApp ligado (Evolution API).");
   abrirNavegador();
   iniciarLinks();
 });

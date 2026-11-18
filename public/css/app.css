@@ -789,3 +789,15 @@ a.ctr-doc-mini:hover{border-color:var(--accent)}
 .alerta-contratos{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:center;width:100%;margin:0 0 14px;padding:10px 16px;border:1px solid var(--danger);border-radius:12px;background:var(--danger-soft);color:var(--danger);font:inherit;font-size:14px;text-align:left;cursor:pointer}
 .alerta-contratos[hidden]{display:none}
 .alerta-contratos span{font-weight:600;opacity:.85;text-decoration:underline}
+/* Resgate: conexão do WhatsApp e mensagem lado a lado; a grade embaixo. */
+.res-blocos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;align-items:start}
+@media (max-width:900px){.res-blocos{grid-template-columns:minmax(0,1fr)}}
+#res-wa-estado.res-ok{border-style:solid;border-color:var(--accent);background:var(--accent-soft);color:var(--pine)}
+.res-qr{display:flex;flex-wrap:wrap;gap:14px;align-items:center}
+.res-qr[hidden]{display:none}
+.res-qr img{width:240px;height:240px;border:1px solid var(--line);border-radius:12px;background:#fff;padding:8px}
+.res-qr .note{flex:1;min-width:200px;margin:0;font-size:13.5px}
+.res-ativo{color:var(--ink);font-size:14px}
+.res-previa{align-self:flex-start;max-width:560px}
+.res-quando{font-size:12px;margin-top:2px}
+#res-mensagem{min-height:170px}

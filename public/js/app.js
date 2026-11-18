@@ -3,6 +3,7 @@ import { $, S, VIEWS, abrirGrupoDoMenu, api, avisoCentral, carregarPlanos, defin
 import { iniciarCotacao, novaCotacao, renderCotacao } from "./cotacao.js";
 import { iniciarPlanos, renderCat } from "./planos.js";
 import { carregarHistorico, iniciarHistorico, renderHist } from "./historico.js";
+import { carregarResgate, iniciarResgate } from "./resgate.js";
 import { carregarAceites, iniciarAceites, renderAceites } from "./aceites.js";
 import { carregarDocumentos, iniciarDocumentos, renderDocumentos } from "./documentos.js";
 import { atualizarPlanosDoContrato, carregarContratos, conferirDiaDosContratos, iniciarContratos } from "./contratos.js";
@@ -29,6 +30,7 @@ $(".tabs-grupo").onclick = (e) => abrirGrupoDoMenu(e.currentTarget.getAttribute(
 document.querySelectorAll(".tabs button[data-view]").forEach((b) => (b.onclick = () => {
   show(b.dataset.view);
   if (["regras", "comissoes"].includes(b.dataset.view)) carregarFinanceiro();
+  if (b.dataset.view === "resgate") carregarResgate({ comWhatsApp: true });
 }));
 // Nova cotação recomeça do zero na hora, sem recarregar a página; planos e histórico se atualizam ao fundo.
 $("#tab-cot").onclick = async () => {
@@ -258,6 +260,7 @@ async function carregar() {
     show(viewDoHash());
     extras = Promise.all([
       carregarHistorico(),
+      carregarResgate({ comWhatsApp: viewDoHash() === "resgate" }),
       pode("documentos") ? carregarDocumentos().catch((e) => toast(e.message, "erro")) : null,
       verificarAceites(),
       carregarContratos(),
@@ -293,6 +296,7 @@ async function verificarAceites() {
 iniciarCotacao();
 iniciarPlanos();
 iniciarHistorico();
+iniciarResgate();
 iniciarDocumentos();
 iniciarConfiguracoes();
 iniciarContratos();

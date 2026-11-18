@@ -62,9 +62,9 @@ export const toast = (texto, tipo = "aviso") => avisoCentral(texto, tipo);
 export const eAdmin = () => S.eu?.perfil === "admin";
 const ORDEM_NIVEIS = ["nenhum", "ver", "editar"];
 export const pode = (tela, minimo = "ver") => ORDEM_NIVEIS.indexOf(S.eu?.permissoes?.[tela] ?? "nenhum") >= ORDEM_NIVEIS.indexOf(minimo);
-export const VIEWS = ["cotacao", "planos", "documentos", "historico", "aceites", "contratos", "regras", "comissoes", "configuracoes", "manual"];
-// Telas que são parte de outra na permissão (os submenus do Financeiro).
-export const telaDaView = (v) => ({ regras: "financeiro", comissoes: "financeiro" }[v] ?? v);
+export const VIEWS = ["cotacao", "planos", "documentos", "historico", "resgate", "aceites", "contratos", "regras", "comissoes", "configuracoes", "manual"];
+// Telas que são parte de outra na permissão (os submenus do Financeiro e o Resgate, que sai do Histórico).
+export const telaDaView = (v) => ({ regras: "financeiro", comissoes: "financeiro", resgate: "historico" }[v] ?? v);
 // Grupo do menu (Financeiro): os submenus só aparecem com o grupo aberto.
 export function abrirGrupoDoMenu(aberto) {
   const grupo = document.querySelector(".tabs-grupo");

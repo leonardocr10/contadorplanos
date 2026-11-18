@@ -147,3 +147,27 @@ const escHtml = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;"
 export function waHtml(t) {
   return escHtml(t).replace(/\*([^*\n]+)\*/g, "<b>$1</b>").replace(/(^|[\s(])_([^_\n]+)_/g, "$1<i>$2</i>");
 }
+
+/* ---------- resgate ---------- */
+// Texto que vai sozinho, pelo WhatsApp, para quem cotou há mais de 90 dias e não fechou.
+export const MENSAGEM_RESGATE_PADRAO = [
+  "Olá, {nome}! Tudo bem? 😊",
+  "",
+  "Aqui é {corretor}. Há alguns meses fizemos uma cotação do plano *{plano}* para você.",
+  "",
+  "Ainda tem interesse em um plano de saúde? Posso refazer a cotação com os valores de hoje, sem compromisso.",
+].join("\n");
+
+const primeiroNomeBonito = (nome) => {
+  const p = String(nome || "").trim().split(/\s+/)[0] || "";
+  return p ? p[0].toLocaleUpperCase("pt-BR") + p.slice(1).toLocaleLowerCase("pt-BR") : "";
+};
+
+// Troca {nome} (primeiro nome do cliente), {plano}, {corretor} e {empresa}. Sem o nome, "Olá, {nome}!" vira "Olá!".
+export function mensagemResgate(modelo, { cliente = "", plano = "", corretor = "", empresa = "" } = {}) {
+  const nome = primeiroNomeBonito(cliente);
+  let texto = String(modelo || "").trim() || MENSAGEM_RESGATE_PADRAO;
+  if (!nome) texto = texto.replace(/,?[ \t]*\{nome\}/g, "");
+  const valores = { nome, plano: plano || "de saúde", corretor: corretor || "o seu corretor", empresa };
+  return texto.replace(/\{(nome|plano|corretor|empresa)\}/g, (_, v) => valores[v]).replace(/[ \t]{2,}/g, " ").trim();
+}
