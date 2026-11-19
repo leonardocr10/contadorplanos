@@ -815,18 +815,20 @@ a.ctr-doc-mini:hover{border-color:var(--accent)}
 .men-cabeca .note{margin:4px 0 0;max-width:560px}
 .men-bloqueio-campo{display:flex;align-items:center;gap:6px}
 .men-bloqueio-campo input[type=number]{width:90px}
-.men-regua{border:1px solid var(--line);border-radius:12px;background:var(--bg);padding:10px 14px}
+.men-regua-barra{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;border:1px solid var(--line);border-radius:12px;background:var(--bg);padding:12px 14px;font:inherit;color:inherit;text-align:left;cursor:pointer}
+.men-regua-barra:hover{border-color:var(--accent)}
 .men-regua-topo{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px}
-.men-regua-topo h3{margin:0;font-size:15px}
 .men-regua-resumo{font-size:13.5px;color:var(--muted)}
-.men-regua form{display:flex;flex-direction:column;gap:14px;margin-top:12px}
-.men-regua .field{margin:0}
-.men-regua small.note{font-size:12.5px;margin:0}
-.men-regua-etapas{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px 16px;align-items:start}
+.men-regua-editar{flex:none;font-size:13.5px;font-weight:700;color:var(--accent)}
+.men-regua-form{display:flex;flex-direction:column;min-height:0;flex:1}
+.men-regua-corpo{display:flex;flex-direction:column;gap:14px}
+.men-regua-corpo .field{margin:0}
+.men-regua-corpo small.note{font-size:12.5px;margin:0}
+.men-regua-etapas{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px 16px;align-items:start}
 .men-regua-rotulo{display:block;font-size:13px;font-weight:600;margin-bottom:6px}
 .men-regua-canais{display:flex;flex-wrap:wrap;gap:8px 20px}
-.men-regua textarea{margin-top:0;min-height:64px;font:500 15px/1.45 var(--body);background:var(--surface)}
-.men-regua input[type=number]{background:var(--surface)}
+.men-regua-corpo textarea{margin-top:0;min-height:64px;font:500 15px/1.45 var(--body)}
+.men-modal-rodape{display:flex;justify-content:flex-end;gap:8px;padding:12px 20px;border-top:1px solid var(--line)}
 .men-resumo{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
 .men-numero{display:flex;flex-direction:column;gap:2px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--bg);font:inherit;color:inherit;text-align:left;cursor:pointer}
 .men-numero:hover{border-color:var(--accent)}

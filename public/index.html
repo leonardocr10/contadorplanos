@@ -485,10 +485,17 @@
           <p class="note">Cobrança mensal de uso do sistema de cada corretor. O administrador não paga. O pagamento é marcado à mão, mês a mês.</p>
         </div>
       </div>
-      <section class="men-regua" id="men-regua" aria-labelledby="men-regua-titulo">
-        <div class="men-regua-topo"><h3 id="men-regua-titulo">Régua de cobrança</h3><span class="men-regua-resumo" id="men-regua-resumo"></span></div>
-        <form id="men-regua-form" novalidate>
-          <p class="note" style="margin:0">Lembretes automáticos para cada mês em aberto, de segunda a sexta, das 9h às 18h. Cada lembrete sai uma vez só e fica no registro de alterações do corretor.</p>
+      <button type="button" class="men-regua-barra" id="men-regua-abrir" aria-haspopup="dialog">
+        <span class="men-regua-topo"><b>Régua de cobrança</b><span class="men-regua-resumo" id="men-regua-resumo"></span></span>
+        <span class="men-regua-editar">Configurar</span>
+      </button>
+      <dialog class="men-modal" id="men-regua-modal" aria-labelledby="men-regua-titulo">
+        <form class="men-regua-form" id="men-regua-form" novalidate>
+          <header class="men-modal-topo">
+            <div><h2 id="men-regua-titulo">Régua de cobrança</h2><p class="note" style="margin:0">Lembretes automáticos para cada mês em aberto, de segunda a sexta, das 9h às 18h. Cada lembrete sai uma vez só e fica no registro de alterações do corretor.</p></div>
+            <button class="gaveta-fechar" type="button" data-fechar aria-label="Fechar">×</button>
+          </header>
+          <div class="men-modal-corpo men-regua-corpo">
           <div class="men-regua-etapas">
             <div class="field"><label for="men-regua-antes">Lembrete antes do vencimento</label>
               <div class="men-bloqueio-campo"><input id="men-regua-antes" type="number" min="0" max="30" step="1" inputmode="numeric"><span>dias antes</span></div>
@@ -511,9 +518,13 @@
           </div>
           <div class="field"><label for="men-regua-pagar">Como pagar (opcional, vai no fim de cada lembrete)</label>
             <textarea id="men-regua-pagar" rows="2" maxlength="500" placeholder="Ex.: Pix para a chave financeiro@suaempresa.com.br"></textarea></div>
-          <div class="actions" style="margin:0"><button class="btn primary" type="submit" id="men-regua-salvar">Salvar régua</button></div>
+          </div>
+          <footer class="men-modal-rodape">
+            <button class="btn" type="button" data-fechar>Cancelar</button>
+            <button class="btn primary" type="submit" id="men-regua-salvar">Salvar régua</button>
+          </footer>
         </form>
-      </section>
+      </dialog>
       <div class="men-resumo" id="men-resumo"></div>
       <div class="grade-cards" id="men-cards" role="group" aria-label="Corretores por situação"></div>
       <div class="grade-filtros men-filtros">

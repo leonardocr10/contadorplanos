@@ -244,20 +244,22 @@ function resumoDaRegua(r, diasBloqueio) {
   return `${lembretes} · ${diasBloqueio ? `bloqueio com ${plural(diasBloqueio, "dia", "dias")} de atraso` : "sem bloqueio"}`;
 }
 
-// Preenche o formulário só quando ninguém está mexendo nele, para não apagar o que está sendo digitado.
+// A tela mostra só o resumo; os campos ficam no modal, preenchidos ao abrir.
 function desenharRegua() {
   const r = dados.regua, diasBloqueio = dados.config.diasBloqueio;
   $("#men-regua-resumo").textContent = resumoDaRegua(r, diasBloqueio);
-  const form = $("#men-regua-form");
-  if (!form.contains(document.activeElement)) {
-    $("#men-regua-antes").value = r.antes;
-    $("#men-regua-dia").checked = r.noDia;
-    $("#men-regua-depois").value = r.depois;
-    $("#men-bloqueio").value = diasBloqueio;
-    $("#men-regua-whatsapp").checked = r.whatsapp;
-    $("#men-regua-email").checked = r.email;
-    $("#men-regua-pagar").value = r.comoPagar;
-  }
+}
+
+function abrirRegua() {
+  if (!dados?.regua) return;
+  const r = dados.regua, diasBloqueio = dados.config.diasBloqueio;
+  $("#men-regua-antes").value = r.antes;
+  $("#men-regua-dia").checked = r.noDia;
+  $("#men-regua-depois").value = r.depois;
+  $("#men-bloqueio").value = diasBloqueio;
+  $("#men-regua-whatsapp").checked = r.whatsapp;
+  $("#men-regua-email").checked = r.email;
+  $("#men-regua-pagar").value = r.comoPagar;
   $("#men-regua-whatsapp").disabled = !r.whatsappConfigurado && !r.whatsapp;
   $("#men-regua-email").disabled = !r.emailConfigurado && !r.email;
   const dicas = [
@@ -270,6 +272,7 @@ function desenharRegua() {
   $("#men-bloqueio-dica").textContent = diasBloqueio
     ? "O login volta sozinho quando o atraso é pago. 0 não bloqueia."
     : "0 não bloqueia";
+  $("#men-regua-modal").showModal();
 }
 
 async function salvarRegua(e) {
@@ -284,7 +287,7 @@ async function salvarRegua(e) {
       whatsapp: $("#men-regua-whatsapp").checked, email: $("#men-regua-email").checked, comoPagar: $("#men-regua-pagar").value,
     } });
     await api("/api/mensalidades/config", { metodo: "PUT", json: { diasBloqueio: numero("#men-bloqueio") } });
-    botao.blur();
+    $("#men-regua-modal").close();
     avisoCentral("Régua de cobrança salva com sucesso");
     await carregarMensalidades();
   } catch (erro) {
@@ -352,6 +355,9 @@ export function iniciarMensalidades() {
   $("#men-form").addEventListener("input", atualizarPrevia);
   $("#men-form").addEventListener("change", atualizarPrevia);
   $("#men-regua-form").onsubmit = salvarRegua;
+  $("#men-regua-abrir").onclick = abrirRegua;
+  document.querySelectorAll("#men-regua-modal [data-fechar]").forEach((b) => (b.onclick = () => $("#men-regua-modal").close()));
+  $("#men-regua-modal").addEventListener("click", (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
   $("#men-modal").addEventListener("close", () => { aberto = null; pagando = null; });
   $("#men-modal [data-fechar]").onclick = () => $("#men-modal").close();
   // Clicar fora da caixa fecha o modal.
