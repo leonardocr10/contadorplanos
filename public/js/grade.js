@@ -43,6 +43,30 @@ export function mesLocal(iso) {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? "" : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
+// "aaaa-mm-dd" de uma data e hora, no fuso de quem usa.
+export function diaLocal(iso) {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "" : `${mesLocal(iso)}-${String(d.getDate()).padStart(2, "0")}`;
+}
+const SEMANA = ["domingo", "segunda", "terça", "quarta", "quinta", "sexta", "sábado"];
+const nomeDoDia = (aaaammdd) => {
+  const [a, m, d] = aaaammdd.split("-").map(Number);
+  return `${String(d).padStart(2, "0")}/${String(m).padStart(2, "0")} · ${SEMANA[new Date(a, m - 1, d).getDay()]}`;
+};
+// Seletor de dia: só os dias do mês escolhido que têm itens, do mais recente para o mais antigo, com a quantidade.
+// Sem mês escolhido, fica desligado em "Todos os dias". Devolve o dia que continua valendo.
+export function desenharSeletorDeDia(sel, diasDosItens, mes, atual) {
+  const contagem = new Map();
+  if (mes !== "todos") for (const d of diasDosItens) if (d.startsWith(mes)) contagem.set(d, (contagem.get(d) ?? 0) + 1);
+  const dias = [...contagem.keys()].sort().reverse();
+  const valido = contagem.has(atual) ? atual : "todos";
+  const html = `<option value="todos" data-icone="todos">Todos os dias</option>${dias.length ? `<optgroup label="Dias">${dias.map((d) => `<option value="${d}" data-selo="${contagem.get(d)}">${nomeDoDia(d)}</option>`).join("")}</optgroup>` : ""}`;
+  if (sel.dataset.opcoes !== html) { sel.innerHTML = html; sel.dataset.opcoes = html; }
+  sel.value = valido;
+  sel.disabled = mes === "todos";
+  sel.title = mes === "todos" ? "Escolha um mês para filtrar por dia" : "";
+  return valido;
+}
 // Preenche o seletor de mês com os meses que têm itens (mais recente primeiro) e a quantidade de cada um.
 // Devolve o mês que continua valendo ("todos" quando o escolhido sumiu da lista).
 export function desenharSeletorDeMes(sel, mesesDosItens, atual) {

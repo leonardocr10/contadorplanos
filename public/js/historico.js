@@ -3,7 +3,7 @@ import { brl, fmtFone, normFone } from "./calculo.js";
 import { $, S, api, avisoCentral, esc, pode, render, show, toast } from "./estado.js";
 import { linkConversaDireta, waHtml } from "./mensagem.js";
 import { normalizar } from "./filtro-select.js";
-import { botaoIcone, cabecalho, desenharCards, desenharPaginacao, desenharSeletorDeMes, mesLocal, guardarPorPagina, lerPorPagina, ordenarPor, paginar, proximaOrdem } from "./grade.js";
+import { botaoIcone, cabecalho, desenharCards, desenharPaginacao, desenharSeletorDeDia, desenharSeletorDeMes, diaLocal, mesLocal, guardarPorPagina, lerPorPagina, ordenarPor, paginar, proximaOrdem } from "./grade.js";
 
 const STATUS = ["Enviada", "Em Negociação", "Vendida", "Negativa"];
 const stClass = (s) => ({ "Em Negociação": "st-neg", "Vendida": "st-ok", "Negativa": "st-off" }[s] || "st-env");
@@ -131,7 +131,7 @@ export function renderHistCli() {
 
 /* ---------- grade: um cliente por linha, com as cotações dele num painel ---------- */
 const CHAVE_POR_PAGINA = "cotador.historico.porPagina";
-let filtroSt = "Todas", mesHist = "todos", pagina = 1, ordem = { campo: "ultima", dir: "desc" };
+let filtroSt = "Todas", mesHist = "todos", diaHist = "todos", pagina = 1, ordem = { campo: "ultima", dir: "desc" };
 let porPagina = lerPorPagina(CHAVE_POR_PAGINA);
 // Clientes com as cotações abertas.
 const abertos = new Set();
@@ -180,7 +180,9 @@ export function renderHist() {
   const box = $("#hist-list"), nav = $("#hist-paginacao");
   const todosOsGrupos = grupos();
   mesHist = desenharSeletorDeMes($("#hist-mes"), todosOsGrupos.map((g) => mesLocal(g.lista[0].criadoEm)), mesHist);
-  const todos = todosOsGrupos.filter((g) => mesHist === "todos" || mesLocal(g.lista[0].criadoEm) === mesHist);
+  // O dia é do mês escolhido; os dois valem para a última cotação de cada cliente.
+  diaHist = desenharSeletorDeDia($("#hist-dia"), todosOsGrupos.map((g) => diaLocal(g.lista[0].criadoEm)), mesHist, diaHist);
+  const todos = todosOsGrupos.filter((g) => (mesHist === "todos" || mesLocal(g.lista[0].criadoEm) === mesHist) && (diaHist === "todos" || diaLocal(g.lista[0].criadoEm) === diaHist));
   // Situação de cada cliente é a da cotação mais recente dele.
   const quantas = (s) => todos.filter((g) => (g.lista[0].status || "Enviada") === s).length;
   const sel = $("#hist-filtro");
@@ -222,7 +224,8 @@ export function renderHist() {
 export function iniciarHistorico() {
   $("#hist-busca").addEventListener("input", () => { pagina = 1; renderHist(); });
   $("#hist-filtro").onchange = () => { filtroSt = $("#hist-filtro").value; pagina = 1; renderHist(); };
-  $("#hist-mes").onchange = () => { mesHist = $("#hist-mes").value; pagina = 1; renderHist(); };
+  $("#hist-mes").onchange = () => { mesHist = $("#hist-mes").value; diaHist = "todos"; pagina = 1; renderHist(); };
+  $("#hist-dia").onchange = () => { diaHist = $("#hist-dia").value; pagina = 1; renderHist(); };
   $("#hist-por-pagina").onchange = () => {
     porPagina = Number($("#hist-por-pagina").value) || 10;
     guardarPorPagina(CHAVE_POR_PAGINA, porPagina);
