@@ -18,7 +18,7 @@ import {
 } from "./resgate.js";
 import { NIVEIS, TELAS, TELAS_COM_PLANOS, atende, nivelPadrao } from "./permissoes.js";
 import { CATEGORIA_DO_SEGMENTO, MAX_PARCELAS, SEGMENTOS } from "../public/js/comissao.js";
-import { DIA_MAX, DIA_MIN, DIAS_BLOQUEIO_MAX, FORMAS, descreverAlteracaoDaCobranca, descreverAlteracaoDoMes, hojeLocal, resumoDoCorretor, validarCompetencia, validarDia } from "../public/js/mensalidade.js";
+import { DIA_MAX, DIA_MIN, DIAS_BLOQUEIO_MAX, FORMAS, REGUA_ANTES_MAX, REGUA_DEPOIS_MAX, descreverAlteracaoDaCobranca, descreverAlteracaoDoMes, hojeLocal, resumoDoCorretor, validarCompetencia, validarDia } from "../public/js/mensalidade.js";
 import { montarSnapshot, renderizarProposta } from "./proposta-html.js";
 import { MAX_PLANOS_COMPARATIVO, renderizarComparativo } from "./comparativo-html.js";
 
@@ -946,7 +946,38 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     const dia = hoje();
     banco.processarMensalidades(dia);
     const corretores = banco.listarUsuarios().filter((u) => u.perfil === "usuario").map((u) => fichaDoCorretor(u, dia));
-    res.json({ hoje: dia, config: banco.lerConfigMensalidade(), corretores });
+    res.json({ hoje: dia, config: banco.lerConfigMensalidade(), regua: reguaParaTela(), corretores });
+  });
+
+  // Régua de cobrança: o que a tela mostra, com os canais que o servidor tem e de quem é o WhatsApp que envia.
+  const reguaParaTela = () => {
+    const { whatsappDe, ...regua } = banco.lerRegua();
+    const dono = whatsappDe ? banco.obterUsuario(whatsappDe) : null;
+    return { ...regua, whatsappConfigurado: !!resgate.evolution, emailConfigurado: !!enviarEmail, remetente: dono ? dono.nome || dono.login : "" };
+  };
+
+  app.put("/api/mensalidades/regua", soAdmin, async (req, res) => {
+    const b = req.body ?? {};
+    const inteiro = (v, max, nome) => {
+      if (!Number.isInteger(v) || v < 0 || v > max) throw new ErroEntrada(`Os dias ${nome} precisam ser de 0 (desliga) a ${max}.`);
+      return v;
+    };
+    const antes = inteiro(b.antes, REGUA_ANTES_MAX, "do lembrete antes do vencimento");
+    const depois = inteiro(b.depois, REGUA_DEPOIS_MAX, "do aviso de atraso");
+    const whatsapp = b.whatsapp === true, email = b.email === true;
+    const comoPagar = textoOpc(b.comoPagar, "como pagar", 500);
+    const atual = banco.lerRegua();
+    let whatsappDe = atual.whatsappDe;
+    if (whatsapp) {
+      if (!resgate.evolution) throw new ErroEntrada("O envio automático pelo WhatsApp ainda não foi configurado no servidor (Evolution API).");
+      // Sai pelo WhatsApp de quem liga a régua; ele precisa estar conectado na tela Resgate.
+      whatsappDe = req.usuario?.id ?? "";
+      const { estado } = await resgate.evolution.estado(instanciaDe(whatsappDe));
+      if (estado !== "open") throw new ErroEntrada("Conecte o seu WhatsApp na tela Resgate antes de ligar os lembretes pelo WhatsApp.");
+    }
+    if (email && !enviarEmail) throw new ErroEntrada("O envio de e-mail ainda não foi configurado no servidor (SMTP no arquivo .env).");
+    banco.gravarRegua({ antes, noDia: b.noDia === true, depois, whatsapp, email, comoPagar, whatsappDe });
+    res.json(reguaParaTela());
   });
 
   app.put("/api/mensalidades/config", soAdmin, (req, res) => {

@@ -429,6 +429,26 @@ const MIGRACOES = [
      descricao TEXT NOT NULL
    );
    CREATE INDEX IF NOT EXISTS idx_mensalidade_log_usuario ON mensalidade_log (usuario_id, em);`,
+  // Régua de cobrança: lembretes automáticos antes, no dia e depois do vencimento, por WhatsApp e e-mail.
+  // Começa sem canal ligado: nada sai até o administrador escolher. Cada lembrete sai uma vez só por mês e canal.
+  (db) => {
+    const colunas = db.prepare("PRAGMA table_info(mensalidade_config)").all().map((c) => c.name);
+    const novas = {
+      lembrete_antes: "INTEGER NOT NULL DEFAULT 5", lembrete_dia: "INTEGER NOT NULL DEFAULT 1", lembrete_depois: "INTEGER NOT NULL DEFAULT 3",
+      canal_whatsapp: "INTEGER NOT NULL DEFAULT 0", canal_email: "INTEGER NOT NULL DEFAULT 0",
+      como_pagar: "TEXT NOT NULL DEFAULT ''", whatsapp_de: "TEXT NOT NULL DEFAULT ''",
+    };
+    for (const [nome, tipo] of Object.entries(novas)) {
+      if (!colunas.includes(nome)) db.exec(`ALTER TABLE mensalidade_config ADD COLUMN ${nome} ${tipo}`);
+    }
+    db.exec(`CREATE TABLE IF NOT EXISTS mensalidade_lembretes (
+       mensalidade_id TEXT NOT NULL,
+       etapa TEXT NOT NULL,
+       canal TEXT NOT NULL,
+       enviado_em TEXT NOT NULL,
+       PRIMARY KEY (mensalidade_id, etapa, canal)
+     )`);
+  },
 ];
 
 // Troca os documentos dos planos CNPJ pela lista empresarial; com unimed, a Unimed PME recebe a lista dela.
@@ -1530,6 +1550,43 @@ export class Banco {
     this.db.prepare(`INSERT INTO mensalidade_config (id, dias_bloqueio) VALUES (1, ?)
       ON CONFLICT (id) DO UPDATE SET dias_bloqueio = excluded.dias_bloqueio`).run(diasBloqueio);
     return this.lerConfigMensalidade();
+  }
+
+  lerRegua() {
+    const l = this.db.prepare("SELECT * FROM mensalidade_config WHERE id = 1").get();
+    return {
+      antes: l?.lembrete_antes ?? 5, noDia: (l?.lembrete_dia ?? 1) === 1, depois: l?.lembrete_depois ?? 3,
+      whatsapp: l?.canal_whatsapp === 1, email: l?.canal_email === 1, comoPagar: l?.como_pagar ?? "", whatsappDe: l?.whatsapp_de ?? "",
+    };
+  }
+
+  gravarRegua({ antes, noDia, depois, whatsapp, email, comoPagar, whatsappDe }) {
+    this.db.prepare(`INSERT INTO mensalidade_config (id, lembrete_antes, lembrete_dia, lembrete_depois, canal_whatsapp, canal_email, como_pagar, whatsapp_de)
+      VALUES (1, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT (id) DO UPDATE SET lembrete_antes = excluded.lembrete_antes, lembrete_dia = excluded.lembrete_dia, lembrete_depois = excluded.lembrete_depois,
+        canal_whatsapp = excluded.canal_whatsapp, canal_email = excluded.canal_email, como_pagar = excluded.como_pagar, whatsapp_de = excluded.whatsapp_de`)
+      .run(antes, noDia ? 1 : 0, depois, whatsapp ? 1 : 0, email ? 1 : 0, comoPagar, whatsappDe);
+    return this.lerRegua();
+  }
+
+  // Meses ainda a receber de cobranças ativas, com o corretor, para a régua escolher o que avisar.
+  mensalidadesParaLembrar() {
+    return this.db.prepare(`SELECT m.*, u.nome AS u_nome, u.login AS u_login, u.fone AS u_fone, u.email AS u_email, u.ativo AS u_ativo, a.bloqueado AS a_bloqueado
+      FROM mensalidades m JOIN assinaturas a ON a.usuario_id = m.usuario_id JOIN usuarios u ON u.id = m.usuario_id
+      WHERE m.pago_em IS NULL AND m.dispensada = 0 AND a.ativa = 1 AND u.perfil = 'usuario'
+      ORDER BY m.vencimento`).all().map((l) => ({
+      ...linhaParaMensalidade(l),
+      corretor: { id: l.usuario_id, nome: l.u_nome, login: l.u_login, fone: l.u_fone, email: l.u_email, ativo: !!l.u_ativo, bloqueado: !!l.a_bloqueado },
+    }));
+  }
+
+  lembreteEnviado(mensalidadeId, etapa, canal) {
+    return !!this.db.prepare("SELECT 1 FROM mensalidade_lembretes WHERE mensalidade_id = ? AND etapa = ? AND canal = ?").get(mensalidadeId, etapa, canal);
+  }
+
+  marcarLembrete(mensalidadeId, etapa, canal) {
+    this.db.prepare("INSERT OR IGNORE INTO mensalidade_lembretes (mensalidade_id, etapa, canal, enviado_em) VALUES (?, ?, ?, ?)")
+      .run(mensalidadeId, etapa, canal, new Date().toISOString());
   }
 
   // Bloqueio automático: com o bloqueio ligado, o corretor com um mês atrasado há mais dias que o escolhido

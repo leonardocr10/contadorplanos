@@ -7,6 +7,8 @@ import { Banco } from "./db.js";
 import { CODIGO_REINICIAR, criarSistema } from "./sistema.js";
 import { criarApp } from "./app.js";
 import { criarResgate } from "./resgate.js";
+import { criarRegua } from "./regua.js";
+import { criarEnviadorDeEmail } from "./email.js";
 import { criarAppExterna, criarAppPublica, enderecoDosLinks } from "./publico.js";
 import { hojeLocal } from "../public/js/mensalidade.js";
 
@@ -55,6 +57,8 @@ const opcoesCotador = {
   linkPublico: () => estadoLinks,
 };
 const app = criarApp(opcoesCotador);
+// Lembretes das mensalidades: o mesmo WhatsApp do resgate e o e-mail do servidor.
+const regua = criarRegua({ banco, evolution: resgate.evolution, enviarEmail: criarEnviadorDeEmail(process.env) });
 
 const servidor = app.listen(porta, "127.0.0.1", (erro) => {
   if (erro) return tratarErroDePorta(erro);
@@ -80,6 +84,7 @@ function iniciarMensalidades() {
   };
   rodar();
   setInterval(rodar, 60 * 60 * 1000).unref();
+  regua.iniciar();
 }
 
 let servidorPublico = null;

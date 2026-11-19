@@ -484,14 +484,36 @@
           <h2>Mensalidades <span class="usr-total" id="men-total"></span></h2>
           <p class="note">Cobrança mensal de uso do sistema de cada corretor. O administrador não paga. O pagamento é marcado à mão, mês a mês.</p>
         </div>
-        <form class="men-bloqueio" id="men-bloqueio-form" novalidate>
-          <div class="field"><label for="men-bloqueio">Bloquear o login com atraso de</label>
-            <div class="men-bloqueio-campo"><input id="men-bloqueio" type="number" min="0" max="90" step="1" inputmode="numeric"><span>dias</span></div>
-          </div>
-          <button class="btn" type="submit" id="men-bloqueio-salvar">Salvar</button>
-          <p class="note men-bloqueio-dica" id="men-bloqueio-dica">0 = não bloqueia.</p>
-        </form>
       </div>
+      <details class="men-regua" id="men-regua">
+        <summary><b>Régua de cobrança</b><span class="men-regua-resumo" id="men-regua-resumo"></span></summary>
+        <form id="men-regua-form" novalidate>
+          <p class="note" style="margin:0">Lembretes automáticos para cada mês em aberto, de segunda a sexta, das 9h às 18h. Cada lembrete sai uma vez só e fica no registro de alterações do corretor.</p>
+          <div class="men-regua-etapas">
+            <div class="field"><label for="men-regua-antes">Lembrete antes do vencimento</label>
+              <div class="men-bloqueio-campo"><input id="men-regua-antes" type="number" min="0" max="30" step="1" inputmode="numeric"><span>dias antes</span></div>
+              <small class="note">0 desliga</small></div>
+            <div class="field"><span class="men-regua-rotulo">No dia do vencimento</span>
+              <label class="uchk"><input type="checkbox" id="men-regua-dia"> Avisar no dia</label></div>
+            <div class="field"><label for="men-regua-depois">Aviso de atraso</label>
+              <div class="men-bloqueio-campo"><input id="men-regua-depois" type="number" min="0" max="60" step="1" inputmode="numeric"><span>dias depois</span></div>
+              <small class="note">0 desliga</small></div>
+            <div class="field"><label for="men-bloqueio">Bloquear o login com atraso de</label>
+              <div class="men-bloqueio-campo"><input id="men-bloqueio" type="number" min="0" max="90" step="1" inputmode="numeric"><span>dias</span></div>
+              <small class="note" id="men-bloqueio-dica">0 não bloqueia</small></div>
+          </div>
+          <div class="field"><span class="men-regua-rotulo">Enviar por</span>
+            <div class="men-regua-canais">
+              <label class="uchk"><input type="checkbox" id="men-regua-whatsapp"> WhatsApp</label>
+              <label class="uchk"><input type="checkbox" id="men-regua-email"> E-mail</label>
+            </div>
+            <p class="note" id="men-regua-canais-dica" style="margin:4px 0 0"></p>
+          </div>
+          <div class="field"><label for="men-regua-pagar">Como pagar (opcional, vai no fim de cada lembrete)</label>
+            <textarea id="men-regua-pagar" rows="2" maxlength="500" placeholder="Ex.: Pix para a chave financeiro@suaempresa.com.br"></textarea></div>
+          <div class="actions" style="margin:0"><button class="btn primary" type="submit" id="men-regua-salvar">Salvar régua</button></div>
+        </form>
+      </details>
       <div class="men-resumo" id="men-resumo"></div>
       <div class="grade-cards" id="men-cards" role="group" aria-label="Corretores por situação"></div>
       <div class="grade-filtros men-filtros">

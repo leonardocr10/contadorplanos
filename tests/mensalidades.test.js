@@ -6,14 +6,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Banco } from "../server/db.js";
 import { criarApp } from "../server/app.js";
-import { competenciasDevidas, descreverAlteracaoDaCobranca, mensagemDeCobranca, previaDaCobranca, resumoDoCorretor, situacaoDaMensalidade } from "../public/js/mensalidade.js";
+import { competenciasDevidas, descreverAlteracaoDaCobranca, etapaDoLembrete, mensagemDeCobranca, mensagemDoLembrete, previaDaCobranca, resumoDoCorretor, situacaoDaMensalidade } from "../public/js/mensalidade.js";
+import { criarRegua } from "../server/regua.js";
 
 const raiz = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
 
-function subir(t, relogio) {
+function subir(t, relogio, extras = {}) {
   const pasta = mkdtempSync(join(tmpdir(), "cotador-mens-"));
   const banco = new Banco(join(pasta, "cotador.db"), join(raiz, "dados", "planos.json"));
-  const app = criarApp({ banco, pastaPublica: join(raiz, "public"), pastaUploads: join(pasta, "uploads"), pastaBackups: join(pasta, "backups"), env: {}, hoje: () => relogio.hoje });
+  const app = criarApp({ banco, pastaPublica: join(raiz, "public"), pastaUploads: join(pasta, "uploads"), pastaBackups: join(pasta, "backups"), env: {}, hoje: () => relogio.hoje, ...extras });
   return new Promise((resolve) => {
     const s = app.listen(0, "127.0.0.1", () => {
       t.after(() => new Promise((fim) => { s.closeAllConnections(); s.close(() => { banco.fechar(); rmSync(pasta, { recursive: true, force: true }); fim(); }); }));
@@ -194,4 +195,88 @@ test("registro de alterações: quem mudou a cobrança e os pagamentos", async (
     ["Sistema", "Login bloqueado: atraso de mais de 5 dias."],
   ]);
   assert.equal(descreverAlteracaoDaCobranca({ valor: 1, dia: 1, inicio: "2026-11", ativa: false, observacao: "" }, { valor: 1, dia: 1, inicio: "2026-11", ativa: true, observacao: "" }), "Reativou a cobrança.");
+});
+
+test("régua: qual lembrete cada mês pede e o texto dele", () => {
+  const regua = { antes: 5, noDia: true, depois: 3 };
+  const m = { competencia: "2026-11", vencimento: "2026-11-10", valor: 89.9 };
+  assert.equal(etapaDoLembrete(m, regua, "2026-11-04"), null);
+  assert.equal(etapaDoLembrete(m, regua, "2026-11-05"), "antes");
+  assert.equal(etapaDoLembrete(m, regua, "2026-11-09"), "antes");
+  assert.equal(etapaDoLembrete(m, regua, "2026-11-10"), "dia");
+  assert.equal(etapaDoLembrete(m, regua, "2026-11-12"), null);
+  assert.equal(etapaDoLembrete(m, regua, "2026-11-13"), "depois");
+  assert.equal(etapaDoLembrete(m, regua, "2026-11-20"), "depois");
+  // Atraso antigo não dispara aviso ao ligar a régua.
+  assert.equal(etapaDoLembrete(m, regua, "2026-11-21"), null);
+  assert.equal(etapaDoLembrete(m, { antes: 0, noDia: false, depois: 0 }, "2026-11-10"), null);
+
+  assert.equal(mensagemDoLembrete("antes", m, { nome: "Carla Mendes" }),
+    "Olá, Carla! Passando para lembrar que a mensalidade do cotador de novembro de 2026, no valor de R$ 89,90, vence em 10/11/2026.\n\nSe já pagou, por favor desconsidere esta mensagem. Obrigado!");
+  assert.ok(mensagemDoLembrete("dia", m, { nome: "Carla", comoPagar: "Pix: chave@exemplo.com" }).includes("vence hoje (10/11/2026).\n\nComo pagar: Pix: chave@exemplo.com\n\n"));
+  const atraso = mensagemDoLembrete("depois", m, { nome: "Carla", diasBloqueio: 10 });
+  assert.ok(atraso.startsWith("Olá, Carla! A mensalidade do cotador de novembro de 2026, no valor de R$ 89,90, venceu em 10/11/2026 e ainda está em aberto. Para o acesso ao cotador não ser bloqueado, faça o pagamento até 20/11/2026."));
+  assert.ok(mensagemDoLembrete("depois", m, { nome: "Carla", diasBloqueio: 10, bloqueado: true }).includes("O acesso ao cotador está bloqueado e volta assim que o pagamento for registrado."));
+});
+
+test("régua: envia uma vez por etapa e canal, só no horário, e registra", async (t) => {
+  const relogio = { hoje: "2026-11-05" };
+  const mensagens = [], emails = [];
+  const estados = { "cotador-local": "open" };
+  const evolution = {
+    estado: async (inst) => ({ estado: estados[inst] ?? "inexistente", numero: "" }),
+    enviarTexto: async (inst, numero, texto) => {
+      if (numero === "5534999990009") return { ok: false, semWhatsApp: true, erro: "Este número não tem WhatsApp." };
+      mensagens.push({ inst, numero, texto });
+      return { ok: true };
+    },
+  };
+  const enviarEmail = async (e) => { emails.push(e); };
+  const { banco, api } = await subir(t, relogio, { resgate: { evolution, coletar() {}, configurado: true }, enviarEmail });
+  const carla = banco.criarUsuario({ login: "carla", senhaHash: "x", nome: "Carla Mendes", fone: "34999990001", email: "carla@exemplo.com" });
+  const semZap = banco.criarUsuario({ login: "davi", senhaHash: "x", fone: "34999990009" });
+  const parado = banco.criarUsuario({ login: "eva", senhaHash: "x", fone: "34999990005" });
+  for (const u of [carla, semZap, parado]) await api(`/api/mensalidades/corretores/${u.id}/assinatura`, "PUT", { valor: 89.9, dia: 10, inicio: "2026-11" });
+  await api(`/api/usuarios/${parado.id}`, "PUT", { ativo: false });
+
+  // Validação: dias fora do limite e canal que o servidor não tem.
+  assert.equal((await api("/api/mensalidades/regua", "PUT", { antes: 31, depois: 3 })).status, 400);
+  estados["cotador-local"] = "close";
+  const desconectado = await api("/api/mensalidades/regua", "PUT", { antes: 5, noDia: true, depois: 3, whatsapp: true });
+  assert.equal(desconectado.status, 400);
+  assert.match(desconectado.corpo.erro, /Conecte o seu WhatsApp/);
+  estados["cotador-local"] = "open";
+  const salva = (await api("/api/mensalidades/regua", "PUT", { antes: 5, noDia: true, depois: 3, whatsapp: true, email: true, comoPagar: "Pix: chave@exemplo.com" })).corpo;
+  assert.deepEqual([salva.antes, salva.noDia, salva.depois, salva.whatsapp, salva.email, salva.whatsappConfigurado, salva.emailConfigurado], [5, true, 3, true, true, true, true]);
+  assert.equal("whatsappDe" in salva, false);
+
+  let agora = new Date("2026-11-05T13:00:00Z"); // 10h em Brasília, quinta-feira
+  const regua = criarRegua({ banco, evolution, enviarEmail, relogio: () => agora, hoje: () => relogio.hoje, pausa: 0 });
+  assert.equal((await regua.rodada()).enviados, 2);
+  assert.deepEqual(mensagens.map((m) => [m.inst, m.numero]), [["cotador-local", "5534999990001"]]);
+  assert.ok(mensagens[0].texto.startsWith("Olá, Carla!") && mensagens[0].texto.includes("vence em 10/11/2026.\n\nComo pagar: Pix: chave@exemplo.com"));
+  assert.deepEqual(emails.map((e) => [e.para, e.assunto]), [["carla@exemplo.com", "Mensalidade do cotador de novembro de 2026 vence em 10/11/2026"]]);
+  // A mesma etapa não sai de novo; o número sem WhatsApp fica registrado e não é tentado outra vez.
+  assert.equal((await regua.rodada()).enviados, 0);
+  assert.equal(mensagens.length, 1);
+  const ficha = (await api("/api/mensalidades")).corpo.corretores;
+  assert.equal(ficha.find((c) => c.login === "carla").alteracoes[0].descricao, "Enviou por e-mail o lembrete antes do vencimento de novembro de 2026.");
+  assert.match(ficha.find((c) => c.login === "davi").alteracoes[0].descricao, /^Não enviou por WhatsApp o lembrete antes do vencimento de novembro de 2026: Este número não tem WhatsApp\./);
+  assert.equal(ficha.find((c) => c.login === "eva").alteracoes.some((a) => /lembrete/.test(a.descricao)), false);
+
+  // No dia do vencimento, fora do horário nada sai; no horário, sai o aviso do dia. Quem pagou não recebe.
+  relogio.hoje = "2026-11-10";
+  agora = new Date("2026-11-10T23:00:00Z");
+  assert.equal((await regua.rodada()).enviados, 0);
+  agora = new Date("2026-11-10T13:00:00Z");
+  const nov = banco.listarMensalidades(semZap.id)[0];
+  await api(`/api/mensalidades/${nov.id}`, "PATCH", { pago: true });
+  assert.equal((await regua.rodada()).enviados, 2);
+  assert.match(mensagens.at(-1).texto, /vence hoje/);
+
+  // Desligar os canais para tudo.
+  await api("/api/mensalidades/regua", "PUT", { antes: 5, noDia: true, depois: 3 });
+  relogio.hoje = "2026-11-13";
+  agora = new Date("2026-11-13T13:00:00Z");
+  assert.equal((await regua.rodada()).enviados, 0);
 });

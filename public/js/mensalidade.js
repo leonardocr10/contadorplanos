@@ -158,3 +158,43 @@ export function descreverAlteracaoDoMes(m, { pagoEm, forma, dispensada }) {
   if (pagoEm) return `Marcou ${mes} como paga em ${fmtDia(pagoEm)}${forma ? ` (${forma})` : ""}.`;
   return `Desfez o pagamento de ${mes}.`;
 }
+
+/* ---------- régua de cobrança ---------- */
+// Lembretes automáticos de cada mês em aberto: alguns dias antes, no dia e alguns dias depois do vencimento.
+export const REGUA_ANTES_MAX = 30;
+export const REGUA_DEPOIS_MAX = 60;
+export const ETAPAS_DA_REGUA = { antes: "lembrete antes do vencimento", dia: "aviso no dia do vencimento", depois: "aviso de atraso" };
+
+// Qual lembrete o mês pede hoje (ou null). O de atraso só sai nos 7 dias seguintes ao prazo, para ligar a régua
+// não disparar avisos de dívidas antigas.
+export function etapaDoLembrete(m, { antes, noDia, depois }, hoje) {
+  const faltam = diasEntre(hoje, m.vencimento);
+  if (antes > 0 && faltam > 0 && faltam <= antes) return "antes";
+  if (noDia && faltam === 0) return "dia";
+  if (depois > 0 && -faltam >= depois && -faltam <= depois + DIAS_AVISO) return "depois";
+  return null;
+}
+
+// Texto do lembrete, igual no WhatsApp e no e-mail. Com o bloqueio ligado, o aviso de atraso diz até quando pagar.
+export function mensagemDoLembrete(etapa, m, { nome, comoPagar = "", diasBloqueio = 0, bloqueado = false } = {}) {
+  const primeiro = (nome || "").trim().split(/\s+/)[0];
+  const ola = primeiro ? `Olá, ${primeiro}!` : "Olá!";
+  const qual = `a mensalidade do cotador de ${nomeDaCompetencia(m.competencia)}, no valor de R$ ${brl(m.valor)},`;
+  let texto;
+  if (etapa === "antes") texto = `${ola} Passando para lembrar que ${qual} vence em ${fmtDia(m.vencimento)}.`;
+  else if (etapa === "dia") texto = `${ola} Passando para lembrar que ${qual} vence hoje (${fmtDia(m.vencimento)}).`;
+  else {
+    texto = `${ola} ${qual.charAt(0).toUpperCase() + qual.slice(1)} venceu em ${fmtDia(m.vencimento)} e ainda está em aberto.`;
+    if (bloqueado) texto += " O acesso ao cotador está bloqueado e volta assim que o pagamento for registrado.";
+    else if (diasBloqueio > 0) texto += ` Para o acesso ao cotador não ser bloqueado, faça o pagamento até ${fmtDia(somarDias(m.vencimento, diasBloqueio))}.`;
+  }
+  const pagar = String(comoPagar || "").trim();
+  return `${texto}${pagar ? `\n\nComo pagar: ${pagar}` : ""}\n\nSe já pagou, por favor desconsidere esta mensagem. Obrigado!`;
+}
+
+export function assuntoDoLembrete(etapa, m) {
+  const mes = nomeDaCompetencia(m.competencia);
+  if (etapa === "antes") return `Mensalidade do cotador de ${mes} vence em ${fmtDia(m.vencimento)}`;
+  if (etapa === "dia") return `Mensalidade do cotador de ${mes} vence hoje`;
+  return `Mensalidade do cotador de ${mes} em atraso`;
+}

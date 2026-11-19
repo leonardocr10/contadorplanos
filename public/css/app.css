@@ -813,11 +813,19 @@ a.ctr-doc-mini:hover{border-color:var(--accent)}
 .men-painel input[type=month]{padding-block:9px;cursor:pointer}
 .men-cabeca{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-between;align-items:flex-start}
 .men-cabeca .note{margin:4px 0 0;max-width:560px}
-.men-bloqueio{display:grid;grid-template-columns:auto auto;align-items:end;gap:4px 8px;max-width:360px}
-.men-bloqueio .field{margin:0}
 .men-bloqueio-campo{display:flex;align-items:center;gap:6px}
 .men-bloqueio-campo input[type=number]{width:90px}
-.men-bloqueio-dica{grid-column:1/-1;margin:0;font-size:12.5px}
+.men-regua{border:1px solid var(--line);border-radius:12px;background:var(--bg);padding:10px 14px}
+.men-regua summary{cursor:pointer;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px}
+.men-regua-resumo{font-size:13.5px;color:var(--muted)}
+.men-regua form{display:flex;flex-direction:column;gap:14px;margin-top:12px}
+.men-regua .field{margin:0}
+.men-regua small.note{font-size:12.5px;margin:0}
+.men-regua-etapas{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px 16px;align-items:start}
+.men-regua-rotulo{display:block;font-size:13px;font-weight:600;margin-bottom:6px}
+.men-regua-canais{display:flex;flex-wrap:wrap;gap:8px 20px}
+.men-regua textarea{margin-top:0;min-height:64px;font:500 15px/1.45 var(--body);background:var(--surface)}
+.men-regua input[type=number]{background:var(--surface)}
 .men-resumo{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
 .men-numero{display:flex;flex-direction:column;gap:2px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--bg);font:inherit;color:inherit;text-align:left;cursor:pointer}
 .men-numero:hover{border-color:var(--accent)}

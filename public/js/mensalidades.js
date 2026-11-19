@@ -149,11 +149,7 @@ function render() {
   if (erro) { $("#men-lista").innerHTML = `<div class="status">${esc(erro)}</div>`; $("#men-paginacao").innerHTML = ""; return; }
   selo();
   resumo();
-  const campo = $("#men-bloqueio");
-  if (document.activeElement !== campo) campo.value = dados.config.diasBloqueio;
-  $("#men-bloqueio-dica").textContent = dados.config.diasBloqueio
-    ? `Ligado: com ${dados.config.diasBloqueio} ${dados.config.diasBloqueio === 1 ? "dia" : "dias"} de atraso, o login é desativado e volta sozinho quando o atraso é pago. 0 desliga.`
-    : "Desligado: o atraso não bloqueia o login. Coloque os dias para ligar.";
+  desenharRegua();
   const corretores = dados.corretores;
   $("#men-total").textContent = `· ${corretores.length}`;
   const quantos = (k) => corretores.filter((c) => c.situacao === k).length;
@@ -214,6 +210,67 @@ function ligarLinhas(box) {
   painel.querySelectorAll("[data-cobrar]").forEach((b) => (b.onclick = () => enviar(b.dataset.cobrar, { dispensada: false }, "O mês voltou a ser cobrado")));
 }
 
+/* ---------- régua de cobrança ---------- */
+const plural = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
+
+// Resumo do título, que aparece com o bloco fechado.
+function resumoDaRegua(r, diasBloqueio) {
+  const canais = [r.whatsapp && "WhatsApp", r.email && "e-mail"].filter(Boolean);
+  const etapas = [r.antes && `${plural(r.antes, "dia", "dias")} antes`, r.noDia && "no dia", r.depois && `${plural(r.depois, "dia", "dias")} depois`].filter(Boolean);
+  const lembretes = canais.length && etapas.length ? `Lembretes por ${canais.join(" e ")}: ${etapas.join(", ")}` : "Lembretes desligados";
+  return `${lembretes} · ${diasBloqueio ? `bloqueio com ${plural(diasBloqueio, "dia", "dias")} de atraso` : "sem bloqueio"}`;
+}
+
+// Preenche o formulário só quando ninguém está mexendo nele, para não apagar o que está sendo digitado.
+function desenharRegua() {
+  const r = dados.regua, diasBloqueio = dados.config.diasBloqueio;
+  $("#men-regua-resumo").textContent = resumoDaRegua(r, diasBloqueio);
+  const form = $("#men-regua-form");
+  if (!form.contains(document.activeElement)) {
+    $("#men-regua-antes").value = r.antes;
+    $("#men-regua-dia").checked = r.noDia;
+    $("#men-regua-depois").value = r.depois;
+    $("#men-bloqueio").value = diasBloqueio;
+    $("#men-regua-whatsapp").checked = r.whatsapp;
+    $("#men-regua-email").checked = r.email;
+    $("#men-regua-pagar").value = r.comoPagar;
+  }
+  $("#men-regua-whatsapp").disabled = !r.whatsappConfigurado && !r.whatsapp;
+  $("#men-regua-email").disabled = !r.emailConfigurado && !r.email;
+  const dicas = [
+    !r.whatsappConfigurado ? "WhatsApp: o servidor ainda não tem a Evolution API configurada."
+      : r.whatsapp && r.remetente ? `WhatsApp: sai pelo número de ${r.remetente}, conectado na tela Resgate.`
+      : "WhatsApp: sai pelo seu número, conectado na tela Resgate.",
+    !r.emailConfigurado ? "E-mail: o servidor ainda não tem o envio de e-mail configurado (SMTP no .env)." : "E-mail: vai para o e-mail do cadastro do corretor.",
+  ];
+  $("#men-regua-canais-dica").textContent = dicas.join(" ");
+  $("#men-bloqueio-dica").textContent = diasBloqueio
+    ? "O login volta sozinho quando o atraso é pago. 0 não bloqueia."
+    : "0 não bloqueia";
+}
+
+async function salvarRegua(e) {
+  e.preventDefault();
+  const numero = (id) => Number($(id).value || 0);
+  const botao = $("#men-regua-salvar");
+  botao.disabled = true;
+  try {
+    // A régua primeiro: se um canal não puder ser ligado, nada muda.
+    dados.regua = await api("/api/mensalidades/regua", { metodo: "PUT", json: {
+      antes: numero("#men-regua-antes"), noDia: $("#men-regua-dia").checked, depois: numero("#men-regua-depois"),
+      whatsapp: $("#men-regua-whatsapp").checked, email: $("#men-regua-email").checked, comoPagar: $("#men-regua-pagar").value,
+    } });
+    await api("/api/mensalidades/config", { metodo: "PUT", json: { diasBloqueio: numero("#men-bloqueio") } });
+    botao.blur();
+    avisoCentral("Régua de cobrança salva com sucesso");
+    await carregarMensalidades();
+  } catch (erro) {
+    toast(erro.message, "erro");
+  } finally {
+    botao.disabled = false;
+  }
+}
+
 /* ---------- janela lateral da cobrança ---------- */
 function abrirGaveta(c) {
   editando = c;
@@ -271,16 +328,5 @@ export function iniciarMensalidades() {
   $("#men-form").onsubmit = salvarGaveta;
   $("#men-form").addEventListener("input", atualizarPrevia);
   $("#men-form").addEventListener("change", atualizarPrevia);
-  $("#men-bloqueio-form").onsubmit = async (e) => {
-    e.preventDefault();
-    const dias = Number($("#men-bloqueio").value || 0);
-    try {
-      const config = await api("/api/mensalidades/config", { metodo: "PUT", json: { diasBloqueio: dias } });
-      avisoCentral(config.diasBloqueio ? `Bloqueio ligado: ${config.diasBloqueio} ${config.diasBloqueio === 1 ? "dia" : "dias"} de atraso` : "Bloqueio por atraso desligado");
-      $("#men-bloqueio").blur();
-      await carregarMensalidades();
-    } catch (erro) {
-      toast(erro.message, "erro");
-    }
-  };
+  $("#men-regua-form").onsubmit = salvarRegua;
 }
