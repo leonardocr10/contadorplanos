@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { Banco } from "../server/db.js";
 import { criarApp } from "../server/app.js";
 import { conferirSenha, gerarHash } from "../server/senhas.js";
+import { podar } from "../server/login.js";
 import { criarEnviadorDeEmail } from "../server/email.js";
 import net from "node:net";
 
@@ -654,4 +655,23 @@ test("cada login vê e altera só as próprias corretoras e regras de comissão;
   const minhaRegra = await (await pedir(um, `/api/financeiro/corretoras/${minha.id}/regras`, "POST", regra)).json();
   assert.equal((await pedir(um, `/api/contratos/${c.id}/comissao`, "PATCH", { regraId: minhaRegra.id })).status, 200);
   assert.deepEqual((await (await pedir(um, "/api/financeiro/corretoras")).json()).map((x) => [x.nome, x.regras.length, x.usuarioId]), [["Antiga", 1, undefined]]);
+});
+
+test("o cookie da sessão só é marcado como seguro quando o acesso vem por HTTPS", async (t) => {
+  const { base } = await subir(t);
+  const entrar = (cabecalhos = {}) => fetch(base + "/login", { method: "POST", redirect: "manual", headers: { "Content-Type": "application/x-www-form-urlencoded", ...cabecalhos }, body: new URLSearchParams({ usuario: "chefe", senha: SENHA_ADMIN }) });
+  assert.doesNotMatch((await entrar()).headers.get("set-cookie"), /Secure/);
+  assert.match((await entrar({ "X-Forwarded-Proto": "https" })).headers.get("set-cookie"), /; Secure$/);
+});
+
+test("encher a lista de tentativas com logins falsos não zera o bloqueio de quem errou a senha", () => {
+  const agora = Date.now();
+  const mapa = new Map([["alvo", { n: 4, ate: 0, em: agora }], ["bloqueado", { n: 0, ate: agora + 60_000, em: agora - 3_600_000 }], ["velho", { n: 1, ate: 0, em: agora - 3_600_000 }]]);
+  for (let i = 0; i < 20; i++) mapa.set(`falso-${i}`, { n: 1, ate: 0, em: agora - 3_600_000 });
+  podar(mapa, (f) => f.ate > agora || agora - f.em < 600_000, 10);
+  assert.deepEqual([...mapa.keys()], ["alvo", "bloqueado"]);
+  // Passando do limite só com entradas válidas, saem as mais antigas.
+  const cheio = new Map(Array.from({ length: 5 }, (_, i) => [`k${i}`, i]));
+  podar(cheio, () => true, 3);
+  assert.deepEqual([...cheio.keys()], ["k2", "k3", "k4"]);
 });

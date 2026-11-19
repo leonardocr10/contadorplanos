@@ -2,14 +2,13 @@
 // do vendedor que fez a cotação. O envio é automático, pela Evolution API (EVOLUTION_URL e EVOLUTION_API_KEY no .env).
 // Para o número não ser bloqueado, as mensagens saem devagar: só em horário comercial, com o intervalo e o limite por dia que cada vendedor escolhe.
 
-import { LIMITE_RESGATE_PADRAO, INTERVALO_RESGATE_PADRAO } from "./db.js";
+import { LIMITE_RESGATE_PADRAO } from "./db.js";
 export {
   DIAS_RESGATE_PADRAO as DIAS_RESGATE, DIAS_RESGATE_MIN, DIAS_RESGATE_MAX,
   LIMITE_RESGATE_MIN, LIMITE_RESGATE_MAX, INTERVALO_RESGATE_MIN, INTERVALO_RESGATE_MAX,
 } from "./db.js";
-// Padrões de quem ainda não mudou: mensagens por dia e minutos entre uma e outra.
+// Padrão de mensagens por dia de quem ainda não mudou.
 export const LIMITE_POR_DIA = LIMITE_RESGATE_PADRAO;
-export const INTERVALO = INTERVALO_RESGATE_PADRAO;
 // Horário de Brasília, de segunda a sexta.
 export const HORARIO = { inicio: 9, fim: 18 };
 const MINUTO = 60_000;

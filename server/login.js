@@ -11,6 +11,15 @@ const COOKIE = "cotador_sessao";
 
 const esc =(s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const resumoDoToken = (token) => createHash("sha256").update(String(token)).digest("hex");
+// Com muitas entradas, saem só as que já não valem: limpar tudo zeraria os bloqueios de quem errou a senha.
+export function podar(mapa, aindaVale, maximo = 1000) {
+  if (mapa.size <= maximo) return;
+  for (const [chave, valor] of mapa) if (!aindaVale(valor)) mapa.delete(chave);
+  // Se ainda passar do limite, saem as mais antigas (o Map guarda a ordem de entrada).
+  for (const chave of mapa.keys()) { if (mapa.size <= maximo) break; mapa.delete(chave); }
+}
+// Pelo HTTPS (direto ou atrás de um proxy), o cookie da sessão só viaja criptografado.
+const seguro = (req) => (req.secure || String(req.get("x-forwarded-proto") || "").split(",")[0].trim() === "https" ? "; Secure" : "");
 
 function pagina(aviso = "", podeEntrar = true, sucesso = "") {
   return casca("Entrar no Cotador", `<p>Entre com o seu login e senha.</p>
@@ -128,9 +137,12 @@ export function criarLogin(env, banco, { enviarEmail = null, urlBase = () => nul
   // As tentativas contam por login: errar a própria senha não bloqueia os outros usuários.
   const bloqueado = (login) => (falhas.get(login)?.ate ?? 0) > Date.now();
   const registrarFalha = (login) => {
-    if (falhas.size > 1000) falhas.clear();
+    // Ficam os bloqueados e quem errou nos últimos 10 minutos: encher a lista de logins falsos não zera a contagem de ninguém.
+    const agora = Date.now();
+    podar(falhas, (f) => f.ate > agora || agora - f.em < 10 * 60 * 1000, 10_000);
     const f = falhas.get(login) ?? { n: 0, ate: 0 };
     f.n++;
+    f.em = agora;
     if (f.n >= MAX_FALHAS) { f.ate = Date.now() + ESPERA_FALHAS; f.n = 0; }
     falhas.set(login, f);
   };
@@ -170,7 +182,7 @@ export function criarLogin(env, banco, { enviarEmail = null, urlBase = () => nul
     }
     const token = randomBytes(32).toString("base64url");
     sessoes.set(token, { usuarioId: usuario.id, expira: Date.now() + DURACAO_SESSAO, marca: hash });
-    res.setHeader("Set-Cookie", `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${DURACAO_SESSAO / 1000}`);
+    res.setHeader("Set-Cookie", `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${DURACAO_SESSAO / 1000}${seguro(req)}`);
     res.redirect(303, "/");
   });
 
@@ -190,7 +202,7 @@ export function criarLogin(env, banco, { enviarEmail = null, urlBase = () => nul
   // para o formulário não virar um disparador de mensagens.
   const pedidoRepetido = (chave) => {
     const agora = Date.now();
-    if (ultimosPedidos.size > 1000) ultimosPedidos.clear();
+    podar(ultimosPedidos, (t) => agora - t < INTERVALO_RECUPERACAO);
     const repetido = agora - (ultimosPedidos.get(chave) ?? 0) < INTERVALO_RECUPERACAO;
     if (!repetido) ultimosPedidos.set(chave, agora);
     return repetido;
@@ -199,7 +211,7 @@ export function criarLogin(env, banco, { enviarEmail = null, urlBase = () => nul
   const pedidosPorOrigem = new Map();
   const origemPassouDoLimite = (origem) => {
     const agora = Date.now();
-    if (pedidosPorOrigem.size > 1000) pedidosPorOrigem.clear();
+    podar(pedidosPorOrigem, (lista) => lista.some((t) => agora - t < JANELA_ORIGEM));
     const recentes = (pedidosPorOrigem.get(origem) ?? []).filter((t) => agora - t < JANELA_ORIGEM);
     recentes.push(agora);
     pedidosPorOrigem.set(origem, recentes);
@@ -257,7 +269,7 @@ export function criarLogin(env, banco, { enviarEmail = null, urlBase = () => nul
   rotas.post("/sair", (req, res) => {
     const token = tokenDe(req);
     if (token) sessoes.delete(token);
-    res.setHeader("Set-Cookie", `${COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`);
+    res.setHeader("Set-Cookie", `${COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${seguro(req)}`);
     res.redirect(303, "/login");
   });
 

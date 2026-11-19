@@ -10,6 +10,7 @@ import { normFone } from "../public/js/calculo.js";
 import { linkConversaDireta } from "../public/js/mensagem.js";
 import { MAX_ARQUIVO, nomeDoArquivo, tipoDoDocumento } from "./arquivos.js";
 import { OUTROS, paginaEntrada, paginaEnvio } from "./documentos-html.js";
+import { podar } from "./login.js";
 
 // Envio de documentos pelo cliente: o acesso dura 30 dias em cada aparelho e vale só para a proposta dele.
 const COOKIE_DOCS = "cotador_docs";
@@ -86,9 +87,12 @@ export function criarAppPublica({ banco, pastaPublica, pastaUploads }) {
   const tentativas = new Map();
   const bloqueado = (token) => (tentativas.get(token)?.ate ?? 0) > Date.now();
   const registrarFalha = (token) => {
-    if (tentativas.size > 1000) tentativas.clear();
+    // Ficam os bloqueados e quem errou nos últimos 10 minutos: encher a lista de logins falsos não zera a contagem de ninguém.
+    const agora = Date.now();
+    podar(tentativas, (f) => f.ate > agora || agora - f.em < 10 * 60 * 1000, 10_000);
     const f = tentativas.get(token) ?? { n: 0, ate: 0 };
     f.n++;
+    f.em = agora;
     if (f.n >= MAX_TENTATIVAS) { f.ate = Date.now() + ESPERA_TENTATIVAS; f.n = 0; }
     tentativas.set(token, f);
   };
