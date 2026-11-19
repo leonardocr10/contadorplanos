@@ -485,8 +485,8 @@
           <p class="note">Cobrança mensal de uso do sistema de cada corretor. O administrador não paga. O pagamento é marcado à mão, mês a mês.</p>
         </div>
       </div>
-      <details class="men-regua" id="men-regua">
-        <summary><b>Régua de cobrança</b><span class="men-regua-resumo" id="men-regua-resumo"></span></summary>
+      <section class="men-regua" id="men-regua" aria-labelledby="men-regua-titulo">
+        <div class="men-regua-topo"><h3 id="men-regua-titulo">Régua de cobrança</h3><span class="men-regua-resumo" id="men-regua-resumo"></span></div>
         <form id="men-regua-form" novalidate>
           <p class="note" style="margin:0">Lembretes automáticos para cada mês em aberto, de segunda a sexta, das 9h às 18h. Cada lembrete sai uma vez só e fica no registro de alterações do corretor.</p>
           <div class="men-regua-etapas">
@@ -513,7 +513,7 @@
             <textarea id="men-regua-pagar" rows="2" maxlength="500" placeholder="Ex.: Pix para a chave financeiro@suaempresa.com.br"></textarea></div>
           <div class="actions" style="margin:0"><button class="btn primary" type="submit" id="men-regua-salvar">Salvar régua</button></div>
         </form>
-      </details>
+      </section>
       <div class="men-resumo" id="men-resumo"></div>
       <div class="grade-cards" id="men-cards" role="group" aria-label="Corretores por situação"></div>
       <div class="grade-filtros men-filtros">

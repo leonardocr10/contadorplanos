@@ -816,7 +816,8 @@ a.ctr-doc-mini:hover{border-color:var(--accent)}
 .men-bloqueio-campo{display:flex;align-items:center;gap:6px}
 .men-bloqueio-campo input[type=number]{width:90px}
 .men-regua{border:1px solid var(--line);border-radius:12px;background:var(--bg);padding:10px 14px}
-.men-regua summary{cursor:pointer;display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px}
+.men-regua-topo{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px}
+.men-regua-topo h3{margin:0;font-size:15px}
 .men-regua-resumo{font-size:13.5px;color:var(--muted)}
 .men-regua form{display:flex;flex-direction:column;gap:14px;margin-top:12px}
 .men-regua .field{margin:0}
