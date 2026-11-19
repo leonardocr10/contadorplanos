@@ -121,7 +121,17 @@ O envio usa a [Evolution API](https://github.com/evolution-foundation/evolution-
 
 ### Evolution API sem Docker (Windows)
 
-Use a versão **2.3.7**, a estável mais recente no [repositório oficial](https://github.com/evolution-foundation/evolution-api/releases) quando este passo a passo foi escrito. Não use as versões 2.4.0-rc: são de teste e pedem ativação de licença. Os comandos abaixo são para o PowerShell aberto como administrador.
+Use a versão **2.3.7**, a estável mais recente no [repositório oficial](https://github.com/evolution-foundation/evolution-api/releases) quando este passo a passo foi escrito. Não use as versões 2.4.0-rc: são de teste e pedem ativação de licença.
+
+**Jeito automático (recomendado):**
+
+1. Na pasta do cotador, clique com o botão direito no **`instalar-evolution.bat`** e escolha **Executar como administrador**. Ele instala o Git e o PostgreSQL (pelo winget), cria o usuário e o banco `evolution` com senha aleatória, baixa a Evolution 2.3.7 em `C:evolution-api`, grava a configuração, instala as dependências, prepara o banco e monta tudo. Leva uns 10 minutos. Para outra pasta: `instalar-evolution.bat D:evolution-api`.
+2. No fim, ele mostra as duas linhas `EVOLUTION_URL` e `EVOLUTION_API_KEY`: copie para o `.env` do cotador.
+3. Abra o **`evolution.bat`** (como administrador na primeira vez) e reinicie o cotador, como nos passos 6 a 8 abaixo.
+
+Se algo falhar no meio, corrija o que a mensagem pedir e rode o instalador de novo: o que já está pronto é aproveitado, e a chave e a senha do banco continuam as mesmas. A senha do administrador do PostgreSQL instalado por ele fica em `C:evolution-api.senha-postgres`. Se o PostgreSQL já estava instalado, ele pergunta essa senha.
+
+**Passo a passo à mão** (o mesmo que o instalador faz), no PowerShell aberto como administrador:
 
 1. **Programas.** O Node.js já vem com o cotador (a Evolution pede o 20 ou mais novo). Instale também:
    - o Git: `winget install --id Git.Git -e`;

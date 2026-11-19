@@ -40,6 +40,6 @@ exit /b 1
 
 :seminstalar
 echo Não achei a Evolution API instalada em %PASTA%.
-echo Siga o passo a passo "Evolution API sem Docker" na seção Resgate do README.
+echo Para instalar, clique com o botão direito no instalar-evolution.bat e escolha Executar como administrador.
 pause
 exit /b 1
