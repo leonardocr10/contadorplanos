@@ -117,47 +117,95 @@ A tela **Resgate** junta, sozinha, os clientes que estão sem cotar há mais dia
 
 Para o número não ser bloqueado pelo WhatsApp, as mensagens saem de segunda a sexta, das 9h às 18h (horário de Brasília), até 30 por dia por vendedor e com 2 a 5 minutos entre uma e outra. Cada vendedor pode mudar, na própria tela, quantas mensagens saem por dia (de 1 a 200) e o intervalo mínimo e máximo entre elas (de 1 a 120 minutos; cada espera é sorteada nessa faixa). Se o número do cliente não tiver WhatsApp, ele fica como **Não enviada**; outras falhas são tentadas mais 2 vezes.
 
-O envio usa a [Evolution API](https://doc.evolution-api.com/v2/pt/install/docker), que roda na própria VPS. Ela não é oficial do WhatsApp: use com moderação. Sem a Evolution, a lista continua sendo montada, mas nada é enviado.
+O envio usa a [Evolution API](https://github.com/evolution-foundation/evolution-api), que roda na própria VPS. Ela não é oficial do WhatsApp: use com moderação. Sem a Evolution, a lista continua sendo montada, mas nada é enviado. A régua de cobrança das mensalidades usa a mesma conexão.
 
-1. Na VPS, suba a Evolution com Docker. Exemplo de `docker-compose.yml` (troque as duas senhas):
+### Evolution API sem Docker (Windows)
 
-   ```yaml
-   services:
-     evolution:
-       image: evoapicloud/evolution-api:v2.3.7
-       restart: always
-       ports: ["127.0.0.1:8080:8080"]
-       environment:
-         SERVER_URL: http://127.0.0.1:8080
-         AUTHENTICATION_API_KEY: troque-por-uma-chave-longa
-         DATABASE_ENABLED: "true"
-         DATABASE_PROVIDER: postgresql
-         DATABASE_CONNECTION_URI: postgresql://evolution:troque-esta-senha@postgres:5432/evolution
-         CACHE_REDIS_ENABLED: "false"
-         CACHE_LOCAL_ENABLED: "true"
-       volumes: ["evolution_instances:/evolution/instances"]
-       depends_on: [postgres]
-     postgres:
-       image: postgres:16
-       restart: always
-       environment:
-         POSTGRES_USER: evolution
-         POSTGRES_PASSWORD: troque-esta-senha
-         POSTGRES_DB: evolution
-       volumes: ["postgres_data:/var/lib/postgresql/data"]
-   volumes:
-     evolution_instances:
-     postgres_data:
+Use a versão **2.3.7**, a estável mais recente no [repositório oficial](https://github.com/evolution-foundation/evolution-api/releases) quando este passo a passo foi escrito. Não use as versões 2.4.0-rc: são de teste e pedem ativação de licença. Os comandos abaixo são para o PowerShell aberto como administrador.
+
+1. **Programas.** O Node.js já vem com o cotador (a Evolution pede o 20 ou mais novo). Instale também:
+   - o Git: `winget install --id Git.Git -e`;
+   - o PostgreSQL, o banco da Evolution: baixe o instalador em https://www.postgresql.org/download/windows/ e, na instalação, anote a senha do usuário `postgres`.
+2. **Banco.** Crie o usuário e o banco da Evolution (troque a senha; se a pasta do PostgreSQL não for a 16, ajuste o número):
+
+   ```powershell
+   & "C:\Program Files\PostgreSQL\16\bin\psql.exe" -U postgres -c "CREATE USER evolution WITH PASSWORD 'troque-esta-senha';"
+   & "C:\Program Files\PostgreSQL\16\bin\psql.exe" -U postgres -c "CREATE DATABASE evolution OWNER evolution;"
+   ```
+3. **Baixar e instalar** na pasta `C:\evolution-api`:
+
+   ```powershell
+   git clone --branch 2.3.7 --depth 1 https://github.com/evolution-foundation/evolution-api.git C:\evolution-api
+   cd C:\evolution-api
+   npm install
+   copy .env.example .env
+   ```
+4. **Configurar.** No arquivo `C:\evolution-api\.env`, mude estas linhas (as outras podem ficar como estão):
+
+   ```
+   SERVER_URL=http://127.0.0.1:8080
+   AUTHENTICATION_API_KEY=troque-por-uma-chave-longa
+   DATABASE_PROVIDER=postgresql
+   DATABASE_CONNECTION_URI='postgresql://evolution:troque-esta-senha@localhost:5432/evolution?schema=evolution_api'
+   CACHE_REDIS_ENABLED=false
+   CACHE_LOCAL_ENABLED=true
+   TELEMETRY_ENABLED=false
    ```
 
-   A porta fica presa ao `127.0.0.1`: só o cotador, na mesma máquina, fala com a Evolution.
-2. No `.env` do cotador na VPS, coloque o endereço e a mesma chave:
+   A chave é uma senha que só o cotador e a Evolution conhecem: use uma longa e aleatória. Sem Redis, o cache fica na memória, o que basta para poucos números.
+5. **Preparar o banco e montar a Evolution**, ainda em `C:\evolution-api`:
+
+   ```powershell
+   npm run db:generate
+   npm run db:deploy:win
+   npm run build
+   ```
+6. **Ligar.** Abra o **`evolution.bat`** da pasta do cotador, como administrador na primeira vez: ele fecha a porta 8080 no firewall do Windows, para a Evolution não ser aberta pela internet (o cotador fala com ela pelo próprio servidor). A janela precisa ficar aberta, como a do cotador; se a Evolution cair, ela volta sozinha em 10 segundos. Se a pasta não for `C:\evolution-api`, passe o caminho: `evolution.bat D:\evolution-api`. Para a Evolution subir junto com o Windows, coloque um atalho do `evolution.bat` no mesmo lugar onde está o do `iniciar.bat` (por exemplo, a pasta que abre com `shell:startup`).
+7. **Ligar ao cotador.** No `.env` do cotador, coloque o endereço e a mesma chave do passo 4:
 
    ```
    EVOLUTION_URL=http://127.0.0.1:8080
    EVOLUTION_API_KEY=troque-por-uma-chave-longa
    ```
-3. Reinicie o cotador. Cada vendedor abre **Resgate** e clica em **Conectar meu WhatsApp**.
+8. **Reiniciar o cotador.** Feche a janela do cotador e abra o `iniciar.bat` de novo. Cada vendedor abre **Resgate** e clica em **Conectar meu WhatsApp**.
+
+**Atualizar a Evolution depois:** feche a janela do `evolution.bat` e, em `C:\evolution-api`, rode `git fetch --tags`, `git checkout NOVA_VERSAO` (a versão estável nova do repositório oficial), `npm install`, `npm run db:generate`, `npm run db:deploy:win` e `npm run build`. Depois abra o `evolution.bat` de novo. Os números conectados ficam guardados e não precisam ler o QR Code outra vez.
+
+<details>
+<summary>Com Docker (alternativa)</summary>
+
+Se a VPS tiver Docker, a Evolution pode subir com este `docker-compose.yml` (troque as duas senhas e confira a tag da imagem no Docker Hub, `evoapicloud/evolution-api`). A porta fica presa ao `127.0.0.1`. Depois, siga os passos 7 e 8 acima.
+
+```yaml
+services:
+  evolution:
+    image: evoapicloud/evolution-api:v2.3.7
+    restart: always
+    ports: ["127.0.0.1:8080:8080"]
+    environment:
+      SERVER_URL: http://127.0.0.1:8080
+      AUTHENTICATION_API_KEY: troque-por-uma-chave-longa
+      DATABASE_ENABLED: "true"
+      DATABASE_PROVIDER: postgresql
+      DATABASE_CONNECTION_URI: postgresql://evolution:troque-esta-senha@postgres:5432/evolution
+      CACHE_REDIS_ENABLED: "false"
+      CACHE_LOCAL_ENABLED: "true"
+    volumes: ["evolution_instances:/evolution/instances"]
+    depends_on: [postgres]
+  postgres:
+    image: postgres:16
+    restart: always
+    environment:
+      POSTGRES_USER: evolution
+      POSTGRES_PASSWORD: troque-esta-senha
+      POSTGRES_DB: evolution
+    volumes: ["postgres_data:/var/lib/postgresql/data"]
+volumes:
+  evolution_instances:
+  postgres_data:
+```
+
+</details>
 
 ## Financeiro
 
