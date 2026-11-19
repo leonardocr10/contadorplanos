@@ -18,6 +18,7 @@ import {
 } from "./resgate.js";
 import { NIVEIS, TELAS, TELAS_COM_PLANOS, atende, nivelPadrao } from "./permissoes.js";
 import { CATEGORIA_DO_SEGMENTO, MAX_PARCELAS, SEGMENTOS } from "../public/js/comissao.js";
+import { DIA_MAX, DIA_MIN, DIAS_BLOQUEIO_MAX, FORMAS, descreverAlteracaoDaCobranca, descreverAlteracaoDoMes, hojeLocal, resumoDoCorretor, validarCompetencia, validarDia } from "../public/js/mensalidade.js";
 import { montarSnapshot, renderizarProposta } from "./proposta-html.js";
 import { MAX_PLANOS_COMPARATIVO, renderizarComparativo } from "./comparativo-html.js";
 
@@ -249,6 +250,16 @@ function validarPerfil(v) {
   return v;
 }
 
+// Assinatura da mensalidade de um corretor: valor por mês, dia do vencimento e mês da primeira cobrança.
+function validarAssinatura(b) {
+  if (!b || typeof b !== "object") throw new ErroEntrada("Os dados da mensalidade são inválidos.");
+  const valor = b.valor;
+  if (typeof valor !== "number" || !isFinite(valor) || valor <= 0 || valor > 100_000) throw new ErroEntrada("Informe o valor da mensalidade, maior que zero.");
+  if (!Number.isInteger(b.dia) || b.dia < DIA_MIN || b.dia > DIA_MAX) throw new ErroEntrada(`O dia do vencimento precisa ser de ${DIA_MIN} a ${DIA_MAX}.`);
+  if (!validarCompetencia(b.inicio)) throw new ErroEntrada("Informe o mês da primeira cobrança.");
+  return { valor: Math.round(valor * 100) / 100, dia: b.dia, inicio: b.inicio, ativa: b.ativa !== false, observacao: textoOpc(b.observacao, "observação", 500) };
+}
+
 const carimbo = (d = new Date()) => {
   const p = (n) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}_${p(d.getHours())}${p(d.getMinutes())}`;
@@ -275,7 +286,7 @@ function validarPedidoDeLinks(b) {
   };
 }
 
-export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env = process.env, exigirLogin = false, aceitarQualquerHost = false, sistema, clienteClaude, linkPublico = () => ({ estado: "indisponivel", url: null }), enviarEmail = criarEnviadorDeEmail(env), resgate = criarResgate({ banco, env }) }) {
+export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env = process.env, exigirLogin = false, aceitarQualquerHost = false, sistema, clienteClaude, linkPublico = () => ({ estado: "indisponivel", url: null }), hoje = () => hojeLocal(), enviarEmail = criarEnviadorDeEmail(env), resgate = criarResgate({ banco, env }) }) {
   const app = express();
   app.disable("x-powered-by");
   // Respostas comprimidas: a lista de planos tem centenas de KB de texto repetido (rede, área).
@@ -899,6 +910,9 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     if (!alvo) throw new ErroNaoEncontrado("Usuário não encontrado.");
     const perfil = b.perfil === undefined ? undefined : validarPerfil(b.perfil);
     const ativo = b.ativo === undefined ? undefined : !!b.ativo;
+    if (ativo === true && !alvo.ativo && banco.bloqueadoPorMensalidade(alvo.id)) {
+      throw new ErroEntrada("Este login foi bloqueado por mensalidade atrasada. Em Configurações > Mensalidades, marque o pagamento ou pause a cobrança dele.");
+    }
     const perdeAdmin = alvo.perfil === "admin" && alvo.ativo && ((perfil && perfil !== "admin") || ativo === false);
     if (perdeAdmin && req.usuario?.id === alvo.id) throw new ErroEntrada("Você não pode tirar o seu próprio acesso de administrador.");
     if (perdeAdmin && banco.contarAdminsAtivos() <= 1) throw new ErroEntrada("O sistema precisa de pelo menos um administrador ativo.");
@@ -911,6 +925,72 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     }
     if (email !== undefined) banco.atualizarDadosDoUsuario(alvo.id, { email });
     res.json(banco.alterarAcessoDoUsuario(alvo.id, { perfil, ativo, permissoes }));
+  });
+
+  /* ---------- mensalidades do sistema (só o administrador) ---------- */
+  // Cada corretor (todo login com perfil usuário) paga a mensalidade; o administrador não entra na cobrança.
+  const corretorDaMensalidade = (id) => {
+    const u = banco.obterUsuario(id);
+    if (!u) throw new ErroNaoEncontrado("Usuário não encontrado.");
+    if (u.perfil !== "usuario") throw new ErroEntrada("O administrador não paga mensalidade.");
+    return u;
+  };
+  const fichaDoCorretor = (u, dia) => {
+    const assinatura = banco.obterAssinatura(u.id), mensalidades = banco.listarMensalidades(u.id);
+    return { id: u.id, login: u.login, nome: u.nome, email: u.email, fone: u.fone, foto: u.foto, ativo: u.ativo, assinatura, mensalidades, alteracoes: banco.listarAlteracoes(u.id), ...resumoDoCorretor(assinatura, mensalidades, dia) };
+  };
+  // Quem fez a alteração, para o registro (sem login obrigatório, fica "Administrador").
+  const autorDe = (req) => req.usuario?.nome || req.usuario?.login || "Administrador";
+
+  app.get("/api/mensalidades", soAdmin, (_req, res) => {
+    const dia = hoje();
+    banco.processarMensalidades(dia);
+    const corretores = banco.listarUsuarios().filter((u) => u.perfil === "usuario").map((u) => fichaDoCorretor(u, dia));
+    res.json({ hoje: dia, config: banco.lerConfigMensalidade(), corretores });
+  });
+
+  app.put("/api/mensalidades/config", soAdmin, (req, res) => {
+    const d = req.body?.diasBloqueio;
+    if (!Number.isInteger(d) || d < 0 || d > DIAS_BLOQUEIO_MAX) throw new ErroEntrada(`Os dias de atraso para bloquear precisam ser de 0 (não bloqueia) a ${DIAS_BLOQUEIO_MAX}.`);
+    const config = banco.gravarConfigMensalidade({ diasBloqueio: d });
+    banco.aplicarBloqueios(hoje());
+    res.json(config);
+  });
+
+  app.put("/api/mensalidades/corretores/:id/assinatura", soAdmin, (req, res) => {
+    const u = corretorDaMensalidade(req.params.id);
+    const dia = hoje();
+    const antes = banco.obterAssinatura(u.id), nova = validarAssinatura(req.body);
+    banco.gravarAssinatura(u.id, nova, dia);
+    banco.registrarAlteracao(u.id, autorDe(req), descreverAlteracaoDaCobranca(antes, nova));
+    banco.aplicarBloqueios(dia);
+    res.json(fichaDoCorretor(banco.obterUsuario(u.id), dia));
+  });
+
+  // Marca um mês como pago (com a data e a forma), volta para não pago, ou dispensa o mês (ex.: cortesia).
+  app.patch("/api/mensalidades/:id", soAdmin, (req, res) => {
+    const m = banco.obterMensalidade(req.params.id);
+    if (!m) throw new ErroNaoEncontrado("Mensalidade não encontrada.");
+    const b = req.body ?? {};
+    const dia = hoje();
+    if (typeof b.dispensada === "boolean") {
+      if (m.pagoEm) throw new ErroEntrada("Esta mensalidade já foi paga. Desmarque o pagamento antes de dispensar.");
+      if (b.dispensada !== m.dispensada) {
+        banco.dispensarMensalidade(m.id, b.dispensada);
+        banco.registrarAlteracao(m.usuarioId, autorDe(req), descreverAlteracaoDoMes(m, { dispensada: b.dispensada }));
+      }
+    } else {
+      if (typeof b.pago !== "boolean") throw new ErroEntrada("Informe se a mensalidade foi paga.");
+      const pagoEm = b.pago ? (b.pagoEm ?? dia) : null;
+      if (pagoEm && (!validarDia(pagoEm) || pagoEm > dia)) throw new ErroEntrada("Informe a data do pagamento, sem passar de hoje.");
+      const forma = b.pago ? textoOpc(b.forma, "forma de pagamento", 40) : "";
+      if (forma && !FORMAS.includes(forma)) throw new ErroEntrada("Forma de pagamento inválida.");
+      const observacao = b.observacao === undefined ? undefined : textoOpc(b.observacao, "observação", 500);
+      banco.registrarPagamento(m.id, { pagoEm, forma, observacao });
+      if (pagoEm !== m.pagoEm) banco.registrarAlteracao(m.usuarioId, autorDe(req), descreverAlteracaoDoMes(m, { pagoEm, forma }));
+    }
+    banco.aplicarBloqueios(dia);
+    res.json(fichaDoCorretor(banco.obterUsuario(m.usuarioId), dia));
   });
 
   // Usuário não é excluído, só desativado (PUT com ativo: false): as cotações, os contratos vendidos e os

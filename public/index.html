@@ -27,6 +27,8 @@
 <link rel="modulepreload" href="js/comissao.js">
 <link rel="modulepreload" href="js/xlsx.js">
 <link rel="modulepreload" href="js/configuracoes.js">
+<link rel="modulepreload" href="js/mensalidades.js">
+<link rel="modulepreload" href="js/mensalidade.js">
 <link rel="modulepreload" href="js/filtro-select.js">
 </head>
 <body>
@@ -391,6 +393,7 @@
       <button type="button" class="cfg-item" data-abre="dados">Meus dados</button>
       <button type="button" class="cfg-item" data-abre="senha" id="cfg-item-senha">Alterar senha</button>
       <button type="button" class="cfg-item" data-abre="usuarios" data-admin hidden>Usuários</button>
+      <button type="button" class="cfg-item" data-abre="mensalidades" data-admin hidden>Mensalidades <span class="pill off" id="men-selo" hidden style="margin:0 0 0 4px"></span></button>
       <button type="button" class="cfg-item" data-abre="backup" data-admin hidden>Backup</button>
       <button type="button" class="cfg-item" data-abre="atualizar" data-admin hidden>Atualizar sistema</button>
     </nav>
@@ -471,6 +474,55 @@
           <footer class="gaveta-rodape">
             <button class="btn" type="button" data-fechar>Cancelar</button>
             <button class="btn primary" type="submit" id="usr-salvar">Criar usuário</button>
+          </footer>
+        </form>
+      </dialog>
+    </div>
+    <div class="panel cfg-painel men-painel" data-cfg="mensalidades" hidden>
+      <div class="men-cabeca">
+        <div>
+          <h2>Mensalidades <span class="usr-total" id="men-total"></span></h2>
+          <p class="note">Cobrança mensal de uso do sistema de cada corretor. O administrador não paga. O pagamento é marcado à mão, mês a mês.</p>
+        </div>
+        <form class="men-bloqueio" id="men-bloqueio-form" novalidate>
+          <div class="field"><label for="men-bloqueio">Bloquear o login com atraso de</label>
+            <div class="men-bloqueio-campo"><input id="men-bloqueio" type="number" min="0" max="90" step="1" inputmode="numeric"><span>dias</span></div>
+          </div>
+          <button class="btn" type="submit" id="men-bloqueio-salvar">Salvar</button>
+          <p class="note men-bloqueio-dica" id="men-bloqueio-dica">0 = não bloqueia.</p>
+        </form>
+      </div>
+      <div class="men-resumo" id="men-resumo"></div>
+      <div class="grade-cards" id="men-cards" role="group" aria-label="Corretores por situação"></div>
+      <div class="grade-filtros men-filtros">
+        <div class="field"><label for="men-busca">Buscar corretor</label><input id="men-busca" type="search" placeholder="Nome, login, e-mail ou telefone" autocomplete="off"></div>
+        <div class="field"><label for="men-por-pagina">Por página</label><select id="men-por-pagina"><option value="10">10 por página</option><option value="25">25 por página</option><option value="50">50 por página</option><option value="100">100 por página</option></select></div>
+        <button type="button" class="btn btn-limpar" id="men-limpar" data-limpa="men-busca" title="Limpar busca" aria-label="Limpar busca" disabled><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg><span>Limpar</span></button>
+      </div>
+      <div id="men-lista"></div>
+      <nav class="grade-paginacao" id="men-paginacao" aria-label="Páginas dos corretores"></nav>
+      <dialog class="gaveta" id="men-gaveta" aria-labelledby="men-titulo">
+        <form id="men-form" autocomplete="off" novalidate>
+          <header class="gaveta-topo">
+            <h2 id="men-titulo">Mensalidade</h2>
+            <button class="gaveta-fechar" type="button" data-fechar aria-label="Fechar">×</button>
+          </header>
+          <div class="gaveta-corpo">
+            <p class="note" id="men-quem" style="margin:0"></p>
+            <div class="field"><label for="men-valor">Valor por mês (R$)</label><input id="men-valor" type="text" inputmode="decimal" placeholder="0,00" required></div>
+            <div class="field"><label for="men-dia">Dia do vencimento<small>de 1 a 28</small></label><input id="men-dia" type="number" min="1" max="28" step="1" inputmode="numeric" required></div>
+            <div class="field"><label for="men-inicio">Primeiro mês cobrado</label><input id="men-inicio" type="month" required></div>
+            <div class="field">
+              <label class="uchk men-ativa"><input type="checkbox" id="men-ativa" checked> Cobrança ativa</label>
+              <p class="note" style="margin:4px 0 0">Desmarque para pausar: não cria meses novos e não bloqueia o login.</p>
+            </div>
+            <div class="field"><label for="men-obs">Observação (opcional)</label><textarea id="men-obs" rows="3" maxlength="500" placeholder="Ex.: desconto combinado até março"></textarea></div>
+            <p class="men-previa" id="men-previa" role="status" hidden></p>
+            <p class="note" style="margin:0">Mudar o valor ou o dia vale para os meses que ainda não venceram. Os já pagos e os atrasados ficam como estão.</p>
+          </div>
+          <footer class="gaveta-rodape">
+            <button class="btn" type="button" data-fechar>Cancelar</button>
+            <button class="btn primary" type="submit" id="men-salvar">Salvar</button>
           </footer>
         </form>
       </dialog>

@@ -807,3 +807,60 @@ a.ctr-doc-mini:hover{border-color:var(--accent)}
 .res-dias:not([hidden]){display:flex;flex-wrap:wrap;gap:10px;align-items:end}
 .res-dias .field{width:300px;max-width:100%}
 .res-dias .res-num{width:170px}
+/* Configurações > Mensalidades: cobrança mensal de cada corretor */
+.men-painel{max-width:none;gap:16px}
+.men-painel input[type=number],.men-painel input[type=month]{width:100%;font:500 15px var(--body);color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.men-painel input[type=month]{padding-block:9px;cursor:pointer}
+.men-cabeca{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-between;align-items:flex-start}
+.men-cabeca .note{margin:4px 0 0;max-width:560px}
+.men-bloqueio{display:grid;grid-template-columns:auto auto;align-items:end;gap:4px 8px;max-width:360px}
+.men-bloqueio .field{margin:0}
+.men-bloqueio-campo{display:flex;align-items:center;gap:6px}
+.men-bloqueio-campo input[type=number]{width:90px}
+.men-bloqueio-dica{grid-column:1/-1;margin:0;font-size:12.5px}
+.men-resumo{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px}
+.men-numero{display:flex;flex-direction:column;gap:2px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--bg);font:inherit;color:inherit;text-align:left;cursor:pointer}
+.men-numero:hover{border-color:var(--accent)}
+.men-numero[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);background:var(--surface)}
+.men-numero span{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.men-numero b{font:800 22px/1.2 var(--display);font-variant-numeric:tabular-nums}
+.men-numero small{font-size:12.5px;color:var(--muted)}
+.men-numero.alerta b{color:var(--danger)}
+.men-filtros{display:grid;gap:12px;align-items:end;grid-template-columns:minmax(0,2fr) minmax(150px,170px) auto}
+@media (max-width:560px){.men-filtros{grid-template-columns:minmax(0,1fr)}}
+.men-tabela{min-width:960px}
+.men-ultima .men-situacao{align-self:flex-start;margin:0 0 2px}
+.men-previa{margin:0;padding:10px 12px;border:1px solid var(--accent);border-radius:10px;background:var(--bg);font-size:14px;line-height:1.45}
+.men-registro{border-top:1px solid var(--line);padding-top:8px}
+.men-registro summary{cursor:pointer;font-weight:700;font-size:13.5px}
+.men-registro ol{list-style:none;margin:8px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
+.men-registro li{display:grid;grid-template-columns:150px minmax(0,1fr) auto;gap:4px 12px;align-items:baseline;font-size:13.5px;padding:6px 10px;border-radius:8px;background:var(--surface);border:1px solid var(--line)}
+.men-registro time{color:var(--muted);font-variant-numeric:tabular-nums}
+.men-registro small{color:var(--muted);font-size:12.5px}
+.men-nome{display:flex;flex-direction:column;min-width:0}
+.men-nome small,.men-duas small{font-size:12.5px;color:var(--muted)}
+.men-duas{display:flex;flex-direction:column;font-variant-numeric:tabular-nums}
+.men-atraso{color:var(--danger)}
+.men-situacao{--cor:var(--muted);display:inline-block;margin:2px 4px 2px 0;padding:3px 9px;border-radius:999px;border:1px solid var(--cor);color:var(--cor);font-size:12px;font-weight:700;white-space:nowrap}
+.men-situacao[data-situacao="atrasado"],.men-mes[data-situacao="atrasada"]{--cor:var(--danger)}
+.men-situacao[data-situacao="vence"],.men-mes[data-situacao="vence"]{--cor:#c98a0b}
+.men-situacao[data-situacao="em_dia"]{--cor:var(--accent)}
+.men-situacao[data-situacao="aberta"],.men-mes[data-situacao="aberta"]{--cor:#3b82c4}
+.men-situacao[data-situacao="paga"],.men-mes[data-situacao="paga"]{--cor:var(--accent)}
+.men-situacao[data-situacao="dispensada"],.men-situacao[data-situacao="pausada"],.men-situacao[data-situacao="sem_cobranca"],.men-mes[data-situacao="dispensada"]{--cor:var(--muted)}
+.grade-cards [data-chave="atrasado"]{--cor:var(--danger)}
+.grade-cards [data-chave="vence"]{--cor:#c98a0b}
+.grade-cards [data-chave="em_dia"]{--cor:var(--accent)}
+.grade-cards [data-chave="sem_cobranca"],.grade-cards [data-chave="pausada"]{--cor:var(--muted)}
+.grade-cards [data-chave="bloqueado"]{--cor:var(--danger)}
+.men-meses{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.men-meses ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.men-mes{--cor:var(--line);display:grid;grid-template-columns:minmax(160px,1fr) 110px 130px minmax(0,2fr);align-items:center;gap:8px 12px;padding:8px 10px;border:1px solid var(--line);border-left:4px solid var(--cor);border-radius:8px;background:var(--surface)}
+.men-mes-nome{display:flex;flex-direction:column}
+.men-mes .men-situacao{justify-self:start}
+.men-mes-nome small{font-size:12.5px;color:var(--muted)}
+.men-mes-valor{font-variant-numeric:tabular-nums;font-weight:600}
+.men-mes-acoes{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px}
+.men-pagar{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:6px}
+.men-pagar label{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+@media (max-width:760px){.men-mes{grid-template-columns:1fr auto}.men-mes-acoes{grid-column:1/-1;justify-content:flex-start}.men-registro li{grid-template-columns:1fr}}

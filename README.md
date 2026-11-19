@@ -42,6 +42,20 @@ No **Histórico**, cada usuário vê e altera só as próprias cotações, inclu
 
 Usuários não são excluídos: o administrador **desativa** quem não deve mais entrar. O login fica bloqueado, e as cotações, os contratos vendidos e os documentos dos clientes continuam guardados. **Ativar** devolve o acesso com tudo como estava.
 
+### Mensalidades
+
+Em **Configurações > Mensalidades**, o administrador controla a cobrança mensal de uso do sistema de cada corretor (todo login com o perfil Usuário; o administrador não paga). O pagamento é marcado à mão, sem integração com banco ou boleto.
+
+- **Busca e situação:** a tela mostra o previsto por mês, o recebido e o que falta receber no mês e o total em atraso. Clicar num desses números filtra a lista pelos corretores daquela conta. Os cards (Atrasado, Vence em breve, Em dia, Sem cobrança e Bloqueado, quando houver) também filtram, e a busca acha o corretor pelo nome, login, e-mail ou telefone. O menu mostra quantos corretores estão atrasados. A coluna **Última cobrança** mostra o mês mais recente e se está pago, em aberto ou atrasado.
+- **Programar a cobrança:** valor por mês, dia do vencimento (de 1 a 28, para existir em todo mês) e o primeiro mês cobrado. Os meses são criados sozinhos, do primeiro mês até o atual, e o do mês seguinte aparece 7 dias antes de vencer. Mudar o valor ou o dia vale para os meses que ainda não venceram; os pagos e os atrasados ficam como estavam. Desmarcar **Cobrança ativa** pausa: não cria meses novos e não bloqueia. Antes de salvar, a janela mostra a prévia (valor, dia e os próximos vencimentos).
+- **Pagamento:** em cada mês, **Marcar como pago** com a data e a forma (Pix, transferência, dinheiro, boleto, cartão ou outra), **Desfazer pagamento** e **Dispensar** (o mês fica na lista sem ser cobrado, como numa cortesia).
+- **Cobrar pelo WhatsApp:** abre a conversa com o corretor e um texto pronto com os meses atrasados e os que vencem nos próximos 7 dias.
+- **Bloqueio por atraso:** com **Bloquear o login com atraso de** preenchido (de 1 a 90 dias; 0 desliga), quem tiver um mês atrasado há mais dias que isso tem o login desativado, e a sessão aberta cai. Quando o atraso é pago, o mês é dispensado, a cobrança é pausada ou o bloqueio é desligado, o login volta sozinho. Quem o administrador desativou à mão em **Usuários** continua desativado, e um login bloqueado pelo atraso só é reativado pela tela Mensalidades. A conferência roda ao abrir o cotador, de hora em hora e a cada mudança na tela.
+
+- **Registro de alterações:** cada corretor tem a lista de quem programou ou mudou a cobrança, marcou ou desfez um pagamento, dispensou um mês, e quando. O bloqueio e a liberação automáticos aparecem como feitos pelo Sistema.
+
+As mensalidades e o registro ficam no banco e entram no backup.
+
 ### Recuperar a senha por e-mail
 
 Cada usuário tem um e-mail, e a tela de login oferece **Esqueci minha senha**. O link enviado vale por uma hora e uma única vez. Para funcionar, preencha os dados do servidor de e-mail no `.env` e reinicie o cotador:

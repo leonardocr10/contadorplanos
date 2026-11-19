@@ -8,6 +8,7 @@ import { CODIGO_REINICIAR, criarSistema } from "./sistema.js";
 import { criarApp } from "./app.js";
 import { criarResgate } from "./resgate.js";
 import { criarAppExterna, criarAppPublica, enderecoDosLinks } from "./publico.js";
+import { hojeLocal } from "../public/js/mensalidade.js";
 
 const raiz = join(dirname(fileURLToPath(import.meta.url)), "..");
 try {
@@ -59,10 +60,27 @@ const servidor = app.listen(porta, "127.0.0.1", (erro) => {
   if (erro) return tratarErroDePorta(erro);
   console.log(`Cotador disponível em ${endereco}`);
   resgate.iniciar();
+  iniciarMensalidades();
   if (resgate.configurado) console.log("Resgate: envio automático pelo WhatsApp ligado (Evolution API).");
   abrirNavegador();
   iniciarLinks();
 });
+
+// Mensalidades: cria os meses novos e aplica o bloqueio por atraso ao abrir e de hora em hora,
+// mesmo que ninguém abra a tela.
+function iniciarMensalidades() {
+  const rodar = () => {
+    try {
+      const { bloqueados, liberados } = banco.processarMensalidades(hojeLocal());
+      if (bloqueados.length) console.log(`Mensalidades: ${bloqueados.length} login(s) bloqueado(s) por atraso.`);
+      if (liberados.length) console.log(`Mensalidades: ${liberados.length} login(s) liberado(s).`);
+    } catch (e) {
+      console.error("Mensalidades: não deu para conferir os vencimentos agora.", e.message);
+    }
+  };
+  rodar();
+  setInterval(rodar, 60 * 60 * 1000).unref();
+}
 
 let servidorPublico = null;
 function iniciarLinks() {

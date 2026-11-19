@@ -1,5 +1,6 @@
-// Aba "Configurações": senha de cada login e, para o administrador, usuários e atualização do sistema.
+// Aba "Configurações": senha de cada login e, para o administrador, usuários, mensalidades e atualização do sistema.
 import { $, api, avisoCentral, esc, pode, telaDaView, toast } from "./estado.js";
+import { carregarMensalidades, iniciarMensalidades } from "./mensalidades.js";
 import { desenharPaginacao, paginar } from "./grade.js";
 import { TELAS_DO_SISTEMA } from "./telas.js";
 
@@ -204,17 +205,21 @@ export function aplicarPerfil(usuario) {
   if (!admin) return;
   mostrarVersao();
   carregarUsuarios();
+  // O selo de atrasados no menu aparece logo ao entrar.
+  carregarMensalidades();
 }
 
 // As abas abrem um item por vez; as do administrador nem aparecem para os demais.
 export function abrirItem(item) {
   document.querySelectorAll("#cfg-menu [data-abre]").forEach((b) => b.setAttribute("aria-current", b.dataset.abre === item));
   document.querySelectorAll("[data-cfg]").forEach((p) => (p.hidden = p.dataset.cfg !== item));
+  if (item === "mensalidades") carregarMensalidades();
 }
 
 export function iniciarConfiguracoes() {
   document.querySelectorAll("#cfg-menu [data-abre]").forEach((b) => (b.onclick = () => abrirItem(b.dataset.abre)));
   abrirItem("dados");
+  iniciarMensalidades();
   $("#usr-novo").onclick = () => abrirGaveta();
   document.querySelectorAll('[name="usr-perfil"]').forEach((r) => (r.onchange = mostrarAcesso));
   document.querySelectorAll("#usr-gaveta [data-fechar]").forEach((b) => (b.onclick = () => $("#usr-gaveta").close()));

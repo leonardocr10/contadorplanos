@@ -313,7 +313,7 @@
 
   <!-- ===================================================================== -->
   <h2 id="configuracoes">8. Configurações</h2>
-  <p>Cada login cuida dos próprios dados e da senha; o administrador também cuida dos usuários, do backup e das atualizações.</p>
+  <p>Cada login cuida dos próprios dados e da senha; o administrador também cuida dos usuários, das mensalidades, do backup e das atualizações.</p>
   <ul>
     <li><b>Meus dados</b>: nome, telefone, empresa, e-mail e foto. Nome, telefone e empresa vão na proposta enviada ao cliente, e o e-mail serve para recuperar a senha.</li>
     <li><b>Alterar senha</b>: informe a senha atual e a nova, com no mínimo 8 caracteres.</li>
@@ -331,9 +331,23 @@
         <li><b>Desativar</b> bloqueia o login, mas guarda as cotações, os contratos e os documentos dele; <b>Ativar</b> libera de novo.</li>
       </ul>
     </li>
+    <li><b>Mensalidades</b>: a cobrança mensal de uso do sistema de cada corretor (o administrador não paga).
+      <ul>
+        <li>os cards no topo mostram o previsto por mês, o recebido e o que falta receber no mês e o total em atraso. Clicar num deles filtra a lista pelos corretores daquela conta, e clicar de novo tira o filtro. Os cards de situação (inclusive <b>Bloqueado</b>, quando há alguém bloqueado) também filtram, e a busca acha o corretor pelo nome, login, e-mail ou telefone;</li>
+        <li>a coluna <b>Última cobrança</b> mostra o mês mais recente do corretor e se ele está pago, em aberto ou atrasado;</li>
+        <li>o ícone da calculadora <b>programa a cobrança</b>: valor, dia do vencimento (de 1 a 28) e o primeiro mês cobrado. Antes de salvar, a janela mostra a prévia, como "Serão cobrados R$ 99,90 todo dia 10, a partir de 10/12/2026", e os próximos vencimentos. Desmarcar <b>Cobrança ativa</b> pausa a cobrança;</li>
+        <li>os meses aparecem sozinhos todo mês. O ícone do olho abre os meses do corretor: <b>Marcar como pago</b> pede a data e a forma de pagamento, <b>Dispensar</b> deixa de cobrar aquele mês e <b>Desfazer pagamento</b> volta atrás. Abaixo dos meses fica o <b>Registro de alterações</b>: quem programou ou mudou a cobrança, marcou ou desfez um pagamento, dispensou um mês, e quando. O bloqueio e a liberação automáticos aparecem como feitos pelo Sistema;</li>
+        <li>o ícone do WhatsApp abre a conversa com o corretor e a mensagem de cobrança pronta, com os meses atrasados e os que vencem nos próximos 7 dias;</li>
+        <li><b>Bloquear o login com atraso de</b>: com os dias preenchidos, quem passa desse atraso tem o login desativado, e ele volta sozinho quando o atraso é pago ou a cobrança é pausada. 0 desliga o bloqueio. Quem você desativou à mão em Usuários continua desativado.</li>
+      </ul>
+    </li>
     <li><b>Backup</b>: <b>Fazer backup</b> baixa um arquivo com planos, usuários, histórico, contratos com documentos e imagens. <b>Restaurar backup</b> troca todos os dados pelos do arquivo; uma cópia dos dados atuais fica na pasta backups.</li>
     <li><b>Atualizar sistema</b>: baixa a versão mais recente e reinicia o cotador. Os dados não mudam; os links dos clientes ficam fora do ar por alguns instantes.</li>
   </ul>
+  <figure>
+    <img src="img/manual/mensalidades.webp" alt="Tela Mensalidades com os cards de situação e a lista de corretores, com os meses de uma corretora abertos" width="1366" height="768" loading="lazy">
+    <figcaption>Vermelho é atraso, amarelo vence nos próximos 7 dias e verde está em dia.</figcaption>
+  </figure>
   <div class="dica"><b>Dica:</b> faça um backup por semana e guarde o arquivo fora do computador do cotador, como num pen drive ou na nuvem.</div>
 
   <!-- ===================================================================== -->

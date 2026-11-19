@@ -6,6 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { completarCarencias, linhaDoPlano, redeDaCidade } from "../public/js/calculo.js";
 import { permissoesDoUsuario } from "./permissoes.js";
+import { competenciasDevidas, somarDias, vencimentoDe } from "../public/js/mensalidade.js";
 
 export const STATUS = ["Enviada", "Em Negociação", "Vendida", "Negativa"];
 // Dias sem cotar até o cliente entrar no resgate: o padrão e o intervalo que o corretor pode escolher.
@@ -390,6 +391,44 @@ const MIGRACOES = [
       if (!colunas.includes(nome)) db.exec(`ALTER TABLE resgate_config ADD COLUMN ${nome} INTEGER NOT NULL DEFAULT ${padrao}`);
     }
   },
+  // Mensalidade de uso do sistema: a assinatura de cada corretor e cada mês cobrado (controle manual do pagamento).
+  // "bloqueado" marca quem foi desativado pelo atraso: só esses voltam sozinhos quando o atraso é pago.
+  `CREATE TABLE IF NOT EXISTS assinaturas (
+     usuario_id TEXT PRIMARY KEY,
+     valor REAL NOT NULL,
+     dia INTEGER NOT NULL,
+     inicio TEXT NOT NULL,
+     ativa INTEGER NOT NULL DEFAULT 1,
+     observacao TEXT NOT NULL DEFAULT '',
+     bloqueado INTEGER NOT NULL DEFAULT 0,
+     criado_em TEXT NOT NULL
+   );
+   CREATE TABLE IF NOT EXISTS mensalidades (
+     id TEXT PRIMARY KEY,
+     usuario_id TEXT NOT NULL,
+     competencia TEXT NOT NULL,
+     vencimento TEXT NOT NULL,
+     valor REAL NOT NULL,
+     pago_em TEXT,
+     forma TEXT NOT NULL DEFAULT '',
+     observacao TEXT NOT NULL DEFAULT '',
+     dispensada INTEGER NOT NULL DEFAULT 0,
+     criado_em TEXT NOT NULL,
+     UNIQUE (usuario_id, competencia)
+   );
+   CREATE TABLE IF NOT EXISTS mensalidade_config (
+     id INTEGER PRIMARY KEY CHECK (id = 1),
+     dias_bloqueio INTEGER NOT NULL DEFAULT 0
+   );`,
+  // Registro de alterações das mensalidades: quem mudou a cobrança ou um pagamento, e quando.
+  `CREATE TABLE IF NOT EXISTS mensalidade_log (
+     id TEXT PRIMARY KEY,
+     usuario_id TEXT NOT NULL,
+     em TEXT NOT NULL,
+     autor TEXT NOT NULL DEFAULT '',
+     descricao TEXT NOT NULL
+   );
+   CREATE INDEX IF NOT EXISTS idx_mensalidade_log_usuario ON mensalidade_log (usuario_id, em);`,
 ];
 
 // Troca os documentos dos planos CNPJ pela lista empresarial; com unimed, a Unimed PME recebe a lista dela.
@@ -513,6 +552,14 @@ function linhaParaCotacao(l) {
     id: l.id, fone: l.fone, cliente: l.cliente, criadoEm: l.criado_em, usuarioId: l.usuario_id, tipo: l.tipo, uf: l.uf, municipio: l.municipio, idades: l.idades,
     vidas: JSON.parse(l.vidas), over: JSON.parse(l.overrides), planos: JSON.parse(l.planos), mensagem: l.mensagem, status: l.status,
   };
+}
+
+function linhaParaAssinatura(l) {
+  return { usuarioId: l.usuario_id, valor: l.valor, dia: l.dia, inicio: l.inicio, ativa: !!l.ativa, observacao: l.observacao, bloqueado: !!l.bloqueado };
+}
+
+function linhaParaMensalidade(l) {
+  return { id: l.id, usuarioId: l.usuario_id, competencia: l.competencia, vencimento: l.vencimento, valor: l.valor, pagoEm: l.pago_em ?? null, forma: l.forma, observacao: l.observacao, dispensada: !!l.dispensada };
 }
 
 function linhaParaUsuario(l) {
@@ -1412,6 +1459,127 @@ export class Banco {
     if (perfil !== undefined) this.db.prepare("UPDATE usuarios SET perfil = ? WHERE id = ?").run(perfil, id);
     if (ativo !== undefined) this.db.prepare("UPDATE usuarios SET ativo = ? WHERE id = ?").run(ativo ? 1 : 0, id);
     return this.obterUsuario(id);
+  }
+
+  /* ---------- mensalidades do sistema ---------- */
+  // Cada corretor (perfil usuário) tem no máximo uma assinatura; cada mês vira uma mensalidade, paga ou não.
+  obterAssinatura(usuarioId) {
+    const l = this.db.prepare("SELECT * FROM assinaturas WHERE usuario_id = ?").get(usuarioId);
+    return l ? linhaParaAssinatura(l) : null;
+  }
+
+  // Grava a assinatura. Os meses ainda não pagos que não venceram passam a usar o valor e o dia novos;
+  // os pagos e os atrasados ficam como estavam. Meses não pagos de antes do novo início saem.
+  gravarAssinatura(usuarioId, { valor, dia, inicio, ativa = true, observacao = "" }, hoje) {
+    const atual = this.obterAssinatura(usuarioId);
+    this.db.prepare(`INSERT INTO assinaturas (usuario_id, valor, dia, inicio, ativa, observacao, bloqueado, criado_em) VALUES (?, ?, ?, ?, ?, ?, 0, ?)
+      ON CONFLICT (usuario_id) DO UPDATE SET valor = excluded.valor, dia = excluded.dia, inicio = excluded.inicio, ativa = excluded.ativa, observacao = excluded.observacao`)
+      .run(usuarioId, valor, dia, inicio, ativa ? 1 : 0, observacao, new Date().toISOString());
+    if (atual) {
+      this.db.prepare("DELETE FROM mensalidades WHERE usuario_id = ? AND pago_em IS NULL AND dispensada = 0 AND competencia < ?").run(usuarioId, inicio);
+      const abertas = this.db.prepare("SELECT id, competencia FROM mensalidades WHERE usuario_id = ? AND pago_em IS NULL AND dispensada = 0 AND vencimento >= ?").all(usuarioId, hoje);
+      const mudar = this.db.prepare("UPDATE mensalidades SET valor = ?, vencimento = ? WHERE id = ?");
+      for (const m of abertas) mudar.run(valor, `${m.competencia}-${String(dia).padStart(2, "0")}`, m.id);
+    }
+    this.gerarMensalidades(hoje);
+    return this.obterAssinatura(usuarioId);
+  }
+
+  // Cria os meses que já deveriam existir (do início até agora) das assinaturas ativas de corretores.
+  gerarMensalidades(hoje) {
+    const assinaturas = this.db.prepare(`SELECT a.* FROM assinaturas a JOIN usuarios u ON u.id = a.usuario_id
+      WHERE a.ativa = 1 AND u.perfil = 'usuario'`).all().map(linhaParaAssinatura);
+    const incluir = this.db.prepare("INSERT OR IGNORE INTO mensalidades (id, usuario_id, competencia, vencimento, valor, criado_em) VALUES (?, ?, ?, ?, ?, ?)");
+    let novas = 0;
+    const agora = new Date().toISOString();
+    for (const a of assinaturas) {
+      for (const c of competenciasDevidas(a, hoje)) novas += incluir.run("m" + randomUUID(), a.usuarioId, c, vencimentoDe(c, a.dia), a.valor, agora).changes;
+    }
+    return novas;
+  }
+
+  listarMensalidades(usuarioId) {
+    const sql = `SELECT * FROM mensalidades ${usuarioId ? "WHERE usuario_id = ?" : ""} ORDER BY competencia DESC`;
+    return this.db.prepare(sql).all(...(usuarioId ? [usuarioId] : [])).map(linhaParaMensalidade);
+  }
+
+  obterMensalidade(id) {
+    const l = this.db.prepare("SELECT * FROM mensalidades WHERE id = ?").get(id);
+    return l ? linhaParaMensalidade(l) : null;
+  }
+
+  // Marca ou desmarca o pagamento de um mês (pagoEm null = voltar para não pago). Pagar tira a dispensa.
+  registrarPagamento(id, { pagoEm, forma = "", observacao }) {
+    this.db.prepare("UPDATE mensalidades SET pago_em = ?, forma = ?, dispensada = CASE WHEN ? IS NULL THEN dispensada ELSE 0 END WHERE id = ?").run(pagoEm, pagoEm ? forma : "", pagoEm, id);
+    if (observacao !== undefined) this.db.prepare("UPDATE mensalidades SET observacao = ? WHERE id = ?").run(observacao, id);
+    return this.obterMensalidade(id);
+  }
+
+  // Dispensa (ex.: cortesia) um mês não pago, ou desfaz a dispensa. O mês continua na lista, sem ser cobrado.
+  dispensarMensalidade(id, dispensada) {
+    this.db.prepare("UPDATE mensalidades SET dispensada = ? WHERE id = ? AND pago_em IS NULL").run(dispensada ? 1 : 0, id);
+    return this.obterMensalidade(id);
+  }
+
+  lerConfigMensalidade() {
+    const l = this.db.prepare("SELECT dias_bloqueio FROM mensalidade_config WHERE id = 1").get();
+    return { diasBloqueio: l?.dias_bloqueio ?? 0 };
+  }
+
+  gravarConfigMensalidade({ diasBloqueio }) {
+    this.db.prepare(`INSERT INTO mensalidade_config (id, dias_bloqueio) VALUES (1, ?)
+      ON CONFLICT (id) DO UPDATE SET dias_bloqueio = excluded.dias_bloqueio`).run(diasBloqueio);
+    return this.lerConfigMensalidade();
+  }
+
+  // Bloqueio automático: com o bloqueio ligado, o corretor com um mês atrasado há mais dias que o escolhido
+  // tem o login desativado. Quando o atraso é pago (ou a cobrança é pausada, ou o bloqueio é desligado),
+  // quem foi bloqueado por aqui volta a entrar; quem o administrador desativou à mão continua desativado.
+  aplicarBloqueios(hoje) {
+    const { diasBloqueio } = this.lerConfigMensalidade();
+    const limite = diasBloqueio > 0 ? somarDias(hoje, -diasBloqueio) : null;
+    const linhas = this.db.prepare(`SELECT a.usuario_id, a.ativa, a.bloqueado, u.ativo, u.perfil,
+        (SELECT MIN(vencimento) FROM mensalidades m WHERE m.usuario_id = a.usuario_id AND m.pago_em IS NULL AND m.dispensada = 0) AS mais_antiga
+      FROM assinaturas a JOIN usuarios u ON u.id = a.usuario_id`).all();
+    const bloqueados = [], liberados = [];
+    for (const l of linhas) {
+      const deveBloquear = !!limite && l.ativa === 1 && l.perfil === "usuario" && !!l.mais_antiga && l.mais_antiga < limite;
+      if (deveBloquear && l.ativo === 1) {
+        this.db.prepare("UPDATE usuarios SET ativo = 0 WHERE id = ?").run(l.usuario_id);
+        this.db.prepare("UPDATE assinaturas SET bloqueado = 1 WHERE usuario_id = ?").run(l.usuario_id);
+        bloqueados.push(l.usuario_id);
+        this.registrarAlteracao(l.usuario_id, "Sistema", `Login bloqueado: atraso de mais de ${diasBloqueio} ${diasBloqueio === 1 ? "dia" : "dias"}.`);
+      } else if (!deveBloquear && l.bloqueado === 1) {
+        if (l.ativo === 0) this.db.prepare("UPDATE usuarios SET ativo = 1 WHERE id = ?").run(l.usuario_id);
+        this.db.prepare("UPDATE assinaturas SET bloqueado = 0 WHERE usuario_id = ?").run(l.usuario_id);
+        liberados.push(l.usuario_id);
+        this.registrarAlteracao(l.usuario_id, "Sistema", "Login liberado: o bloqueio por atraso saiu.");
+      }
+    }
+    return { bloqueados, liberados };
+  }
+
+  // Registro de alterações: cada linha diz quem fez o quê na cobrança de um corretor.
+  registrarAlteracao(usuarioId, autor, descricao) {
+    if (!descricao) return;
+    this.db.prepare("INSERT INTO mensalidade_log (id, usuario_id, em, autor, descricao) VALUES (?, ?, ?, ?, ?)")
+      .run("l" + randomUUID(), usuarioId, new Date().toISOString(), autor || "", descricao);
+  }
+
+  listarAlteracoes(usuarioId, limite = 50) {
+    return this.db.prepare("SELECT em, autor, descricao FROM mensalidade_log WHERE usuario_id = ? ORDER BY em DESC, rowid DESC LIMIT ?")
+      .all(usuarioId, limite).map((l) => ({ em: l.em, autor: l.autor, descricao: l.descricao }));
+  }
+
+  // O login está desativado pelo atraso da mensalidade (e não pelo administrador).
+  bloqueadoPorMensalidade(usuarioId) {
+    return this.db.prepare("SELECT bloqueado FROM assinaturas WHERE usuario_id = ?").get(usuarioId)?.bloqueado === 1;
+  }
+
+  // Rotina das mensalidades: cria os meses que faltam e aplica o bloqueio automático.
+  processarMensalidades(hoje) {
+    const novas = this.gerarMensalidades(hoje);
+    return { novas, ...this.aplicarBloqueios(hoje) };
   }
 
   /* ---------- backup ---------- */
