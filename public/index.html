@@ -17,6 +17,7 @@
 <link rel="modulepreload" href="js/atualizar.js">
 <link rel="modulepreload" href="js/historico.js">
 <link rel="modulepreload" href="js/resgate.js">
+<link rel="modulepreload" href="js/telas.js">
 <link rel="modulepreload" href="js/aceites.js">
 <link rel="modulepreload" href="js/documentos.js">
 <link rel="modulepreload" href="js/contratos.js">
@@ -157,7 +158,7 @@
           <button type="button" class="btn btn-limpar" id="res-limpar-mes" data-limpa="res-mes" title="Limpar mês" aria-label="Limpar mês" disabled><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg><span>Limpar</span></button>
         </div>
       </div>
-      <div class="res-dias" data-edita="historico" hidden>
+      <div class="res-dias" data-edita="resgate" hidden>
         <div class="field"><label for="res-dias">Dias sem nova cotação para entrar no resgate</label><input id="res-dias" type="text" inputmode="numeric" maxlength="3" autocomplete="off"></div>
         <div class="field res-num"><label for="res-limite" title="No máximo quantas mensagens saem do seu WhatsApp em 24 horas">Mensagens por dia</label><input id="res-limite" type="text" inputmode="numeric" maxlength="3" autocomplete="off"></div>
         <div class="field res-num"><label for="res-int-min" title="Espera mínima, em minutos, entre uma mensagem e a próxima">Intervalo mínimo (min)</label><input id="res-int-min" type="text" inputmode="numeric" maxlength="3" autocomplete="off"></div>
@@ -184,12 +185,12 @@
           <img alt="QR Code para conectar o WhatsApp" width="240" height="240">
           <p class="note">No celular, abra o WhatsApp, toque em <b>Aparelhos conectados</b> › <b>Conectar um aparelho</b> e aponte a câmera para este código. Ele muda a cada poucos segundos.</p>
         </div>
-        <div class="actions" data-edita="historico" hidden>
+        <div class="actions" data-edita="resgate" hidden>
           <button type="button" class="btn primary" id="res-conectar">Conectar meu WhatsApp</button>
           <button type="button" class="btn" id="res-desconectar" hidden>Desconectar</button>
         </div>
       </div>
-      <div class="panel" data-edita="historico" hidden>
+      <div class="panel" data-edita="resgate" hidden>
         <h3 class="ctr-bloco-titulo">Mensagem automática</h3>
         <label class="uchk res-ativo"><input type="checkbox" id="res-ativo"> Enviar a mensagem automaticamente</label>
         <div class="field"><label for="res-mensagem">Texto da mensagem</label><textarea id="res-mensagem" maxlength="1000" rows="5"></textarea></div>

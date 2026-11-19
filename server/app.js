@@ -16,7 +16,7 @@ import {
   DIAS_RESGATE_MAX, DIAS_RESGATE_MIN, ErroWhatsApp, HORARIO, INTERVALO_RESGATE_MAX, INTERVALO_RESGATE_MIN, LIMITE_RESGATE_MAX, LIMITE_RESGATE_MIN,
   MENSAGEM_PADRAO, criarResgate, instanciaDe,
 } from "./resgate.js";
-import { NIVEIS, PERMISSOES_PADRAO, TELAS, TELAS_COM_PLANOS, atende } from "./permissoes.js";
+import { NIVEIS, TELAS, TELAS_COM_PLANOS, atende, nivelPadrao } from "./permissoes.js";
 import { CATEGORIA_DO_SEGMENTO, MAX_PARCELAS, SEGMENTOS } from "../public/js/comissao.js";
 import { montarSnapshot, renderizarProposta } from "./proposta-html.js";
 import { MAX_PLANOS_COMPARATIVO, renderizarComparativo } from "./comparativo-html.js";
@@ -237,7 +237,8 @@ function validarEmail(v, podeVazio = false) {
 function validarPermissoes(v) {
   if (!v || typeof v !== "object") throw new ErroEntrada("As permissões informadas são inválidas.");
   return Object.fromEntries(TELAS.map((t) => {
-    const nivel = v[t] === undefined && t === "financeiro" ? PERMISSOES_PADRAO[t] : v[t];
+    // Tela que não veio (como uma tela nova, numa tela de usuários antiga) fica com o padrão dela.
+    const nivel = v[t] === undefined ? nivelPadrao(t, v) : v[t];
     if (!NIVEIS.includes(nivel)) throw new ErroEntrada("As permissões informadas são inválidas.");
     return [t, nivel];
   }));
@@ -418,7 +419,7 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
   const ACOES_DO_RESGATE = { cancelar: ["pendente"], reenviar: ["erro", "cancelado"] };
   const resgateParaTela = ({ usuarioId, ...r }) => r;
 
-  app.get("/api/resgate", exige("historico", "ver"), (req, res) => {
+  app.get("/api/resgate", exige("resgate", "ver"), (req, res) => {
     resgate.coletar();
     const dono = req.usuario?.id ?? "";
     res.json({
@@ -431,7 +432,7 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     });
   });
 
-  app.put("/api/resgate/config", exige("historico", "editar"), (req, res) => {
+  app.put("/api/resgate/config", exige("resgate", "editar"), (req, res) => {
     const b = req.body ?? {};
     const mensagem = b.mensagem === undefined ? undefined : textoOpc(b.mensagem, "mensagem", 1000);
     if (b.ativo !== undefined && typeof b.ativo !== "boolean") throw new ErroEntrada("Escolha se o envio automático fica ligado.");
@@ -452,7 +453,7 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     res.json(cfg);
   });
 
-  app.patch("/api/resgate/:id", exige("historico", "editar"), (req, res) => {
+  app.patch("/api/resgate/:id", exige("resgate", "editar"), (req, res) => {
     const r = banco.obterResgate(req.params.id);
     if (!r || r.usuarioId !== precisaDeLogin(req)) return res.status(404).json({ erro: "Cliente não encontrado no resgate." });
     const acao = req.body?.acao;
@@ -461,16 +462,16 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     res.json(resgateParaTela(banco.marcarResgate(r.id, acao === "cancelar" ? { status: "cancelado" } : { status: "pendente", tentativas: 0 })));
   });
 
-  app.get("/api/resgate/whatsapp", exige("historico", "ver"), async (req, res) => {
+  app.get("/api/resgate/whatsapp", exige("resgate", "ver"), async (req, res) => {
     if (!resgate.evolution) return res.json({ configurado: false, estado: "inexistente", numero: "" });
     res.json({ configurado: true, ...(await resgate.evolution.estado(instanciaDe(precisaDeLogin(req)))) });
   });
 
-  app.post("/api/resgate/whatsapp/conectar", exige("historico", "editar"), async (req, res) => {
+  app.post("/api/resgate/whatsapp/conectar", exige("resgate", "editar"), async (req, res) => {
     res.json(await whatsappDoServidor().conectar(instanciaDe(precisaDeLogin(req))));
   });
 
-  app.post("/api/resgate/whatsapp/desconectar", exige("historico", "editar"), async (req, res) => {
+  app.post("/api/resgate/whatsapp/desconectar", exige("resgate", "editar"), async (req, res) => {
     await whatsappDoServidor().desconectar(instanciaDe(precisaDeLogin(req)));
     res.json({ ok: true });
   });

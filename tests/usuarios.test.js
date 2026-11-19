@@ -472,9 +472,9 @@ async function comPermissoes(t, permissoes) {
 
 test("sem escolher, o usuário fica com o acesso padrão, e o administrador com tudo", async (t) => {
   const { pedir, admin, entrar } = await comPermissoes(t);
-  assert.deepEqual((await (await pedir(admin, "/api/eu")).json()).permissoes, { cotacao: "editar", planos: "editar", documentos: "editar", historico: "editar", aceites: "editar", contratos: "editar", financeiro: "editar" });
+  assert.deepEqual((await (await pedir(admin, "/api/eu")).json()).permissoes, { cotacao: "editar", planos: "editar", documentos: "editar", historico: "editar", aceites: "editar", contratos: "editar", financeiro: "editar", resgate: "editar" });
   const comum = (await entrar("corretor1", "senha-do-corretor")).cookie;
-  assert.deepEqual((await (await pedir(comum, "/api/eu")).json()).permissoes, { cotacao: "editar", planos: "ver", documentos: "ver", historico: "editar", aceites: "editar", contratos: "editar", financeiro: "nenhum" });
+  assert.deepEqual((await (await pedir(comum, "/api/eu")).json()).permissoes, { cotacao: "editar", planos: "ver", documentos: "ver", historico: "editar", aceites: "editar", contratos: "editar", financeiro: "nenhum", resgate: "editar" });
 });
 
 test("sem acesso a uma tela, as rotas dela ficam fechadas", async (t) => {
@@ -674,4 +674,30 @@ test("encher a lista de tentativas com logins falsos não zera o bloqueio de que
   const cheio = new Map(Array.from({ length: 5 }, (_, i) => [`k${i}`, i]));
   podar(cheio, () => true, 3);
   assert.deepEqual([...cheio.keys()], ["k2", "k3", "k4"]);
+});
+
+test("todo item do menu aparece na tela de usuários para ser liberado", async () => {
+  const { TELAS_DO_SISTEMA, VIEW_PARA_TELA, VIEWS_LIVRES } = await import("../public/js/telas.js");
+  const { TELAS } = await import("../server/permissoes.js");
+  const telas = TELAS_DO_SISTEMA.map((t) => t.tela);
+  const html = readFileSync(join(raiz, "public", "index.html"), "utf8");
+  const menu = [...html.matchAll(/<button[^>]*data-view="([\w-]+)"/g)].map((m) => m[1]);
+  assert.ok(menu.length >= 10);
+  for (const view of menu) {
+    if (VIEWS_LIVRES.includes(view)) continue;
+    const tela = VIEW_PARA_TELA[view] ?? view;
+    assert.ok(telas.includes(tela), `O menu "${view}" não está na lista de telas da tela de usuários (public/js/telas.js).`);
+  }
+  // O servidor protege exatamente as mesmas telas, e cada uma tem nome e acesso padrão.
+  assert.deepEqual(TELAS, telas);
+  for (const t of TELAS_DO_SISTEMA) assert.ok(t.nome && ["nenhum", "ver", "editar"].includes(t.padrao), t.tela);
+});
+
+test("o Resgate tem acesso próprio; quem não tinha a tela salva fica com o acesso do Histórico", async () => {
+  const { permissoesDoUsuario } = await import("../server/permissoes.js");
+  assert.equal(permissoesDoUsuario("usuario", JSON.stringify({ historico: "ver" })).resgate, "ver");
+  assert.equal(permissoesDoUsuario("usuario", JSON.stringify({ historico: "nenhum" })).resgate, "nenhum");
+  assert.equal(permissoesDoUsuario("usuario", JSON.stringify({ historico: "editar", resgate: "nenhum" })).resgate, "nenhum");
+  assert.equal(permissoesDoUsuario("usuario", "").resgate, "editar");
+  assert.equal(permissoesDoUsuario("admin", JSON.stringify({ resgate: "nenhum" })).resgate, "editar");
 });

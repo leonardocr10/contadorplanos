@@ -1,15 +1,17 @@
 // Aba "Configurações": senha de cada login e, para o administrador, usuários e atualização do sistema.
 import { $, api, avisoCentral, esc, pode, telaDaView, toast } from "./estado.js";
 import { desenharPaginacao, paginar } from "./grade.js";
+import { TELAS_DO_SISTEMA } from "./telas.js";
 
 const espera = (ms) => new Promise((r) => setTimeout(r, ms));
 const msg = (t) => ($("#cfg-msg").textContent = t);
 const msgUsuarios = (t) => toast(t, "erro");
 const PERFIS = { admin: "Administrador", usuario: "Usuário" };
-const TELAS = { cotacao: "Nova Cotação", planos: "Planos e Valores", documentos: "Documentos", historico: "Histórico", aceites: "Aceites", contratos: "Contratos Vendidos", financeiro: "Financeiro" };
+// As telas e o acesso padrão vêm da lista única do sistema: menu novo aparece aqui sozinho.
+const TELAS = Object.fromEntries(TELAS_DO_SISTEMA.map((t) => [t.tela, t.nome]));
 const NIVEIS = { nenhum: "Sem acesso", ver: "Ver", editar: "Editar" };
 const NOMES_NIVEIS = { nenhum: "sem acesso", ver: "visualização", editar: "edição" };
-const PADRAO = { cotacao: "editar", planos: "ver", documentos: "ver", historico: "editar", aceites: "editar", contratos: "editar" };
+const PADRAO = Object.fromEntries(TELAS_DO_SISTEMA.map((t) => [t.tela, t.padrao]));
 
 let eu = null, usuarios = [], editando = null, paginaUsr = 1;
 const POR_PAGINA_USR = 10;

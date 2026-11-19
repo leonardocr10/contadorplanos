@@ -133,7 +133,8 @@ export function criarResgate({ banco, env = process.env, evolution = criarEvolut
       const agora = relogio();
       if (!evolution || !horaDeEnviar(agora)) return;
       for (const u of banco.listarUsuarios()) {
-        if (!u.ativo) continue;
+        // Quem não tem acesso ao Resgate não vê a fila, então nada sai pelo WhatsApp dele.
+        if (!u.ativo || u.permissoes?.resgate === "nenhum") continue;
         const cfg = banco.lerConfigResgate(u.id);
         if (!cfg.ativo || !podeEnviar(u, cfg, agora)) continue;
         const r = banco.proximoResgate(u.id);

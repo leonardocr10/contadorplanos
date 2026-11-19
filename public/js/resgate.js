@@ -22,7 +22,7 @@ let filtro = "todos", mes = "todos", pagina = 1, ordem = { campo: "cotacao", dir
 const abertos = new Set();
 
 export async function carregarResgate({ comWhatsApp = false } = {}) {
-  if (!pode("historico")) return;
+  if (!pode("resgate")) return;
   try {
     dados = await api("/api/resgate");
     erro = null;
@@ -176,7 +176,7 @@ const COLUNAS = [
 ];
 
 function linha(r) {
-  const s = situacao(r.status), aberto = abertos.has(r.id), editar = pode("historico", "editar");
+  const s = situacao(r.status), aberto = abertos.has(r.id), editar = pode("resgate", "editar");
   const dica = r.status === "enviado" ? `Enviada em ${diaHora(r.enviadoEm)}` : r.status === "erro" ? r.erro : r.status === "pendente" ? (r.erro ? `Vai tentar de novo. Última falha: ${r.erro}` : "Sai na próxima vez que houver envio") : "Não será enviada";
   const acoes = [
     r.mensagem ? botaoIcone("ver", aberto ? "Fechar a mensagem" : "Ver a mensagem enviada", { atributos: `data-ver aria-expanded="${aberto}"` }) : "",
