@@ -208,6 +208,7 @@ export function renderResgate() {
   $("#res-count").textContent = `${todosOsItens.length} ${todosOsItens.length === 1 ? "cliente" : "clientes"}`;
   // O mês do topo é o da última cotação, como no Histórico; vale para os cards e a lista.
   mes = desenharSeletorDeMes($("#res-mes"), todosOsItens.map((r) => mesLocal(r.cotacaoEm)), mes);
+  $("#res-limpar-mes").disabled = mes === "todos";
   const itens = todosOsItens.filter((r) => mes === "todos" || mesLocal(r.cotacaoEm) === mes);
   const quantos = (chave) => itens.filter((r) => r.status === chave).length;
   // O texto só é trocado quando a pessoa não está editando.

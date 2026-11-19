@@ -414,6 +414,9 @@ export function renderComissoes() {
   const opPag = `<option value="todos" data-icone="todos">Todos os meses</option><optgroup label="Meses">${mesesPag.map((m) => `<option value="${m}">${nomeDoMes(m)}${m === mesDeHoje() ? " (atual)" : ""}</option>`).join("")}</optgroup>`;
   if (selPag.dataset.opcoes !== opPag) { selPag.innerHTML = opPag; selPag.dataset.opcoes = opPag; }
   selPag.value = mesPagamento;
+  // Aqui o padrão é o mês atual, e não todos os meses.
+  $("#com-limpar-mes").dataset.padrao = mesDeHoje();
+  $("#com-limpar-mes").disabled = mesPagamento === mesDeHoje();
   // Comissão prevista: os pagamentos previstos no mês ainda com Pago = Não; recebidas: os do mês marcados Sim.
   const doMes = (x) => x.itensDoMes.filter((i) => i.pago).reduce((a, i) => a + i.valor, 0);
   const doMesTodos = (x) => x.itensDoMes.filter((i) => !i.pago).reduce((a, i) => a + i.valor, 0);

@@ -120,6 +120,7 @@ export function renderAceites() {
 
   // Cards com a quantidade de cada situação, no mês do aceite escolhido no topo; clicar filtra a grade.
   mesAceite = desenharSeletorDeMes($("#ace-mes"), aceites.map((a) => mesLocal(a.aceitoEm)), mesAceite);
+  $("#ace-limpar-mes").disabled = mesAceite === "todos";
   const doMes = doMesAceite();
   const quantos = (k) => doMes.filter((a) => situacao(a).chave === k).length;
   desenharCards($("#ace-cards"), [{ chave: "todos", rotulo: "Todos", qtd: doMes.length }, ...SITUACOES.map((s) => ({ ...s, qtd: quantos(s.chave) }))], filtroSituacao, (chave) => {
@@ -220,6 +221,7 @@ export function renderAceites() {
 export function iniciarAceites() {
   $("#ace-busca").oninput = () => { busca = $("#ace-busca").value; pagina = 1; renderAceites(); };
   $("#ace-filtro").onchange = () => { filtroSituacao = $("#ace-filtro").value; pagina = 1; renderAceites(); };
+  $("#ace-mes").onchange = () => { mesAceite = $("#ace-mes").value; pagina = 1; renderAceites(); };
   $("#ace-por-pagina").onchange = () => {
     porPagina = Number($("#ace-por-pagina").value) || 10;
     guardarPorPagina(CHAVE_POR_PAGINA, porPagina);

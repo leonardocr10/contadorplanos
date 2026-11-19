@@ -10,6 +10,7 @@ import { atualizarPlanosDoContrato, carregarContratos, conferirDiaDosContratos, 
 import { atualizarPlanosDaRegra, carregarFinanceiro, iniciarFinanceiro } from "./financeiro.js";
 import { abrirItem, aplicarPerfil, avatarDoUsuario, carregarUsuarios, iniciarConfiguracoes, mostrarUsuarioLogado } from "./configuracoes.js";
 import { iniciarFiltroSelects } from "./filtro-select.js";
+import { iniciarBorrachas } from "./grade.js";
 
 iniciarFiltroSelects();
 
@@ -293,6 +294,7 @@ async function verificarAceites() {
   }
 }
 
+iniciarBorrachas();
 iniciarCotacao();
 iniciarPlanos();
 iniciarHistorico();

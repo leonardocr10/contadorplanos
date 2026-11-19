@@ -35,6 +35,32 @@ export function desenharCards(caixa, itens, ativo, aoEscolher) {
   caixa.querySelectorAll("[data-chave]").forEach((b) => (b.onclick = () => aoEscolher(ativo === b.dataset.chave && b.dataset.chave !== "todos" ? "todos" : b.dataset.chave)));
 }
 
+/* ---------- borracha dos filtros ---------- */
+// Cada botão com data-limpa="id" limpa o campo indicado: a busca fica vazia e o seletor volta ao padrão
+// (data-padrao, ou "todos"). O campo avisa a tela pelo evento de sempre, então a tela se redesenha sozinha.
+// Nas buscas, o botão só acende com algo digitado; nos seletores, quem desenha a tela liga e desliga.
+export function iniciarBorrachas(raiz = document) {
+  for (const botao of raiz.querySelectorAll("[data-limpa]")) {
+    const campo = document.getElementById(botao.dataset.limpa);
+    if (!campo) continue;
+    if (campo.tagName === "INPUT") {
+      const atualizar = () => (botao.disabled = !campo.value);
+      campo.addEventListener("input", atualizar);
+      atualizar();
+      botao.addEventListener("click", () => {
+        campo.value = "";
+        campo.dispatchEvent(new Event("input", { bubbles: true }));
+        campo.focus();
+      });
+    } else {
+      botao.addEventListener("click", () => {
+        campo.value = botao.dataset.padrao ?? "todos";
+        campo.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    }
+  }
+}
+
 /* ---------- mês no card do topo (Histórico e Aceites) ---------- */
 const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 export const nomeDoMes = (aaaamm) => `${MESES[Number(aaaamm.slice(5, 7)) - 1]} de ${aaaamm.slice(0, 4)}`;

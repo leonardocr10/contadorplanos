@@ -116,7 +116,7 @@
       </div>
       <p class="note" style="margin:0" data-edita="planos" hidden>Os valores ficam salvos para todas as próximas cotações.</p>
       <p class="note" style="margin:0" data-so-ve="planos" hidden>Consulte aqui as informações dos planos. O seu usuário não altera planos e valores.</p>
-      <input id="cat-busca" type="text" placeholder="Buscar plano pelo nome ou pela descrição" aria-label="Buscar plano" autocomplete="off">
+      <div class="busca-com-limpar"><input id="cat-busca" type="text" placeholder="Buscar plano pelo nome ou pela descrição" aria-label="Buscar plano" autocomplete="off"><button type="button" class="btn btn-limpar" data-limpa="cat-busca" title="Limpar busca" aria-label="Limpar busca" disabled><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg><span>Limpar</span></button></div>
       <div id="cat" class="cat"></div>
     </div>
   </section>
@@ -154,6 +154,7 @@
         <div class="fin-mes-pag">
           <span class="note" id="res-count"></span>
           <div class="field"><label for="res-mes" title="Mês da última cotação de cada cliente">Mês</label><select id="res-mes" data-icone="calendario" data-contagem="mês|meses"></select></div>
+          <button type="button" class="btn btn-limpar" id="res-limpar-mes" data-limpa="res-mes" title="Limpar mês" aria-label="Limpar mês" disabled><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg><span>Limpar</span></button>
         </div>
       </div>
       <div class="res-dias" data-edita="historico" hidden>
@@ -204,7 +205,7 @@
       <h2>Documentos necessários</h2>
       <p class="note" style="margin:0" data-edita="documentos" hidden>Escolha o plano na lista para cadastrar ou excluir os documentos dele e montar a mensagem para o WhatsApp.</p>
       <p class="note" style="margin:0" data-so-ve="documentos" hidden>Escolha o plano na lista para ver os documentos pedidos ao cliente e copiar a mensagem para o WhatsApp. O seu usuário não altera esta lista.</p>
-      <input id="doc-busca" type="text" placeholder="Buscar plano pelo nome" aria-label="Buscar plano" autocomplete="off">
+      <div class="busca-com-limpar"><input id="doc-busca" type="text" placeholder="Buscar plano pelo nome" aria-label="Buscar plano" autocomplete="off"><button type="button" class="btn btn-limpar" data-limpa="doc-busca" title="Limpar busca" aria-label="Limpar busca" disabled><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg><span>Limpar</span></button></div>
       <div class="cat">
         <nav class="cfg-abas" id="doc-abas" aria-label="Tipo de plano"></nav>
         <div class="cat-mestre">
@@ -242,6 +243,7 @@
         <div class="fin-mes-pag">
           <span class="note" id="ace-count"></span>
           <div class="field"><label for="ace-mes" title="Mês em que o cliente aceitou a proposta">Mês do aceite</label><select id="ace-mes" data-icone="calendario" data-contagem="mês|meses"></select></div>
+          <button type="button" class="btn btn-limpar" id="ace-limpar-mes" data-limpa="ace-mes" title="Limpar mês" aria-label="Limpar mês" disabled><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg><span>Limpar</span></button>
         </div>
       </div>
       <div class="grade-cards" id="ace-cards" role="group" aria-label="Aceites por situação"></div>
@@ -265,6 +267,7 @@
         <div class="fin-mes-pag">
           <span class="note" id="ctr-count"></span>
           <div class="field"><label for="ctr-mes">Mês de ativação</label><select id="ctr-mes" data-icone="calendario" data-contagem="mês|meses"></select></div>
+          <button type="button" class="btn btn-limpar" id="ctr-limpar-mes" data-limpa="ctr-mes" title="Limpar mês" aria-label="Limpar mês" disabled><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg><span>Limpar</span></button>
         </div>
       </div>
       <div class="grade-cards" id="ctr-cards" role="group" aria-label="Contratos por situação"></div>
@@ -304,6 +307,7 @@
       <div class="panel">
         <div class="hist-filtros grade-filtros fin-cor-filtros">
           <div class="field"><label for="cor-busca">Buscar</label><input id="cor-busca" type="search" placeholder="Nome da corretora" autocomplete="off"></div>
+          <button type="button" class="btn btn-limpar" data-limpa="cor-busca" title="Limpar busca" aria-label="Limpar busca" disabled><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg><span>Limpar</span></button>
         </div>
         <div id="cor-lista"></div>
       </div>
@@ -346,6 +350,7 @@
         <div class="fin-mes-pag">
           <span class="note" id="com-count"></span>
           <div class="field"><label for="com-mes-pag" title="Mês da data prevista de cada pagamento: vale para os cards, a grade e a lista">Previsto para</label><select id="com-mes-pag" data-icone="calendario"></select></div>
+          <button type="button" class="btn btn-limpar" id="com-limpar-mes" data-limpa="com-mes-pag" title="Voltar para o mês atual" aria-label="Voltar para o mês atual" disabled><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg><span>Limpar</span></button>
         </div>
       </div>
       <div class="grade-cards fin-cards" id="com-cards" role="group" aria-label="Totais das comissões"></div>

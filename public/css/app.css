@@ -668,7 +668,8 @@ dialog.manual-zoom img{display:block;max-width:96vw;max-height:94vh;border-radiu
 .fin-form .fin-ang[hidden]{display:none}
 .fin-cabecalho{display:flex;flex-wrap:wrap;align-items:center;gap:12px}
 .fin-cabecalho h2{margin:0}
-.fin-cor-filtros{grid-template-columns:minmax(0,420px)}
+.fin-cor-filtros{grid-template-columns:minmax(0,420px) auto}
+.fin-cor-filtros .btn-limpar{justify-self:start}
 .fin-linha-cor{cursor:pointer}
 .fin-linha-cor:hover td{background:var(--accent-soft,#e2f4e9)}
 .fin-btn-linha{padding:6px 12px;font-size:13px;white-space:nowrap}
@@ -746,6 +747,8 @@ dialog.manual-zoom img{display:block;max-width:96vw;max-height:94vh;border-radiu
 /* Botão padrão de limpar: borda, ícone de borracha e texto. O compacto vai ao lado de rótulos e títulos. */
 .btn.btn-limpar{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:40px;min-height:0;padding:0 14px;box-sizing:border-box;white-space:nowrap}
 .btn.btn-limpar svg{flex:none}
+.busca-com-limpar{display:flex;gap:8px;align-items:center}
+.busca-com-limpar input{flex:1;min-width:0}
 .btn.btn-limpar:disabled{opacity:.45;cursor:default}
 .btn.btn-limpar.compacto{height:28px;padding:0 10px;gap:5px;font-size:13px}
 .btn.btn-limpar.compacto svg{width:15px;height:15px}

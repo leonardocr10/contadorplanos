@@ -139,6 +139,7 @@ function renderContratos() {
   const opcoesMes = `<option value="todos" data-icone="todos">Todos os meses</option>${meses.length ? `<optgroup label="Meses">${meses.map((m) => `<option value="${m}" data-selo="${contratos.filter((c) => c.ativacao.startsWith(m)).length}">${nomeDoMes(m)}</option>`).join("")}</optgroup>` : ""}`;
   if (selMes.dataset.opcoes !== opcoesMes) { selMes.innerHTML = opcoesMes; selMes.dataset.opcoes = opcoesMes; }
   selMes.value = mes;
+  $("#ctr-limpar-mes").disabled = mes === "todos";
   // Cards com a quantidade de cada situação, no mês escolhido no topo; clicar filtra a grade.
   const doMes = contratos.filter((c) => mes === "todos" || c.ativacao.startsWith(mes));
   const quantos = (k) => doMes.filter((c) => situacao(c, dia).chave === k).length;
