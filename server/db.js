@@ -11,7 +11,8 @@ import { competenciasDevidas, somarDias, vencimentoDe } from "../public/js/mensa
 export const STATUS = ["Enviada", "Em Negociação", "Vendida", "Negativa"];
 // Dias sem cotar até o cliente entrar no resgate: o padrão e o intervalo que o corretor pode escolher.
 export const DIAS_RESGATE_PADRAO = 90;
-export const DIAS_RESGATE_MIN = 1;
+// 0 coloca na fila na hora qualquer cliente que cotou e não fechou (útil para testar o envio).
+export const DIAS_RESGATE_MIN = 0;
 export const DIAS_RESGATE_MAX = 730;
 // Ritmo do envio de cada vendedor: mensagens por dia e minutos de espera entre uma e outra (sorteado entre o mínimo e o máximo).
 export const LIMITE_RESGATE_PADRAO = 30;

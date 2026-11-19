@@ -203,8 +203,10 @@ export function renderResgate() {
   $("#res-selo").textContent = naFila;
   if (!dados) { box.innerHTML = `<div class="status">${erro ? esc(erro) : "Carregando o resgate…"}</div>`; nav.innerHTML = ""; return; }
   const { dias, limite } = dados, { horario } = dados.regras;
+  // Com 0 dias entra qualquer cliente que cotou, logo depois da cotação.
+  const prazo = dias === 0 ? "qualquer idade" : `mais de ${dias} ${dias === 1 ? "dia" : "dias"}`;
   if (!editandoParametro()) for (const p of PARAMETROS) $(p.campo).value = String(dados[p.chave]);
-  $("#res-regras").textContent = `Clientes cuja última cotação tem mais de ${dias} dias, que não fecharam e não estão como Negativa. As mensagens saem de segunda a sexta, das ${horario.inicio}h às ${horario.fim}h (horário de Brasília), até ${limite} por dia e com ${intervaloTexto(dados)} entre uma e outra. Muitas mensagens por dia ou intervalos curtos aumentam o risco de o WhatsApp bloquear o número.`;
+  $("#res-regras").textContent = `Clientes cuja última cotação tem ${prazo}, que não fecharam e não estão como Negativa. As mensagens saem de segunda a sexta, das ${horario.inicio}h às ${horario.fim}h (horário de Brasília), até ${limite} por dia e com ${intervaloTexto(dados)} entre uma e outra. Muitas mensagens por dia ou intervalos curtos aumentam o risco de o WhatsApp bloquear o número.`;
   $("#res-count").textContent = `${todosOsItens.length} ${todosOsItens.length === 1 ? "cliente" : "clientes"}`;
   // O mês do topo é o da última cotação, como no Histórico; vale para os cards e a lista.
   mes = desenharSeletorDeMes($("#res-mes"), todosOsItens.map((r) => mesLocal(r.cotacaoEm)), mes);
@@ -225,7 +227,7 @@ export function renderResgate() {
   const q = $("#res-busca").value.trim(), qn = normalizar(q), qd = q.replace(/\D/g, "");
   $("#res-limpar").disabled = filtro === "todos" && !q;
   if (!todosOsItens.length) {
-    box.innerHTML = `<div class="status">Nenhum cliente para resgatar ainda. Quem fizer a última cotação há mais de ${dias} dias, não fechar e não estiver como Negativa aparece aqui sozinho.</div>`;
+    box.innerHTML = `<div class="status">Nenhum cliente para resgatar ainda. ${dias === 0 ? "Quem cotar" : `Quem fizer a última cotação há ${prazo}`}, não fechar e não estiver como Negativa aparece aqui sozinho.</div>`;
     nav.innerHTML = "";
     return;
   }

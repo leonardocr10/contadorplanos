@@ -146,6 +146,11 @@ test("cada corretor escolhe os dias sem cotar; mudar os dias refaz a fila", (t) 
   banco.gravarConfigResgate(ana.id, { dias: 60 });
   banco.coletarResgates(AGORA);
   assert.deepEqual(banco.listarResgates(ana.id).map((r) => r.cliente), ["Cliente 100 dias"]);
+  // Com 0 dias, quem acabou de cotar entra na hora (serve para testar o envio).
+  cotou(banco, ana.id, "34999990004", "Cliente de hoje", 0.01);
+  banco.gravarConfigResgate(ana.id, { dias: 0 });
+  banco.coletarResgates(AGORA);
+  assert.ok(banco.listarResgates(ana.id).some((r) => r.cliente === "Cliente de hoje"));
 });
 
 test("a rodada envia uma mensagem por vendedor conectado, no horário, com intervalo e limite por dia", async (t) => {
@@ -307,7 +312,7 @@ test("pela API, cada login vê só o próprio resgate, ajusta a mensagem e conec
   assert.equal(meu.corpo.ativo, true);
   assert.equal(meu.corpo.mensagem, "");
   assert.equal(meu.corpo.dias, 90);
-  assert.deepEqual([meu.corpo.regras.diasMin, meu.corpo.regras.diasMax], [1, 730]);
+  assert.deepEqual([meu.corpo.regras.diasMin, meu.corpo.regras.diasMax], [0, 730]);
   assert.deepEqual([meu.corpo.limite, meu.corpo.intervaloMin, meu.corpo.intervaloMax], [30, 2, 5]);
   assert.deepEqual([meu.corpo.regras.limiteMin, meu.corpo.regras.limiteMax, meu.corpo.regras.intervaloMin, meu.corpo.regras.intervaloMax], [1, 200, 1, 120]);
   assert.equal(meu.corpo.mensagemPadrao, MENSAGEM_RESGATE_PADRAO);
@@ -324,7 +329,7 @@ test("pela API, cada login vê só o próprio resgate, ajusta a mensagem e conec
 
   const cfg = await pedir(corretor, "/api/resgate/config", "PUT", { ativo: false, mensagem: "Oi {nome}!" });
   assert.deepEqual(cfg.corpo, { ativo: false, mensagem: "Oi {nome}!", dias: 90, limite: 30, intervaloMin: 2, intervaloMax: 5 });
-  for (const dias of [0, 731, 2.5, "30"]) assert.equal((await pedir(corretor, "/api/resgate/config", "PUT", { dias })).status, 400);
+  for (const dias of [-1, 731, 2.5, "30"]) assert.equal((await pedir(corretor, "/api/resgate/config", "PUT", { dias })).status, 400);
   // Com 200 dias, a Mariana (100 dias sem cotar) sai da fila na hora; voltando a 90, ela volta.
   assert.equal((await pedir(corretor, "/api/resgate/config", "PUT", { dias: 200 })).corpo.dias, 200);
   assert.deepEqual(banco.listarResgates(idCorretor), []);
