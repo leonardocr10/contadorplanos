@@ -1026,6 +1026,10 @@ export class Banco {
     for (const r of this.db.prepare("SELECT id, usuario_id, fone FROM resgates WHERE status = 'pendente'").all()) {
       if (!clientes.has(`${r.usuario_id}|${r.fone}`)) tirar.run(r.id);
     }
+    // Cliente que ficou sem nenhuma cotação (excluída no Histórico) sai da lista, a não ser que a mensagem já tenha
+    // saído: o envio fica registrado.
+    this.db.prepare(`DELETE FROM resgates WHERE status <> 'enviado'
+      AND NOT EXISTS (SELECT 1 FROM cotacoes c WHERE c.usuario_id = resgates.usuario_id AND c.fone = resgates.fone)`).run();
     return novos;
   }
 

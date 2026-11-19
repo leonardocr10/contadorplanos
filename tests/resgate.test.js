@@ -111,6 +111,20 @@ test("entra no resgate quem cotou há mais de 90 dias e não fechou, uma vez só
   cotou(banco, u.id, "34999990001", "Antigo", 95, { planos: [{ id: "d", nome: "D", enf: 1, apto: 2 }] });
   banco.coletarResgates(AGORA);
   assert.deepEqual(banco.listarResgates(u.id).map((r) => r.status), ["enviado"]);
+
+  // Cotação excluída no Histórico: o cliente sai do resgate, esteja na fila, cancelado ou com erro.
+  const fila = cotou(banco, u.id, "34999990009", "Excluído na fila", 120);
+  const cancelado = cotou(banco, u.id, "34999990010", "Excluído cancelado", 120);
+  banco.coletarResgates(AGORA);
+  banco.marcarResgate(banco.listarResgates(u.id).find((r) => r.cliente === "Excluído cancelado").id, { status: "cancelado" });
+  banco.excluirCotacao(fila.id);
+  banco.excluirCotacao(cancelado.id);
+  banco.coletarResgates(AGORA);
+  assert.deepEqual(banco.listarResgates(u.id).map((r) => r.cliente), ["Antigo"]);
+  // O que já foi enviado continua registrado, mesmo sem a cotação.
+  for (const c of banco.db.prepare("SELECT id FROM cotacoes WHERE usuario_id = ? AND fone = ?").all(u.id, "34999990001")) banco.excluirCotacao(c.id);
+  banco.coletarResgates(AGORA);
+  assert.deepEqual(banco.listarResgates(u.id).map((r) => [r.cliente, r.status]), [["Antigo", "enviado"]]);
 });
 
 test("cada corretor escolhe os dias sem cotar; mudar os dias refaz a fila", (t) => {
