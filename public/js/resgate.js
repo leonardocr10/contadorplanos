@@ -1,8 +1,8 @@
 // Tela "Resgate": clientes que estão sem cotar há mais dias que o escolhido pelo corretor (padrão: 90), que não fecharam e não estão como Negativa. A mensagem sai sozinha pelo WhatsApp
 // de cada vendedor (Evolution API, no servidor); aqui ele conecta o número, ajusta o texto e acompanha os envios.
 import { fmtFone } from "./calculo.js";
-import { $, S, api, avisoCentral, esc, pode, toast } from "./estado.js";
-import { MENSAGEM_RESGATE_PADRAO, linkConversaDireta, mensagemResgate, waHtml } from "./mensagem.js";
+import { $, api, avisoCentral, esc, pode, toast } from "./estado.js";
+import { MENSAGEM_RESGATE_PADRAO, linkConversaDireta, waHtml } from "./mensagem.js";
 import { normalizar } from "./filtro-select.js";
 import { botaoIcone, cabecalho, desenharCards, desenharPaginacao, desenharSeletorDeMes, guardarPorPagina, lerPorPagina, mesLocal, ordenarPor, paginar, proximaOrdem } from "./grade.js";
 
@@ -112,11 +112,6 @@ async function desconectarWhatsApp() {
 }
 
 /* ---------- mensagem ---------- */
-function previa() {
-  const exemplo = dados?.itens.find((r) => r.status === "pendente") ?? dados?.itens[0] ?? { cliente: "Mariana Alves", plano: "AMIL PRATA" };
-  $("#res-previa").innerHTML = waHtml(mensagemResgate($("#res-mensagem").value, { ...exemplo, corretor: S.eu?.nome || S.eu?.login, empresa: S.eu?.empresa }));
-}
-
 async function salvarConfig(json, aviso) {
   try {
     const cfg = await api("/api/resgate/config", { metodo: "PUT", json });
@@ -218,7 +213,6 @@ export function renderResgate() {
   // O texto só é trocado quando a pessoa não está editando.
   if (document.activeElement !== $("#res-mensagem") && !$("#res-mensagem").dataset.alterado) $("#res-mensagem").value = dados.mensagem || dados.mensagemPadrao;
   $("#res-ativo").checked = dados.ativo;
-  previa();
   // Sem card de "todos": clicar de novo no card escolhido volta a mostrar todas as situações.
   desenharCards($("#res-cards"), [...SITUACOES.map((s) => ({ chave: s.chave, rotulo: s.rotulo, qtd: quantos(s.chave) }))], filtro,
     (chave) => { filtro = chave; pagina = 1; renderResgate(); });
@@ -266,7 +260,7 @@ export function renderResgate() {
 export function iniciarResgate() {
   $("#res-conectar").onclick = conectarWhatsApp;
   $("#res-desconectar").onclick = desconectarWhatsApp;
-  $("#res-mensagem").addEventListener("input", () => { $("#res-mensagem").dataset.alterado = "1"; previa(); });
+  $("#res-mensagem").addEventListener("input", () => { $("#res-mensagem").dataset.alterado = "1"; });
   $("#res-salvar").onclick = async () => {
     const texto = $("#res-mensagem").value.trim();
     await salvarConfig({ mensagem: texto === dados.mensagemPadrao ? "" : texto }, "Mensagem salva com sucesso");
@@ -275,7 +269,6 @@ export function iniciarResgate() {
   $("#res-padrao").onclick = () => {
     $("#res-mensagem").value = dados?.mensagemPadrao ?? MENSAGEM_RESGATE_PADRAO;
     $("#res-mensagem").dataset.alterado = "1";
-    previa();
   };
   $("#res-dias-salvar").onclick = salvarParametros;
   for (const p of PARAMETROS) $(p.campo).addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); salvarParametros(); } });

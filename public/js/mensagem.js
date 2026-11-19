@@ -153,9 +153,13 @@ export function waHtml(t) {
 export const MENSAGEM_RESGATE_PADRAO = [
   "Olá, {nome}! Tudo bem? 😊",
   "",
-  "Aqui é {corretor}. Há alguns meses fizemos uma cotação do plano *{plano}* para você.",
+  "Aqui é {corretor}.",
   "",
-  "Ainda tem interesse em um plano de saúde? Posso refazer a cotação com os valores de hoje, sem compromisso.",
+  "Há alguns meses fizemos uma cotação do plano de saúde para você.",
+  "",
+  "Ainda tem interesse em um plano de saúde?",
+  "",
+  "Posso refazer a cotação com os valores de hoje, sem compromisso.",
 ].join("\n");
 
 const primeiroNomeBonito = (nome) => {

@@ -52,7 +52,9 @@ function evolutionFalsa({ estado = "open", semWhatsApp = [], falhar = false } = 
 test("a mensagem usa o primeiro nome do cliente, o plano e o corretor", () => {
   const texto = montarMensagem("", { cliente: "MARIANA ALVES", plano: "AMIL PRATA", corretor: "Ana Souza" });
   assert.ok(texto.startsWith("Olá, Mariana! Tudo bem? 😊"));
-  assert.match(texto, /Aqui é Ana Souza\. .*plano \*AMIL PRATA\*/);
+  assert.equal(texto, "Olá, Mariana! Tudo bem? 😊\n\nAqui é Ana Souza.\n\nHá alguns meses fizemos uma cotação do plano de saúde para você.\n\nAinda tem interesse em um plano de saúde?\n\nPosso refazer a cotação com os valores de hoje, sem compromisso.");
+  // Quem usar {plano} no próprio texto recebe o plano cotado.
+  assert.equal(montarMensagem("Cotação do {plano}", { plano: "AMIL PRATA" }), "Cotação do AMIL PRATA");
   // Sem nome, o cumprimento fica sem a vírgula solta.
   assert.ok(montarMensagem(MENSAGEM_RESGATE_PADRAO, { plano: "X" }).startsWith("Olá! Tudo bem?"));
   assert.equal(montarMensagem("Oi {nome}, da {empresa}: {plano}", { cliente: "joão", empresa: "Corretora Alfa" }), "Oi João, da Corretora Alfa: de saúde");
