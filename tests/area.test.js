@@ -427,8 +427,8 @@ test("ao atualizar e ao salvar, a tabela recebe as duas linhas", async (t) => {
 
 test("Amil PME: o preço muda com o total de vidas, de 2 a 99", () => {
   const amil = planos.filter((p) => p.id.startsWith("amil-pme-"));
-  assert.equal(amil.length, 24);
-  assert.equal(new Set(amil.map((p) => p.nome)).size, 24);
+  assert.equal(amil.length, 32);
+  assert.equal(new Set(amil.map((p) => p.nome)).size, 32);
   const prata = amil.find((p) => p.id === "amil-pme-prata-30");
   const grupo = (n, faixa = 0) => { const vidas = Array(10).fill(0); vidas[faixa] = n; return planPrices(prata, vidas); };
   assert.deepEqual(gruposDeVidas(prata).map((g) => g.nome), ["2 a 4 vidas", "5 a 29 vidas", "30 a 99 vidas"]);
@@ -459,7 +459,7 @@ test("Amil PME: o preço muda com o total de vidas, de 2 a 99", () => {
   for (const p of amil) {
     assert.ok(p.mostrarExtras && p.extras.startsWith("🦷 Plano odontológico sem custo por 12 meses"), p.id);
     assert.ok(p.extras.includes("🚑 Amil Resgate sem custo por 12 meses"), p.id);
-    assert.equal(p.extras.includes("Reembolso"), !p.id.startsWith("amil-pme-prata"), p.id);
+    assert.equal(p.extras.includes("Reembolso"), !/^amil-pme-(interior-mg1-)?prata/.test(p.id), p.id);
   }
   assert.ok(montarSnapshot(prata, pedido, { nome: "C", fone: "34999990000", empresa: "E" }).plano.beneficios.includes("📱 Telemedicina"));
   // Carências: as mesmas do plano adesão da Amil.
@@ -483,7 +483,7 @@ test("restaurar um backup antigo traz os planos e as correções das versões se
   antigo.fechar();
   const banco = new Banco(join(pasta, "atual.db"), seed);
   banco.restaurar(backup);
-  assert.equal(banco.listarPlanos().filter((p) => p.id.startsWith("amil-pme-")).length, 24);
+  assert.equal(banco.listarPlanos().filter((p) => p.id.startsWith("amil-pme-")).length, 32);
   assert.ok(banco.obterPlano("amil-pme-prata-30").carenciaTabela.startsWith("Tipo de Carência"));
   assert.ok(banco.obterPlano("amil-pme-prata-30").extras.includes("📱 Telemedicina"));
   assert.equal(banco.obterPlano("unimed-pleno-on-pme").vidasMinimas, 2);
@@ -667,4 +667,40 @@ test("a API recusa área fora do formato e guarda a válida", async (t) => {
   const bom = await enviar("MG: Uberlândia");
   assert.ok(bom.ok);
   assert.ok(banco.listarPlanos().some((p) => p.nome === "NOVO" && p.areaComercializacao === "MG: Uberlândia"));
+});
+
+test("Amil PME Interior MG 1 (30%): planos novos ao lado dos atuais, com a tabela da região e as 7 cidades", (t) => {
+  const ids = ["prata-30", "prata-30-mei", "ouro-30", "ouro-30-mei", "platinum-r1-30", "platinum-r1-30-mei", "platinum-r2-30", "platinum-r2-30-mei"];
+  const novos = ids.map((s) => planos.find((p) => p.id === `amil-pme-interior-mg1-${s}`));
+  assert.ok(novos.every(Boolean));
+  assert.deepEqual(novos.map((p) => p.nome), ["AMIL PRATA INTERIOR MG 1 30%", "AMIL PRATA INTERIOR MG 1 30% MEI", "AMIL OURO INTERIOR MG 1 30%", "AMIL OURO INTERIOR MG 1 30% MEI",
+    "AMIL PLATINUM R1 INTERIOR MG 1 30%", "AMIL PLATINUM R1 INTERIOR MG 1 30% MEI", "AMIL PLATINUM R2 INTERIOR MG 1 30%", "AMIL PLATINUM R2 INTERIOR MG 1 30% MEI"]);
+  const [prata, prataMei, , , r1] = novos;
+  // 2 a 4 vidas, 5 a 29 e 30 a 99 (compulsório), da tabela impressa em 19/11/2026.
+  assert.deepEqual([prata.faixasEnf[0], prata.faixasApto[9], prataMei.faixasEnf[0], r1.faixasApto[0]], [170.1, 1123.55, 203.27, 289.15]);
+  assert.equal(r1.faixasEnf[0], null);
+  assert.equal(planPrices(prata, [5, 0, 0, 0, 0, 0, 0, 0, 0, 0]).enf, 5 * 152.99);
+  assert.equal(planPrices(prata, [30, 0, 0, 0, 0, 0, 0, 0, 0, 0]).enf, 30 * 148.5);
+  // As 7 cidades da tabela; os planos Amil atuais continuam como estavam, inclusive nessas cidades.
+  assert.ok(nomesEm("MG", "Uberaba").includes("amil-pme-interior-mg1-ouro-30"));
+  assert.ok(nomesEm("MG", "Uberlândia").includes("amil-pme-ouro-30"));
+  assert.ok(!nomesEm("MG", "Belo Horizonte").includes("amil-pme-interior-mg1-ouro-30"));
+  assert.equal(planos.find((p) => p.id === "amil-pme-prata-30").faixasEnf[0], 188.99);
+  // O banco da versão anterior recebe os 8 planos, com os documentos do plano Amil de mesma linha.
+  const pasta = mkdtempSync(join(tmpdir(), "cotador-amil-interior-"));
+  t.after(() => rmSync(pasta, { recursive: true, force: true }));
+  const caminho = join(pasta, "c.db");
+  const antigo = new Banco(caminho, seed);
+  const doc = Number(antigo.db.prepare("INSERT INTO documentos (nome, tipo) VALUES (?, ?)").run("Contrato social", "CNPJ").lastInsertRowid);
+  for (const s of ids) antigo.db.prepare("INSERT OR IGNORE INTO documentos_planos (documento_id, plano_id) VALUES (?, ?)").run(doc, `amil-pme-${s}`);
+  antigo.db.exec("DELETE FROM documentos_planos WHERE plano_id LIKE 'amil-pme-interior-mg1-%'; DELETE FROM planos WHERE id LIKE 'amil-pme-interior-mg1-%'; PRAGMA user_version = 60");
+  antigo.fechar();
+  const novo = new Banco(caminho, seed);
+  const docs = (id) => novo.db.prepare("SELECT documento_id FROM documentos_planos WHERE plano_id = ? ORDER BY documento_id").all(id).map((l) => l.documento_id);
+  for (const s of ids) {
+    assert.ok(novo.obterPlano(`amil-pme-interior-mg1-${s}`));
+    assert.ok(docs(`amil-pme-${s}`).length > 0);
+    assert.deepEqual(docs(`amil-pme-interior-mg1-${s}`), docs(`amil-pme-${s}`));
+  }
+  novo.fechar();
 });

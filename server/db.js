@@ -450,6 +450,8 @@ const MIGRACOES = [
        PRIMARY KEY (mensalidade_id, etapa, canal)
      )`);
   },
+  // Sem mudança na estrutura: marca a chegada da Amil PME Interior MG 1, coparticipação 30% (ver PLANOS_NOVOS).
+  () => {},
 ];
 
 // Troca os documentos dos planos CNPJ pela lista empresarial; com unimed, a Unimed PME recebe a lista dela.
@@ -518,7 +520,10 @@ const HAPVIDA_PME_ANTIGA = { "hapvida-nosso-plano-pme-total": [170.72, 114.32], 
 const CARENCIA_PROVISORIA_AMIL_PME = "Cobertura | Prazo máximo (Lei 9.656/98)";
 
 // Planos lançados depois que o banco já existia: entram uma única vez, ao atualizar.
-const PLANOS_NOVOS = [{ id: "plamedh-basic-pme", versao: 6 }, { id: "plam-total-cnpj", versao: 7 }, ...["sulamerica-direto-nacional", "sulamerica-especial-100-rc", "sulamerica-especial-100-r1", "sulamerica-executivo-pleno"].map((id) => ({ id, versao: 10 })), { id: "aurora-saude-pf", versao: 14 }, ...["hapvida-nosso-plano-total", "hapvida-nosso-plano-parcial"].map((id) => ({ id, versao: 22 })), ...["unimed-pleno-on-pme", "unimed-udiplan-on-pme", "unimed-pontual-on-pme", "unimed-uniplan-on-pme"].map((id) => ({ id, versao: 25 })), ...["amil-pme-prata-30", "amil-pme-prata-30-mei", "amil-pme-prata-40", "amil-pme-prata-40-mei", "amil-pme-prata-parcial", "amil-pme-prata-parcial-mei", "amil-pme-ouro-30", "amil-pme-ouro-30-mei", "amil-pme-ouro-40", "amil-pme-ouro-40-mei", "amil-pme-ouro-parcial", "amil-pme-ouro-parcial-mei", "amil-pme-platinum-r1-30", "amil-pme-platinum-r1-30-mei", "amil-pme-platinum-r1-40", "amil-pme-platinum-r1-40-mei", "amil-pme-platinum-r1-parcial", "amil-pme-platinum-r1-parcial-mei", "amil-pme-platinum-r2-30", "amil-pme-platinum-r2-30-mei", "amil-pme-platinum-r2-40", "amil-pme-platinum-r2-40-mei", "amil-pme-platinum-r2-parcial", "amil-pme-platinum-r2-parcial-mei"].map((id) => ({ id, versao: 26 })), ...["hapvida-nosso-plano-pme-total", "hapvida-nosso-plano-pme-parcial"].map((id) => ({ id, versao: 31 })), ...["hapvida-nosso-plano-pme-uberaba-total", "hapvida-nosso-plano-pme-uberaba-parcial"].map((id) => ({ id, versao: 32 })), ...["hapvida-nosso-plano-uberaba-total", "hapvida-nosso-plano-uberaba-parcial"].map((id) => ({ id, versao: 34 }))];
+const PLANOS_NOVOS = [{ id: "plamedh-basic-pme", versao: 6 }, { id: "plam-total-cnpj", versao: 7 }, ...["sulamerica-direto-nacional", "sulamerica-especial-100-rc", "sulamerica-especial-100-r1", "sulamerica-executivo-pleno"].map((id) => ({ id, versao: 10 })), { id: "aurora-saude-pf", versao: 14 }, ...["hapvida-nosso-plano-total", "hapvida-nosso-plano-parcial"].map((id) => ({ id, versao: 22 })), ...["unimed-pleno-on-pme", "unimed-udiplan-on-pme", "unimed-pontual-on-pme", "unimed-uniplan-on-pme"].map((id) => ({ id, versao: 25 })), ...["amil-pme-prata-30", "amil-pme-prata-30-mei", "amil-pme-prata-40", "amil-pme-prata-40-mei", "amil-pme-prata-parcial", "amil-pme-prata-parcial-mei", "amil-pme-ouro-30", "amil-pme-ouro-30-mei", "amil-pme-ouro-40", "amil-pme-ouro-40-mei", "amil-pme-ouro-parcial", "amil-pme-ouro-parcial-mei", "amil-pme-platinum-r1-30", "amil-pme-platinum-r1-30-mei", "amil-pme-platinum-r1-40", "amil-pme-platinum-r1-40-mei", "amil-pme-platinum-r1-parcial", "amil-pme-platinum-r1-parcial-mei", "amil-pme-platinum-r2-30", "amil-pme-platinum-r2-30-mei", "amil-pme-platinum-r2-40", "amil-pme-platinum-r2-40-mei", "amil-pme-platinum-r2-parcial", "amil-pme-platinum-r2-parcial-mei"].map((id) => ({ id, versao: 26 })), ...["hapvida-nosso-plano-pme-total", "hapvida-nosso-plano-pme-parcial"].map((id) => ({ id, versao: 31 })), ...["hapvida-nosso-plano-pme-uberaba-total", "hapvida-nosso-plano-pme-uberaba-parcial"].map((id) => ({ id, versao: 32 })), ...["hapvida-nosso-plano-uberaba-total", "hapvida-nosso-plano-uberaba-parcial"].map((id) => ({ id, versao: 34 })),
+  // Amil PME com a tabela do Interior MG 1: entra ao lado dos planos Amil atuais, com os documentos do plano de mesma linha.
+  ...["prata-30", "prata-30-mei", "ouro-30", "ouro-30-mei", "platinum-r1-30", "platinum-r1-30-mei", "platinum-r2-30", "platinum-r2-30-mei"]
+    .map((s) => ({ id: `amil-pme-interior-mg1-${s}`, versao: 61, documentosDe: `amil-pme-${s}` }))];
 
 function migrar(db) {
   const versao = db.prepare("PRAGMA user_version").get().user_version;
@@ -720,9 +725,12 @@ export class Banco {
     const novos = PLANOS_NOVOS.filter((n) => versaoAntes > 0 && versaoAntes < n.versao);
     if (!novos.length || !this.caminhoSeed || !existsSync(this.caminhoSeed)) return;
     const planos = JSON.parse(readFileSync(this.caminhoSeed, "utf8"));
-    for (const { id } of novos) {
+    const copiarDocumentos = this.db.prepare("INSERT OR IGNORE INTO documentos_planos (documento_id, plano_id) SELECT documento_id, ? FROM documentos_planos WHERE plano_id = ?");
+    for (const { id, documentosDe } of novos) {
       const p = planos.find((x) => x.id === id);
-      if (p && !this.obterPlano(id)) this.gravarPlano(id, p);
+      if (!p || this.obterPlano(id)) continue;
+      this.gravarPlano(id, p);
+      if (documentosDe) copiarDocumentos.run(id, documentosDe);
     }
   }
 
