@@ -174,6 +174,7 @@
   <p>Pronto: as mensagens da fila começam a sair. Os cards do topo mostram quantos clientes estão <b>Na fila</b>, quantas mensagens foram <b>Enviadas</b>, quantas deram erro (<b>Não enviada</b>) e quantas você <b>Cancelou</b>. Clique em um card para ver só aqueles clientes; clique de novo para ver todos. O campo <b>Mês</b>, no alto, mostra só os clientes cuja última cotação foi naquele mês.</p>
   <ul>
     <li><b>Dias sem nova cotação</b>, no topo da tela: escolha depois de quantos dias o cliente entra no resgate (de 1 a 730) e clique em <b>Aplicar</b>. A fila é refeita na hora: com menos dias entram mais clientes, com mais dias sai da fila quem ainda não chegou no novo limite. Cada corretor usa os próprios dias.</li>
+    <li><b>Mensagens por dia</b> e <b>Intervalo mínimo</b> e <b>máximo</b>, ao lado: quantas mensagens saem do seu WhatsApp em 24 horas (de 1 a 200, padrão 30) e quantos minutos esperar entre uma e outra (de 1 a 120, padrão de 2 a 5). Cada espera é sorteada entre o mínimo e o máximo, para o envio parecer natural. Clique em <b>Aplicar</b>: vale já para a próxima mensagem.</li>
     <li><b>Variáveis do texto</b>: <b>{nome}</b> vira o primeiro nome do cliente, <b>{plano}</b> o plano cotado, <b>{corretor}</b> o seu nome e <b>{empresa}</b> a sua corretora.</li>
     <li><b>Lixeira</b> na linha: o cliente não recebe a mensagem. A <b>seta</b> coloca de volta na fila quem foi cancelado ou deu erro.</li>
     <li><b>Data do envio</b>: dia e hora em que a mensagem saiu, guardados no envio.</li>
@@ -181,7 +182,7 @@
     <li>Quem faz uma nova cotação, fecha a venda, ganha um contrato ou é marcado como <b>Negativa</b> no Histórico sai da fila sozinho.</li>
   </ul>
   <div class="exemplo"><b>Exemplo:</b> o Carlos cotou o PLAMEDH em 28/07 e não respondeu mais. Em 26/10 ele entra na fila e, no próximo horário de envio, recebe: “Olá, Carlos! Tudo bem? Aqui é Ana Souza. Há alguns meses fizemos uma cotação do plano PLAMEDH para você…”. Se ele responder, a conversa continua no seu WhatsApp, como sempre.</div>
-  <div class="atencao"><b>Atenção:</b> para o WhatsApp não bloquear o seu número, as mensagens saem só de segunda a sexta, das 9h às 18h, até 30 por dia e com alguns minutos entre uma e outra. Uma fila grande leva alguns dias para terminar.</div>
+  <div class="atencao"><b>Atenção:</b> para o WhatsApp não bloquear o seu número, as mensagens saem só de segunda a sexta, das 9h às 18h, até 30 por dia e com 2 a 5 minutos entre uma e outra, se você não mudar. Aumentar as mensagens por dia ou encurtar o intervalo deixa a fila mais rápida, mas aumenta o risco de bloqueio. Uma fila grande leva alguns dias para terminar.</div>
 
   <!-- ===================================================================== -->
   <h2 id="aceites">5. Aceites</h2>

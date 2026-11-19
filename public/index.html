@@ -156,6 +156,9 @@
       </div>
       <div class="res-dias" data-edita="historico" hidden>
         <div class="field"><label for="res-dias">Dias sem nova cotação para entrar no resgate</label><input id="res-dias" type="text" inputmode="numeric" maxlength="3" autocomplete="off"></div>
+        <div class="field res-num"><label for="res-limite" title="No máximo quantas mensagens saem do seu WhatsApp em 24 horas">Mensagens por dia</label><input id="res-limite" type="text" inputmode="numeric" maxlength="3" autocomplete="off"></div>
+        <div class="field res-num"><label for="res-int-min" title="Espera mínima, em minutos, entre uma mensagem e a próxima">Intervalo mínimo (min)</label><input id="res-int-min" type="text" inputmode="numeric" maxlength="3" autocomplete="off"></div>
+        <div class="field res-num"><label for="res-int-max" title="Espera máxima, em minutos; cada espera é sorteada entre o mínimo e o máximo">Intervalo máximo (min)</label><input id="res-int-max" type="text" inputmode="numeric" maxlength="3" autocomplete="off"></div>
         <button type="button" class="btn primary" id="res-dias-salvar">Aplicar</button>
       </div>
       <p class="note" id="res-regras" style="margin:0"></p>

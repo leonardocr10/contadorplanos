@@ -802,3 +802,4 @@ a.ctr-doc-mini:hover{border-color:var(--accent)}
 #res-mensagem{min-height:170px}
 .res-dias:not([hidden]){display:flex;flex-wrap:wrap;gap:10px;align-items:end}
 .res-dias .field{width:300px;max-width:100%}
+.res-dias .res-num{width:170px}

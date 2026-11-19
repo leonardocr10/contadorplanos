@@ -128,27 +128,47 @@ async function salvarConfig(json, aviso) {
   }
 }
 
+// Parâmetros do topo: dias sem cotar, mensagens por dia e intervalo entre uma e outra (em minutos).
+const PARAMETROS = [
+  { chave: "dias", campo: "#res-dias", faixa: (r) => [r.diasMin, r.diasMax], nome: "os dias sem cotar" },
+  { chave: "limite", campo: "#res-limite", faixa: (r) => [r.limiteMin, r.limiteMax], nome: "as mensagens por dia" },
+  { chave: "intervaloMin", campo: "#res-int-min", faixa: (r) => [r.intervaloMin, r.intervaloMax], nome: "o intervalo mínimo" },
+  { chave: "intervaloMax", campo: "#res-int-max", faixa: (r) => [r.intervaloMin, r.intervaloMax], nome: "o intervalo máximo" },
+];
+const editandoParametro = () => PARAMETROS.some((p) => document.activeElement === $(p.campo));
+
 // Com outros dias, o servidor refaz a fila na hora; a lista é carregada de novo para mostrar quem entrou e quem saiu.
-async function salvarDias() {
-  const { diasMin, diasMax } = dados.regras;
-  const texto = $("#res-dias").value.trim();
-  const dias = Number(texto);
-  if (!/^\d+$/.test(texto) || dias < diasMin || dias > diasMax) {
-    toast(`Informe um número de dias de ${diasMin} a ${diasMax}.`, "erro");
+async function salvarParametros() {
+  const json = {};
+  for (const p of PARAMETROS) {
+    const [min, max] = p.faixa(dados.regras);
+    const texto = $(p.campo).value.trim(), valor = Number(texto);
+    if (!/^\d+$/.test(texto) || valor < min || valor > max) {
+      toast(`Informe ${p.nome} de ${min} a ${max}.`, "erro");
+      $(p.campo).focus();
+      return;
+    }
+    if (valor !== dados[p.chave]) json[p.chave] = valor;
+  }
+  if ((json.intervaloMin ?? dados.intervaloMin) > (json.intervaloMax ?? dados.intervaloMax)) {
+    toast("O intervalo mínimo não pode ser maior que o máximo.", "erro");
     return;
   }
-  if (dias === dados.dias) return;
+  if (!Object.keys(json).length) return;
   $("#res-dias-salvar").disabled = true;
   try {
-    await api("/api/resgate/config", { metodo: "PUT", json: { dias } });
-    $("#res-dias").blur();
+    await api("/api/resgate/config", { metodo: "PUT", json });
+    document.activeElement?.blur();
     await carregarResgate();
-    avisoCentral(`Resgate ajustado para ${dias} ${dias === 1 ? "dia" : "dias"} sem cotar`);
+    avisoCentral("Parâmetros do resgate salvos");
   } catch (e) {
     toast(`Não deu para salvar: ${e.message}`, "erro");
   }
   $("#res-dias-salvar").disabled = false;
 }
+
+const minutos = (n) => `${n} ${n === 1 ? "minuto" : "minutos"}`;
+const intervaloTexto = ({ intervaloMin: a, intervaloMax: b }) => (a === b ? minutos(a) : `${a} a ${minutos(b)}`);
 
 /* ---------- grade ---------- */
 const COLUNAS = [
@@ -187,9 +207,9 @@ export function renderResgate() {
   $("#res-selo").hidden = !naFila;
   $("#res-selo").textContent = naFila;
   if (!dados) { box.innerHTML = `<div class="status">${erro ? esc(erro) : "Carregando o resgate…"}</div>`; nav.innerHTML = ""; return; }
-  const { dias } = dados, { limitePorDia, horario } = dados.regras;
-  if (document.activeElement !== $("#res-dias")) $("#res-dias").value = String(dias);
-  $("#res-regras").textContent = `Clientes cuja última cotação tem mais de ${dias} dias, que não fecharam e não estão como Negativa. As mensagens saem de segunda a sexta, das ${horario.inicio}h às ${horario.fim}h (horário de Brasília), até ${limitePorDia} por dia e com alguns minutos entre uma e outra, para o WhatsApp não bloquear o número.`;
+  const { dias, limite } = dados, { horario } = dados.regras;
+  if (!editandoParametro()) for (const p of PARAMETROS) $(p.campo).value = String(dados[p.chave]);
+  $("#res-regras").textContent = `Clientes cuja última cotação tem mais de ${dias} dias, que não fecharam e não estão como Negativa. As mensagens saem de segunda a sexta, das ${horario.inicio}h às ${horario.fim}h (horário de Brasília), até ${limite} por dia e com ${intervaloTexto(dados)} entre uma e outra. Muitas mensagens por dia ou intervalos curtos aumentam o risco de o WhatsApp bloquear o número.`;
   $("#res-count").textContent = `${todosOsItens.length} ${todosOsItens.length === 1 ? "cliente" : "clientes"}`;
   // O mês do topo é o da última cotação, como no Histórico; vale para os cards e a lista.
   mes = desenharSeletorDeMes($("#res-mes"), todosOsItens.map((r) => mesLocal(r.cotacaoEm)), mes);
@@ -257,8 +277,8 @@ export function iniciarResgate() {
     $("#res-mensagem").dataset.alterado = "1";
     previa();
   };
-  $("#res-dias-salvar").onclick = salvarDias;
-  $("#res-dias").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); salvarDias(); } });
+  $("#res-dias-salvar").onclick = salvarParametros;
+  for (const p of PARAMETROS) $(p.campo).addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); salvarParametros(); } });
   $("#res-ativo").onchange = () => salvarConfig({ ativo: $("#res-ativo").checked }, $("#res-ativo").checked ? "Envio automático ligado" : "Envio automático desligado");
   $("#res-busca").addEventListener("input", () => { pagina = 1; renderResgate(); });
   $("#res-filtro").onchange = () => { filtro = $("#res-filtro").value; pagina = 1; renderResgate(); };

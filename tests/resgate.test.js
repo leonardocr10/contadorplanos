@@ -121,7 +121,7 @@ test("cada corretor escolhe os dias sem cotar; mudar os dias refaz a fila", (t) 
   assert.equal(banco.lerConfigResgate(ana.id).dias, 90);
   banco.gravarConfigResgate(ana.id, { dias: 30 });
   // Os outros campos ficam como estavam.
-  assert.deepEqual(banco.lerConfigResgate(ana.id), { ativo: true, mensagem: "", dias: 30 });
+  assert.deepEqual(banco.lerConfigResgate(ana.id), { ativo: true, mensagem: "", dias: 30, limite: 30, intervaloMin: 2, intervaloMax: 5 });
   banco.coletarResgates(AGORA);
   assert.deepEqual(banco.listarResgates(ana.id).map((r) => r.cliente), ["Cliente 40 dias", "Cliente 100 dias"]);
   // O João continua nos 90 dias.
@@ -181,6 +181,29 @@ test("a rodada envia uma mensagem por vendedor conectado, no horário, com inter
   await resgate.rodada();
   assert.equal(evolution.enviadas.length, 2);
   assert.equal(banco.listarResgates(carla.id)[0].status, "pendente");
+});
+
+test("cada vendedor escolhe quantas mensagens por dia e o intervalo entre elas", async (t) => {
+  const banco = abrirBanco(t);
+  const ana = banco.criarUsuario({ login: "ana", senhaHash: "x" });
+  for (let i = 1; i <= 5; i++) cotou(banco, ana.id, `3499999000${i}`, `Cliente ${i}`, 100 + i);
+  banco.gravarConfigResgate(ana.id, { limite: 2, intervaloMin: 10, intervaloMax: 20 });
+  let agora = SEGUNDA_14H;
+  const evolution = evolutionFalsa();
+  // Sorteio no meio: a espera fica em 15 minutos.
+  const resgate = criarResgate({ banco, evolution, relogio: () => agora, sorteio: () => 0.5 });
+  const em = async (minutos) => { agora = new Date(SEGUNDA_14H.getTime() + minutos * 60_000); await resgate.rodada(); return evolution.enviadas.length; };
+
+  assert.equal(await em(0), 1);
+  assert.equal(await em(14), 1);
+  assert.equal(await em(15), 2);
+  // Chegou ao limite de 2 no dia: mesmo depois do intervalo, nada sai.
+  assert.equal(await em(40), 2);
+  // Subindo o limite e encurtando o intervalo, vale já na próxima volta.
+  banco.gravarConfigResgate(ana.id, { limite: 5, intervaloMin: 1, intervaloMax: 1 });
+  assert.equal(await em(41), 3);
+  assert.equal(await em(41.5), 3);
+  assert.equal(await em(42), 4);
 });
 
 test("número sem WhatsApp para na hora; outras falhas tentam de novo até o limite", async (t) => {
@@ -269,6 +292,8 @@ test("pela API, cada login vê só o próprio resgate, ajusta a mensagem e conec
   assert.equal(meu.corpo.mensagem, "");
   assert.equal(meu.corpo.dias, 90);
   assert.deepEqual([meu.corpo.regras.diasMin, meu.corpo.regras.diasMax], [1, 730]);
+  assert.deepEqual([meu.corpo.limite, meu.corpo.intervaloMin, meu.corpo.intervaloMax], [30, 2, 5]);
+  assert.deepEqual([meu.corpo.regras.limiteMin, meu.corpo.regras.limiteMax, meu.corpo.regras.intervaloMin, meu.corpo.regras.intervaloMax], [1, 200, 1, 120]);
   assert.equal(meu.corpo.mensagemPadrao, MENSAGEM_RESGATE_PADRAO);
   assert.deepEqual(meu.corpo.itens.map((r) => [r.cliente, r.status]), [["Mariana Alves", "pendente"]]);
   assert.equal(meu.corpo.itens[0].usuarioId, undefined);
@@ -282,7 +307,7 @@ test("pela API, cada login vê só o próprio resgate, ajusta a mensagem e conec
   assert.equal((await pedir(corretor, `/api/resgate/${id}`, "PATCH", { acao: "reenviar" })).corpo.status, "pendente");
 
   const cfg = await pedir(corretor, "/api/resgate/config", "PUT", { ativo: false, mensagem: "Oi {nome}!" });
-  assert.deepEqual(cfg.corpo, { ativo: false, mensagem: "Oi {nome}!", dias: 90 });
+  assert.deepEqual(cfg.corpo, { ativo: false, mensagem: "Oi {nome}!", dias: 90, limite: 30, intervaloMin: 2, intervaloMax: 5 });
   for (const dias of [0, 731, 2.5, "30"]) assert.equal((await pedir(corretor, "/api/resgate/config", "PUT", { dias })).status, 400);
   // Com 200 dias, a Mariana (100 dias sem cotar) sai da fila na hora; voltando a 90, ela volta.
   assert.equal((await pedir(corretor, "/api/resgate/config", "PUT", { dias: 200 })).corpo.dias, 200);
@@ -291,6 +316,14 @@ test("pela API, cada login vê só o próprio resgate, ajusta a mensagem e conec
   assert.equal(banco.listarResgates(idCorretor).length, 1);
   assert.equal((await pedir(corretor, "/api/resgate/config", "PUT", { ativo: "sim" })).status, 400);
   assert.equal((await pedir(corretor, "/api/resgate/config", "PUT", { mensagem: "x".repeat(1001) })).status, 400);
+  // Mensagens por dia e intervalo, em minutos: inteiros dentro da faixa, com o mínimo até o máximo.
+  for (const limite of [0, 201, 1.5, "30"]) assert.equal((await pedir(corretor, "/api/resgate/config", "PUT", { limite })).status, 400);
+  for (const intervaloMin of [0, 121, 2.5]) assert.equal((await pedir(corretor, "/api/resgate/config", "PUT", { intervaloMin })).status, 400);
+  assert.equal((await pedir(corretor, "/api/resgate/config", "PUT", { intervaloMin: 6 })).status, 400);
+  assert.equal((await pedir(corretor, "/api/resgate/config", "PUT", { intervaloMin: 10, intervaloMax: 8 })).status, 400);
+  const ritmo = (await pedir(corretor, "/api/resgate/config", "PUT", { limite: 50, intervaloMin: 4, intervaloMax: 10 })).corpo;
+  assert.deepEqual([ritmo.limite, ritmo.intervaloMin, ritmo.intervaloMax, ritmo.dias], [50, 4, 10, 90]);
+  assert.deepEqual((await pedir(corretor, "/api/resgate")).corpo.limite, 50);
 
   assert.deepEqual((await pedir(corretor, "/api/resgate/whatsapp")).corpo, { configurado: true, estado: "close", numero: "5534999990000" });
   assert.equal((await pedir(corretor, "/api/resgate/whatsapp/conectar", "POST")).corpo.qr, `data:image/png;base64,QR-${instanciaDe(idCorretor)}`);

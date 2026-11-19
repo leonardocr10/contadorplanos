@@ -1,13 +1,18 @@
 // Resgate de clientes: quem cotou há mais dias que o escolhido pelo corretor (padrão: 90) e não fechou recebe, uma vez só, uma mensagem no WhatsApp
 // do vendedor que fez a cotação. O envio é automático, pela Evolution API (EVOLUTION_URL e EVOLUTION_API_KEY no .env).
-// Para o número não ser bloqueado, as mensagens saem devagar: só em horário comercial, com intervalo e limite por dia.
+// Para o número não ser bloqueado, as mensagens saem devagar: só em horário comercial, com o intervalo e o limite por dia que cada vendedor escolhe.
 
-export { DIAS_RESGATE_PADRAO as DIAS_RESGATE, DIAS_RESGATE_MIN, DIAS_RESGATE_MAX } from "./db.js";
-export const LIMITE_POR_DIA = 30;
+import { LIMITE_RESGATE_PADRAO, INTERVALO_RESGATE_PADRAO } from "./db.js";
+export {
+  DIAS_RESGATE_PADRAO as DIAS_RESGATE, DIAS_RESGATE_MIN, DIAS_RESGATE_MAX,
+  LIMITE_RESGATE_MIN, LIMITE_RESGATE_MAX, INTERVALO_RESGATE_MIN, INTERVALO_RESGATE_MAX,
+} from "./db.js";
+// Padrões de quem ainda não mudou: mensagens por dia e minutos entre uma e outra.
+export const LIMITE_POR_DIA = LIMITE_RESGATE_PADRAO;
+export const INTERVALO = INTERVALO_RESGATE_PADRAO;
 // Horário de Brasília, de segunda a sexta.
 export const HORARIO = { inicio: 9, fim: 18 };
-// Espera entre uma mensagem e a próxima do mesmo vendedor.
-export const INTERVALO = { min: 2 * 60_000, max: 5 * 60_000 };
+const MINUTO = 60_000;
 // Falhas seguidas antes de desistir de um cliente.
 export const MAX_TENTATIVAS = 3;
 const VOLTA = 60_000;
@@ -94,8 +99,15 @@ export function criarEvolution(env, buscar = fetch) {
 
 // Junta a lista do resgate e envia as mensagens. iniciar() liga a rodada de cada minuto (só no index.js).
 export function criarResgate({ banco, env = process.env, evolution = criarEvolution(env), relogio = () => new Date(), sorteio = Math.random }) {
-  // Quando cada vendedor pode enviar a próxima mensagem.
-  const proximo = new Map();
+  // Último envio de cada vendedor e o sorteio da espera seguinte (0 = intervalo mínimo, 1 = máximo).
+  // A espera é calculada com a configuração de agora: mudar o intervalo vale já para a próxima mensagem.
+  const ultimo = new Map();
+  const podeEnviar = (u, cfg, agora) => {
+    const anterior = ultimo.get(u.id);
+    if (!anterior) return true;
+    const espera = cfg.intervaloMin + anterior.sorteio * (cfg.intervaloMax - cfg.intervaloMin);
+    return agora.getTime() >= anterior.em + Math.round(espera * MINUTO);
+  };
   let rodando = false, timer = null;
 
   const coletar = () => banco.coletarResgates(relogio().toISOString());
@@ -122,10 +134,11 @@ export function criarResgate({ banco, env = process.env, evolution = criarEvolut
       const agora = relogio();
       if (!evolution || !horaDeEnviar(agora)) return;
       for (const u of banco.listarUsuarios()) {
-        if (!u.ativo || (proximo.get(u.id) ?? 0) > agora.getTime()) continue;
+        if (!u.ativo) continue;
         const cfg = banco.lerConfigResgate(u.id);
-        const r = cfg.ativo ? banco.proximoResgate(u.id) : null;
-        if (!r || banco.contarResgatesEnviados(u.id, new Date(agora.getTime() - DIA).toISOString()) >= LIMITE_POR_DIA) continue;
+        if (!cfg.ativo || !podeEnviar(u, cfg, agora)) continue;
+        const r = banco.proximoResgate(u.id);
+        if (!r || banco.contarResgatesEnviados(u.id, new Date(agora.getTime() - DIA).toISOString()) >= cfg.limite) continue;
         let estado;
         try {
           ({ estado } = await evolution.estado(instanciaDe(u.id)));
@@ -134,7 +147,7 @@ export function criarResgate({ banco, env = process.env, evolution = criarEvolut
         }
         if (estado !== "open") continue;
         await enviar(r, u, cfg);
-        proximo.set(u.id, agora.getTime() + INTERVALO.min + Math.round(sorteio() * (INTERVALO.max - INTERVALO.min)));
+        ultimo.set(u.id, { em: agora.getTime(), sorteio: sorteio() });
       }
     } catch (e) {
       console.error("Resgate:", e.message);

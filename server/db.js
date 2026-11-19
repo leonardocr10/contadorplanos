@@ -12,6 +12,13 @@ export const STATUS = ["Enviada", "Em Negociação", "Vendida", "Negativa"];
 export const DIAS_RESGATE_PADRAO = 90;
 export const DIAS_RESGATE_MIN = 1;
 export const DIAS_RESGATE_MAX = 730;
+// Ritmo do envio de cada vendedor: mensagens por dia e minutos de espera entre uma e outra (sorteado entre o mínimo e o máximo).
+export const LIMITE_RESGATE_PADRAO = 30;
+export const LIMITE_RESGATE_MIN = 1;
+export const LIMITE_RESGATE_MAX = 200;
+export const INTERVALO_RESGATE_PADRAO = { min: 2, max: 5 };
+export const INTERVALO_RESGATE_MIN = 1;
+export const INTERVALO_RESGATE_MAX = 120;
 
 const MIGRACOES = [
   `CREATE TABLE planos (
@@ -373,6 +380,14 @@ const MIGRACOES = [
   (db) => {
     if (!db.prepare("PRAGMA table_info(resgate_config)").all().some((c) => c.name === "dias")) {
       db.exec(`ALTER TABLE resgate_config ADD COLUMN dias INTEGER NOT NULL DEFAULT ${DIAS_RESGATE_PADRAO}`);
+    }
+  },
+  // Cada vendedor escolhe quantas mensagens saem por dia e quantos minutos esperar entre uma e outra.
+  (db) => {
+    const colunas = db.prepare("PRAGMA table_info(resgate_config)").all().map((c) => c.name);
+    const novas = { limite_dia: LIMITE_RESGATE_PADRAO, intervalo_min: INTERVALO_RESGATE_PADRAO.min, intervalo_max: INTERVALO_RESGATE_PADRAO.max };
+    for (const [nome, padrao] of Object.entries(novas)) {
+      if (!colunas.includes(nome)) db.exec(`ALTER TABLE resgate_config ADD COLUMN ${nome} INTEGER NOT NULL DEFAULT ${padrao}`);
     }
   },
 ];
@@ -975,14 +990,20 @@ export class Banco {
   }
 
   lerConfigResgate(usuarioId) {
-    const l = this.db.prepare("SELECT ativo, mensagem, dias FROM resgate_config WHERE usuario_id = ?").get(usuarioId);
-    return { ativo: l ? !!l.ativo : true, mensagem: l?.mensagem ?? "", dias: l?.dias ?? DIAS_RESGATE_PADRAO };
+    const l = this.db.prepare("SELECT ativo, mensagem, dias, limite_dia, intervalo_min, intervalo_max FROM resgate_config WHERE usuario_id = ?").get(usuarioId);
+    return {
+      ativo: l ? !!l.ativo : true, mensagem: l?.mensagem ?? "", dias: l?.dias ?? DIAS_RESGATE_PADRAO,
+      limite: l?.limite_dia ?? LIMITE_RESGATE_PADRAO, intervaloMin: l?.intervalo_min ?? INTERVALO_RESGATE_PADRAO.min, intervaloMax: l?.intervalo_max ?? INTERVALO_RESGATE_PADRAO.max,
+    };
   }
 
-  gravarConfigResgate(usuarioId, { ativo, mensagem, dias }) {
+  gravarConfigResgate(usuarioId, { ativo, mensagem, dias, limite, intervaloMin, intervaloMax }) {
     const atual = this.lerConfigResgate(usuarioId);
-    this.db.prepare("INSERT INTO resgate_config (usuario_id, ativo, mensagem, dias) VALUES (?, ?, ?, ?) ON CONFLICT (usuario_id) DO UPDATE SET ativo = excluded.ativo, mensagem = excluded.mensagem, dias = excluded.dias")
-      .run(usuarioId, (ativo ?? atual.ativo) ? 1 : 0, mensagem ?? atual.mensagem, dias ?? atual.dias);
+    this.db.prepare(`INSERT INTO resgate_config (usuario_id, ativo, mensagem, dias, limite_dia, intervalo_min, intervalo_max) VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT (usuario_id) DO UPDATE SET ativo = excluded.ativo, mensagem = excluded.mensagem, dias = excluded.dias,
+        limite_dia = excluded.limite_dia, intervalo_min = excluded.intervalo_min, intervalo_max = excluded.intervalo_max`)
+      .run(usuarioId, (ativo ?? atual.ativo) ? 1 : 0, mensagem ?? atual.mensagem, dias ?? atual.dias,
+        limite ?? atual.limite, intervaloMin ?? atual.intervaloMin, intervaloMax ?? atual.intervaloMax);
     return this.lerConfigResgate(usuarioId);
   }
 
