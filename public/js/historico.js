@@ -182,6 +182,7 @@ export function renderHist() {
   mesHist = desenharSeletorDeMes($("#hist-mes"), todosOsGrupos.map((g) => mesLocal(g.lista[0].criadoEm)), mesHist);
   // O dia é do mês escolhido; os dois valem para a última cotação de cada cliente.
   diaHist = desenharSeletorDeDia($("#hist-dia"), todosOsGrupos.map((g) => diaLocal(g.lista[0].criadoEm)), mesHist, diaHist);
+  $("#hist-limpar-data").disabled = mesHist === "todos" && diaHist === "todos";
   const todos = todosOsGrupos.filter((g) => (mesHist === "todos" || mesLocal(g.lista[0].criadoEm) === mesHist) && (diaHist === "todos" || diaLocal(g.lista[0].criadoEm) === diaHist));
   // Situação de cada cliente é a da cotação mais recente dele.
   const quantas = (s) => todos.filter((g) => (g.lista[0].status || "Enviada") === s).length;
@@ -226,6 +227,7 @@ export function iniciarHistorico() {
   $("#hist-filtro").onchange = () => { filtroSt = $("#hist-filtro").value; pagina = 1; renderHist(); };
   $("#hist-mes").onchange = () => { mesHist = $("#hist-mes").value; diaHist = "todos"; pagina = 1; renderHist(); };
   $("#hist-dia").onchange = () => { diaHist = $("#hist-dia").value; pagina = 1; renderHist(); };
+  $("#hist-limpar-data").onclick = () => { mesHist = "todos"; diaHist = "todos"; pagina = 1; renderHist(); };
   $("#hist-por-pagina").onchange = () => {
     porPagina = Number($("#hist-por-pagina").value) || 10;
     guardarPorPagina(CHAVE_POR_PAGINA, porPagina);

@@ -688,6 +688,7 @@ dialog.manual-zoom img{display:block;max-width:96vw;max-height:94vh;border-radiu
 .fin-mes-pag .field{flex-direction:row;align-items:center;gap:8px;width:auto}
 .fin-mes-pag .field label{white-space:nowrap;font-size:12px}
 .fin-mes-pag .fs{width:210px}
+.fin-mes-pag .btn-limpar{height:34px}
 .fin-mes-pag .fs-botao{min-height:34px;padding-top:6px;padding-bottom:6px;font-size:14px}
 /* Comissões: barra de filtros mais baixa. */
 #v-comissoes .fin-filtros{gap:8px 10px}
