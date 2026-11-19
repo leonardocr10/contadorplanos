@@ -861,6 +861,12 @@ a.ctr-doc-mini:hover{border-color:var(--accent)}
 .grade-cards [data-chave="em_dia"]{--cor:var(--accent)}
 .grade-cards [data-chave="sem_cobranca"],.grade-cards [data-chave="pausada"]{--cor:var(--muted)}
 .grade-cards [data-chave="bloqueado"]{--cor:var(--danger)}
+.men-modal{width:min(900px,96vw);max-height:90dvh;padding:0;border:0;border-radius:14px;background:var(--surface);color:var(--ink);box-shadow:0 20px 60px rgba(0,0,0,.3);overflow:hidden}
+.men-modal[open]{display:flex;flex-direction:column}
+.men-modal::backdrop{background:var(--scrim)}
+.men-modal-topo{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--line)}
+.men-modal-topo h2{margin:0;font-size:20px}
+.men-modal-corpo{padding:16px 20px;overflow-y:auto}
 .men-meses{display:flex;flex-direction:column;gap:8px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
 .men-meses ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
 .men-mes{--cor:var(--line);display:grid;grid-template-columns:minmax(160px,1fr) 110px 130px minmax(0,2fr);align-items:center;gap:8px 12px;padding:8px 10px;border:1px solid var(--line);border-left:4px solid var(--cor);border-radius:8px;background:var(--surface)}

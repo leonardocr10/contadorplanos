@@ -94,7 +94,7 @@ function linhaDoCorretor(c) {
   const temPainel = c.mensalidades.length || c.alteracoes.length;
   const acoes = [
     botaoIcone("calculadora", a ? "Editar a cobrança" : "Programar a cobrança mensal", { atributos: `data-cobranca` }),
-    temPainel ? botaoIcone("ver", "Ver os meses e as alterações", { atributos: `data-meses aria-expanded="${aberto === c.id}"`, numero: c.atrasadas }) : "",
+    temPainel ? botaoIcone("ver", "Ver os meses e as alterações", { atributos: `data-meses aria-haspopup="dialog"`, numero: c.atrasadas }) : "",
     fone && ["atrasado", "vence"].includes(c.situacao) ? botaoIcone("whatsapp", "Cobrar pelo WhatsApp", { atributos: `data-whatsapp` }) : "",
   ].join("");
   const bloqueio = a?.bloqueado ? `<span class="usr-selo desativado" title="Login desativado pelo atraso. Volta sozinho quando o atraso for pago.">Bloqueado</span>` : !c.ativo ? `<span class="usr-selo desativado">Desativado</span>` : "";
@@ -106,7 +106,7 @@ function linhaDoCorretor(c) {
       <td class="grade-data">${c.proximoVencimento ? esc(fmtDia(c.proximoVencimento)) : `<span class="vazio">—</span>`}</td>
       <td><div class="men-duas">${atraso}</div></td>
       <td><div class="grade-acoes">${acoes}</div></td>
-    </tr>${aberto === c.id ? `<tr class="grade-painel-linha" data-id="${esc(c.id)}"><td colspan="7">${painelDosMeses(c)}</td></tr>` : ""}`;
+    </tr>`;
 }
 
 function painelDosMeses(c) {
@@ -138,13 +138,14 @@ function painelDosMeses(c) {
   }).join("");
   const obs = c.assinatura?.observacao ? `<p class="note" style="margin:0">Observação: ${esc(c.assinatura.observacao)}</p>` : "";
   const alteracoes = c.alteracoes.length
-    ? `<details class="men-registro"${c.mensalidades.length ? "" : " open"}><summary>Registro de alterações (${c.alteracoes.length})</summary><ol>${c.alteracoes.map((a) =>
+    ? `<details class="men-registro" open><summary>Registro de alterações (${c.alteracoes.length})</summary><ol>${c.alteracoes.map((a) =>
         `<li><time datetime="${esc(a.em)}">${esc(fmtQuando(a.em))}</time><span>${esc(a.descricao)}</span><small>${esc(a.autor)}</small></li>`).join("")}</ol></details>`
     : "";
-  return `<div class="men-meses" data-painel-meses>${obs}${linhas ? `<ul>${linhas}</ul>` : ""}${alteracoes}</div>`;
+  return `<div class="men-meses">${obs}${linhas ? `<ul>${linhas}</ul>` : ""}${alteracoes}</div>`;
 }
 
 function render() {
+  if ($("#men-modal").open) desenharMeses();
   if (!dados && !erro) { $("#men-lista").innerHTML = `<div class="status">Carregando mensalidades…</div>`; return; }
   if (erro) { $("#men-lista").innerHTML = `<div class="status">${esc(erro)}</div>`; $("#men-paginacao").innerHTML = ""; return; }
   selo();
@@ -182,13 +183,35 @@ function render() {
 function ligarLinhas(box) {
   const doItem = (el) => dados.corretores.find((c) => c.id === el.closest("[data-id]").dataset.id);
   box.querySelectorAll("[data-cobranca]").forEach((b) => (b.onclick = () => abrirGaveta(doItem(b))));
-  box.querySelectorAll("[data-meses]").forEach((b) => (b.onclick = () => { const c = doItem(b); aberto = aberto === c.id ? null : c.id; pagando = null; render(); }));
+  box.querySelectorAll("[data-meses]").forEach((b) => (b.onclick = () => abrirMeses(doItem(b))));
   box.querySelectorAll("[data-whatsapp]").forEach((b) => (b.onclick = () => {
     const c = doItem(b);
     window.open(linkConversaDireta(normFone(c.fone), mensagemDeCobranca(nomeDe(c), c.mensalidades, dados.hoje), navigator.userAgent), "_blank", "noopener");
   }));
-  const painel = box.querySelector("[data-painel-meses]");
-  if (!painel) return;
+}
+
+/* ---------- modal dos meses e do registro de alterações ---------- */
+function abrirMeses(c) {
+  aberto = c.id;
+  pagando = null;
+  desenharMeses();
+  $("#men-modal").showModal();
+}
+
+// Redesenha o modal aberto com a ficha atual (depois de um pagamento, por exemplo).
+function desenharMeses() {
+  const c = dados?.corretores.find((x) => x.id === aberto);
+  const modal = $("#men-modal");
+  if (!c) { if (modal.open) modal.close(); return; }
+  $("#men-modal-titulo").textContent = nomeDe(c);
+  const a = c.assinatura;
+  $("#men-modal-quem").textContent = [a ? `R$ ${brl(a.valor)} todo dia ${a.dia}` : "Sem cobrança", SITUACOES_CORRETOR[c.situacao]].join(" · ");
+  const corpo = $("#men-modal-corpo");
+  corpo.innerHTML = painelDosMeses(c);
+  ligarMeses(corpo);
+}
+
+function ligarMeses(painel) {
   const enviar = async (id, json, aviso) => {
     try {
       trocarFicha(await api(`/api/mensalidades/${encodeURIComponent(id)}`, { metodo: "PATCH", json }));
@@ -329,4 +352,8 @@ export function iniciarMensalidades() {
   $("#men-form").addEventListener("input", atualizarPrevia);
   $("#men-form").addEventListener("change", atualizarPrevia);
   $("#men-regua-form").onsubmit = salvarRegua;
+  $("#men-modal").addEventListener("close", () => { aberto = null; pagando = null; });
+  $("#men-modal [data-fechar]").onclick = () => $("#men-modal").close();
+  // Clicar fora da caixa fecha o modal.
+  $("#men-modal").addEventListener("click", (e) => { if (e.target === e.currentTarget) e.currentTarget.close(); });
 }
