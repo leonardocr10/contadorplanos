@@ -98,3 +98,36 @@ test("Amil por adesão (Supermed) tem as entidades ASPROLI e AAFP; ao atualizar,
     novo.fechar();
   }
 });
+
+test("Unimed BH por adesão: uma tabela por produto e entidade da Qualicorp, agrupadas pelo nome do plano", (t) => {
+  const bh = planos.filter((p) => p.id.startsWith("unimed-bh-"));
+  assert.equal(bh.length, 43);
+  for (const p of bh) {
+    assert.equal(p.administradora, "Qualicorp", p.id);
+    assert.equal(entidadesDoPlano(p).length, 1, p.id);
+    assert.ok(p.faixasEnf.every((v) => v > 0), p.id);
+  }
+  const porNome = Object.groupBy(bh, (p) => p.nome);
+  assert.deepEqual(Object.keys(porNome).sort(), ["UNIMED BH PLENO COPART", "UNIMED BH UNIFÁCIL FLEX", "UNIMED BH UNIMAX", "UNIMED BH UNIPART FLEX", "UNIMED BH UNIPART FLEX REGIONAL"]);
+  assert.equal(porNome["UNIMED BH UNIMAX"].length, 13);
+  assert.equal(porNome["UNIMED BH UNIPART FLEX"].length, 15);
+  // Mesmo plano, entidades diferentes, preços diferentes.
+  const crp = plano("unimed-bh-unimax-crp-mg"), crn = plano("unimed-bh-unimax-crn-9-mg");
+  assert.deepEqual([crp.faixasEnf[0], crn.faixasEnf[0]], [395.9, 577.46]);
+  // Unifácil é só enfermaria.
+  assert.ok(porNome["UNIMED BH UNIFÁCIL FLEX"].every((p) => p.faixasApto.every((v) => v == null)));
+  // Bancos existentes recebem os planos novos.
+  const pasta = mkdtempSync(join(tmpdir(), "cotador-unimedbh-"));
+  t.after(() => rmSync(pasta, { recursive: true, force: true }));
+  const caminho = join(pasta, "c.db");
+  const antigo = new Banco(caminho, seed);
+  antigo.db.exec("DELETE FROM planos WHERE id LIKE 'unimed-bh-%'; PRAGMA user_version = 66");
+  antigo.fechar();
+  const novo = new Banco(caminho, seed);
+  try {
+    assert.equal(novo.obterPlano("unimed-bh-unipart-flex-2-afae").entidades, "AFAE – Funcionários aposentados de MG · Flex 2, com coparticipação na internação");
+    assert.equal(novo.listarPlanos().filter((p) => p.id.startsWith("unimed-bh-")).length, 43);
+  } finally {
+    novo.fechar();
+  }
+});

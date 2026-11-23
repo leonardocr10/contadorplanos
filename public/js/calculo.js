@@ -97,7 +97,7 @@ export function planPrices(p, vidas, over = {}) {
 // O nome sem a coparticipação e sem o MEI é o da linha.
 export const SUFIXOS = /\s+(\d+%|PARCIAL|MEI)(?=\s|$)/gi;
 // Operadoras cujos planos (de nomes diferentes) ficam todos num cartão só, com o produto como opção.
-const UMA_LINHA_POR_OPERADORA = [{ nome: "SULAMÉRICA", prefixo: /^SUL\s?AM[ÉE]RICA\s+/i }, { nome: "UNIMED", prefixo: /^UNIMED\s+/i }];
+const UMA_LINHA_POR_OPERADORA = [{ nome: "SULAMÉRICA", prefixo: /^SUL\s?AM[ÉE]RICA\s+/i }, { nome: "UNIMED BH", prefixo: /^UNIMED\s+BH\s+/i }, { nome: "UNIMED", prefixo: /^UNIMED\s+/i }];
 export const operadoraEmLinha = (p) => UMA_LINHA_POR_OPERADORA.find((o) => o.prefixo.test(String(p.nome || "")));
 export const linhaDoPlano = (p) => operadoraEmLinha(p)?.nome ?? String(p.nome || "").replace(SUFIXOS, "").trim();
 

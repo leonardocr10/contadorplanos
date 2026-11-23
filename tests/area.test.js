@@ -617,16 +617,17 @@ test("todos os planos da base têm área válida", () => {
 });
 
 test("as tabelas definem quais planos aparecem em cada cidade", () => {
-  // Uberlândia está na área de todos os planos, menos da Aurora e dos planos de Uberaba da Hapvida.
-  assert.deepEqual(planos.filter((p) => !vendidoEm(p, "MG", "Uberlândia")).map((p) => p.id), ["aurora-saude-pf", "hapvida-nosso-plano-pme-uberaba-total", "hapvida-nosso-plano-pme-uberaba-parcial", "hapvida-nosso-plano-uberaba-total", "hapvida-nosso-plano-uberaba-parcial"]);
+  // Uberlândia está na área de todos os planos, menos da Aurora, dos planos de Uberaba da Hapvida e da Unimed BH.
+  assert.deepEqual(planos.filter((p) => !vendidoEm(p, "MG", "Uberlândia") && !p.id.startsWith("unimed-bh-")).map((p) => p.id), ["aurora-saude-pf", "hapvida-nosso-plano-pme-uberaba-total", "hapvida-nosso-plano-pme-uberaba-parcial", "hapvida-nosso-plano-uberaba-total", "hapvida-nosso-plano-uberaba-parcial"]);
   // Só a tabela Union da Plamedh chega a Goiás.
   assert.deepEqual(nomesEm("GO", ""), ["plamedh-pf", "plamedh-kids-pf"]);
   assert.deepEqual(nomesEm("GO", "Catalão"), ["plamedh-pf", "plamedh-kids-pf"]);
   const uberaba = nomesEm("MG", "Uberaba");
   assert.ok(uberaba.includes("plamedh-basic-pme") && uberaba.includes("amil-ouro-total") && uberaba.includes("sulamerica-direto-nacional"));
   assert.ok(!uberaba.includes("plam-saude-pf") && !uberaba.includes("plamedh-pf") && !uberaba.includes("unimed-pleno-on-pf"));
-  // Belo Horizonte: Amil e SulAmérica.
-  assert.ok(nomesEm("MG", "Belo Horizonte").every((id) => /^(amil|sulamerica)-/.test(id)));
+  // Belo Horizonte: Amil, SulAmérica e Unimed BH; a Unimed BH não chega a Uberlândia.
+  assert.ok(nomesEm("MG", "Belo Horizonte").every((id) => /^(amil|sulamerica|unimed-bh)-/.test(id)));
+  assert.ok(planos.filter((p) => p.id.startsWith("unimed-bh-")).every((p) => !vendidoEm(p, "MG", "Uberlândia")));
   assert.equal(nomesEm("MG", "Cidade Que Não Existe").length, 0);
 });
 

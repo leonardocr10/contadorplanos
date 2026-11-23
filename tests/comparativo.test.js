@@ -160,7 +160,8 @@ test("a janela fica fora das telas, para abrir também na Nova cotação", () =>
 });
 
 test("o texto de coparticipação segue o modelo e só cita valores da tabela do plano", () => {
-  for (const p of planos) {
+  // Plano sem coparticipação (Unimed BH Unimax) não tem tabela nem texto.
+  for (const p of planos.filter((x) => x.copartTabela)) {
     assert.ok(p.copartTexto.startsWith("Você paga a mensalidade normalmente e, quando usar, "), p.id);
     assert.ok(p.copartTexto.endsWith("Os valores vêm no boleto do mês seguinte."), p.id);
     for (const [valor] of p.copartTexto.matchAll(/\d[\d.]*,\d\d/g)) assert.ok(p.copartTabela.includes(valor), `${p.id}: ${valor}`);

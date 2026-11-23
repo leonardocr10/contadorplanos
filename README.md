@@ -9,7 +9,7 @@ Monta cotações por faixa etária e gera uma imagem de proposta por plano para 
 
 Se o Node.js não puder ser instalado automaticamente, baixe a versão LTS em https://nodejs.org e abra o `iniciar.bat` de novo.
 
-Nos planos de pessoa física por adesão, ao selecionar o plano na **Nova cotação** abre uma janela para escolher a **administradora** e a **entidade** do titular, e só depois aparecem os valores. Planos com o mesmo nome e administradoras diferentes viram um cartão só, cada um com a sua tabela de preço. A escolha fica salva com a cotação e define o preço, mas não aparece na mensagem, na imagem nem no link. Cada plano guarda a administradora e as entidades (uma por linha, `SIGLA – público`) em **Planos e Valores**.
+Nos planos de pessoa física por adesão, ao selecionar o plano na **Nova cotação** abre uma janela para escolher a **administradora** e a **entidade** do titular, e só depois aparecem os valores. Planos com o mesmo nome viram um cartão só, cada um com a sua tabela de preço: pode ser uma tabela por administradora ou, na mesma administradora, uma por entidade (como a Unimed BH da Qualicorp, com uma tabela para cada uma das 16 entidades). Na janela, escolher a entidade escolhe a tabela dela. A escolha fica salva com a cotação e define o preço, mas não aparece na mensagem, na imagem nem no link. Cada plano guarda a administradora e as entidades (uma por linha, `SIGLA – público`) em **Planos e Valores**.
 
 Em **Configurações > Meus dados**, preencha seu nome, telefone e corretora. Eles aparecem na imagem e na mensagem.
 

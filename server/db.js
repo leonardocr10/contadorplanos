@@ -470,6 +470,8 @@ const MIGRACOES = [
   },
   // Sem mudança na estrutura: entidades ASPROLI e AAFP nos planos Amil por adesão (ver preencherEntidadesAmil).
   () => {},
+  // Sem mudança na estrutura: marca a chegada dos planos Unimed BH por adesão da Qualicorp (ver PLANOS_NOVOS).
+  () => {},
 ];
 
 // Troca os documentos dos planos CNPJ pela lista empresarial; com unimed, a Unimed PME recebe a lista dela.
@@ -544,10 +546,15 @@ const HAPVIDA_PME_ANTIGA = { "hapvida-nosso-plano-pme-total": [170.72, 114.32], 
 const CARENCIA_PROVISORIA_AMIL_PME = "Cobertura | Prazo máximo (Lei 9.656/98)";
 
 // Planos lançados depois que o banco já existia: entram uma única vez, ao atualizar.
+// Unimed BH por adesão da Qualicorp: 16 guias de entidade, cada um com as suas tabelas (Unimax, Unipart Flex,
+// Unifácil Flex, Unipart Flex Regional e Pleno Copart).
+const UNIMED_BH_ADESAO = ["unimed-bh-unimax-abracem", "unimed-bh-unifacil-flex-abracem", "unimed-bh-unipart-flex-abracem", "unimed-bh-unifacil-flex-abracem-002", "unimed-bh-unipart-flex-regional-abracem-002", "unimed-bh-unimax-afae", "unimed-bh-unipart-flex-afae", "unimed-bh-unipart-flex-2-afae", "unimed-bh-pleno-copart-afae", "unimed-bh-unifacil-flex-anaprolie", "unimed-bh-unipart-flex-regional-anaprolie", "unimed-bh-unimax-anfip-mg", "unimed-bh-unifacil-flex-anfip-mg", "unimed-bh-unipart-flex-anfip-mg", "unimed-bh-unifacil-flex-ascaf-mg", "unimed-bh-unimax-ascaf-mg", "unimed-bh-unipart-flex-ascaf-mg", "unimed-bh-unimax-cra-mg", "unimed-bh-unifacil-flex-cra-mg", "unimed-bh-unipart-flex-cra-mg", "unimed-bh-pleno-copart-cra-mg", "unimed-bh-unimax-crefito-4", "unimed-bh-unifacil-flex-crefito-4", "unimed-bh-unipart-flex-crefito-4", "unimed-bh-unimax-crefono-6", "unimed-bh-unifacil-flex-crefono-6", "unimed-bh-unipart-flex-crefono-6", "unimed-bh-unimax-crmv-mg", "unimed-bh-unipart-flex-crmv-mg", "unimed-bh-unimax-crn-9-mg", "unimed-bh-unipart-flex-crn-9-mg", "unimed-bh-unimax-crp-mg", "unimed-bh-unipart-flex-crp-mg", "unimed-bh-unimax-saae-mg", "unimed-bh-unipart-flex-saae-mg", "unimed-bh-unimax-senge-mg", "unimed-bh-unifacil-flex-senge-mg", "unimed-bh-unipart-flex-senge-mg", "unimed-bh-unifacil-flex-sindireceita", "unimed-bh-unipart-flex-sindireceita", "unimed-bh-unimax-sinpro-mg", "unimed-bh-unifacil-flex-sinpro-mg", "unimed-bh-unipart-flex-sinpro-mg"];
 const PLANOS_NOVOS = [{ id: "plamedh-basic-pme", versao: 6 }, { id: "plam-total-cnpj", versao: 7 }, ...["sulamerica-direto-nacional", "sulamerica-especial-100-rc", "sulamerica-especial-100-r1", "sulamerica-executivo-pleno"].map((id) => ({ id, versao: 10 })), { id: "aurora-saude-pf", versao: 14 }, ...["hapvida-nosso-plano-total", "hapvida-nosso-plano-parcial"].map((id) => ({ id, versao: 22 })), ...["unimed-pleno-on-pme", "unimed-udiplan-on-pme", "unimed-pontual-on-pme", "unimed-uniplan-on-pme"].map((id) => ({ id, versao: 25 })), ...["amil-pme-prata-30", "amil-pme-prata-30-mei", "amil-pme-prata-40", "amil-pme-prata-40-mei", "amil-pme-prata-parcial", "amil-pme-prata-parcial-mei", "amil-pme-ouro-30", "amil-pme-ouro-30-mei", "amil-pme-ouro-40", "amil-pme-ouro-40-mei", "amil-pme-ouro-parcial", "amil-pme-ouro-parcial-mei", "amil-pme-platinum-r1-30", "amil-pme-platinum-r1-30-mei", "amil-pme-platinum-r1-40", "amil-pme-platinum-r1-40-mei", "amil-pme-platinum-r1-parcial", "amil-pme-platinum-r1-parcial-mei", "amil-pme-platinum-r2-30", "amil-pme-platinum-r2-30-mei", "amil-pme-platinum-r2-40", "amil-pme-platinum-r2-40-mei", "amil-pme-platinum-r2-parcial", "amil-pme-platinum-r2-parcial-mei"].map((id) => ({ id, versao: 26 })), ...["hapvida-nosso-plano-pme-total", "hapvida-nosso-plano-pme-parcial"].map((id) => ({ id, versao: 31 })), ...["hapvida-nosso-plano-pme-uberaba-total", "hapvida-nosso-plano-pme-uberaba-parcial"].map((id) => ({ id, versao: 32 })), ...["hapvida-nosso-plano-uberaba-total", "hapvida-nosso-plano-uberaba-parcial"].map((id) => ({ id, versao: 34 })),
   // Amil PME com a tabela do Interior MG 1: entra ao lado dos planos Amil atuais, com os documentos do plano de mesma linha.
   ...["prata-30", "prata-30-mei", "ouro-30", "ouro-30-mei", "platinum-r1-30", "platinum-r1-30-mei", "platinum-r2-30", "platinum-r2-30-mei"]
-    .map((s) => ({ id: `amil-pme-interior-mg1-${s}`, versao: 61, documentosDe: `amil-pme-${s}` }))];
+    .map((s) => ({ id: `amil-pme-interior-mg1-${s}`, versao: 61, documentosDe: `amil-pme-${s}` })),
+  // Unimed BH por adesão (Qualicorp): uma tabela por produto e entidade, com os documentos da SulAmérica por adesão.
+  ...UNIMED_BH_ADESAO.map((id) => ({ id, versao: 67, documentosDe: "sulamerica-direto-nacional" }))];
 
 function migrar(db) {
   const versao = db.prepare("PRAGMA user_version").get().user_version;

@@ -65,9 +65,9 @@ function aplicarLocal() {
 }
 
 /* ---------- administradora e entidade ---------- */
-// O mesmo plano de pessoa física pode ter uma tabela por administradora (cadastros com o mesmo nome) e, em cada
-// uma, várias entidades. Na cotação ele é um cartão só: ao selecionar, o corretor escolhe a administradora e a
-// entidade numa janela, e só então aparecem os valores daquela tabela.
+// O mesmo plano de pessoa física pode ter várias tabelas (cadastros com o mesmo nome): uma por administradora, ou
+// uma por entidade da mesma administradora, cada uma com o seu preço. Na cotação ele é um cartão só: ao selecionar,
+// o corretor escolhe a administradora e a entidade numa janela, e só então aparecem os valores daquela tabela.
 const chaveAdesao = (p) => `${p.categoria}|${normal(p.nome).trim()}`;
 function variantesDe(p) {
   if (p.categoria !== "PF") return [p];
@@ -79,39 +79,51 @@ const varianteEscolhida = (p) => variantesDe(p).find((v) => S.selected.includes(
 const exigeEscolha = (p) => { const v = variantesDe(p); return v.length > 1 || adesaoDoPlano(v[0]).entidades.length > 1; };
 
 let escolha = null;
+const nomeAdm = (v) => adesaoDoPlano(v).administradora || "Administradora não informada";
+// Opções de entidade da administradora: cada uma aponta para a tabela (cadastro) que tem aquela entidade.
+// A mesma administradora pode ter uma tabela por entidade, cada uma com o seu preço.
+function opcoesDeEntidade(adm) {
+  return escolha.variantes.flatMap((v, i) => {
+    if (nomeAdm(v) !== adm) return [];
+    const { entidades } = adesaoDoPlano(v);
+    return entidades.length ? entidades.map((e) => ({ valor: `${i}|${e.sigla}`, texto: e.publico ? `${e.sigla} – ${e.publico}` : e.sigla })) : [{ valor: `${i}|`, texto: "" }];
+  });
+}
 function abrirEscolhaAdesao(p) {
   const variantes = variantesDe(p);
   const atual = variantes.find((v) => S.selected.includes(v.id)) ?? variantes[0];
   escolha = { variantes };
   $("#adesao-escolha-sub").textContent = p.nome;
+  const adms = [...new Set(variantes.map(nomeAdm))];
   const adm = $("#ae-adm");
-  adm.innerHTML = variantes.map((v, i) => `<option value="${i}">${esc(adesaoDoPlano(v).administradora || "Administradora não informada")}</option>`).join("");
-  adm.value = String(variantes.indexOf(atual));
-  adm.disabled = variantes.length < 2;
-  preencherEntidades(S.over[atual.id]?.entidade);
+  adm.innerHTML = adms.map((a) => `<option value="${esc(a)}">${esc(a)}</option>`).join("");
+  adm.value = nomeAdm(atual);
+  adm.disabled = adms.length < 2;
+  preencherEntidades(S.selected.includes(atual.id) ? `${variantes.indexOf(atual)}|${S.over[atual.id]?.entidade ?? ""}` : "");
   $("#adesao-escolha").showModal();
 }
-function preencherEntidades(sigla) {
-  const v = escolha.variantes[Number($("#ae-adm").value)] ?? escolha.variantes[0];
-  const { entidades } = adesaoDoPlano(v);
+function preencherEntidades(valor) {
+  const opcoes = opcoesDeEntidade($("#ae-adm").value);
+  const comEntidade = opcoes.filter((o) => o.texto);
   const ent = $("#ae-ent");
-  ent.innerHTML = entidades.length
-    ? `${entidades.length > 1 ? `<option value="">Escolha a entidade do titular</option>` : ""}${entidades.map((e) => `<option value="${esc(e.sigla)}">${esc(e.publico ? `${e.sigla} – ${e.publico}` : e.sigla)}</option>`).join("")}`
-    : `<option value="">Nenhuma entidade cadastrada para esta administradora</option>`;
-  ent.value = entidades.some((e) => e.sigla === sigla) ? sigla : entidades.length === 1 ? entidades[0].sigla : "";
-  ent.disabled = entidades.length < 2;
+  ent.innerHTML = comEntidade.length
+    ? `${opcoes.length > 1 ? `<option value="">Escolha a entidade do titular</option>` : ""}${comEntidade.map((o) => `<option value="${esc(o.valor)}">${esc(o.texto)}</option>`).join("")}`
+    : `<option value="${esc(opcoes[0]?.valor ?? "")}">Nenhuma entidade cadastrada para esta administradora</option>`;
+  ent.value = opcoes.some((o) => o.valor === valor) ? valor : opcoes.length === 1 ? opcoes[0].valor : "";
+  ent.disabled = opcoes.length < 2;
   $("#ae-aviso").textContent = "";
 }
 function confirmarEscolha(e) {
   e.preventDefault();
   if (!escolha) return;
-  const v = escolha.variantes[Number($("#ae-adm").value)] ?? escolha.variantes[0];
-  const temEntidades = adesaoDoPlano(v).entidades.length > 0;
-  const sigla = $("#ae-ent").value;
-  if (temEntidades && !sigla) { $("#ae-aviso").textContent = "Escolha a entidade do titular para ver os valores."; return; }
+  const valor = $("#ae-ent").value;
+  if (!valor) { $("#ae-aviso").textContent = "Escolha a entidade do titular para ver os valores."; return; }
+  const [i, ...resto] = valor.split("|");
+  const v = escolha.variantes[Number(i)];
+  if (!v) return;
   const ids = escolha.variantes.map((x) => x.id);
   S.selected = [...S.selected.filter((id) => !ids.includes(id)), v.id];
-  S.over[v.id] = { ...S.over[v.id], entidade: sigla };
+  S.over[v.id] = { ...S.over[v.id], entidade: resto.join("|") };
   escolha = null;
   $("#adesao-escolha").close();
   render();
@@ -120,7 +132,8 @@ function iniciarEscolhaAdesao() {
   const dlg = $("#adesao-escolha");
   $("#adesao-escolha-form").onsubmit = confirmarEscolha;
   dlg.querySelectorAll("[data-fechar]").forEach((b) => (b.onclick = () => dlg.close()));
-  dlg.addEventListener("close", () => (escolha = null));
+  // O aviso de fechamento pode chegar depois de a janela já ter reaberto para outro plano: só limpa se fechou mesmo.
+  dlg.addEventListener("close", () => { if (!dlg.open) escolha = null; });
   $("#ae-adm").addEventListener("change", () => preencherEntidades(""));
 }
 
