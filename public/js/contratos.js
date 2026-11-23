@@ -5,7 +5,7 @@ import { linkConversaDireta, mensagemAtivacao } from "./mensagem.js";
 import { ligarVisualizacao } from "./visor-documento.js";
 import { carregarFinanceiro } from "./financeiro.js";
 import { normalizar } from "./filtro-select.js";
-import { botaoIcone, cabecalho, desenharCards, desenharPaginacao, lerPorPagina, ordenarPor, paginar, proximaOrdem } from "./grade.js";
+import { abrirJanelaDaGrade, janelaDaGrade, botaoIcone, cabecalho, desenharCards, desenharPaginacao, lerPorPagina, ordenarPor, paginar, proximaOrdem } from "./grade.js";
 
 let contratos = [], carregados = false, erro = null, filtro = "todos", mes = "todos";
 const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
@@ -124,8 +124,8 @@ function linhaDoContrato(c, dia, edita) {
       <td><div class="grade-plano" title="${esc(c.plano)}">${esc(c.plano)}</div></td>
       <td class="grade-valor dir">R$ ${brl(c.valor)}</td>
       <td class="grade-data">${esc(fmtDia(c.ativacao))}</td>
-      <td><div class="grade-acoes">${acoes}</div></td>
-    </tr>${paineis ? `<tr class="grade-painel-linha" data-id="${esc(c.id)}"><td colspan="${COLUNAS.length + 1}">${paineis}</td></tr>` : ""}`;
+      <td><div class="grade-acoes">${acoes}</div>${janelaDaGrade(`ctr-${c.id}`, `Contrato de ${c.nome}`, paineis)}</td>
+    </tr>`;
 }
 
 function renderContratos() {
@@ -164,6 +164,7 @@ function renderContratos() {
   box.innerHTML = pag.quantos
     ? `<div class="grade-rolagem"><table class="grade-tabela">${cabecalho(COLUNAS, ordem)}<tbody>${pag.itens.map((c) => linhaDoContrato(c, dia, edita)).join("")}</tbody></table></div>`
     : `<div class="status">Nenhum contrato encontrado com esses filtros.</div>`;
+  abrirJanelaDaGrade(box, () => { edicao = mensagem = docsAbertos = excluindo = null; renderContratos(); });
   desenharPaginacao(nav, pag, ["contrato", "contratos"], (p) => { destaque = null; pagina = p; renderContratos(); box.scrollIntoView({ block: "nearest" }); });
   box.querySelectorAll("[data-ordem]").forEach((b) => (b.onclick = () => { destaque = null; ordem = proximaOrdem(ordem, b.dataset.ordem, COLUNAS); pagina = 1; renderContratos(); }));
 

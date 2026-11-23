@@ -3,7 +3,7 @@ import { brl, fmtFone } from "./calculo.js";
 import { $, S, api, avisoCentral, esc, pode, toast } from "./estado.js";
 import { copiarTexto } from "./cotacao.js";
 import { normalizar } from "./filtro-select.js";
-import { botaoIcone, cabecalho, desenharCards, desenharPaginacao, desenharSeletorDeMes, mesLocal, guardarPorPagina, lerPorPagina, ordenarPor, paginar, proximaOrdem } from "./grade.js";
+import { abrirJanelaDaGrade, janelaDaGrade, botaoIcone, cabecalho, desenharCards, desenharPaginacao, desenharSeletorDeMes, mesLocal, guardarPorPagina, lerPorPagina, ordenarPor, paginar, proximaOrdem } from "./grade.js";
 import { carregarContratos, ehPdf, esquecerArquivo, fmtTamanho, miniaturaPronta, mostrarMiniaturas } from "./contratos.js";
 import { ligarVisualizacao } from "./visor-documento.js";
 import { linkConversaDireta, mensagemDocumentos, mensagemPropostaEnviada } from "./mensagem.js";
@@ -107,8 +107,8 @@ function linhaDoAceite(a) {
       <td class="grade-valor dir">R$ ${brl(a.valor)}</td>
       <td class="grade-data" title="Aceitou em ${esc(fmtData(a.aceitoEm))}">${esc(new Date(a.aceitoEm).toLocaleDateString("pt-BR"))}</td>
       <td><span class="pill ${st.pendente ? "st-neg" : "st-ok"}"${dicaSituacao ? ` title="${esc(dicaSituacao)}"` : ""}>${st.rotulo}</span></td>
-      <td><div class="grade-acoes">${acoes}</div></td>
-    </tr>${paineis ? `<tr class="grade-painel-linha" data-token="${esc(a.token)}"><td colspan="${COLUNAS.length + 1}">${paineis}</td></tr>` : ""}`;
+      <td><div class="grade-acoes">${acoes}</div>${janelaDaGrade(`ace-${a.token}`, `Aceite de ${a.cliente || "Sem nome"}`, paineis)}</td>
+    </tr>`;
 }
 
 export function renderAceites() {
@@ -147,6 +147,7 @@ export function renderAceites() {
   box.innerHTML = pag.quantos
     ? `<div class="grade-rolagem"><table class="grade-tabela">${cabecalho(COLUNAS, ordem)}<tbody>${pag.itens.map(linhaDoAceite).join("")}</tbody></table></div>`
     : `<div class="status">Nenhum aceite encontrado com esses filtros.</div>`;
+  abrirJanelaDaGrade(box, () => { escolha = aviso = cadastro = recebidosAbertos = excluindo = null; renderAceites(); });
 
   desenharPaginacao(nav, pag, ["aceite", "aceites"], (p) => { pagina = p; renderAceites(); box.scrollIntoView({ block: "nearest" }); });
   box.querySelectorAll("[data-ordem]").forEach((b) => (b.onclick = () => {

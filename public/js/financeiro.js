@@ -5,7 +5,7 @@ import { $, S, api, avisoCentral, esc, pode, toast } from "./estado.js";
 import { normalizar } from "./filtro-select.js";
 import { calcularComissao, CATEGORIA_DO_SEGMENTO, MAX_PARCELAS, parcelaDe, rotuloDoSegmento, SEGMENTOS, totalDaRegra } from "./comissao.js";
 import { gerarXlsx } from "./xlsx.js";
-import { botaoIcone, cabecalho, desenharCards, desenharPaginacao, guardarPorPagina, lerPorPagina, ordenarPor, paginar, proximaOrdem } from "./grade.js";
+import { abrirJanelaDaGrade, janelaDaGrade, botaoIcone, cabecalho, desenharCards, desenharPaginacao, guardarPorPagina, lerPorPagina, ordenarPor, paginar, proximaOrdem } from "./grade.js";
 
 let corretoras = [], contratos = [], carregado = false, erro = null;
 const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
@@ -140,8 +140,8 @@ function linhaDaRegra(r) {
       <td class="dir">${r.segmento === "PF" && r.angariacao ? pct(r.angariacao) : "—"}</td>
       ${POSICOES.map((i) => `<td class="dir">${parcelaDe(r, i) ? pct(parcelaDe(r, i)) : "—"}</td>`).join("")}
       <td class="dir"><b>${pct(totalDaRegra(r))}</b></td>
-      ${edita() ? `<td><div class="grade-acoes">${acoes}</div></td>` : ""}
-    </tr>${paineis ? `<tr class="grade-painel-linha" data-regra="${esc(r.id)}"><td colspan="${COLUNAS_REGRAS.length + (edita() ? 1 : 0)}">${paineis}</td></tr>` : ""}`;
+      ${edita() ? `<td><div class="grade-acoes">${acoes}</div>${janelaDaGrade(`reg-${r.id}`, `Regra ${r.nome} (${rotuloDoSegmento(r.segmento)})`, paineis)}</td>` : ""}
+    </tr>`;
 }
 
 /* ---------- Tela 1: lista das corretoras ---------- */
@@ -182,8 +182,8 @@ function linhaDaCorretora(c, colunas) {
       <td class="dir"><b>${c.regras.length}</b></td>
       <td class="dir">${qtd("PF")}</td>
       <td class="dir">${qtd("PME")}</td>
-      <td><div class="grade-acoes">${acoes}</div></td>
-    </tr>${painel ? `<tr class="grade-painel-linha" data-cor="${esc(c.id)}"><td colspan="${colunas.length + 1}">${painel}</td></tr>` : ""}`;
+      <td><div class="grade-acoes">${acoes}</div>${janelaDaGrade(`cor-${c.id}`, `Corretora ${c.nome}`, painel)}</td>
+    </tr>`;
 }
 
 function renderCorretoras() {
@@ -195,6 +195,7 @@ function renderCorretoras() {
   box.innerHTML = lista.length
     ? `<div class="grade-rolagem"><table class="grade-tabela fin-tabela">${cabecalho(COLUNAS_COR, ordemCor, true)}<tbody>${lista.map((c) => linhaDaCorretora(c, COLUNAS_COR)).join("")}</tbody></table></div>`
     : `<div class="status">Nenhuma corretora encontrada com essa busca.</div>`;
+  abrirJanelaDaGrade(box, () => { renomeandoCor = excluindoCor = null; renderCorretoras(); });
   box.querySelectorAll("[data-ordem]").forEach((b) => (b.onclick = () => { ordemCor = proximaOrdem(ordemCor, b.dataset.ordem, COLUNAS_COR); renderCorretoras(); }));
   const daLinha = (el) => corretoras.find((c) => c.id === el.closest("[data-cor]").dataset.cor);
   // Clicar na linha (fora dos botões) abre a corretora.
@@ -250,6 +251,7 @@ export function renderRegras() {
   box.innerHTML = pag.quantos
     ? `<div class="grade-rolagem"><table class="grade-tabela fin-tabela fin-tabela-regras">${cabecalho(colunas, ordemRegra, edita())}<tbody>${pag.itens.map(linhaDaRegra).join("")}</tbody></table></div>`
     : `<div class="status">${regras.length ? "Nenhuma regra encontrada com esses filtros." : "Esta corretora ainda não tem regras."}</div>`;
+  abrirJanelaDaGrade(box, () => { editandoRegra = excluindoRegra = null; renderRegras(); });
   desenharPaginacao(nav, pag, ["regra", "regras"], (p) => { paginaRegra = p; renderRegras(); box.scrollIntoView({ block: "nearest" }); });
   box.querySelectorAll("[data-ordem]").forEach((b) => (b.onclick = () => { ordemRegra = proximaOrdem(ordemRegra, b.dataset.ordem, colunas); paginaRegra = 1; renderRegras(); }));
 
@@ -378,8 +380,8 @@ function linhaDaComissao(x) {
         : `<div class="grade-plano fin-regra" title="${esc(regraTxt)}">${x.regra ? esc(regraTxt) : `<span class="fin-falta">Sem regra</span>`}</div>`}</td>
       <td class="grade-data">${esc(fmtDia(x.c.ativacao))}</td>
       <td class="grade-valor dir" title="${x.regra && mesPagamento !== "todos" ? `No mês: R$ ${brl(valorDaLinha(x))} · total do contrato: R$ ${brl(x.comissao.total)}` : ""}"><b>${x.regra ? `R$ ${brl(valorDaLinha(x))}` : "—"}</b></td>
-      <td><div class="grade-acoes">${botaoIcone("calculadora", edita() ? "Ver o cálculo da comissão e ajustar os pagamentos" : "Ver o cálculo da comissão", { atributos: `data-abrir-com aria-expanded="${aberto}"` })}</div></td>
-    </tr>${aberto ? `<tr class="grade-painel-linha" data-com="${esc(x.c.id)}"><td colspan="${COLUNAS_COM.length + 1}">${painelDaComissao(x)}</td></tr>` : ""}`;
+      <td><div class="grade-acoes">${botaoIcone("calculadora", edita() ? "Ver o cálculo da comissão e ajustar os pagamentos" : "Ver o cálculo da comissão", { atributos: `data-abrir-com aria-expanded="${aberto}"` })}</div>${janelaDaGrade(`com-${x.c.id}`, `Comissão de ${x.c.nome}`, aberto ? painelDaComissao(x) : "")}</td>
+    </tr>`;
 }
 
 export function renderComissoes() {
@@ -446,6 +448,7 @@ export function renderComissoes() {
   box.innerHTML = pag.quantos
     ? `<div class="grade-rolagem"><table class="grade-tabela">${cabecalho(COLUNAS_COM, ordemCom)}<tbody>${pag.itens.map(linhaDaComissao).join("")}</tbody></table></div>`
     : `<div class="status">Nenhum contrato encontrado com esses filtros.</div>`;
+  abrirJanelaDaGrade(box, () => { abertoCom = rascunho = null; renderComissoes(); });
   desenharPaginacao(nav, pag, ["contrato", "contratos"], (p) => { paginaCom = p; renderComissoes(); box.scrollIntoView({ block: "nearest" }); });
   box.querySelectorAll("[data-ordem]").forEach((b) => (b.onclick = () => { ordemCom = proximaOrdem(ordemCom, b.dataset.ordem, COLUNAS_COM); paginaCom = 1; renderComissoes(); }));
   const daLinha = (el) => linhas.find((x) => x.c.id === el.closest("[data-com]").dataset.com);

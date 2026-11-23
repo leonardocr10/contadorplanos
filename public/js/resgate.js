@@ -4,7 +4,7 @@ import { fmtFone } from "./calculo.js";
 import { $, api, avisoCentral, esc, pode, toast } from "./estado.js";
 import { MENSAGEM_RESGATE_PADRAO, linkConversaDireta, waHtml } from "./mensagem.js";
 import { normalizar } from "./filtro-select.js";
-import { botaoIcone, cabecalho, desenharCards, desenharPaginacao, desenharSeletorDeMes, guardarPorPagina, lerPorPagina, mesLocal, ordenarPor, paginar, proximaOrdem } from "./grade.js";
+import { abrirJanelaDaGrade, janelaDaGrade, botaoIcone, cabecalho, desenharCards, desenharPaginacao, desenharSeletorDeMes, guardarPorPagina, lerPorPagina, mesLocal, ordenarPor, paginar, proximaOrdem } from "./grade.js";
 
 const SITUACOES = [
   { chave: "pendente", rotulo: "Na fila", classe: "st-neg" },
@@ -191,8 +191,8 @@ function linha(r) {
       <td class="grade-data">${esc(dia(r.cotacaoEm))}</td>
       <td><span class="pill ${s.classe}" title="${esc(dica)}">${s.rotulo}</span></td>
       <td class="grade-data">${r.status === "enviado" && r.enviadoEm ? esc(diaHora(r.enviadoEm)) : "—"}</td>
-      <td><div class="grade-acoes">${acoes}</div></td>
-    </tr>${aberto ? `<tr class="grade-painel-linha" data-id="${esc(r.id)}"><td colspan="${COLUNAS.length + 1}"><div class="bubble res-previa">${waHtml(r.mensagem)}</div></td></tr>` : ""}`;
+      <td><div class="grade-acoes">${acoes}</div>${janelaDaGrade(`res-${r.id}`, `Mensagem para ${r.cliente || "o cliente"}`, aberto ? `<div class="bubble res-previa">${waHtml(r.mensagem)}</div>` : "")}</td>
+    </tr>`;
 }
 
 export function renderResgate() {
@@ -238,6 +238,7 @@ export function renderResgate() {
   box.innerHTML = pag.quantos
     ? `<div class="grade-rolagem"><table class="grade-tabela grade-resgate">${cabecalho(COLUNAS, ordem)}<tbody>${pag.itens.map(linha).join("")}</tbody></table></div>`
     : `<div class="status">Nenhum cliente encontrado com esses filtros.</div>`;
+  abrirJanelaDaGrade(box, () => { abertos.clear(); renderResgate(); });
   desenharPaginacao(nav, pag, ["cliente", "clientes"], (p) => { pagina = p; renderResgate(); box.scrollIntoView({ block: "nearest" }); });
   box.querySelectorAll("[data-ordem]").forEach((b) => (b.onclick = () => { ordem = proximaOrdem(ordem, b.dataset.ordem, COLUNAS); pagina = 1; renderResgate(); }));
   const doItem = (el) => itens.find((r) => r.id === el.closest("[data-id]").dataset.id);

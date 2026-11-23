@@ -4,6 +4,45 @@ import { esc } from "./estado.js";
 
 export const POR_PAGINA = [10, 25, 50, 100];
 
+/* ---------- janela dos painéis da linha ---------- */
+// O que um ícone da linha abre (editar, documentos, mensagem, confirmar exclusão...) aparece numa janela dentro do
+// sistema. A janela fica dentro da última célula da linha: o painel continua achando a linha dele (closest), como antes.
+export function janelaDaGrade(chave, titulo, conteudo) {
+  if (!conteudo) return "";
+  const id = `gj-${String(chave).replace(/[^\w-]/g, "_")}`;
+  return `<dialog class="men-modal grade-janela" data-janela="${esc(chave)}" aria-labelledby="${id}"><header class="men-modal-topo"><h2 id="${id}">${esc(titulo)}</h2><button class="gaveta-fechar" type="button" data-janela-fechar aria-label="Fechar">×</button></header><div class="men-modal-corpo grade-janela-corpo">${conteudo}</div></dialog>`;
+}
+
+// A tela redesenha a grade a cada mudança (o Aceites também sozinho, de tempos em tempos): a janela nova volta
+// com o foco, o cursor e a rolagem da anterior. Fechar (×, Esc) chama aoFechar, que limpa o painel aberto da tela.
+const estadoDasJanelas = new Map();
+export function abrirJanelaDaGrade(caixa, aoFechar) {
+  const dlg = caixa.querySelector("dialog.grade-janela");
+  if (!dlg) { estadoDasJanelas.delete(caixa.id); return; }
+  const corpo = dlg.querySelector(".grade-janela-corpo");
+  const guardar = () => {
+    const a = document.activeElement, dentro = dlg.contains(a) && a.id;
+    let inicio = null, fim = null;
+    try { if (dentro) { inicio = a.selectionStart; fim = a.selectionEnd; } } catch { /* campo sem cursor */ }
+    estadoDasJanelas.set(caixa.id, { chave: dlg.dataset.janela, id: dentro ? a.id : "", inicio, fim, rolagem: corpo.scrollTop });
+  };
+  dlg.querySelector("[data-janela-fechar]").onclick = () => dlg.close();
+  dlg.addEventListener("close", () => { if (dlg.isConnected) { estadoDasJanelas.delete(caixa.id); aoFechar(); } });
+  for (const ev of ["focusin", "input", "keyup", "click"]) dlg.addEventListener(ev, guardar);
+  corpo.addEventListener("scroll", guardar);
+  // Cliques e teclas dentro da janela não chegam à linha da grade (que, em algumas telas, abre algo ao ser clicada).
+  for (const ev of ["click", "keydown"]) dlg.addEventListener(ev, (e) => e.stopPropagation());
+  const antes = estadoDasJanelas.get(caixa.id);
+  dlg.showModal();
+  if (antes?.chave !== dlg.dataset.janela) return guardar();
+  corpo.scrollTop = antes.rolagem;
+  const alvo = antes.id && document.getElementById(antes.id);
+  if (alvo && dlg.contains(alvo)) {
+    alvo.focus({ preventScroll: true });
+    try { if (antes.inicio != null) alvo.setSelectionRange(antes.inicio, antes.fim); } catch { /* campo sem cursor */ }
+  }
+}
+
 const ICONES = {
   whatsapp: '<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/><path d="M9 10h.01M12 10h.01M15 10h.01"/>',
   documentos: '<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/>',
