@@ -1,5 +1,5 @@
 // Página HTML da proposta, aberta pelo cliente: layout com painel lateral, sem rolagem no computador.
-import { brl, carenciaDaColuna, lines, normFone, parseBRL, planPrices, r2, redeDaCidade, totalVidas } from "../public/js/calculo.js";
+import { adesaoDoPlano, brl, carenciaDaColuna, lines, normFone, parseBRL, planPrices, r2, redeDaCidade, totalVidas } from "../public/js/calculo.js";
 import { linkConversaDireta } from "../public/js/mensagem.js";
 import { hex2rgb, lumRGB, mixRGB, toHex } from "../public/js/cores.js";
 
@@ -12,6 +12,9 @@ export function montarSnapshot(p, { vidas, over, cliente, opts, municipio = "" }
   const v = planPrices(p, vidas, over);
   // O corretor pode ter escolhido uma só coluna da tabela de carências.
   const carenciaTabela = carenciaDaColuna(p.carenciaTabela, over?.[p.id]?.carencia);
+  // Plano por adesão com a entidade escolhida: a proposta diz a administradora e a entidade do titular.
+  const { administradora, entidade } = adesaoDoPlano(p, over);
+  const adesao = entidade ? `${administradora ? `Administradora ${administradora} · ` : ""}Entidade ${entidade.sigla}${entidade.publico ? ` (${entidade.publico})` : ""}` : "";
   return {
     cliente,
     corretor: { nome: corretor.nome, fone: corretor.fone, empresa: corretor.empresa, usuarioId: corretor.usuarioId },
@@ -26,7 +29,7 @@ export function montarSnapshot(p, { vidas, over, cliente, opts, municipio = "" }
       })),
     },
     plano: {
-      id: p.id, nome: p.nome, subtitulo: p.subtitulo, categoria: p.categoria, cidade: p.cidade, taxa: p.taxa, odonto: p.odonto, fidelidade: p.fidelidade,
+      id: p.id, nome: p.nome, subtitulo: p.subtitulo, adesao, categoria: p.categoria, cidade: p.cidade, taxa: p.taxa, odonto: p.odonto, fidelidade: p.fidelidade,
       corPrimaria: p.corPrimaria, corEscura: p.corEscura,
       beneficios: p.mostrarExtras ? lines(p.extras) : [],
       observacao: p.mostrarObservacao ? p.descricao : "",
@@ -131,6 +134,7 @@ export function paraProposta(s) {
     },
     plano: p.nome,
     subtitulo: p.subtitulo,
+    adesao: p.adesao || "",
     taxa: p.taxa ? `+ ${moeda(p.taxa)} de taxa associativa` : "",
     cotacao: s.data,
     // Enfermaria e apartamento na mesma cor: nenhum dos dois fica em destaque.
@@ -461,6 +465,7 @@ export function renderizarProposta(s, aceitacao = {}, { paraImagem = false } = {
         <span class="meta">Cotação de ${esc(P.cotacao)}</span>
         <h1>${esc(P.plano)}</h1>
         ${P.subtitulo ? `<span class="sub">${esc(P.subtitulo)}</span>` : ""}
+        ${P.adesao ? `<span class="sub">${esc(P.adesao)}</span>` : ""}
         ${P.taxa ? `<span class="taxa">${esc(P.taxa)}</span>` : ""}
       </div></div>
       <div class="lado"><div class="prices">${precos}</div>${botaoAceite(s, aceitacao, paraImagem)}</div>

@@ -201,33 +201,15 @@ export function entidadesDoPlano(plano) {
   }).filter((e) => e.sigla);
 }
 
-const chave = (s) => semAcento(String(s ?? "").trim());
-
-// Escolhida a administradora, só os planos dela; escolhida a entidade, só os planos que a aceitam.
-export function aceitaAdesao(plano, administradora, entidade) {
-  if (administradora && chave(plano.administradora) !== chave(administradora)) return false;
-  return !entidade || entidadesDoPlano(plano).some((e) => chave(e.sigla) === chave(entidade));
-}
-
-// Administradoras dos planos e as entidades de cada uma, com o público e quantos planos aceitam cada entidade.
-export function administradorasDosPlanos(planos) {
-  const mapa = new Map();
-  for (const p of planos) {
-    const nome = String(p.administradora ?? "").trim();
-    if (!nome) continue;
-    const adm = mapa.get(chave(nome)) ?? { nome, planos: 0, entidades: new Map() };
-    adm.planos++;
-    for (const e of entidadesDoPlano(p)) {
-      const ent = adm.entidades.get(chave(e.sigla)) ?? { sigla: e.sigla, publico: e.publico, planos: 0 };
-      ent.planos++;
-      if (!ent.publico) ent.publico = e.publico;
-      adm.entidades.set(chave(e.sigla), ent);
-    }
-    mapa.set(chave(nome), adm);
-  }
-  const ordem = (a, b) => a.localeCompare(b, "pt-BR");
-  return [...mapa.values()].sort((a, b) => ordem(a.nome, b.nome))
-    .map((a) => ({ ...a, entidades: [...a.entidades.values()].sort((x, y) => ordem(x.sigla, y.sigla)) }));
+// Administradora do plano de pessoa física e a entidade escolhida para ele na cotação (over[id].entidade).
+// Com uma entidade só, ela já vem escolhida.
+export function adesaoDoPlano(plano, over = {}) {
+  const administradora = plano.categoria === "PF" ? String(plano.administradora ?? "").trim() : "";
+  const entidades = plano.categoria === "PF" ? entidadesDoPlano(plano) : [];
+  const escolhida = over?.[plano.id]?.entidade;
+  const sigla = escolhida ?? (entidades.length === 1 ? entidades[0].sigla : "");
+  const entidade = entidades.find((e) => semAcento(e.sigla) === semAcento(sigla)) ?? null;
+  return { administradora, entidades, entidade };
 }
 
 // A rede que vale na cidade. "Hospital – Araxá" é de Araxá; a linha sem cidade é da cidade do plano.

@@ -1,5 +1,5 @@
 // Mensagem do WhatsApp no Modelo A e demais textos (funções puras).
-import { brl, entidadesDoPlano, lines, planPrices, redeDaCidade, totalVidas } from "./calculo.js";
+import { adesaoDoPlano, brl, lines, planPrices, redeDaCidade, totalVidas } from "./calculo.js";
 
 function assinatura(c) {
   const contato = [c.empresa, c.fone].filter(Boolean).join(" · ");
@@ -27,16 +27,14 @@ function blocoValores(L, v, vidas) {
   if (v.apto != null) L.push(`✅ *Apartamento: R$ ${brl(v.apto)}*`);
 }
 
-// Plano por adesão, quando a cotação escolheu administradora ou entidade: a administradora do plano e a entidade
-// escolhida, com o público dela. Sem escolha, a mensagem fica como o modelo.
-function linhaDaAdesao(p, administradora, entidade) {
-  if (!administradora && !entidade) return "";
-  if (p.categoria !== "PF" || !String(p.administradora || "").trim()) return "";
-  const e = entidade && entidadesDoPlano(p).find((x) => x.sigla.toLowerCase() === entidade.toLowerCase());
-  return `🏛️ Administradora *${p.administradora.trim()}*${e ? ` · Entidade *${e.sigla}*${e.publico ? ` (${e.publico})` : ""}` : ""}`;
+// Plano por adesão com a entidade escolhida na cotação: a administradora, a entidade e o público dela.
+function linhaDaAdesao(p, over) {
+  const { administradora, entidade } = adesaoDoPlano(p, over);
+  if (!entidade) return "";
+  return `🏛️ ${administradora ? `Administradora *${administradora}* · ` : ""}Entidade *${entidade.sigla}*${entidade.publico ? ` (${entidade.publico})` : ""}`;
 }
 
-export function buildMsg({ items, vidas, over, nome, corretor, opts, cidade = "", administradora = "", entidade = "" }) {
+export function buildMsg({ items, vidas, over, nome, corretor, opts, cidade = "" }) {
   if (!items.length) return "";
   const nomes = items.map((p) => `*${p.nome}*`);
   const L = [
@@ -46,7 +44,7 @@ export function buildMsg({ items, vidas, over, nome, corretor, opts, cidade = ""
   for (const p of items) {
     L.push("", SEPARADOR, `🏥 *${p.nome}*`);
     if (p.subtitulo) L.push(`_${p.subtitulo}_`);
-    const adesao = linhaDaAdesao(p, administradora, entidade);
+    const adesao = linhaDaAdesao(p, over);
     if (adesao) L.push(adesao);
     blocoValores(L, planPrices(p, vidas, over), vidas);
     if (p.taxa) L.push(`➕ R$ ${brl(p.taxa)} de taxa associativa`);

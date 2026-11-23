@@ -1,11 +1,12 @@
-// Administradora e entidade dos planos de pessoa física por adesão: cadastro, filtro da cotação e mensagem.
+// Administradora e entidade dos planos de pessoa física por adesão: cadastro, escolha no plano selecionado, mensagem e proposta.
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { aceitaAdesao, administradorasDosPlanos, entidadesDoPlano } from "../public/js/calculo.js";
+import { adesaoDoPlano, entidadesDoPlano } from "../public/js/calculo.js";
 import { buildMsg } from "../public/js/mensagem.js";
+import { montarSnapshot, renderizarProposta } from "../server/proposta-html.js";
 import { Banco } from "../server/db.js";
 
 const raiz = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
@@ -29,30 +30,31 @@ test("as entidades são lidas uma por linha, com a sigla e o público", () => {
   assert.deepEqual(entidadesDoPlano({ entidades: "ABC\n  \nXYZ - Médicos" }), [{ sigla: "ABC", publico: "" }, { sigla: "XYZ", publico: "Médicos" }]);
 });
 
-test("a cotação filtra pela administradora e pela entidade, sem diferenciar acento e maiúscula", () => {
-  const ids = (adm, ent) => pf.filter((p) => aceitaAdesao(p, adm, ent)).map((p) => p.id);
-  assert.equal(ids("", "").length, pf.length);
-  assert.deepEqual(ids("qualicorp", ""), pf.filter((p) => p.id.startsWith("sulamerica-")).map((p) => p.id));
-  assert.deepEqual(ids("Affix", "unipro"), ["hapvida-nosso-plano-total", "hapvida-nosso-plano-parcial"]);
-  assert.deepEqual(ids("", "CAEEPP"), ["hapvida-nosso-plano-uberaba-total", "hapvida-nosso-plano-uberaba-parcial"]);
-  // Entidade de outra administradora não mostra nada.
-  assert.deepEqual(ids("Qualicorp", "UNIPRO"), []);
+test("o plano selecionado traz a administradora e a entidade escolhida; com uma entidade só, ela já vem escolhida", () => {
+  const hap = plano("hapvida-nosso-plano-total"), sula = plano("sulamerica-direto-nacional");
+  assert.equal(adesaoDoPlano(hap).administradora, "Affix");
+  assert.equal(adesaoDoPlano(hap).entidade, null);
+  assert.deepEqual(adesaoDoPlano(hap, { [hap.id]: { entidade: "unipro" } }).entidade, { sigla: "UNIPRO", publico: "Profissionais liberais" });
+  assert.equal(adesaoDoPlano(sula).entidade.sigla, "ANAPROLIE");
+  // "Nenhuma" escolhida de propósito fica sem entidade.
+  assert.equal(adesaoDoPlano(sula, { [sula.id]: { entidade: "" } }).entidade, null);
+  // Entidade que o plano não aceita não vale.
+  assert.equal(adesaoDoPlano(hap, { [hap.id]: { entidade: "ANAPROLIE" } }).entidade, null);
+  // Plano CNPJ não tem administradora.
+  assert.deepEqual(adesaoDoPlano(plano("plam-total-cnpj")), { administradora: "", entidades: [], entidade: null });
 });
 
-test("as administradoras da cotação trazem as entidades de cada uma, com quantos planos aceitam", () => {
-  const adms = administradorasDosPlanos(pf);
-  assert.deepEqual(adms.map((a) => a.nome), ["Affix", "Allcare", "Quali", "Qualicorp", "Supermed", "Unicor", "Union"]);
-  const affix = adms.find((a) => a.nome === "Affix");
-  assert.equal(affix.planos, 2);
-  assert.deepEqual(affix.entidades.map((e) => [e.sigla, e.planos]), [["ANSP", 2], ["ASCOSERVI", 2], ["FADESP", 2], ["FNEL", 2], ["UNIPRO", 2]]);
-  assert.deepEqual(adms.find((a) => a.nome === "Unicor").entidades.map((e) => e.sigla), ["CAEEPP"]);
-});
-
-test("a mensagem só cita administradora e entidade quando a cotação escolheu", () => {
-  const base = { items: [plano("hapvida-nosso-plano-total")], vidas: [0, 0, 0, 1, 0, 0, 0, 0, 0, 0], over: {}, nome: "Maria", corretor: { nome: "", fone: "", empresa: "" }, opts: {} };
-  assert.ok(!buildMsg(base).includes("Administradora"));
-  assert.ok(buildMsg({ ...base, administradora: "Affix" }).includes("🏛️ Administradora *Affix*\n"));
-  assert.ok(buildMsg({ ...base, administradora: "Affix", entidade: "UNIPRO" }).includes("🏛️ Administradora *Affix* · Entidade *UNIPRO* (Profissionais liberais)"));
+test("a mensagem e a proposta citam a administradora e a entidade escolhida no plano", () => {
+  const hap = plano("hapvida-nosso-plano-total");
+  const vidas = [0, 0, 0, 1, 0, 0, 0, 0, 0, 0];
+  const base = { items: [hap], vidas, over: {}, nome: "Maria", corretor: { nome: "", fone: "", empresa: "" }, opts: {} };
+  assert.ok(!buildMsg(base).includes("Entidade"));
+  const over = { [hap.id]: { entidade: "UNIPRO" } };
+  assert.ok(buildMsg({ ...base, over }).includes("\n🏛️ Administradora *Affix* · Entidade *UNIPRO* (Profissionais liberais)\n"));
+  const s = montarSnapshot(hap, { vidas, over, cliente: "Maria", opts: {} }, { nome: "", fone: "", empresa: "" });
+  assert.equal(s.plano.adesao, "Administradora Affix · Entidade UNIPRO (Profissionais liberais)");
+  assert.ok(renderizarProposta(s).includes("Administradora Affix · Entidade UNIPRO (Profissionais liberais)"));
+  assert.equal(montarSnapshot(hap, { vidas, over: {}, cliente: "Maria", opts: {} }, { nome: "", fone: "", empresa: "" }).plano.adesao, "");
 });
 
 test("ao atualizar, os planos recebem administradora e entidades; o que foi editado à mão fica", (t) => {

@@ -279,6 +279,7 @@ function validarPedidoDeLinks(b) {
     if (o?.enf !== undefined) over[id].enf = numeroOpc(o.enf, "enfermaria");
     if (o?.apto !== undefined) over[id].apto = numeroOpc(o.apto, "apartamento");
     if (Number.isInteger(o?.carencia) && o.carencia > 0) over[id].carencia = o.carencia;
+    if (typeof o?.entidade === "string") over[id].entidade = textoOpc(o.entidade, "entidade", 120);
   }
   const o = b.opts ?? {};
   return {

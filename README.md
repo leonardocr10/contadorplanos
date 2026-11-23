@@ -9,7 +9,7 @@ Monta cotações por faixa etária e gera uma imagem de proposta por plano para 
 
 Se o Node.js não puder ser instalado automaticamente, baixe a versão LTS em https://nodejs.org e abra o `iniciar.bat` de novo.
 
-Nos planos de pessoa física por adesão, a **Nova cotação** tem os campos **Administradora** e **Entidade**: escolhidos, ficam só os planos que aceitam a escolha. Cada plano guarda a administradora e as entidades (uma por linha, `SIGLA – público`) em **Planos e Valores**.
+Nos planos de pessoa física por adesão, ao selecionar o plano na **Nova cotação** aparecem a **administradora** dele e a escolha da **entidade** do titular; a entidade escolhida vai na mensagem, na imagem e no link. Cada plano guarda a administradora e as entidades (uma por linha, `SIGLA – público`) em **Planos e Valores**.
 
 Em **Configurações > Meus dados**, preencha seu nome, telefone e corretora. Eles aparecem na imagem e na mensagem.
 

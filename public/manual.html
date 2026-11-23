@@ -81,7 +81,6 @@
   <ol class="passos">
     <li><b>Cliente</b>: preencha <b>Nome do cliente</b> e <b>WhatsApp do cliente</b> com DDD, como <code>(34) 99111-0001</code>. Os dois são obrigatórios: as faixas etárias só liberam depois deles.</li>
     <li><b>Tipo e cidade</b>: escolha <b>Pessoa física</b> ou <b>CNPJ</b> e a <b>Cidade</b>. A lista mostra só os planos vendidos na cidade escolhida.</li>
-    <li><b>Administradora e entidade</b> (só pessoa física): escolha a administradora (Qualicorp, Affix…) e a entidade do titular (UNIPRO, ANAPROLIE…). Ficam só os planos que aceitam essa escolha. Ao escolher a entidade, a administradora dela é marcada sozinha, e a mensagem do WhatsApp passa a citar a administradora e a entidade.</li>
     <li><b>Beneficiários</b>: em <b>Beneficiários por faixa etária</b>, use <b>+</b> e <b>−</b> para dizer quantas pessoas há em cada faixa.</li>
     <li><b>Planos</b>: em <b>Planos da proposta</b>, marque os planos. A busca e o filtro de operadora ajudam a achar; planos com opções (total, parcial, coparticipação) abrem a escolha ao clicar na seta.</li>
     <li><b>Conferir</b>: a prévia à direita mostra a mensagem como o cliente vai ver. Em <b>Ajustar o texto antes de enviar</b> dá para mudar o texto.</li>
@@ -125,7 +124,7 @@
   <ul>
     <li><b>Novo plano</b> abre o editor vazio. Os campos principais são nome, subtítulo, tipo (PF ou CNPJ), taxa associativa, mínimo de vidas e ordem na lista.</li>
     <li><b>Preços</b>: em <b>Colar da planilha</b>, copie do Excel as 10 linhas (faixa, enfermaria, apartamento) e cole. Os valores entram nas faixas.</li>
-    <li><b>Administradora e entidades</b> (pessoa física por adesão): a administradora do plano e as entidades que o titular pode usar, uma por linha, como <code>UNIPRO – Profissionais liberais</code>. A cotação usa esses campos para filtrar os planos.</li>
+    <li><b>Administradora e entidades</b> (pessoa física por adesão): a administradora do plano e as entidades que o titular pode usar, uma por linha, como <code>UNIPRO – Profissionais liberais</code>. Ao selecionar o plano na cotação, aparecem a administradora dele e a lista de entidades para escolher a do titular (com uma entidade só, ela já vem escolhida). A entidade escolhida vai na mensagem, na imagem e no link da proposta.</li>
     <li><b>Área de comercialização</b>: uma linha por estado. Ela define em que cidades o plano aparece na cotação.</li>
     <li><b>Proposta</b>: coparticipação e carências (imagem ou tabela), rede hospitalar, benefícios, observação e as cores da operadora.</li>
     <li>Os valores salvos valem para todas as próximas cotações; as cotações já enviadas não mudam. <b>Excluir plano</b> fica no próprio editor.</li>
@@ -366,7 +365,7 @@
   <div class="faq">
     <p><b>Fui desconectado sozinho.</b> O mesmo login entrou em outro aparelho. Cada login é individual; peça ao administrador um login seu.</p>
     <p><b>Não consigo mexer nas faixas etárias.</b> Preencha antes o nome e o WhatsApp do cliente, com DDD.</p>
-    <p><b>Um plano não aparece na cotação.</b> Confira a cidade, o tipo (Pessoa física ou CNPJ), a administradora e a entidade escolhidos, e a área de comercialização do plano em Planos e Valores.</p>
+    <p><b>Um plano não aparece na cotação.</b> Confira a cidade e o tipo (Pessoa física ou CNPJ) escolhidos, e a área de comercialização do plano em Planos e Valores.</p>
     <p><b>O cliente aceitou, mas não aparece em Aceites.</b> Ele precisa abrir o link da proposta e clicar em <b>Confirmar aceite</b>. Só abrir o link, ou ver a prévia no WhatsApp, não conta como aceite.</p>
     <p><b>O botão Proposta enviada está apagado.</b> O cliente ainda não concluiu o envio dos documentos.</p>
     <p><b>O contrato aparece como "Nenhuma regra para este plano".</b> Nenhuma corretora tem regra para o plano dele: cadastre em Regras de pagamento.</p>
