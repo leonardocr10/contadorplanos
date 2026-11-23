@@ -462,6 +462,12 @@ const MIGRACOES = [
   // percorria a tabela inteira de contratos.
   `CREATE INDEX IF NOT EXISTS idx_contratos_usuario_fone ON contratos (usuario_id, fone);
    CREATE INDEX IF NOT EXISTS idx_cotacoes_usuario_fone ON cotacoes (usuario_id, fone);`,
+  // Pessoa física por adesão: a administradora do plano e as entidades que o titular pode usar (uma por linha,
+  // "SIGLA – público"). A cotação filtra os planos por elas (ver preencherAdministradoras).
+  (db) => {
+    const colunas = db.prepare("PRAGMA table_info(planos)").all().map((c) => c.name);
+    for (const c of ["administradora", "entidades"]) if (!colunas.includes(c)) db.exec(`ALTER TABLE planos ADD COLUMN ${c} TEXT NOT NULL DEFAULT ''`);
+  },
 ];
 
 // Troca os documentos dos planos CNPJ pela lista empresarial; com unimed, a Unimed PME recebe a lista dela.
@@ -492,6 +498,7 @@ const VERSAO_HAPVIDA_PME = 35;
 const VERSAO_CARENCIAS_UNIMED_PME = 36;
 const VERSAO_REDE_UNIMED_PME = 37;
 const VERSAO_REDE_AMIL_INTERIOR = 63;
+const VERSAO_ADMINISTRADORAS = 65;
 const VERSAO_CARTA_DE_PERMANENCIA = 44;
 // Relação de documentos do plano empresarial/PJ: da empresa, depois do titular e dos dependentes.
 const DOCUMENTOS_CNPJ = [
@@ -561,7 +568,7 @@ const COLUNAS_PLANO = {
   descricao: "descricao", copartTexto: "copart_texto", copartTabela: "copart_tabela", copartNota: "copart_nota",
   carenciaTabela: "carencia_tabela", carenciaNota: "carencia_nota", imgCopart: "img_copart", imgCarencia: "img_carencia",
   corPrimaria: "cor_primaria", corEscura: "cor_escura", faixasModelo: "faixas_modelo", areaComercializacao: "area_comercializacao",
-  vidasMinimas: "vidas_minimas",
+  vidasMinimas: "vidas_minimas", administradora: "administradora", entidades: "entidades",
 };
 const COLUNAS_BOOL = { ativo: "ativo", odonto: "odonto", fidelidade: "fidelidade", mostrarExtras: "mostrar_extras", mostrarObservacao: "mostrar_observacao" };
 const COLUNAS_JSON = { faixasEnf: "faixas_enf", faixasApto: "faixas_apto", faixasEnfFamilia: "faixas_enf_familia", faixasAptoFamilia: "faixas_apto_familia", tabelasPorVidas: "tabelas_por_vidas" };
@@ -673,6 +680,20 @@ export class Banco {
     this.atualizarRedeUnimedPme(versaoAntes);
     this.atualizarRedeAmilInterior(versaoAntes);
     this.incluirCartaDePermanencia(versaoAntes);
+    this.preencherAdministradoras(versaoAntes);
+  }
+
+  // Administradora e entidades que estavam só no texto da observação dos planos cadastrados.
+  // Só preenche o que está vazio: o que a pessoa já informou fica como está.
+  preencherAdministradoras(versaoAntes) {
+    if (versaoAntes === 0 || versaoAntes >= VERSAO_ADMINISTRADORAS) return;
+    if (!this.caminhoSeed || !existsSync(this.caminhoSeed)) return;
+    const administradora = this.db.prepare("UPDATE planos SET administradora = ? WHERE id = ? AND administradora = ''");
+    const entidades = this.db.prepare("UPDATE planos SET entidades = ? WHERE id = ? AND entidades = ''");
+    for (const p of JSON.parse(readFileSync(this.caminhoSeed, "utf8"))) {
+      administradora.run(p.administradora ?? "", p.id);
+      entidades.run(p.entidades ?? "", p.id);
+    }
   }
 
   // A carta de permanência passa a ser pedida em todos os planos, de pessoa física e de CNPJ.

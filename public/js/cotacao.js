@@ -1,5 +1,5 @@
 // Tela "Nova cotação": formulário, cartões de planos, prévia do WhatsApp e imagens da proposta.
-import { FAIXAS, SUFIXOS, brl, colunasDeCarencia, hasFaixas, linhaDoPlano, operadoraEmLinha, lerArea, locaisDosPlanos, normFone, parseBRL, planPrices, redeDaCidade, totalVidas, vendidoEm } from "./calculo.js";
+import { FAIXAS, SUFIXOS, aceitaAdesao, administradorasDosPlanos, brl, colunasDeCarencia, hasFaixas, linhaDoPlano, operadoraEmLinha, lerArea, locaisDosPlanos, normFone, parseBRL, planPrices, redeDaCidade, totalVidas, vendidoEm } from "./calculo.js";
 import { $, S, api, esc, pode, render, toast } from "./estado.js";
 import { buildMsg, linkConversaDireta, textoDosLinks, waHtml } from "./mensagem.js";
 import { paginaParaPng } from "./imagem-proposta.js";
@@ -49,7 +49,7 @@ function renderLocal() {
   if (S.loaded && !existe) { S.uf = ""; S.municipio = ""; }
   const html = `<option value="" data-icone="todos">Todas as cidades</option><optgroup label="Cidades">${cidades.map(([v, c, uf]) => `<option value="${esc(v)}" data-selo="${esc(uf)}">${esc(c)}</option>`).join("")}</optgroup>`;
   trocarOpcoes($("#municipio"), html, existe ? atual : "", cidades.length);
-  $("#limpar-local").disabled = !S.municipio && !$("#cliente").value && !$("#fone").value;
+  $("#limpar-local").disabled = !S.municipio && !S.administradora && !S.entidade && !$("#cliente").value && !$("#fone").value;
 }
 
 // Plano fora da área sai da cotação junto com o cartão, para não ir na proposta por engano.
@@ -58,6 +58,46 @@ function aplicarLocal() {
   S.selected = S.selected.filter((id) => !fora.some((p) => p.id === id));
   render();
   if (fora.length) toast(fora.length === 1 ? `${fora[0].nome} saiu da cotação: não é comercializado nesse local` : `${fora.length} planos saíram da cotação: não são comercializados nesse local`);
+}
+
+/* ---------- administradora e entidade ---------- */
+// Pessoa física por adesão: a administradora e a entidade do titular escolhem quais planos entram na cotação.
+const planosPfNaCidade = () => S.plans.filter((p) => p.categoria === "PF" && p.ativo !== false && vendidoEm(p, S.uf, S.municipio));
+const cabeNaAdesao = (p) => p.categoria !== "PF" || aceitaAdesao(p, S.administradora, S.entidade);
+
+function renderAdesao() {
+  const adms = S.tipo === "PF" ? administradorasDosPlanos(planosPfNaCidade()) : [];
+  $("#adesao").hidden = !adms.length;
+  // A escolha que não existe mais na cidade cai (ex.: trocou para uma cidade sem planos dessa administradora).
+  const adm = adms.find((a) => a.nome === S.administradora);
+  if (S.loaded && S.administradora && !adm) { S.administradora = ""; S.entidade = ""; }
+  const visiveis = adm ? [adm] : adms;
+  if (S.loaded && S.entidade && !visiveis.some((a) => a.entidades.some((e) => e.sigla === S.entidade))) S.entidade = "";
+  if (!adms.length) return;
+  const plural = (n) => `${n} ${n === 1 ? "plano" : "planos"}`;
+  trocarOpcoes($("#administradora"),
+    `<option value="" data-icone="todos">Todas as administradoras</option><optgroup label="Administradoras">${adms.map((a) => `<option value="${esc(a.nome)}" data-selo="${a.planos}">${esc(a.nome)}</option>`).join("")}</optgroup>`,
+    S.administradora, adms.length);
+  // O valor leva a administradora junto: escolher a entidade antes já define de quem ela é.
+  const comEntidades = visiveis.filter((a) => a.entidades.length);
+  const grupo = (a) => a.entidades.map((e) => `<option value="${esc(`${a.nome}|${e.sigla}`)}" data-selo="${esc(plural(e.planos))}">${esc(e.publico ? `${e.sigla} – ${e.publico}` : e.sigla)}</option>`).join("");
+  trocarOpcoes($("#entidade"),
+    `<option value="" data-icone="todos">${comEntidades.length ? "Todas as entidades" : "Nenhuma entidade cadastrada"}</option>${comEntidades.map((a) => `<optgroup label="${esc(a.nome)}">${grupo(a)}</optgroup>`).join("")}`,
+    S.entidade ? `${S.administradora || comEntidades.find((a) => a.entidades.some((e) => e.sigla === S.entidade))?.nome}|${S.entidade}` : "",
+    comEntidades.reduce((n, a) => n + a.entidades.length, 0));
+  const ent = S.entidade && visiveis.flatMap((a) => a.entidades).find((e) => e.sigla === S.entidade);
+  const semEntidade = adm && !S.entidade ? planosPfNaCidade().filter((p) => aceitaAdesao(p, adm.nome, "") && !String(p.entidades || "").trim()).length : 0;
+  $("#adesao-publico").textContent = ent ? `Público da ${ent.sigla}: ${ent.publico || "não informado"}. Só aparecem os planos que aceitam essa entidade.`
+    : semEntidade ? `${plural(semEntidade)} da ${adm.nome} sem entidade cadastrada: informe as entidades em Planos e Valores.` : "";
+}
+
+// Plano que não aceita a administradora ou a entidade escolhida sai da cotação, como o plano fora da cidade.
+function aplicarAdesao() {
+  const fora = planosEscolhidos().filter((p) => !cabeNaAdesao(p));
+  S.selected = S.selected.filter((id) => !fora.some((p) => p.id === id));
+  render();
+  const motivo = S.entidade ? `não aceita a entidade ${S.entidade}` : `não é da administradora ${S.administradora}`;
+  if (fora.length) toast(fora.length === 1 ? `${fora[0].nome} saiu da cotação: ${motivo}` : `${fora.length} planos saíram da cotação: ${motivo.replace("não aceita", "não aceitam").replace("não é", "não são")}`);
 }
 
 /* ---------- planos ---------- */
@@ -198,10 +238,14 @@ function renderPlans() {
   const doTipo = S.plans.filter((p) => p.categoria === S.tipo && p.ativo !== false);
   const nomeTipo = S.tipo === "PF" ? "para pessoa física" : "CNPJ";
   if (!doTipo.length) { box.innerHTML = `<div class="status">Nenhum plano ${nomeTipo} cadastrado. Adicione na tela <b>Planos e Valores</b>.</div>`; return; }
-  const naArea = doTipo.filter((p) => vendidoEm(p, S.uf, S.municipio));
+  const naArea = doTipo.filter((p) => vendidoEm(p, S.uf, S.municipio) && cabeNaAdesao(p));
   renderFiltroPlanos(naArea);
   $("#contagem-planos").textContent = "";
-  if (!naArea.length) { box.innerHTML = `<div class="status">Nenhum plano ${nomeTipo} comercializado em ${esc(S.municipio)}.</div>`; return; }
+  if (!naArea.length) {
+    const filtro = S.tipo === "PF" && (S.entidade || S.administradora);
+    box.innerHTML = `<div class="status">${filtro ? `Nenhum plano ${nomeTipo} ${S.entidade ? `aceita a entidade ${esc(S.entidade)}` : `da ${esc(S.administradora)}`}${S.municipio ? ` em ${esc(S.municipio)}` : ""}.` : `Nenhum plano ${nomeTipo} comercializado em ${esc(S.municipio)}.`}</div>`;
+    return;
+  }
   const list = naArea.filter(passaNoFiltro);
   if (list.length !== naArea.length) $("#contagem-planos").textContent = `${list.length} de ${naArea.length} planos`;
   if (!list.length) {
@@ -256,7 +300,8 @@ function renderSel() {
   const tipoDe = (p) => {
     // O aviso é só para o corretor: sem rede na cidade, a proposta sai sem essa seção.
     const semRede = S.municipio && !redeDaCidade(p, S.municipio).length ? `Sem rede cadastrada em ${esc(S.municipio)} · ` : "";
-    return `${misturados ? `${p.categoria === "CNPJ" ? "CNPJ" : "Pessoa física"} · ` : ""}${semRede}`;
+    const adm = p.categoria === "PF" && p.administradora ? `${esc(p.administradora)}${S.entidade ? ` (${esc(S.entidade)})` : ""} · ` : "";
+    return `${misturados ? `${p.categoria === "CNPJ" ? "CNPJ" : "Pessoa física"} · ` : ""}${adm}${semRede}`;
   };
   // Plano com várias colunas de carência: o corretor escolhe qual vai na proposta.
   const escolhaCarencia = (p) => {
@@ -366,6 +411,8 @@ export async function novaCotacao() {
   for (const b of $("#tipo").children) b.setAttribute("aria-pressed", b.dataset.t === "PF");
   S.uf = "MG";
   S.municipio = "Uberlândia";
+  S.administradora = "";
+  S.entidade = "";
   S.selected = [];
   S.over = {};
   S.vidas = Array(10).fill(0);
@@ -600,13 +647,14 @@ export function renderCotacao() {
     toast("Planos desmarcados: informe a faixa etária dos beneficiários");
   }
   renderLocal();
+  renderAdesao();
   renderFaixas();
   renderPlans();
   renderSel();
   const nome = nomeCliente();
   $("#pv-nome").textContent = nome || "Cliente";
   $("#av").textContent = (nome[0] || "?").toUpperCase();
-  lastAuto = buildMsg({ items: planosEscolhidos(), vidas: S.vidas, over: S.over, nome, corretor: corretor(), opts: opcoes(), cidade: S.municipio });
+  lastAuto = buildMsg({ items: planosEscolhidos(), vidas: S.vidas, over: S.over, nome, corretor: corretor(), opts: opcoes(), cidade: S.municipio, administradora: S.tipo === "PF" ? S.administradora : "", entidade: S.tipo === "PF" ? S.entidade : "" });
   $("#nota-envio").textContent = "Abrir no WhatsApp leva o texto e copia a imagem: na conversa, aperte Ctrl+V para colar a imagem. Com vários planos, copie as outras imagens nos botões acima. A cotação fica salva no histórico automaticamente quando tem nome, WhatsApp e plano.";
   $("#links-gerados").hidden = true;
   $("#copiar-link").textContent = planosEscolhidos().length > 1 ? "Mostrar links" : "Copiar link";
@@ -640,9 +688,22 @@ export function iniciarCotacao() {
     [S.uf = "", S.municipio = ""] = $("#municipio").value ? $("#municipio").value.split("|") : [];
     aplicarLocal();
   });
+  $("#administradora").addEventListener("change", () => {
+    S.administradora = $("#administradora").value;
+    S.entidade = "";
+    aplicarAdesao();
+  });
+  $("#entidade").addEventListener("change", () => {
+    const [adm = "", sigla = ""] = $("#entidade").value ? $("#entidade").value.split("|") : [];
+    S.entidade = sigla;
+    if (sigla) S.administradora = adm;
+    aplicarAdesao();
+  });
   $("#limpar-local").onclick = () => {
     S.uf = "";
     S.municipio = "";
+    S.administradora = "";
+    S.entidade = "";
     $("#cliente").value = "";
     $("#fone").value = "";
     // Dados apagados são o começo de outra cotação, e a anterior fica no histórico como estava.

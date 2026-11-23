@@ -192,6 +192,44 @@ export function vendidoEm(plano, uf, cidade) {
   return !cidade || cidades.has(semAcento(cidade));
 }
 
+// Entidades do plano por adesão, uma por linha: "UNIPRO – Profissionais liberais". A sigla identifica a entidade
+// entre os planos; sem traço, a linha inteira é a sigla.
+export function entidadesDoPlano(plano) {
+  return lines(plano.entidades).map((l) => {
+    const [sigla, ...resto] = l.split(/\s+[–-]\s+/);
+    return { sigla: sigla.trim(), publico: resto.join(" – ").trim() };
+  }).filter((e) => e.sigla);
+}
+
+const chave = (s) => semAcento(String(s ?? "").trim());
+
+// Escolhida a administradora, só os planos dela; escolhida a entidade, só os planos que a aceitam.
+export function aceitaAdesao(plano, administradora, entidade) {
+  if (administradora && chave(plano.administradora) !== chave(administradora)) return false;
+  return !entidade || entidadesDoPlano(plano).some((e) => chave(e.sigla) === chave(entidade));
+}
+
+// Administradoras dos planos e as entidades de cada uma, com o público e quantos planos aceitam cada entidade.
+export function administradorasDosPlanos(planos) {
+  const mapa = new Map();
+  for (const p of planos) {
+    const nome = String(p.administradora ?? "").trim();
+    if (!nome) continue;
+    const adm = mapa.get(chave(nome)) ?? { nome, planos: 0, entidades: new Map() };
+    adm.planos++;
+    for (const e of entidadesDoPlano(p)) {
+      const ent = adm.entidades.get(chave(e.sigla)) ?? { sigla: e.sigla, publico: e.publico, planos: 0 };
+      ent.planos++;
+      if (!ent.publico) ent.publico = e.publico;
+      adm.entidades.set(chave(e.sigla), ent);
+    }
+    mapa.set(chave(nome), adm);
+  }
+  const ordem = (a, b) => a.localeCompare(b, "pt-BR");
+  return [...mapa.values()].sort((a, b) => ordem(a.nome, b.nome))
+    .map((a) => ({ ...a, entidades: [...a.entidades.values()].sort((x, y) => ordem(x.sigla, y.sigla)) }));
+}
+
 // A rede que vale na cidade. "Hospital – Araxá" é de Araxá; a linha sem cidade é da cidade do plano.
 // O traço só indica cidade quando ela está na área: "LABAC – Laboratório" é parte do nome.
 export function redeDaCidade(plano, cidade) {

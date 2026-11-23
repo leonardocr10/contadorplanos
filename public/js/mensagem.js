@@ -1,5 +1,5 @@
 // Mensagem do WhatsApp no Modelo A e demais textos (funções puras).
-import { brl, lines, planPrices, redeDaCidade, totalVidas } from "./calculo.js";
+import { brl, entidadesDoPlano, lines, planPrices, redeDaCidade, totalVidas } from "./calculo.js";
 
 function assinatura(c) {
   const contato = [c.empresa, c.fone].filter(Boolean).join(" · ");
@@ -27,7 +27,16 @@ function blocoValores(L, v, vidas) {
   if (v.apto != null) L.push(`✅ *Apartamento: R$ ${brl(v.apto)}*`);
 }
 
-export function buildMsg({ items, vidas, over, nome, corretor, opts, cidade = "" }) {
+// Plano por adesão, quando a cotação escolheu administradora ou entidade: a administradora do plano e a entidade
+// escolhida, com o público dela. Sem escolha, a mensagem fica como o modelo.
+function linhaDaAdesao(p, administradora, entidade) {
+  if (!administradora && !entidade) return "";
+  if (p.categoria !== "PF" || !String(p.administradora || "").trim()) return "";
+  const e = entidade && entidadesDoPlano(p).find((x) => x.sigla.toLowerCase() === entidade.toLowerCase());
+  return `🏛️ Administradora *${p.administradora.trim()}*${e ? ` · Entidade *${e.sigla}*${e.publico ? ` (${e.publico})` : ""}` : ""}`;
+}
+
+export function buildMsg({ items, vidas, over, nome, corretor, opts, cidade = "", administradora = "", entidade = "" }) {
   if (!items.length) return "";
   const nomes = items.map((p) => `*${p.nome}*`);
   const L = [
@@ -37,6 +46,8 @@ export function buildMsg({ items, vidas, over, nome, corretor, opts, cidade = ""
   for (const p of items) {
     L.push("", SEPARADOR, `🏥 *${p.nome}*`);
     if (p.subtitulo) L.push(`_${p.subtitulo}_`);
+    const adesao = linhaDaAdesao(p, administradora, entidade);
+    if (adesao) L.push(adesao);
     blocoValores(L, planPrices(p, vidas, over), vidas);
     if (p.taxa) L.push(`➕ R$ ${brl(p.taxa)} de taxa associativa`);
     if (p.odonto) L.push("🦷 12 meses de plano odontológico incluso");

@@ -117,6 +117,8 @@ function validarPlano(b) {
     faixasModelo: b.faixasModelo === "3" ? "3" : "",
     cidade: textoOpc(b.cidade, "cidade", 200),
     areaComercializacao: areaOpc(b.areaComercializacao),
+    administradora: textoOpc(b.administradora, "administradora", 120),
+    entidades: textoOpc(b.entidades, "entidades", 5000),
     rede: textoOpc(b.rede, "rede"),
     extras: textoOpc(b.extras, "benefícios"),
     descricao: textoOpc(b.descricao, "observação"),

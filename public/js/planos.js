@@ -1,5 +1,5 @@
 // Tela "Planos e valores" e o editor do plano em janela modal.
-import { ESTADOS, FAIXAS, brl, colarPlanilha, gruposDeVidas, hasFaixas, lerArea, lines, parseBRL, redeDaCidade, resumoDaRede } from "./calculo.js";
+import { ESTADOS, FAIXAS, brl, colarPlanilha, entidadesDoPlano, gruposDeVidas, hasFaixas, lerArea, lines, parseBRL, redeDaCidade, resumoDaRede } from "./calculo.js";
 import { $, S, api, avisoCentral, carregarPlanos, esc, pode, render, toast } from "./estado.js";
 import { wireUpdater } from "./atualizar.js";
 import { filtrarOpcoes } from "./filtro-select.js";
@@ -107,6 +107,7 @@ function detalheDoPlano(p) {
   const secao = (titulo, conteudo) => (conteudo ? `<section><h3>${titulo}</h3>${conteudo}</section>` : "");
   const dados = [
     p.categoria === "CNPJ" ? "CNPJ" : "Pessoa física",
+    p.administradora && `Administradora: ${p.administradora}`,
     p.cidade && `Cidade principal: ${p.cidade}`,
     p.vidasMinimas && `A partir de ${p.vidasMinimas} vidas`,
     p.taxa ? `Taxa associativa: R$ ${brl(p.taxa)}` : "Sem taxa associativa",
@@ -118,6 +119,7 @@ function detalheDoPlano(p) {
   const extras = lines(p.extras);
   return `<header><h2>${esc(p.nome)}</h2>${p.subtitulo ? `<p>${esc(p.subtitulo)}</p>` : ""}<div class="cat-dados">${dados.map((d) => `<span class="pill">${esc(d)}</span>`).join("")}</div></header>
     ${secao("Valores por pessoa", valoresDoPlano(p))}
+    ${secao("Entidades", entidadesDoPlano(p).map((e) => `<span class="pill" title="${esc(e.publico)}"><b>${esc(e.sigla)}</b>${e.publico ? ` · ${esc(e.publico)}` : ""}</span>`).join(" "))}
     ${secao("Área de comercialização", areaDoPlano(p))}
     ${secao("Coparticipação", `${p.copartTexto ? `<p>${esc(p.copartTexto)}</p>` : ""}${tabelaDeTexto(p.copartTabela) || imagem(p.imgCopart, "Tabela de coparticipação")}${p.copartNota ? `<p class="note">${esc(p.copartNota)}</p>` : ""}`)}
     ${secao("Carências", `${tabelaDeTexto(p.carenciaTabela) || imagem(p.imgCarencia, "Tabela de carências")}${p.carenciaNota ? `<p class="note">${esc(p.carenciaNota)}</p>` : ""}`)}
@@ -196,6 +198,10 @@ function openEditor(p) {
     <div class="field"><label for="e-imgcar">Imagem das carências</label><select id="e-imgcar">${opt(p.imgCarencia)}</select></div>
   </div>
   </div><div class="ed-coluna">
+  <div class="row">
+    <div class="field"><label for="e-adm">Administradora (pessoa física por adesão)</label><input id="e-adm" type="text" list="e-adm-lista" value="${esc(p.administradora || "")}" placeholder="Ex.: Qualicorp"><datalist id="e-adm-lista">${[...new Set(S.plans.map((x) => String(x.administradora || "").trim()).filter(Boolean))].sort().map((a) => `<option value="${esc(a)}">`).join("")}</datalist></div>
+  </div>
+  <div class="field"><label for="e-ent">Entidades que o titular pode usar (uma por linha: sigla – público, como UNIPRO – Profissionais liberais). Na cotação, escolher a entidade mostra só os planos que a aceitam.</label><textarea id="e-ent" style="min-height:72px">${esc(p.entidades || "")}</textarea></div>
   <div class="field"><label for="e-area">Área de comercialização (uma linha por estado, como MG: Uberlândia, Araguari). Define em quais cidades o plano aparece na cotação.</label><textarea id="e-area">${esc(p.areaComercializacao || "")}</textarea></div>
   <div class="field"><label for="e-rede">Rede hospitalar (um hospital por linha)</label><textarea id="e-rede">${esc(p.rede || "")}</textarea></div>
   <div class="field"><label for="e-desc">Observação do plano (opcional; aparece na imagem e no link se marcar "Mostrar observação")</label><textarea id="e-desc">${esc(p.descricao || "")}</textarea></div>
@@ -252,6 +258,7 @@ function openEditor(p) {
       odonto: !!p.odonto, fidelidade: $("#e-fid").checked, ativo: $("#e-ativo").checked, mostrarExtras: $("#e-showex").checked, mostrarObservacao: $("#e-showobs").checked,
       corPrimaria: $("#e-cor1").value, corEscura: $("#e-cor2").value, cidade: $("#e-cidade").value.trim(), ordem: parseBRL($("#e-ordem").value) ?? 0,
       areaComercializacao: $("#e-area").value.trim(),
+      administradora: $("#e-adm").value.trim(), entidades: $("#e-ent").value.trim(),
       rede: $("#e-rede").value.trim(), descricao: $("#e-desc").value.trim(), extras: $("#e-extras").value.trim(), copartTexto: $("#e-copart").value.trim(),
       copartTabela: $("#e-tcop").value.trim(), copartNota: $("#e-ncop").value.trim(), carenciaTabela: $("#e-tcar").value.trim(), carenciaNota: $("#e-ncar").value.trim(),
       imgCopart: $("#e-imgcop").value, imgCarencia: $("#e-imgcar").value,
