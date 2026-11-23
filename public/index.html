@@ -618,6 +618,22 @@
     <footer class="men-modal-rodape"><button class="btn" type="button" data-fechar>Cancelar</button><button class="btn primary" type="submit" id="hv-salvar">Cadastrar venda</button></footer>
   </form>
 </dialog>
+<!-- Plano por adesão: ao selecionar, o corretor escolhe a administradora e a entidade; os valores vêm dessa escolha. -->
+<dialog class="men-modal hist-venda" id="adesao-escolha" aria-labelledby="adesao-escolha-titulo">
+  <form class="men-regua-form" id="adesao-escolha-form" novalidate autocomplete="off">
+    <header class="men-modal-topo">
+      <div><h2 id="adesao-escolha-titulo">Administradora e entidade</h2><p class="note" style="margin:0" id="adesao-escolha-sub"></p></div>
+      <button class="gaveta-fechar" type="button" data-fechar aria-label="Fechar">×</button>
+    </header>
+    <div class="men-modal-corpo hist-venda-corpo">
+      <div class="field hist-venda-largo"><label for="ae-adm">Administradora</label><select id="ae-adm"></select></div>
+      <div class="field hist-venda-largo"><label for="ae-ent">Entidade do titular</label><select id="ae-ent" data-busca="Buscar entidade…"></select></div>
+      <p class="note hist-venda-largo" style="margin:0">Os valores do plano dependem da administradora e da entidade. Eles aparecem depois da escolha.</p>
+      <p class="note hist-venda-largo" id="ae-aviso" role="alert" style="margin:0"></p>
+    </div>
+    <footer class="men-modal-rodape"><button class="btn" type="button" data-fechar>Cancelar</button><button class="btn primary" type="submit">Ver valores</button></footer>
+  </form>
+</dialog>
 <dialog class="visor" id="visor" aria-labelledby="visor-titulo">
   <header class="visor-topo">
     <div class="visor-nome"><h2 id="visor-titulo"></h2><span class="note" id="visor-conta"></span></div>

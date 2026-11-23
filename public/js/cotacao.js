@@ -7,7 +7,10 @@ import { imagemParaPdf } from "./pdf-imagem.js";
 import { abrirComparativo } from "./comparativo.js";
 import { renderHistCli, saveQuote } from "./historico.js";
 
-const planosEscolhidos = () => S.selected.map((id) => S.plans.find((p) => p.id === id)).filter(Boolean);
+const todosEscolhidos = () => S.selected.map((id) => S.plans.find((p) => p.id === id)).filter(Boolean);
+// Plano por adesão sem a entidade escolhida ainda não tem valor: fica fora da mensagem, das imagens e do link.
+const esperaEntidade = (p) => { const a = adesaoDoPlano(p, S.over); return a.entidades.length > 0 && !a.entidade; };
+const planosEscolhidos = () => todosEscolhidos().filter((p) => !esperaEntidade(p));
 const nomeCliente = () => $("#cliente").value.trim();
 const corretor = () => ({ nome: S.cor.nome.trim(), fone: S.cor.fone.trim(), empresa: S.cor.empresa.trim() });
 // Coparticipação, rede e legenda de acomodação vão em toda cotação: texto, imagem, PDF e link.
@@ -54,10 +57,70 @@ function renderLocal() {
 
 // Plano fora da área sai da cotação junto com o cartão, para não ir na proposta por engano.
 function aplicarLocal() {
-  const fora = planosEscolhidos().filter((p) => !vendidoEm(p, S.uf, S.municipio));
+  const fora = todosEscolhidos().filter((p) => !vendidoEm(p, S.uf, S.municipio));
   S.selected = S.selected.filter((id) => !fora.some((p) => p.id === id));
   render();
   if (fora.length) toast(fora.length === 1 ? `${fora[0].nome} saiu da cotação: não é comercializado nesse local` : `${fora.length} planos saíram da cotação: não são comercializados nesse local`);
+}
+
+/* ---------- administradora e entidade ---------- */
+// O mesmo plano de pessoa física pode ter uma tabela por administradora (cadastros com o mesmo nome) e, em cada
+// uma, várias entidades. Na cotação ele é um cartão só: ao selecionar, o corretor escolhe a administradora e a
+// entidade numa janela, e só então aparecem os valores daquela tabela.
+const chaveAdesao = (p) => `${p.categoria}|${normal(p.nome).trim()}`;
+function variantesDe(p) {
+  if (p.categoria !== "PF") return [p];
+  const v = S.plans.filter((x) => x.categoria === "PF" && x.ativo !== false && vendidoEm(x, S.uf, S.municipio) && chaveAdesao(x) === chaveAdesao(p));
+  return v.length ? v : [p];
+}
+const varianteEscolhida = (p) => variantesDe(p).find((v) => S.selected.includes(v.id)) ?? null;
+// Há o que escolher: mais de uma administradora, ou mais de uma entidade.
+const exigeEscolha = (p) => { const v = variantesDe(p); return v.length > 1 || adesaoDoPlano(v[0]).entidades.length > 1; };
+
+let escolha = null;
+function abrirEscolhaAdesao(p) {
+  const variantes = variantesDe(p);
+  const atual = variantes.find((v) => S.selected.includes(v.id)) ?? variantes[0];
+  escolha = { variantes };
+  $("#adesao-escolha-sub").textContent = p.nome;
+  const adm = $("#ae-adm");
+  adm.innerHTML = variantes.map((v, i) => `<option value="${i}">${esc(adesaoDoPlano(v).administradora || "Administradora não informada")}</option>`).join("");
+  adm.value = String(variantes.indexOf(atual));
+  adm.disabled = variantes.length < 2;
+  preencherEntidades(S.over[atual.id]?.entidade);
+  $("#adesao-escolha").showModal();
+}
+function preencherEntidades(sigla) {
+  const v = escolha.variantes[Number($("#ae-adm").value)] ?? escolha.variantes[0];
+  const { entidades } = adesaoDoPlano(v);
+  const ent = $("#ae-ent");
+  ent.innerHTML = entidades.length
+    ? `${entidades.length > 1 ? `<option value="">Escolha a entidade do titular</option>` : ""}${entidades.map((e) => `<option value="${esc(e.sigla)}">${esc(e.publico ? `${e.sigla} – ${e.publico}` : e.sigla)}</option>`).join("")}`
+    : `<option value="">Nenhuma entidade cadastrada para esta administradora</option>`;
+  ent.value = entidades.some((e) => e.sigla === sigla) ? sigla : entidades.length === 1 ? entidades[0].sigla : "";
+  ent.disabled = entidades.length < 2;
+  $("#ae-aviso").textContent = "";
+}
+function confirmarEscolha(e) {
+  e.preventDefault();
+  if (!escolha) return;
+  const v = escolha.variantes[Number($("#ae-adm").value)] ?? escolha.variantes[0];
+  const temEntidades = adesaoDoPlano(v).entidades.length > 0;
+  const sigla = $("#ae-ent").value;
+  if (temEntidades && !sigla) { $("#ae-aviso").textContent = "Escolha a entidade do titular para ver os valores."; return; }
+  const ids = escolha.variantes.map((x) => x.id);
+  S.selected = [...S.selected.filter((id) => !ids.includes(id)), v.id];
+  S.over[v.id] = { ...S.over[v.id], entidade: sigla };
+  escolha = null;
+  $("#adesao-escolha").close();
+  render();
+}
+function iniciarEscolhaAdesao() {
+  const dlg = $("#adesao-escolha");
+  $("#adesao-escolha-form").onsubmit = confirmarEscolha;
+  dlg.querySelectorAll("[data-fechar]").forEach((b) => (b.onclick = () => dlg.close()));
+  dlg.addEventListener("close", () => (escolha = null));
+  $("#ae-adm").addEventListener("change", () => preencherEntidades(""));
 }
 
 /* ---------- planos ---------- */
@@ -94,7 +157,7 @@ function renderFiltroPlanos(list) {
 
 // Plano fora do tamanho de grupo que aceita sai da proposta, para não ir sem preço.
 function tirarForaDoGrupo() {
-  const fora = planosEscolhidos().filter((p) => { const v = prices(p); return v.minimo || v.maximo; });
+  const fora = todosEscolhidos().filter((p) => { const v = prices(p); return v.minimo || v.maximo; });
   if (!fora.length) return;
   S.selected = S.selected.filter((id) => !fora.some((p) => p.id === id));
   const n = totalVidas(S.vidas), grupo = `${n} ${n === 1 ? "vida" : "vidas"}`;
@@ -125,18 +188,25 @@ const valor = (rotulo, n) => `<span class="nw">${rotulo} R$ ${brl(n) || "—"}</
 const valores = (enf, apto) => (enf == null && apto != null ? valor("Apto", apto) : apto == null && enf != null ? valor("Enf.", enf) : `${valor("Enf.", enf)} · ${valor("Apto", apto)}`);
 
 // O título vem em HTML pronto (opção de uma linha) ou é o nome do plano.
-function cartaoDoPlano(p, titulo = esc(p.nome)) {
+function cartaoDoPlano(rep, titulo = esc(rep.nome)) {
+  // Com uma variante escolhida, o cartão mostra os valores dela e a administradora e a entidade.
+  const escolhida = varianteEscolhida(rep);
+  const p = escolhida ?? rep;
   const v = prices(p);
+  const pendente = !escolhida && exigeEscolha(rep);
+  const a = adesaoDoPlano(p, S.over);
+  const adesao = escolhida && (a.administradora || a.entidade) ? `<span>${esc([a.administradora, a.entidade?.sigla].filter(Boolean).join(" · "))}</span>` : "";
   const semArea = S.uf && !lerArea(p.areaComercializacao).estados.length ? `<span>Área de comercialização não informada</span>` : "";
   if (v.minimo || v.maximo) {
     const limite = v.minimo ? `Para grupos a partir de ${v.minimo} vidas` : `Para grupos de até ${v.maximo} vidas`;
     return `<button class="plan" aria-pressed="false" aria-disabled="true" data-id="${esc(p.id)}" data-limite="${esc(limite)}"><b>${titulo}</b><span>${limite}</span>${semArea}</button>`;
   }
-  const grupo = v.tabelaVidas ? `<span>Preço de ${esc(v.tabelaVidas)}</span>` : "";
-  const pr = v.porFaixa ? valores(v.enf, v.apto)
+  const grupo = v.tabelaVidas && !pendente ? `<span>Preço de ${esc(v.tabelaVidas)}</span>` : "";
+  const pr = pendente ? (totalVidas(S.vidas) ? "Escolha a administradora e a entidade para ver os valores" : "Informe os beneficiários")
+    : v.porFaixa ? valores(v.enf, v.apto)
     : hasFaixas(p) && !totalVidas(S.vidas) ? "Tabela por faixa etária: informe os beneficiários"
     : v.enf || v.apto ? valores(v.enf, v.apto) : "Valores sob consulta";
-  return `<button class="plan" aria-pressed="${S.selected.includes(p.id)}" aria-disabled="${!totalVidas(S.vidas)}" data-id="${esc(p.id)}"><b>${titulo}</b><span>${pr}</span>${grupo}${semArea}</button>`;
+  return `<button class="plan" aria-pressed="${!!escolhida}" aria-disabled="${!totalVidas(S.vidas)}" data-id="${esc(rep.id)}"><b>${titulo}</b><span>${pr}</span>${grupo}${adesao}${semArea}</button>`;
 }
 
 // Resumo da linha: quantas opções, o menor preço e quantas já estão na proposta.
@@ -151,15 +221,17 @@ function limiteDaLinha(planos) {
 }
 
 function cartaoDaLinha(nome, planos, aberto) {
-  const precos = planos.map(prices).filter((v) => v.porFaixa && !v.minimo && !v.maximo);
+  const comValor = planos.map((p) => varianteEscolhida(p) ?? (exigeEscolha(p) ? null : p)).filter(Boolean);
+  const precos = comValor.map(prices).filter((v) => v.porFaixa && !v.minimo && !v.maximo);
   const menor = (k) => { const x = precos.map((v) => v[k]).filter((n) => n != null); return x.length ? Math.min(...x) : null; };
   const limite = planos.map(prices).find((v) => v.minimo || v.maximo);
   const resumo = !totalVidas(S.vidas) ? "Informe os beneficiários para ver os valores"
     // Linha só de apartamento (ex.: Platinum) não mostra enfermaria.
     : precos.length ? `A partir de ${[menor("enf") != null && valor("Enf.", menor("enf")), menor("apto") != null && valor("Apto", menor("apto"))].filter(Boolean).join(" · ")}`
-    : limite?.minimo ? `Para grupos a partir de ${limite.minimo} vidas` : limite?.maximo ? `Para grupos de até ${limite.maximo} vidas` : "Valores sob consulta";
+    : limite?.minimo ? `Para grupos a partir de ${limite.minimo} vidas` : limite?.maximo ? `Para grupos de até ${limite.maximo} vidas`
+    : planos.some(exigeEscolha) ? "escolha a administradora e a entidade para ver os valores" : "Valores sob consulta";
   const tabela = precos.find((v) => v.tabelaVidas)?.tabelaVidas;
-  const marcados = planos.filter((p) => S.selected.includes(p.id)).length;
+  const marcados = planos.filter((p) => varianteEscolhida(p)).length;
   const fora = limiteDaLinha(planos);
   return `<button type="button" class="plan plan-linha" aria-expanded="${aberto}" aria-pressed="${marcados > 0}"${fora ? ` aria-disabled="true" data-limite="${esc(fora)}"` : ""} data-linha="${esc(nome)}"><b>${esc(nome)}</b><span>${planos.length} opções · ${resumo}</span>${tabela ? `<span>Preço de ${esc(tabela)}</span>` : ""}${marcados ? `<span class="na-proposta">${marcados} na proposta</span>` : ""}</button>`;
 }
@@ -202,7 +274,7 @@ function renderPlans() {
   renderFiltroPlanos(naArea);
   $("#contagem-planos").textContent = "";
   if (!naArea.length) { box.innerHTML = `<div class="status">Nenhum plano ${nomeTipo} comercializado em ${esc(S.municipio)}.</div>`; return; }
-  const list = naArea.filter(passaNoFiltro);
+  const list = naArea.filter(passaNoFiltro).filter((p, i, l) => l.findIndex((x) => chaveAdesao(x) === chaveAdesao(p)) === i);
   if (list.length !== naArea.length) $("#contagem-planos").textContent = `${list.length} de ${naArea.length} planos`;
   if (!list.length) {
     box.innerHTML = `<div class="status">Nenhum plano encontrado com esse filtro. <button type="button" class="btn btn-limpar compacto" id="limpar-filtro-planos" title="Limpar o filtro de planos"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg><span>Limpar filtro</span></button></div>`;
@@ -238,8 +310,11 @@ function renderPlans() {
   box.querySelectorAll(".plan[data-id]").forEach((b) => (b.onclick = () => {
     if (!totalVidas(S.vidas)) { toast("Informe a faixa etária dos beneficiários antes de marcar o plano"); return; }
     if (b.dataset.limite) { toast(`${b.dataset.limite}: ajuste os beneficiários para escolher este plano`); return; }
-    const id = b.dataset.id;
-    S.selected = S.selected.includes(id) ? S.selected.filter((x) => x !== id) : [...S.selected, id];
+    const p = S.plans.find((x) => x.id === b.dataset.id);
+    const ids = variantesDe(p).map((v) => v.id);
+    if (ids.some((id) => S.selected.includes(id))) { S.selected = S.selected.filter((id) => !ids.includes(id)); render(); return; }
+    if (exigeEscolha(p)) { abrirEscolhaAdesao(p); return; }
+    S.selected = [...S.selected, p.id];
     render();
   }));
 }
@@ -248,7 +323,7 @@ function renderPlans() {
 const semValor = (faixas, fixo) => ((faixas ?? []).some((x) => x != null) || fixo != null ? "falta valor" : "Não oferece");
 
 function renderSel() {
-  const box = $("#sel"), items = planosEscolhidos();
+  const box = $("#sel"), items = todosEscolhidos();
   if (!items.length) { box.innerHTML = ""; return; }
   const tv = totalVidas(S.vidas);
   // Com os dois tipos marcados, cada plano diz o seu.
@@ -267,25 +342,21 @@ function renderSel() {
       <option value="0"${atual ? "" : " selected"}>Todas as tabelas (o cliente escolhe)</option>
       ${colunas.map((c, i) => `<option value="${i + 1}"${atual === i + 1 ? " selected" : ""}>${esc(c)}</option>`).join("")}</select></div>`;
   };
-  // Plano por adesão: a administradora dele e a entidade do titular. Com uma entidade só, ela já fica escolhida,
-  // e a escolha vai junto com a cotação (imagem, link e histórico).
-  for (const p of items) {
-    const { entidades } = adesaoDoPlano(p, S.over);
-    if (entidades.length === 1 && S.over[p.id]?.entidade === undefined) S.over[p.id] = { ...S.over[p.id], entidade: entidades[0].sigla };
-  }
+  // Plano por adesão: a administradora e a entidade escolhidas, com o botão para trocar.
   const escolhaAdesao = (p) => {
     const { administradora, entidades, entidade } = adesaoDoPlano(p, S.over);
     if (!administradora && !entidades.length) return "";
-    const adm = administradora ? `<span class="adesao-adm">Administradora <b>${esc(administradora)}</b></span>` : "";
-    if (!entidades.length) return `<div class="field car adesao-plano"><label>${adm}</label><span class="adesao-sem">Entidade não cadastrada em Planos e Valores</span></div>`;
-    const id = `ent-${esc(p.id)}`;
-    return `<div class="field car adesao-plano"><label for="${id}">Entidade do titular${adm ? `<br>${adm}` : ""}</label><select id="${id}" data-ent="1">
-      <option value=""${entidade ? "" : " selected"}>Escolha a entidade do titular</option>
-      ${entidades.map((e) => `<option value="${esc(e.sigla)}"${entidade?.sigla === e.sigla ? " selected" : ""}>${esc(e.publico ? `${e.sigla} – ${e.publico}` : e.sigla)}</option>`).join("")}</select></div>`;
+    const partes = [administradora && `Administradora <b>${esc(administradora)}</b>`, entidade && `Entidade <b>${esc(entidade.sigla)}</b>${entidade.publico ? ` (${esc(entidade.publico)})` : ""}`,
+      !entidades.length && `<span class="adesao-sem">entidade não cadastrada em Planos e Valores</span>`].filter(Boolean);
+    const trocar = exigeEscolha(p) ? `<button type="button" class="btn compacto" data-adesao="1">Trocar</button>` : "";
+    return `<div class="adesao-plano"><span class="adesao-adm">${partes.join(" · ")}</span>${trocar}</div>`;
   };
   box.innerHTML = `<div class="note">Valores desta cotação:</div>` + items.map((p) => {
     const v = prices(p);
     const remover = `<button class="iconbtn" title="Tirar da proposta" aria-label="Tirar ${esc(p.nome)} da proposta" data-rm="1">×</button>`;
+    // Cotação antiga ou entidade apagada: os valores só aparecem depois de escolher a entidade.
+    if (esperaEntidade(p)) return `<div class="selitem" data-id="${esc(p.id)}"><div class="name">${esc(p.nome)}<small>${tipoDe(p)}${esc(p.subtitulo || "")}</small></div>
+      <div class="adesao-falta"><button type="button" class="btn primary compacto" data-adesao="1">Escolher administradora e entidade</button></div>${remover}</div>`;
     if (v.porFaixa) return `<div class="selitem" data-id="${esc(p.id)}"><div class="name">${esc(p.nome)}<small>${tipoDe(p)}${esc(p.subtitulo || "")} · ${tv} ${tv === 1 ? "vida" : "vidas"}</small></div>
       <div class="tot"><small>Enfermaria total</small>${v.enf != null ? "R$ " + brl(v.enf) : semValor(p.faixasEnf, p.enfermaria)}</div>
       <div class="tot"><small>Apartamento total</small>${v.apto != null ? "R$ " + brl(v.apto) : semValor(p.faixasApto, p.apartamento)}</div>
@@ -303,11 +374,8 @@ function renderSel() {
       inp.value = brl(S.over[id][inp.dataset.k]);
       render();
     }));
-    const ent = row.querySelector("[data-ent]");
-    if (ent) ent.onchange = () => {
-      S.over[id] = { ...S.over[id], entidade: ent.value };
-      render();
-    };
+    const adesao = row.querySelector("[data-adesao]");
+    if (adesao) adesao.onclick = () => abrirEscolhaAdesao(S.plans.find((x) => x.id === id));
     const car = row.querySelector("[data-car]");
     if (car) car.onchange = () => {
       S.over[id] = S.over[id] || {};
@@ -587,13 +655,13 @@ export async function copiarTexto(texto) {
 
 // O link leva à página com o botão de aceite. Ele fica visível, caso o navegador recuse a cópia.
 async function copiarLink() {
-  if (!S.selected.length) { toast("Escolha um plano primeiro"); return; }
+  if (!planosEscolhidos().length) { toast("Escolha um plano primeiro"); return; }
   const caixa = $("#links-gerados");
   let texto, links;
   try {
     ({ links } = await api("/api/propostas", {
       metodo: "POST",
-      json: { planos: [...S.selected], vidas: S.vidas, over: S.over, cliente: nomeCliente(), fone: normFone($("#fone").value), opts: opcoes(), municipio: S.municipio },
+      json: { planos: planosEscolhidos().map((p) => p.id), vidas: S.vidas, over: S.over, cliente: nomeCliente(), fone: normFone($("#fone").value), opts: opcoes(), municipio: S.municipio },
     }));
     texto = textoDosLinks(links);
   } catch (e) {
@@ -649,6 +717,7 @@ export function renderCotacao() {
 
 export function iniciarCotacao() {
   iniciarVisor();
+  iniciarEscolhaAdesao();
   $("#tipo").onclick = (e) => {
     const b = e.target.closest("button");
     if (!b) return;
