@@ -82,9 +82,15 @@ function wireRows(box) {
         return;
       }
       try {
-        await api(`/api/cotacoes/${encodeURIComponent(h.id)}`, { metodo: "PATCH", json: { status: nova } });
+        const salva = await api(`/api/cotacoes/${encodeURIComponent(h.id)}`, { metodo: "PATCH", json: { status: nova } });
         await carregarHistorico();
-        avisoCentral(nova === "Vendida" && h.emContratos ? "Situação salva. O cliente já está em Contratos Vendidos" : "Situação salva com sucesso");
+        if (salva?.contratoRemovido) {
+          avisoCentral("Situação salva. O contrato saiu de Contratos Vendidos");
+          await carregarContratos();
+          carregarFinanceiro();
+        } else {
+          avisoCentral(nova === "Vendida" && h.emContratos ? "Situação salva. O cliente já está em Contratos Vendidos" : "Situação salva com sucesso");
+        }
       } catch (e) {
         toast(`Não deu para atualizar: ${e.message}`, "erro");
       }

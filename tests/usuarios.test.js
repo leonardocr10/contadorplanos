@@ -742,3 +742,21 @@ test("Histórico: vender pede edição no Histórico e em Contratos Vendidos", a
   assert.equal((await pedir(comum, `/api/cotacoes/${c.id}`, "PATCH", { status: "Vendida" })).status, 200);
   assert.equal(banco.listarContratos({ usuarioId: eu.id }).length, 0);
 });
+
+test("Histórico: tirar a cotação de Vendida tira de Contratos Vendidos o contrato que ela gerou", async (t) => {
+  const { pedir, um } = await doisCorretores(t);
+  const c = await (await pedir(um, "/api/cotacoes", "POST", cotacao())).json();
+  const venda = { plano: "PLAM SAÚDE", valor: 2, ativacao: "2026-12-01", nome: "Maria", fone: "34999990000" };
+  const { contratoId } = await (await pedir(um, `/api/cotacoes/${c.id}/contrato`, "POST", venda)).json();
+  const r = await (await pedir(um, `/api/cotacoes/${c.id}`, "PATCH", { status: "Em Negociação" })).json();
+  assert.deepEqual([r.status, r.contratoRemovido, r.emContratos], ["Em Negociação", true, false]);
+  assert.deepEqual(await (await pedir(um, "/api/contratos")).json(), []);
+  assert.equal((await pedir(um, `/api/contratos/${contratoId}`, "DELETE")).status, 404);
+  // Vendida de novo abre a venda outra vez; trocar entre outras situações não mexe em nada.
+  assert.equal((await pedir(um, `/api/cotacoes/${c.id}/contrato`, "POST", venda)).status, 201);
+  // Contrato cadastrado direto na tela (ou vindo do Aceites) fica, mesmo com o mesmo telefone.
+  const direto = await (await pedir(um, "/api/contratos", "POST", { ...venda, nome: "Maria (direto)" })).json();
+  assert.equal((await (await pedir(um, `/api/cotacoes/${c.id}`, "PATCH", { status: "Negativa" })).json()).contratoRemovido, true);
+  assert.deepEqual((await (await pedir(um, "/api/contratos")).json()).map((k) => k.id), [direto.id]);
+  assert.equal((await (await pedir(um, `/api/cotacoes/${c.id}`, "PATCH", { status: "Enviada" })).json()).contratoRemovido, false);
+});

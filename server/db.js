@@ -1016,8 +1016,18 @@ export class Banco {
     }
   }
 
+  // Saindo de Vendida, o contrato que a cotação gerou pelo Histórico sai de Contratos Vendidos (com os documentos dele).
+  // Contratos de outra origem (Aceites ou cadastro direto) ficam.
   mudarStatus(id, status) {
-    return this.db.prepare("UPDATE cotacoes SET status = ? WHERE id = ?").run(status, id).changes > 0 ? this.obterCotacao(id) : null;
+    const antes = this.db.prepare("SELECT contrato_id FROM cotacoes WHERE id = ?").get(id);
+    if (!antes) return null;
+    let contratoRemovido = false;
+    if (status !== "Vendida" && antes.contrato_id) {
+      contratoRemovido = this.excluirContrato(antes.contrato_id);
+      this.db.prepare("UPDATE cotacoes SET contrato_id = NULL WHERE id = ?").run(id);
+    }
+    this.db.prepare("UPDATE cotacoes SET status = ? WHERE id = ?").run(status, id);
+    return { ...this.obterCotacao(id), contratoRemovido };
   }
 
   excluirCotacao(id) {
