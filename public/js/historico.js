@@ -5,6 +5,7 @@ import { carregarContratos } from "./contratos.js";
 import { carregarFinanceiro } from "./financeiro.js";
 import { linkConversaDireta, waHtml } from "./mensagem.js";
 import { normalizar } from "./filtro-select.js";
+import { travarFone } from "./fone.js";
 import { confirmar, botaoIcone, cabecalho, desenharCards, desenharPaginacao, desenharSeletorDeDia, desenharSeletorDeMes, diaLocal, mesLocal, guardarPorPagina, lerPorPagina, ordenarPor, paginar, proximaOrdem } from "./grade.js";
 
 const STATUS = ["Enviada", "Em Negociação", "Vendida", "Negativa"];
@@ -372,6 +373,7 @@ function desenharCotacoes() {
 }
 
 export function iniciarHistorico() {
+  travarFone($("#hv-fone"));
   iniciarVenda();
   const cot = $("#hist-cotacoes");
   cot.querySelectorAll("[data-fechar]").forEach((b) => (b.onclick = () => cot.close()));

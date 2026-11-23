@@ -5,6 +5,7 @@ import { linkConversaDireta, mensagemAtivacao } from "./mensagem.js";
 import { ligarVisualizacao } from "./visor-documento.js";
 import { carregarFinanceiro } from "./financeiro.js";
 import { normalizar } from "./filtro-select.js";
+import { travarFone } from "./fone.js";
 import { abrirJanelaDaGrade, janelaDaGrade, botaoIcone, cabecalho, desenharCards, desenharPaginacao, lerPorPagina, ordenarPor, paginar, proximaOrdem } from "./grade.js";
 
 let contratos = [], carregados = false, erro = null, filtro = "todos", mes = "todos";
@@ -513,6 +514,7 @@ function ligarEdicao(form, c) {
     el.addEventListener(el.tagName === "SELECT" ? "change" : "input", () => (edicao[el.dataset.campo] = el.value));
   }
   const fone = form.querySelector('[data-campo="fone"]'), valor = form.querySelector('[data-campo="valor"]');
+  travarFone(fone);
   fone.addEventListener("blur", () => { const f = normFone(fone.value); if (f.length >= 10) edicao.fone = fone.value = fmtFone(f); });
   valor.addEventListener("blur", () => { const v = parseBRL(valor.value); if (v != null) edicao.valor = valor.value = brl(v); });
   const cancelar = () => { edicao = null; renderContratos(); };
@@ -582,6 +584,7 @@ export function conferirDiaDosContratos() {
 }
 
 export function iniciarContratos() {
+  travarFone($("#ctr-fone"));
   $("#ctr-form").onsubmit = salvar;
   $("#ctr-mes").onchange = () => { destaque = null; mes = $("#ctr-mes").value; pagina = 1; renderContratos(); };
   $("#ctr-fone").addEventListener("blur", () => {

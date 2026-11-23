@@ -6,6 +6,7 @@ import { paginaParaPng } from "./imagem-proposta.js";
 import { imagemParaPdf } from "./pdf-imagem.js";
 import { abrirComparativo } from "./comparativo.js";
 import { renderHistCli, saveQuote } from "./historico.js";
+import { travarFone } from "./fone.js";
 
 const todosEscolhidos = () => S.selected.map((id) => S.plans.find((p) => p.id === id)).filter(Boolean);
 // Plano por adesão sem a entidade escolhida ainda não tem valor: fica fora da mensagem, das imagens e do link.
@@ -716,6 +717,7 @@ export function renderCotacao() {
 }
 
 export function iniciarCotacao() {
+  travarFone($("#fone"));
   iniciarVisor();
   iniciarEscolhaAdesao();
   $("#tipo").onclick = (e) => {
