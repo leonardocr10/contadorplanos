@@ -289,7 +289,8 @@ function abrir(select, botao) {
 
   fecharAberto = fechar;
   botao.setAttribute("aria-expanded", "true");
-  document.body.append(painel);
+  // Dentro de uma janela aberta (<dialog>), o painel vai junto: fora dela, ficaria por baixo da janela.
+  (botao.closest("dialog[open]") ?? document.body).append(painel);
   desenhar();
   posicionar();
   filtro.focus();

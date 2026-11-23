@@ -416,6 +416,17 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
     res.status(204).end();
   });
 
+  // Venda pelo Histórico: cadastra o cliente em Contratos Vendidos, com o plano, o valor e a data de ativação
+  // escolhidos, e deixa a cotação como Vendida. Cada cliente entra uma vez só: já estando lá, a tela só troca a situação.
+  app.post("/api/cotacoes/:id/contrato", exige("historico", "editar"), exige("contratos", "editar"), (req, res) => {
+    const c = cotacaoVisivel(req);
+    if (!c) return res.status(404).json(NAO_ACHOU_COTACAO);
+    if (c.emContratos) return res.status(409).json({ erro: "Este cliente já está em Contratos Vendidos." });
+    // O contrato fica com o dono da cotação, que é o próprio login.
+    const venda = banco.venderCotacao(c.id, { ...validarContrato(req.body), usuarioId: c.usuarioId ?? "" });
+    res.status(201).json({ contratoId: venda.contrato.id, cotacao: venda.cotacao });
+  });
+
   /* ---------- resgate ---------- */
   // Cada login vê e envia só os próprios clientes, inclusive o administrador; o WhatsApp é o dele.
   const precisaDeLogin = (req) => {

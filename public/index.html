@@ -590,6 +590,25 @@
 </div>
 <!-- Fora das telas: uma tela escondida esconderia a janela junto. -->
 <div class="modal" id="modal" hidden><div class="panel modal-box" id="editor" role="dialog" aria-modal="true" aria-labelledby="ed-title"></div></div>
+<!-- Venda pelo Histórico: a cotação vira contrato em Contratos Vendidos. Fica fora das telas porque abre também na Nova Cotação. -->
+<dialog class="men-modal hist-venda" id="hist-venda" aria-labelledby="hist-venda-titulo">
+  <form class="men-regua-form" id="hist-venda-form" novalidate autocomplete="off">
+    <header class="men-modal-topo">
+      <div><h2 id="hist-venda-titulo">Cadastrar em Contratos Vendidos</h2><p class="note" style="margin:0" id="hist-venda-sub"></p></div>
+      <button class="gaveta-fechar" type="button" data-fechar aria-label="Fechar">×</button>
+    </header>
+    <div class="men-modal-corpo hist-venda-corpo">
+      <div class="field hist-venda-largo"><label for="hv-plano">Plano vendido</label><select id="hv-plano"></select></div>
+      <div class="field"><label for="hv-valor">Valor (R$)</label><input id="hv-valor" type="text" inputmode="decimal" placeholder="0,00"></div>
+      <div class="field"><label for="hv-ativacao">Data de ativação do plano</label><input id="hv-ativacao" type="date" required></div>
+      <div class="field"><label for="hv-nome">Nome do cliente</label><input id="hv-nome" type="text"></div>
+      <div class="field"><label for="hv-fone">Telefone</label><input id="hv-fone" type="tel" placeholder="(34) 99999-0000"></div>
+      <div class="field hist-venda-largo"><label for="hv-email">E-mail (opcional)</label><input id="hv-email" type="email" inputmode="email" autocapitalize="none" spellcheck="false" placeholder="maria@exemplo.com"></div>
+      <p class="note hist-venda-largo" style="margin:0">A cotação fica como <b>Vendida</b> e o cliente entra em <b>Contratos Vendidos</b>. No dia da ativação, o sistema avisa para entrar em contato.</p>
+    </div>
+    <footer class="men-modal-rodape"><button class="btn" type="button" data-fechar>Cancelar</button><button class="btn primary" type="submit" id="hv-salvar">Cadastrar venda</button></footer>
+  </form>
+</dialog>
 <dialog class="visor" id="visor" aria-labelledby="visor-titulo">
   <header class="visor-topo">
     <div class="visor-nome"><h2 id="visor-titulo"></h2><span class="note" id="visor-conta"></span></div>

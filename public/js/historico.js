@@ -1,6 +1,8 @@
 // Tela "Histórico" e o quadro "Histórico deste número" da cotação.
-import { brl, fmtFone, normFone } from "./calculo.js";
+import { brl, fmtFone, normFone, parseBRL } from "./calculo.js";
 import { $, S, api, avisoCentral, esc, pode, render, show, toast } from "./estado.js";
+import { carregarContratos } from "./contratos.js";
+import { carregarFinanceiro } from "./financeiro.js";
 import { linkConversaDireta, waHtml } from "./mensagem.js";
 import { normalizar } from "./filtro-select.js";
 import { botaoIcone, cabecalho, desenharCards, desenharPaginacao, desenharSeletorDeDia, desenharSeletorDeMes, diaLocal, mesLocal, guardarPorPagina, lerPorPagina, ordenarPor, paginar, proximaOrdem } from "./grade.js";
@@ -72,10 +74,17 @@ function wireRows(box) {
     if (reabrir) reabrir.onclick = () => reopen(h);
     const st = row.querySelector(".hq-st");
     st.onchange = async () => {
+      const nova = st.value;
+      // Vendida leva o cliente para Contratos Vendidos: a janela pede a data de ativação e só ela salva a situação.
+      // Cancelar volta a situação de antes.
+      if (nova === "Vendida" && !h.emContratos && pode("contratos", "editar")) {
+        abrirVenda(h, () => (st.value = h.status || "Enviada"));
+        return;
+      }
       try {
-        await api(`/api/cotacoes/${encodeURIComponent(h.id)}`, { metodo: "PATCH", json: { status: st.value } });
+        await api(`/api/cotacoes/${encodeURIComponent(h.id)}`, { metodo: "PATCH", json: { status: nova } });
         await carregarHistorico();
-        avisoCentral("Situação salva com sucesso");
+        avisoCentral(nova === "Vendida" && h.emContratos ? "Situação salva. O cliente já está em Contratos Vendidos" : "Situação salva com sucesso");
       } catch (e) {
         toast(`Não deu para atualizar: ${e.message}`, "erro");
       }
@@ -95,6 +104,105 @@ function wireRows(box) {
         }
       };
     }
+  });
+}
+
+/* ---------- venda: a cotação vira contrato em Contratos Vendidos ---------- */
+// Janela aberta: a cotação, as opções de plano e o que fazer se a pessoa desistir.
+let venda = null;
+// Data de hoje no relógio do computador, no formato da data de ativação (aaaa-mm-dd).
+const hojeLocal = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+const fmtDia = (iso) => iso.split("-").reverse().join("/");
+
+// Uma opção por plano e acomodação cotados, com o valor total da cotação.
+function opcoesDaVenda(h) {
+  const opcoes = [];
+  for (const p of h.planos || []) {
+    if (p.enf != null) opcoes.push({ plano: p.nome, valor: p.enf, rotulo: `${p.nome} · Enfermaria · R$ ${brl(p.enf)}` });
+    if (p.apto != null) opcoes.push({ plano: p.nome, valor: p.apto, rotulo: `${p.nome} · Apartamento · R$ ${brl(p.apto)}` });
+    if (p.enf == null && p.apto == null) opcoes.push({ plano: p.nome, valor: null, rotulo: p.nome });
+  }
+  return opcoes;
+}
+
+function abrirVenda(h, aoDesistir = () => {}) {
+  const opcoes = opcoesDaVenda(h);
+  venda = { h, opcoes, aoDesistir, salva: false };
+  $("#hist-venda-sub").textContent = `${h.cliente || "Cliente"} · ${fmtFone(h.fone || "")} · cotação de ${fmtData(h.criadoEm)}`;
+  const sel = $("#hv-plano");
+  sel.innerHTML = opcoes.map((o, i) => `<option value="${i}">${esc(o.rotulo)}</option>`).join("");
+  sel.value = "0";
+  $("#hv-valor").value = opcoes[0]?.valor != null ? brl(opcoes[0].valor) : "";
+  $("#hv-ativacao").value = "";
+  $("#hv-nome").value = h.cliente || "";
+  $("#hv-fone").value = fmtFone(h.fone || "");
+  $("#hv-email").value = "";
+  $("#hv-salvar").disabled = false;
+  $("#hist-venda").showModal();
+  $("#hv-ativacao").focus();
+}
+
+// Confere os dados antes de mandar ao servidor; devolve a mensagem do primeiro problema.
+function problemaNaVenda(d) {
+  if (!d.plano) return "Escolha o plano vendido.";
+  if (!(d.valor > 0)) return "Informe o valor do contrato.";
+  if (!d.ativacao) return "Informe a data de ativação do plano.";
+  if (!d.nome) return "Informe o nome do cliente.";
+  if (d.fone.length < 10) return "Informe o telefone do cliente com DDD.";
+  if (d.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email)) return "Informe um e-mail válido, como nome@exemplo.com, ou deixe em branco.";
+  return "";
+}
+
+async function salvarVenda(e) {
+  e.preventDefault();
+  if (!venda) return;
+  const { h, opcoes } = venda, escolhida = opcoes[Number($("#hv-plano").value)] ?? opcoes[0];
+  const d = {
+    plano: escolhida?.plano ?? "",
+    valor: parseBRL($("#hv-valor").value),
+    ativacao: $("#hv-ativacao").value,
+    nome: $("#hv-nome").value.trim(),
+    fone: normFone($("#hv-fone").value),
+    email: $("#hv-email").value.trim().toLowerCase(),
+  };
+  const problema = problemaNaVenda(d);
+  if (problema) return toast(problema, "erro");
+  const botao = $("#hv-salvar");
+  botao.disabled = true;
+  try {
+    await api(`/api/cotacoes/${encodeURIComponent(h.id)}/contrato`, { metodo: "POST", json: d });
+    venda.salva = true;
+    $("#hist-venda").close();
+    avisoCentral(d.ativacao <= hojeLocal()
+      ? `Venda de ${d.nome} cadastrada em Contratos Vendidos. O plano já está ativo: entre em contato com o cliente`
+      : `Venda de ${d.nome} cadastrada em Contratos Vendidos. No dia ${fmtDia(d.ativacao)} o sistema avisa para entrar em contato`);
+    await Promise.all([carregarHistorico(), carregarContratos()]);
+    carregarFinanceiro();
+  } catch (erro) {
+    toast(`Não deu para cadastrar a venda: ${erro.message}`, "erro");
+    botao.disabled = false;
+  }
+}
+
+function iniciarVenda() {
+  const dlg = $("#hist-venda");
+  $("#hist-venda-form").onsubmit = salvarVenda;
+  dlg.querySelectorAll("[data-fechar]").forEach((b) => (b.onclick = () => dlg.close()));
+  // Fechar sem salvar (Cancelar, × ou Esc) desfaz a troca da situação.
+  dlg.addEventListener("close", () => {
+    if (venda && !venda.salva) venda.aoDesistir();
+    venda = null;
+  });
+  $("#hv-plano").addEventListener("change", () => {
+    const o = venda?.opcoes[Number($("#hv-plano").value)];
+    if (o?.valor != null) $("#hv-valor").value = brl(o.valor);
+  });
+  $("#hv-valor").addEventListener("blur", () => {
+    const v = parseBRL($("#hv-valor").value);
+    if (v != null) $("#hv-valor").value = brl(v);
   });
 }
 
@@ -160,10 +268,16 @@ function grupos() {
 function linhaDoCliente(g) {
   const l = g.lista, h = l[0], f = h.fone, aberto = abertos.has(g.chave);
   const planos = (h.planos || []).map((p) => p.nome);
+  // Maleta: cadastra a venda em Contratos Vendidos (a última cotação fica como Vendida). Vendida sem contrato fica em destaque.
+  const emContratos = l.some((x) => x.emContratos), vendida = h.status === "Vendida";
   const acoes = [
     botaoIcone("ver", aberto ? "Fechar as cotações" : `Ver ${l.length === 1 ? "a cotação" : `as ${l.length} cotações`}`, { atributos: `data-ver-cotacoes aria-expanded="${aberto}"`, numero: l.length > 1 ? l.length : 0 }),
     f ? botaoIcone("whatsapp", "Abrir conversa no WhatsApp", { href: linkConversaDireta(f, "", navigator.userAgent) }) : "",
     pode("cotacao") ? botaoIcone("reabrir", "Reabrir a última cotação", { atributos: "data-reabrir-ultima" }) : "",
+    f && pode("historico", "editar") && pode("contratos", "editar")
+      ? botaoIcone("contrato", emContratos ? "Já está em Contratos Vendidos" : vendida ? "Vendida: cadastrar em Contratos Vendidos (informe a data de ativação)" : "Vendeu? Cadastrar em Contratos Vendidos (a última cotação fica como Vendida)", {
+        atributos: `data-vender${emContratos ? " disabled" : ""}`, classe: emContratos ? "feito" : vendida ? "primario" : "" })
+      : "",
   ].join("");
   return `<tr class="grade-linha" data-grupo="${esc(g.chave)}">
       <td><div class="grade-nome" title="${esc(nomeDoGrupo(l))}">${esc(nomeDoGrupo(l))}</div></td>
@@ -219,10 +333,12 @@ export function renderHist() {
     renderHist();
   }));
   box.querySelectorAll("[data-reabrir-ultima]").forEach((b) => (b.onclick = () => reopen(doGrupo(b).lista[0])));
+  box.querySelectorAll("[data-vender]").forEach((b) => (b.onclick = () => abrirVenda(doGrupo(b).lista[0])));
   wireRows(box);
 }
 
 export function iniciarHistorico() {
+  iniciarVenda();
   $("#hist-busca").addEventListener("input", () => { pagina = 1; renderHist(); });
   $("#hist-filtro").onchange = () => { filtroSt = $("#hist-filtro").value; pagina = 1; renderHist(); };
   $("#hist-mes").onchange = () => { mesHist = $("#hist-mes").value; diaHist = "todos"; pagina = 1; renderHist(); };

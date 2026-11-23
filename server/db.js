@@ -452,6 +452,10 @@ const MIGRACOES = [
   },
   // Sem mudança na estrutura: marca a chegada da Amil PME Interior MG 1, coparticipação 30% (ver PLANOS_NOVOS).
   () => {},
+  // Venda pelo Histórico: a cotação guarda o contrato que ela gerou em Contratos Vendidos.
+  (db) => {
+    if (!db.prepare("PRAGMA table_info(cotacoes)").all().some((c) => c.name === "contrato_id")) db.exec("ALTER TABLE cotacoes ADD COLUMN contrato_id TEXT");
+  },
 ];
 
 // Troca os documentos dos planos CNPJ pela lista empresarial; com unimed, a Unimed PME recebe a lista dela.
@@ -577,8 +581,14 @@ function linhaParaCotacao(l) {
   return {
     id: l.id, fone: l.fone, cliente: l.cliente, criadoEm: l.criado_em, usuarioId: l.usuario_id, tipo: l.tipo, uf: l.uf, municipio: l.municipio, idades: l.idades,
     vidas: JSON.parse(l.vidas), over: JSON.parse(l.overrides), planos: JSON.parse(l.planos), mensagem: l.mensagem, status: l.status,
+    emContratos: !!l.em_contratos,
   };
 }
+
+// O cliente (dono e telefone) já está em Contratos Vendidos: um contrato com o mesmo telefone, ou o contrato que
+// uma cotação dele gerou, mesmo que o telefone tenha sido trocado depois no contrato.
+const EM_CONTRATOS = `EXISTS (SELECT 1 FROM contratos k WHERE k.usuario_id = c.usuario_id AND (k.fone = c.fone
+  OR k.id IN (SELECT o.contrato_id FROM cotacoes o WHERE o.usuario_id = c.usuario_id AND o.fone = c.fone AND o.contrato_id IS NOT NULL)))`;
 
 function linhaParaAssinatura(l) {
   return { usuarioId: l.usuario_id, valor: l.valor, dia: l.dia, inicio: l.inicio, ativa: !!l.ativa, observacao: l.observacao, bloqueado: !!l.bloqueado };
@@ -948,10 +958,10 @@ export class Banco {
   // Sem usuarioId, lista as cotações de todos.
   listarCotacoes({ fone = "", q = "", status = "", usuarioId } = {}) {
     const where = [], args = [];
-    if (usuarioId !== undefined) { where.push("usuario_id = ?"); args.push(usuarioId); }
-    if (fone) { where.push("fone = ?"); args.push(fone); }
-    if (status) { where.push("status = ?"); args.push(status); }
-    const sql = `SELECT * FROM cotacoes ${where.length ? "WHERE " + where.join(" AND ") : ""} ORDER BY criado_em DESC, id DESC`;
+    if (usuarioId !== undefined) { where.push("c.usuario_id = ?"); args.push(usuarioId); }
+    if (fone) { where.push("c.fone = ?"); args.push(fone); }
+    if (status) { where.push("c.status = ?"); args.push(status); }
+    const sql = `SELECT c.*, ${EM_CONTRATOS} AS em_contratos FROM cotacoes c ${where.length ? "WHERE " + where.join(" AND ") : ""} ORDER BY c.criado_em DESC, c.id DESC`;
     let lista = this.db.prepare(sql).all(...args).map(linhaParaCotacao);
     const busca = q.trim().toLowerCase();
     if (busca) {
@@ -963,7 +973,7 @@ export class Banco {
   }
 
   obterCotacao(id) {
-    const l = this.db.prepare("SELECT * FROM cotacoes WHERE id = ?").get(id);
+    const l = this.db.prepare(`SELECT c.*, ${EM_CONTRATOS} AS em_contratos FROM cotacoes c WHERE c.id = ?`).get(id);
     return l ? linhaParaCotacao(l) : null;
   }
 
@@ -990,6 +1000,20 @@ export class Banco {
       .prepare("UPDATE cotacoes SET fone = ?, cliente = ?, tipo = ?, uf = ?, municipio = ?, idades = ?, vidas = ?, overrides = ?, planos = ?, mensagem = ? WHERE id = ?")
       .run(c.fone, c.cliente, c.tipo, c.uf ?? "", c.municipio ?? "", c.idades, JSON.stringify(c.vidas), JSON.stringify(c.over), JSON.stringify(c.planos), c.mensagem, id);
     return r.changes > 0 ? this.obterCotacao(id) : null;
+  }
+
+  // Venda pelo Histórico: o contrato entra em Contratos Vendidos e a cotação fica como Vendida, as duas coisas juntas.
+  venderCotacao(id, contrato) {
+    this.db.exec("BEGIN");
+    try {
+      const novo = this.criarContrato(contrato);
+      this.db.prepare("UPDATE cotacoes SET status = 'Vendida', contrato_id = ? WHERE id = ?").run(novo.id, id);
+      this.db.exec("COMMIT");
+      return { contrato: novo, cotacao: this.obterCotacao(id) };
+    } catch (e) {
+      this.db.exec("ROLLBACK");
+      throw e;
+    }
   }
 
   mudarStatus(id, status) {

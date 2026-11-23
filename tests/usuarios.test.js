@@ -507,7 +507,7 @@ test("com visualização, consulta e não altera", async (t) => {
   assert.equal((await pedir(comum, "/api/propostas/previa", "POST", pedido)).status, 200);
   const c = banco.salvarCotacao({ ...cotacao(), usuarioId: eu.id }).cotacao;
   const proibidos = [
-    ["/api/cotacoes", "POST", cotacao()], [`/api/cotacoes/${c.id}`, "PUT", cotacao()], [`/api/cotacoes/${c.id}`, "PATCH", { status: "Vendida" }], [`/api/cotacoes/${c.id}`, "DELETE"],
+    ["/api/cotacoes", "POST", cotacao()], [`/api/cotacoes/${c.id}`, "PUT", cotacao()], [`/api/cotacoes/${c.id}`, "PATCH", { status: "Vendida" }], [`/api/cotacoes/${c.id}`, "DELETE"], [`/api/cotacoes/${c.id}/contrato`, "POST", { ...contrato(), plano: "PLAM SAÚDE" }],
     ["/api/propostas", "POST", { ...pedido, fone: "34999990000" }], ["/api/propostas/comparativo", "POST", { ...pedido, planos: ["plam-saude-pf", "plamedh-pf"] }],
     ["/api/planos", "POST", { nome: "X", categoria: "PF" }], ["/api/documentos", "POST", { nome: "Y" }], ["/api/aceites/qualquer/documentos", "POST", {}], ["/api/aceites/qualquer", "DELETE"],
     ["/api/contratos", "POST", contrato()], ["/api/contratos/qualquer", "PUT", contrato()], ["/api/contratos/qualquer/contato", "PATCH", { feito: true }], ["/api/contratos/qualquer", "DELETE"],
@@ -700,4 +700,45 @@ test("o Resgate tem acesso próprio; quem não tinha a tela salva fica com o ace
   assert.equal(permissoesDoUsuario("usuario", JSON.stringify({ historico: "editar", resgate: "nenhum" })).resgate, "nenhum");
   assert.equal(permissoesDoUsuario("usuario", "").resgate, "editar");
   assert.equal(permissoesDoUsuario("admin", JSON.stringify({ resgate: "nenhum" })).resgate, "editar");
+});
+
+test("Histórico: a venda leva o cliente para Contratos Vendidos e deixa a cotação como Vendida, uma vez só", async (t) => {
+  const { pedir, um, dois } = await doisCorretores(t);
+  const c = await (await pedir(um, "/api/cotacoes", "POST", cotacao({ planos: [{ id: "amil-pme-prata-40", nome: "AMIL PRATA 40%", enf: 380.5, apto: 420 }] }))).json();
+  assert.equal(c.emContratos, false);
+  const venda = { plano: "AMIL PRATA 40%", valor: 420, ativacao: "2026-12-01", nome: "Maria", fone: "(34) 99999-0000", email: "" };
+  const lista = async () => (await pedir(um, "/api/cotacoes")).json();
+  // Outro corretor não vende a cotação de ninguém, nem descobre que ela existe.
+  assert.equal((await pedir(dois, `/api/cotacoes/${c.id}/contrato`, "POST", venda)).status, 404);
+  // Sem a data de ativação, nada muda.
+  assert.equal((await pedir(um, `/api/cotacoes/${c.id}/contrato`, "POST", { ...venda, ativacao: "" })).status, 400);
+  assert.equal((await lista())[0].status, "Enviada");
+  const r = await pedir(um, `/api/cotacoes/${c.id}/contrato`, "POST", venda);
+  assert.equal(r.status, 201);
+  const corpo = await r.json();
+  assert.deepEqual([corpo.cotacao.status, corpo.cotacao.emContratos], ["Vendida", true]);
+  const contratos = await (await pedir(um, "/api/contratos")).json();
+  assert.deepEqual(contratos.map((k) => [k.id, k.nome, k.fone, k.plano, k.valor, k.ativacao]), [[corpo.contratoId, "Maria", "34999990000", "AMIL PRATA 40%", 420, "2026-12-01"]]);
+  assert.deepEqual(await (await pedir(dois, "/api/contratos")).json(), []);
+  // As outras cotações do mesmo cliente também ficam como em Contratos Vendidos e não geram outro contrato.
+  const outra = await (await pedir(um, "/api/cotacoes", "POST", cotacao({ mensagem: "Outra" }))).json();
+  assert.equal(outra.emContratos, true);
+  assert.equal((await pedir(um, `/api/cotacoes/${outra.id}/contrato`, "POST", venda)).status, 409);
+  // Trocar o telefone no contrato não solta o cliente; excluir o contrato libera de novo.
+  assert.equal((await pedir(um, `/api/contratos/${corpo.contratoId}`, "PUT", { ...venda, fone: "34988887777" })).status, 200);
+  assert.ok((await lista()).every((x) => x.emContratos));
+  assert.equal((await pedir(um, `/api/contratos/${corpo.contratoId}`, "DELETE")).status, 204);
+  assert.ok((await lista()).every((x) => !x.emContratos));
+  assert.equal((await lista()).find((x) => x.id === c.id).status, "Vendida");
+});
+
+test("Histórico: vender pede edição no Histórico e em Contratos Vendidos", async (t) => {
+  const { banco, pedir, comum } = await comPermissoes(t, { cotacao: "editar", planos: "ver", documentos: "ver", historico: "editar", aceites: "editar", contratos: "ver" });
+  const eu = await (await pedir(comum, "/api/eu")).json();
+  const c = banco.salvarCotacao({ ...cotacao(), usuarioId: eu.id }).cotacao;
+  const venda = { plano: "PLAM SAÚDE", valor: 2, ativacao: "2026-12-01", nome: "Maria", fone: "34999990000" };
+  assert.equal((await pedir(comum, `/api/cotacoes/${c.id}/contrato`, "POST", venda)).status, 403);
+  // Só a situação continua podendo ser trocada.
+  assert.equal((await pedir(comum, `/api/cotacoes/${c.id}`, "PATCH", { status: "Vendida" })).status, 200);
+  assert.equal(banco.listarContratos({ usuarioId: eu.id }).length, 0);
 });
