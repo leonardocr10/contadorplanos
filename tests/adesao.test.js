@@ -1,4 +1,4 @@
-// Administradora e entidade dos planos de pessoa física por adesão: cadastro, escolha no plano selecionado, mensagem e proposta.
+// Administradora e entidade dos planos de pessoa física por adesão: cadastro e escolha no plano selecionado (não aparecem na mensagem nem na proposta).
 import test from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
@@ -44,17 +44,15 @@ test("o plano selecionado traz a administradora e a entidade escolhida; com uma 
   assert.deepEqual(adesaoDoPlano(plano("plam-total-cnpj")), { administradora: "", entidades: [], entidade: null });
 });
 
-test("a mensagem e a proposta citam a administradora e a entidade escolhida no plano", () => {
+test("a mensagem e a proposta não citam a administradora nem a entidade, mas usam o preço do plano escolhido", () => {
   const hap = plano("hapvida-nosso-plano-total");
   const vidas = [0, 0, 0, 1, 0, 0, 0, 0, 0, 0];
-  const base = { items: [hap], vidas, over: {}, nome: "Maria", corretor: { nome: "", fone: "", empresa: "" }, opts: {} };
-  assert.ok(!buildMsg(base).includes("Entidade"));
   const over = { [hap.id]: { entidade: "UNIPRO" } };
-  assert.ok(buildMsg({ ...base, over }).includes("\n🏛️ Administradora *Affix* · Entidade *UNIPRO* (Profissionais liberais)\n"));
-  const s = montarSnapshot(hap, { vidas, over, cliente: "Maria", opts: {} }, { nome: "", fone: "", empresa: "" });
-  assert.equal(s.plano.adesao, "Administradora Affix · Entidade UNIPRO (Profissionais liberais)");
-  assert.ok(renderizarProposta(s).includes("Administradora Affix · Entidade UNIPRO (Profissionais liberais)"));
-  assert.equal(montarSnapshot(hap, { vidas, over: {}, cliente: "Maria", opts: {} }, { nome: "", fone: "", empresa: "" }).plano.adesao, "");
+  const msg = buildMsg({ items: [hap], vidas, over, nome: "Maria", corretor: { nome: "", fone: "", empresa: "" }, opts: {} });
+  assert.ok(!msg.includes("Administradora") && !msg.includes("UNIPRO"));
+  assert.ok(msg.includes("R$"));
+  const html = renderizarProposta(montarSnapshot(hap, { vidas, over, cliente: "Maria", opts: {} }, { nome: "", fone: "", empresa: "" }));
+  assert.ok(!html.includes("Administradora") && !html.includes("UNIPRO"));
 });
 
 test("ao atualizar, os planos recebem administradora e entidades; o que foi editado à mão fica", (t) => {
