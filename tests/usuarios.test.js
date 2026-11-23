@@ -772,3 +772,16 @@ test("Histórico: sem editar Contratos Vendidos, a cotação vendida não sai de
   assert.equal(banco.listarContratos({ usuarioId: eu.id }).length, 1);
   assert.equal(banco.obterCotacao(c.id).status, "Vendida");
 });
+
+test("desempenho: o Histórico filtra o dono no banco e usa os índices de dono e telefone", async (t) => {
+  const { banco, pedir, um, dois } = await doisCorretores(t);
+  const indices = banco.db.prepare("SELECT name FROM sqlite_master WHERE type = 'index'").all().map((i) => i.name);
+  assert.ok(indices.includes("idx_contratos_usuario_fone") && indices.includes("idx_cotacoes_usuario_fone"), indices.join(","));
+  const plano = banco.db.prepare(`EXPLAIN QUERY PLAN SELECT 1 FROM contratos k WHERE k.usuario_id = ? AND k.fone = ?`).all("x", "y").map((l) => l.detail).join(" ");
+  assert.match(plano, /idx_contratos_usuario_fone/);
+  for (let i = 0; i < 5; i++) await pedir(um, "/api/cotacoes", "POST", cotacao({ fone: `3499999${String(i).padStart(4, "0")}` }));
+  await pedir(dois, "/api/cotacoes", "POST", cotacao());
+  // Cada login só recebe as próprias, já filtradas no banco.
+  assert.equal((await (await pedir(um, "/api/cotacoes")).json()).length, 5);
+  assert.equal((await (await pedir(dois, "/api/cotacoes")).json()).length, 1);
+});

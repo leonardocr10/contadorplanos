@@ -386,7 +386,9 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
   /* ---------- cotações ---------- */
   app.get("/api/cotacoes", exige("historico", "ver"), (req, res) => {
     const { fone, q, status } = req.query;
+    // Com login, o filtro do dono vai para o banco: cada login só lê as próprias cotações.
     const lista = banco.listarCotacoes({
+      usuarioId: req.usuario ? req.usuario.id : undefined,
       fone: typeof fone === "string" ? normFone(fone) : "",
       q: typeof q === "string" ? q : "",
       status: typeof status === "string" ? status : "",

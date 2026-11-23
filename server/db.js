@@ -458,6 +458,10 @@ const MIGRACOES = [
   },
   // Sem mudança na estrutura: rede da Amil Interior MG 1 só com as 7 cidades dela (ver atualizarRedeAmilInterior).
   () => {},
+  // Desempenho: o Histórico e o Resgate procuram contrato e cotação pelo dono e telefone; sem índice, cada cotação
+  // percorria a tabela inteira de contratos.
+  `CREATE INDEX IF NOT EXISTS idx_contratos_usuario_fone ON contratos (usuario_id, fone);
+   CREATE INDEX IF NOT EXISTS idx_cotacoes_usuario_fone ON cotacoes (usuario_id, fone);`,
 ];
 
 // Troca os documentos dos planos CNPJ pela lista empresarial; com unimed, a Unimed PME recebe a lista dela.
