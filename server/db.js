@@ -472,6 +472,9 @@ const MIGRACOES = [
   () => {},
   // Sem mudança na estrutura: marca a chegada dos planos Unimed BH por adesão da Qualicorp (ver PLANOS_NOVOS).
   () => {},
+  // Sem mudança na estrutura: SulAmérica por adesão com as 24 entidades do guia de MG, o Clássico 100 e a tabela 001
+  // da ANAPROLIE (ver PLANOS_NOVOS e atualizarEntidadesSulamerica).
+  () => {},
 ];
 
 // Troca os documentos dos planos CNPJ pela lista empresarial; com unimed, a Unimed PME recebe a lista dela.
@@ -504,6 +507,8 @@ const VERSAO_REDE_UNIMED_PME = 37;
 const VERSAO_REDE_AMIL_INTERIOR = 63;
 const VERSAO_ADMINISTRADORAS = 65;
 const VERSAO_ENTIDADES_AMIL = 66;
+const VERSAO_ENTIDADES_SULAMERICA = 68;
+const SULAMERICA_TABELA_002 = ["sulamerica-direto-nacional", "sulamerica-especial-100-rc", "sulamerica-especial-100-r1", "sulamerica-executivo-pleno"];
 // Amil pessoa física por adesão (Supermed): entidades do titular.
 const AMIL_ADESAO = ["amil-prata-mg1-total", "amil-prata-mg1-parcial", "amil-ouro-total", "amil-ouro-parcial", "amil-platinum-r1-total", "amil-platinum-r1-parcial", "amil-platinum-r2-total", "amil-platinum-r2-parcial"];
 const ENTIDADES_AMIL_ADESAO = "ASPROLI – Profissionais liberais\nAAFP – Servidores públicos";
@@ -554,7 +559,9 @@ const PLANOS_NOVOS = [{ id: "plamedh-basic-pme", versao: 6 }, { id: "plam-total-
   ...["prata-30", "prata-30-mei", "ouro-30", "ouro-30-mei", "platinum-r1-30", "platinum-r1-30-mei", "platinum-r2-30", "platinum-r2-30-mei"]
     .map((s) => ({ id: `amil-pme-interior-mg1-${s}`, versao: 61, documentosDe: `amil-pme-${s}` })),
   // Unimed BH por adesão (Qualicorp): uma tabela por produto e entidade, com os documentos da SulAmérica por adesão.
-  ...UNIMED_BH_ADESAO.map((id) => ({ id, versao: 67, documentosDe: "sulamerica-direto-nacional" }))];
+  ...UNIMED_BH_ADESAO.map((id) => ({ id, versao: 67, documentosDe: "sulamerica-direto-nacional" })),
+  // SulAmérica por adesão: Clássico 100 e a tabela 001 da ANAPROLIE.
+  ...["sulamerica-classico-100", "sulamerica-direto-nacional-anaprolie-001", "sulamerica-especial-100-rc-anaprolie-001", "sulamerica-especial-100-r1-anaprolie-001", "sulamerica-executivo-pleno-anaprolie-001", "sulamerica-classico-100-anaprolie-001"].map((id) => ({ id, versao: 68, documentosDe: "sulamerica-direto-nacional" }))];
 
 function migrar(db) {
   const versao = db.prepare("PRAGMA user_version").get().user_version;
@@ -695,6 +702,20 @@ export class Banco {
     this.incluirCartaDePermanencia(versaoAntes);
     this.preencherAdministradoras(versaoAntes);
     this.preencherEntidadesAmil(versaoAntes);
+    this.atualizarEntidadesSulamerica(versaoAntes);
+  }
+
+  // SulAmérica por adesão: a tabela que já existia é a da ANAPROLIE 002 e das 24 entidades do guia de MG, com o mesmo
+  // preço. Troca só a entidade que veio da versão 65 (ANAPROLIE sozinha); o que foi editado à mão fica.
+  atualizarEntidadesSulamerica(versaoAntes) {
+    if (versaoAntes === 0 || versaoAntes >= VERSAO_ENTIDADES_SULAMERICA) return;
+    if (!this.caminhoSeed || !existsSync(this.caminhoSeed)) return;
+    const planos = JSON.parse(readFileSync(this.caminhoSeed, "utf8"));
+    const trocar = this.db.prepare("UPDATE planos SET entidades = ?, descricao = CASE WHEN descricao = '' THEN ? ELSE descricao END WHERE id = ? AND entidades IN ('', 'ANAPROLIE – Profissionais liberais')");
+    for (const id of SULAMERICA_TABELA_002) {
+      const p = planos.find((x) => x.id === id);
+      if (p) trocar.run(p.entidades, p.descricao ?? "", id);
+    }
   }
 
   // Amil por adesão: ASPROLI (profissionais liberais) e AAFP (servidores públicos de MG). Só onde está vazio.

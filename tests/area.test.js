@@ -290,6 +290,8 @@ test("a SulAmérica tem a rede de cada cidade, conforme a tabela", () => {
   for (const p of planos.filter((x) => x.id.startsWith("sulamerica-"))) {
     const area = lerArea(p.areaComercializacao).estados[0].cidades;
     assert.ok(area.includes("Timóteo") && area.includes("Tiradentes"));
+    // O Clássico 100 não chega ao Triângulo Mineiro.
+    assert.equal(area.includes("Uberlândia"), !p.id.startsWith("sulamerica-classico-100"), p.id);
     for (const l of p.rede.split("\n")) {
       const m = l.match(/ – ([^–]+)$/);
       if (m) assert.ok(vendidoEm(p, "MG", m[1]), `${p.id}: ${l}`);
@@ -618,7 +620,7 @@ test("todos os planos da base têm área válida", () => {
 
 test("as tabelas definem quais planos aparecem em cada cidade", () => {
   // Uberlândia está na área de todos os planos, menos da Aurora, dos planos de Uberaba da Hapvida e da Unimed BH.
-  assert.deepEqual(planos.filter((p) => !vendidoEm(p, "MG", "Uberlândia") && !p.id.startsWith("unimed-bh-")).map((p) => p.id), ["aurora-saude-pf", "hapvida-nosso-plano-pme-uberaba-total", "hapvida-nosso-plano-pme-uberaba-parcial", "hapvida-nosso-plano-uberaba-total", "hapvida-nosso-plano-uberaba-parcial"]);
+  assert.deepEqual(planos.filter((p) => !vendidoEm(p, "MG", "Uberlândia") && !p.id.startsWith("unimed-bh-") && !p.id.startsWith("sulamerica-classico-100")).map((p) => p.id), ["aurora-saude-pf", "hapvida-nosso-plano-pme-uberaba-total", "hapvida-nosso-plano-pme-uberaba-parcial", "hapvida-nosso-plano-uberaba-total", "hapvida-nosso-plano-uberaba-parcial"]);
   // Só a tabela Union da Plamedh chega a Goiás.
   assert.deepEqual(nomesEm("GO", ""), ["plamedh-pf", "plamedh-kids-pf"]);
   assert.deepEqual(nomesEm("GO", "Catalão"), ["plamedh-pf", "plamedh-kids-pf"]);

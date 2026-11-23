@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { adesaoDoPlano, entidadesDoPlano } from "../public/js/calculo.js";
+import { adesaoDoPlano, entidadesDoPlano, vendidoEm } from "../public/js/calculo.js";
 import { buildMsg } from "../public/js/mensagem.js";
 import { montarSnapshot, renderizarProposta } from "../server/proposta-html.js";
 import { Banco } from "../server/db.js";
@@ -26,7 +26,10 @@ test("todo plano de pessoa física tem a administradora das tabelas", () => {
 
 test("as entidades são lidas uma por linha, com a sigla e o público", () => {
   assert.deepEqual(entidadesDoPlano(plano("hapvida-nosso-plano-total")).map((e) => e.sigla), ["FNEL", "UNIPRO", "ASCOSERVI", "FADESP", "ANSP"]);
-  assert.deepEqual(entidadesDoPlano(plano("sulamerica-direto-nacional")), [{ sigla: "ANAPROLIE", publico: "Profissionais liberais" }]);
+  const sula = entidadesDoPlano(plano("sulamerica-direto-nacional"));
+  assert.equal(sula.length, 25);
+  assert.deepEqual(sula[0], { sigla: "ANAPROLIE", publico: "Médicos, dentistas, direito, enfermagem, engenharia e outras (tabela 002)" });
+  assert.deepEqual(sula.find((e) => e.sigla === "AMB Magistrados"), { sigla: "AMB Magistrados", publico: "Associação dos Magistrados Brasileiros" });
   assert.deepEqual(entidadesDoPlano({ entidades: "ABC\n  \nXYZ - Médicos" }), [{ sigla: "ABC", publico: "" }, { sigla: "XYZ", publico: "Médicos" }]);
 });
 
@@ -35,9 +38,13 @@ test("o plano selecionado traz a administradora e a entidade escolhida; com uma 
   assert.equal(adesaoDoPlano(hap).administradora, "Affix");
   assert.equal(adesaoDoPlano(hap).entidade, null);
   assert.deepEqual(adesaoDoPlano(hap, { [hap.id]: { entidade: "unipro" } }).entidade, { sigla: "UNIPRO", publico: "Profissionais liberais" });
-  assert.equal(adesaoDoPlano(sula).entidade.sigla, "ANAPROLIE");
+  // Com várias entidades, nenhuma vem escolhida; com uma só (tabela 001 da ANAPROLIE), ela já vem.
+  assert.equal(adesaoDoPlano(sula).entidade, null);
+  assert.equal(adesaoDoPlano(sula, { [sula.id]: { entidade: "aasp" } }).entidade.sigla, "AASP");
+  const sula001 = plano("sulamerica-direto-nacional-anaprolie-001");
+  assert.equal(adesaoDoPlano(sula001).entidade.sigla, "ANAPROLIE");
   // "Nenhuma" escolhida de propósito fica sem entidade.
-  assert.equal(adesaoDoPlano(sula, { [sula.id]: { entidade: "" } }).entidade, null);
+  assert.equal(adesaoDoPlano(sula001, { [sula001.id]: { entidade: "" } }).entidade, null);
   // Entidade que o plano não aceita não vale.
   assert.equal(adesaoDoPlano(hap, { [hap.id]: { entidade: "ANAPROLIE" } }).entidade, null);
   // Plano CNPJ não tem administradora.
@@ -65,7 +72,7 @@ test("ao atualizar, os planos recebem administradora e entidades; o que foi edit
   const novo = new Banco(caminho, seed);
   try {
     assert.equal(novo.obterPlano("sulamerica-direto-nacional").administradora, "Qualicorp");
-    assert.equal(novo.obterPlano("sulamerica-direto-nacional").entidades, "ANAPROLIE – Profissionais liberais");
+    assert.equal(novo.obterPlano("sulamerica-direto-nacional").entidades, plano("sulamerica-direto-nacional").entidades);
     assert.equal(novo.obterPlano("plam-saude-pf").administradora, "Outra");
     // Gravar o plano guarda os dois campos.
     const p = novo.obterPlano("aurora-saude-pf");
@@ -127,6 +134,37 @@ test("Unimed BH por adesão: uma tabela por produto e entidade da Qualicorp, agr
   try {
     assert.equal(novo.obterPlano("unimed-bh-unipart-flex-2-afae").entidades, "AFAE – Funcionários aposentados de MG · Flex 2, com coparticipação na internação");
     assert.equal(novo.listarPlanos().filter((p) => p.id.startsWith("unimed-bh-")).length, 43);
+  } finally {
+    novo.fechar();
+  }
+});
+
+test("SulAmérica por adesão: a tabela das 24 entidades e da ANAPROLIE 002, o Clássico 100 e a tabela 001 da ANAPROLIE", (t) => {
+  const sula = planos.filter((p) => p.id.startsWith("sulamerica-"));
+  assert.equal(sula.length, 10);
+  const porNome = Object.groupBy(sula, (p) => p.nome);
+  assert.deepEqual(Object.values(porNome).map((v) => v.length), [2, 2, 2, 2, 2]);
+  // A tabela 001 é 20% mais cara para titular sozinho ou com 1 dependente.
+  const d2 = plano("sulamerica-direto-nacional"), d1 = plano("sulamerica-direto-nacional-anaprolie-001");
+  assert.deepEqual([d2.faixasEnf[0], d1.faixasEnf[0], d1.faixasEnfFamilia[0]], [219.83, 263.8, 219.83]);
+  // Clássico 100: só enfermaria e fora do Triângulo Mineiro.
+  const classico = plano("sulamerica-classico-100");
+  assert.deepEqual([classico.faixasEnf[0], classico.faixasEnfFamilia[0]], [301.83, 251.53]);
+  assert.ok(classico.faixasApto.every((v) => v == null));
+  assert.ok(!vendidoEm(classico, "MG", "Uberlândia") && vendidoEm(classico, "MG", "Belo Horizonte"));
+  assert.ok(!classico.rede.includes("Mater Dei") && !classico.rede.includes("Labclass"));
+  // Banco existente: a entidade antiga vira a lista nova; os planos novos entram.
+  const pasta = mkdtempSync(join(tmpdir(), "cotador-sula-"));
+  t.after(() => rmSync(pasta, { recursive: true, force: true }));
+  const caminho = join(pasta, "c.db");
+  const antigo = new Banco(caminho, seed);
+  antigo.db.exec("DELETE FROM planos WHERE id LIKE 'sulamerica-classico%' OR id LIKE '%-anaprolie-001'; UPDATE planos SET entidades = 'ANAPROLIE – Profissionais liberais', descricao = '' WHERE id LIKE 'sulamerica-%'; UPDATE planos SET entidades = 'XYZ – Editada' WHERE id = 'sulamerica-executivo-pleno'; PRAGMA user_version = 67");
+  antigo.fechar();
+  const novo = new Banco(caminho, seed);
+  try {
+    assert.equal(novo.obterPlano("sulamerica-especial-100-rc").entidades, plano("sulamerica-especial-100-rc").entidades);
+    assert.equal(novo.obterPlano("sulamerica-executivo-pleno").entidades, "XYZ – Editada");
+    assert.equal(novo.listarPlanos().filter((p) => p.id.startsWith("sulamerica-")).length, 10);
   } finally {
     novo.fechar();
   }
