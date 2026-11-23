@@ -704,3 +704,27 @@ test("Amil PME Interior MG 1 (30%): planos novos ao lado dos atuais, com a tabel
   }
   novo.fechar();
 });
+
+test("Amil Interior MG 1: a rede de cada cidade é a do plano Amil de mesma linha, sem prestadores de outras cidades", (t) => {
+  const novos = planos.filter((p) => p.id.startsWith("amil-pme-interior-mg1-"));
+  assert.equal(novos.length, 8);
+  for (const p of novos) {
+    const base = planos.find((x) => x.id === p.id.replace("interior-mg1-", ""));
+    for (const cidade of ["Uberlândia", "Uberaba", "Araguari", "Indianópolis", "Monte Alegre de Minas", "Prata", "Tupaciguara"]) {
+      assert.deepEqual(redeDaCidade(p, cidade), redeDaCidade(base, cidade), `${p.id} ${cidade}`);
+    }
+    assert.ok(!redeDaCidade(p, "Uberlândia").some((l) => /Sabar|Pouso Alegre|Nova Lima/.test(l)), p.id);
+  }
+  // O banco que recebeu a rede copiada inteira é corrigido ao atualizar; rede editada à mão fica.
+  const pasta = mkdtempSync(join(tmpdir(), "cotador-amil-rede-"));
+  t.after(() => rmSync(pasta, { recursive: true, force: true }));
+  const caminho = join(pasta, "c.db");
+  const antigo = new Banco(caminho, seed);
+  antigo.db.exec(`UPDATE planos SET rede = (SELECT rede FROM planos b WHERE b.id = replace(planos.id, 'interior-mg1-', '')) WHERE id LIKE 'amil-pme-interior-mg1-%';
+    UPDATE planos SET rede = 'Minha rede' WHERE id = 'amil-pme-interior-mg1-ouro-30-mei'; PRAGMA user_version = 62`);
+  antigo.fechar();
+  const novo = new Banco(caminho, seed);
+  assert.equal(novo.obterPlano("amil-pme-interior-mg1-prata-30").rede, novos.find((p) => p.id === "amil-pme-interior-mg1-prata-30").rede);
+  assert.equal(novo.obterPlano("amil-pme-interior-mg1-ouro-30-mei").rede, "Minha rede");
+  novo.fechar();
+});

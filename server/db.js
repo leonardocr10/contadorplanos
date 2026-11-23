@@ -456,6 +456,8 @@ const MIGRACOES = [
   (db) => {
     if (!db.prepare("PRAGMA table_info(cotacoes)").all().some((c) => c.name === "contrato_id")) db.exec("ALTER TABLE cotacoes ADD COLUMN contrato_id TEXT");
   },
+  // Sem mudança na estrutura: rede da Amil Interior MG 1 só com as 7 cidades dela (ver atualizarRedeAmilInterior).
+  () => {},
 ];
 
 // Troca os documentos dos planos CNPJ pela lista empresarial; com unimed, a Unimed PME recebe a lista dela.
@@ -485,6 +487,7 @@ const VERSAO_BENEFICIOS_AMIL_PME = 28;
 const VERSAO_HAPVIDA_PME = 35;
 const VERSAO_CARENCIAS_UNIMED_PME = 36;
 const VERSAO_REDE_UNIMED_PME = 37;
+const VERSAO_REDE_AMIL_INTERIOR = 63;
 const VERSAO_CARTA_DE_PERMANENCIA = 44;
 // Relação de documentos do plano empresarial/PJ: da empresa, depois do titular e dos dependentes.
 const DOCUMENTOS_CNPJ = [
@@ -662,6 +665,7 @@ export class Banco {
     this.atualizarHapvidaPme(versaoAntes);
     this.atualizarCarenciasUnimedPme(versaoAntes);
     this.atualizarRedeUnimedPme(versaoAntes);
+    this.atualizarRedeAmilInterior(versaoAntes);
     this.incluirCartaDePermanencia(versaoAntes);
   }
 
@@ -724,6 +728,17 @@ export class Banco {
     const atualizar = this.db.prepare("UPDATE planos SET rede = ? WHERE id = ? AND rede = ?");
     for (const p of JSON.parse(readFileSync(this.caminhoSeed, "utf8"))) {
       if (p.id in REDE_ANTIGA_UNIMED_PME) atualizar.run(p.rede ?? "", p.id, REDE_ANTIGA_UNIMED_PME[p.id]);
+    }
+  }
+
+  // A Amil Interior MG 1 entrou com a rede inteira do plano de mesma linha: com só 7 cidades na área, a rede de
+  // Uberlândia levava os prestadores das outras cidades. Troca só a rede copiada; rede editada à mão fica como está.
+  atualizarRedeAmilInterior(versaoAntes) {
+    if (versaoAntes === 0 || versaoAntes >= VERSAO_REDE_AMIL_INTERIOR) return;
+    if (!this.caminhoSeed || !existsSync(this.caminhoSeed)) return;
+    const atualizar = this.db.prepare("UPDATE planos SET rede = ? WHERE id = ? AND rede = (SELECT rede FROM planos WHERE id = ?)");
+    for (const p of JSON.parse(readFileSync(this.caminhoSeed, "utf8"))) {
+      if (p.id.startsWith("amil-pme-interior-mg1-")) atualizar.run(p.rede ?? "", p.id, p.id.replace("interior-mg1-", ""));
     }
   }
 
