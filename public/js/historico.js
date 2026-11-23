@@ -213,6 +213,7 @@ function iniciarVenda() {
 }
 
 function reopen(h) {
+  if ($("#hist-cotacoes").open) $("#hist-cotacoes").close();
   S.tipo = h.tipo === "CNPJ" ? "CNPJ" : "PF";
   for (const x of $("#tipo").children) x.setAttribute("aria-pressed", x.dataset.t === S.tipo);
   $("#cliente").value = h.cliente || "";
@@ -247,8 +248,8 @@ export function renderHistCli() {
 const CHAVE_POR_PAGINA = "cotador.historico.porPagina";
 let filtroSt = "Todas", mesHist = "todos", diaHist = "todos", pagina = 1, ordem = { campo: "ultima", dir: "desc" };
 let porPagina = lerPorPagina(CHAVE_POR_PAGINA);
-// Clientes com as cotações abertas.
-const abertos = new Set();
+// Cliente com as cotações abertas na janela (chave do grupo).
+let clienteAberto = null;
 
 const nomeDoGrupo = (l) => l.find((h) => h.cliente)?.cliente || "Sem nome";
 const COLUNAS = [
@@ -272,12 +273,12 @@ function grupos() {
 }
 
 function linhaDoCliente(g) {
-  const l = g.lista, h = l[0], f = h.fone, aberto = abertos.has(g.chave);
+  const l = g.lista, h = l[0], f = h.fone;
   const planos = (h.planos || []).map((p) => p.nome);
   // Maleta: cadastra a venda em Contratos Vendidos (a última cotação fica como Vendida). Vendida sem contrato fica em destaque.
   const emContratos = l.some((x) => x.emContratos), vendida = h.status === "Vendida";
   const acoes = [
-    botaoIcone("ver", aberto ? "Fechar as cotações" : `Ver ${l.length === 1 ? "a cotação" : `as ${l.length} cotações`}`, { atributos: `data-ver-cotacoes aria-expanded="${aberto}"`, numero: l.length > 1 ? l.length : 0 }),
+    botaoIcone("ver", `Ver ${l.length === 1 ? "a cotação" : `as ${l.length} cotações`}`, { atributos: "data-ver-cotacoes aria-haspopup=\"dialog\"", numero: l.length > 1 ? l.length : 0 }),
     f ? botaoIcone("whatsapp", "Abrir conversa no WhatsApp", { href: linkConversaDireta(f, "", navigator.userAgent) }) : "",
     pode("cotacao") ? botaoIcone("reabrir", "Reabrir a última cotação", { atributos: "data-reabrir-ultima" }) : "",
     f && pode("historico", "editar") && pode("contratos", "editar")
@@ -293,7 +294,7 @@ function linhaDoCliente(g) {
       <td class="grade-data">${esc(fmtDiaHist(h.criadoEm))}</td>
       <td><span class="pill ${stClass(h.status)}">${esc(h.status || "Enviada")}</span></td>
       <td><div class="grade-acoes">${acoes}</div></td>
-    </tr>${aberto ? `<tr class="grade-painel-linha" data-grupo="${esc(g.chave)}"><td colspan="${COLUNAS.length + 1}"><div class="cat">${l.map((x) => quoteRow(x, true)).join("")}</div></td></tr>` : ""}`;
+    </tr>`;
 }
 
 export function renderHist() {
@@ -333,18 +334,39 @@ export function renderHist() {
   desenharPaginacao(nav, pag, ["cliente", "clientes"], (p) => { pagina = p; renderHist(); box.scrollIntoView({ block: "nearest" }); });
   box.querySelectorAll("[data-ordem]").forEach((b) => (b.onclick = () => { ordem = proximaOrdem(ordem, b.dataset.ordem, COLUNAS); pagina = 1; renderHist(); }));
   const doGrupo = (el) => todos.find((g) => g.chave === el.closest("[data-grupo]").dataset.grupo);
-  box.querySelectorAll("[data-ver-cotacoes]").forEach((b) => (b.onclick = () => {
-    const g = doGrupo(b);
-    if (abertos.has(g.chave)) abertos.delete(g.chave); else abertos.add(g.chave);
-    renderHist();
-  }));
+  box.querySelectorAll("[data-ver-cotacoes]").forEach((b) => (b.onclick = () => abrirCotacoes(doGrupo(b).chave)));
   box.querySelectorAll("[data-reabrir-ultima]").forEach((b) => (b.onclick = () => reopen(doGrupo(b).lista[0])));
   box.querySelectorAll("[data-vender]").forEach((b) => (b.onclick = () => abrirVenda(doGrupo(b).lista[0])));
   wireRows(box);
+  desenharCotacoes();
+}
+
+/* ---------- janela com as cotações de um cliente ---------- */
+function abrirCotacoes(chave) {
+  clienteAberto = chave;
+  desenharCotacoes();
+  $("#hist-cotacoes").showModal();
+}
+
+// Redesenha a janela aberta depois de cada mudança (situação, exclusão, venda); sem cotações, ela fecha.
+function desenharCotacoes() {
+  const dlg = $("#hist-cotacoes");
+  if (!clienteAberto) return;
+  const g = grupos().find((x) => x.chave === clienteAberto);
+  if (!g) { if (dlg.open) dlg.close(); return; }
+  const l = g.lista, f = l[0].fone;
+  $("#hist-cot-titulo").textContent = `Cotações de ${nomeDoGrupo(l)}`;
+  $("#hist-cot-sub").textContent = `${f ? fmtFone(f) : "Sem WhatsApp"} · ${l.length} ${l.length === 1 ? "cotação" : "cotações"}`;
+  const lista = $("#hist-cot-lista");
+  lista.innerHTML = l.map((x) => quoteRow(x, true)).join("");
+  wireRows(lista);
 }
 
 export function iniciarHistorico() {
   iniciarVenda();
+  const cot = $("#hist-cotacoes");
+  cot.querySelectorAll("[data-fechar]").forEach((b) => (b.onclick = () => cot.close()));
+  cot.addEventListener("close", () => { clienteAberto = null; });
   $("#hist-busca").addEventListener("input", () => { pagina = 1; renderHist(); });
   $("#hist-filtro").onchange = () => { filtroSt = $("#hist-filtro").value; pagina = 1; renderHist(); };
   $("#hist-mes").onchange = () => { mesHist = $("#hist-mes").value; diaHist = "todos"; pagina = 1; renderHist(); };

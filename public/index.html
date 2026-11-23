@@ -590,6 +590,15 @@
 </div>
 <!-- Fora das telas: uma tela escondida esconderia a janela junto. -->
 <div class="modal" id="modal" hidden><div class="panel modal-box" id="editor" role="dialog" aria-modal="true" aria-labelledby="ed-title"></div></div>
+<!-- Cotações de um cliente, abertas pelo olho no Histórico. -->
+<dialog class="men-modal hist-cotacoes" id="hist-cotacoes" aria-labelledby="hist-cot-titulo">
+  <header class="men-modal-topo">
+    <div><h2 id="hist-cot-titulo">Cotações</h2><p class="note" style="margin:0" id="hist-cot-sub"></p></div>
+    <button class="gaveta-fechar" type="button" data-fechar aria-label="Fechar">×</button>
+  </header>
+  <div class="men-modal-corpo"><div class="cat" id="hist-cot-lista"></div></div>
+  <footer class="men-modal-rodape"><button class="btn" type="button" data-fechar>Fechar</button></footer>
+</dialog>
 <!-- Venda pelo Histórico: a cotação vira contrato em Contratos Vendidos. Fica fora das telas porque abre também na Nova Cotação. -->
 <dialog class="men-modal hist-venda" id="hist-venda" aria-labelledby="hist-venda-titulo">
   <form class="men-regua-form" id="hist-venda-form" novalidate autocomplete="off">
