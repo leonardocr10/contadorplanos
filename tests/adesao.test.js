@@ -75,3 +75,26 @@ test("ao atualizar, os planos recebem administradora e entidades; o que foi edit
     novo.fechar();
   }
 });
+
+test("Amil por adesão (Supermed) tem as entidades ASPROLI e AAFP; ao atualizar, o banco recebe as duas", (t) => {
+  const amil = pf.filter((p) => p.id.startsWith("amil-"));
+  assert.equal(amil.length, 8);
+  for (const p of amil) {
+    assert.equal(p.administradora, "Supermed");
+    assert.deepEqual(entidadesDoPlano(p), [{ sigla: "ASPROLI", publico: "Profissionais liberais" }, { sigla: "AAFP", publico: "Servidores públicos" }]);
+  }
+  const pasta = mkdtempSync(join(tmpdir(), "cotador-amil-"));
+  t.after(() => rmSync(pasta, { recursive: true, force: true }));
+  const caminho = join(pasta, "c.db");
+  const antigo = new Banco(caminho, seed);
+  antigo.db.exec("UPDATE planos SET entidades = '' WHERE id LIKE 'amil-%'; UPDATE planos SET entidades = 'XYZ – Outra' WHERE id = 'amil-ouro-parcial'; PRAGMA user_version = 65");
+  antigo.fechar();
+  const novo = new Banco(caminho, seed);
+  try {
+    assert.equal(novo.obterPlano("amil-ouro-total").entidades, "ASPROLI – Profissionais liberais\nAAFP – Servidores públicos");
+    assert.equal(novo.obterPlano("amil-ouro-parcial").entidades, "XYZ – Outra");
+    assert.equal(novo.obterPlano("amil-pme-prata-30").entidades, "");
+  } finally {
+    novo.fechar();
+  }
+});

@@ -468,6 +468,8 @@ const MIGRACOES = [
     const colunas = db.prepare("PRAGMA table_info(planos)").all().map((c) => c.name);
     for (const c of ["administradora", "entidades"]) if (!colunas.includes(c)) db.exec(`ALTER TABLE planos ADD COLUMN ${c} TEXT NOT NULL DEFAULT ''`);
   },
+  // Sem mudança na estrutura: entidades ASPROLI e AAFP nos planos Amil por adesão (ver preencherEntidadesAmil).
+  () => {},
 ];
 
 // Troca os documentos dos planos CNPJ pela lista empresarial; com unimed, a Unimed PME recebe a lista dela.
@@ -499,6 +501,10 @@ const VERSAO_CARENCIAS_UNIMED_PME = 36;
 const VERSAO_REDE_UNIMED_PME = 37;
 const VERSAO_REDE_AMIL_INTERIOR = 63;
 const VERSAO_ADMINISTRADORAS = 65;
+const VERSAO_ENTIDADES_AMIL = 66;
+// Amil pessoa física por adesão (Supermed): entidades do titular.
+const AMIL_ADESAO = ["amil-prata-mg1-total", "amil-prata-mg1-parcial", "amil-ouro-total", "amil-ouro-parcial", "amil-platinum-r1-total", "amil-platinum-r1-parcial", "amil-platinum-r2-total", "amil-platinum-r2-parcial"];
+const ENTIDADES_AMIL_ADESAO = "ASPROLI – Profissionais liberais\nAAFP – Servidores públicos";
 const VERSAO_CARTA_DE_PERMANENCIA = 44;
 // Relação de documentos do plano empresarial/PJ: da empresa, depois do titular e dos dependentes.
 const DOCUMENTOS_CNPJ = [
@@ -681,6 +687,14 @@ export class Banco {
     this.atualizarRedeAmilInterior(versaoAntes);
     this.incluirCartaDePermanencia(versaoAntes);
     this.preencherAdministradoras(versaoAntes);
+    this.preencherEntidadesAmil(versaoAntes);
+  }
+
+  // Amil por adesão: ASPROLI (profissionais liberais) e AAFP (servidores públicos de MG). Só onde está vazio.
+  preencherEntidadesAmil(versaoAntes) {
+    if (versaoAntes === 0 || versaoAntes >= VERSAO_ENTIDADES_AMIL) return;
+    const ent = this.db.prepare("UPDATE planos SET entidades = ? WHERE id = ? AND entidades = ''");
+    for (const id of AMIL_ADESAO) ent.run(ENTIDADES_AMIL_ADESAO, id);
   }
 
   // Administradora e entidades que estavam só no texto da observação dos planos cadastrados.

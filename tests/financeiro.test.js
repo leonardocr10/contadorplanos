@@ -131,7 +131,7 @@ test("ao atualizar, saem as regras antigas que não são de um plano cadastrado"
     banco.definirComissaoDoContrato(contrato.id, antiga);
     const versao = banco.db.prepare("PRAGMA user_version").get().user_version;
     // Volta antes da limpeza (e das migrações que vieram depois: separação por login, ajustes, fim da adesão, resgate, dias do resgate, mensalidades, o registro e a régua delas, a Amil Interior MG 1, a venda pelo Histórico, a rede dela e os índices).
-    banco.db.exec(`PRAGMA user_version = ${versao - 15}`);
+    banco.db.exec(`PRAGMA user_version = ${versao - 16}`);
     banco.fechar();
     banco = new Banco(arquivo, planos);
     assert.deepEqual(banco.listarCorretoras()[0].regras.map((r) => `${r.nome}|${r.segmento}`), ["AMIL OURO|PF", "AMIL OURO 30%|PME"]);
