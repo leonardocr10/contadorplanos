@@ -29,8 +29,12 @@ const ICONES_DO_AVISO = {
 // Toda mensagem fica o mesmo tempo na tela.
 const TEMPO_DO_AVISO = 2500;
 let barraDoAviso = null;
+// O aviso vai para dentro da janela aberta, para aparecer por cima dela. As janelas das grades são recriadas a cada
+// atualização da tela: guardado aqui, o aviso não se perde junto com a janela e volta para o lugar certo no próximo uso.
+let elementoDoAviso = null;
+const aviso = () => (elementoDoAviso ??= $("#aviso-central"));
 function esconderAviso() {
-  const el = $("#aviso-central");
+  const el = aviso();
   barraDoAviso?.cancel();
   barraDoAviso = null;
   el.classList.add("saindo");
@@ -38,7 +42,7 @@ function esconderAviso() {
   avisoCentral.fim = setTimeout(() => (el.hidden = true), 250);
 }
 export function avisoCentral(texto, tipo = "sucesso") {
-  const el = $("#aviso-central");
+  const el = aviso();
   const destino = [...document.querySelectorAll("dialog[open]")].pop() ?? document.body;
   if (el.parentElement !== destino) destino.append(el);
   el.dataset.tipo = tipo;

@@ -760,3 +760,15 @@ test("Histórico: tirar a cotação de Vendida tira de Contratos Vendidos o cont
   assert.deepEqual((await (await pedir(um, "/api/contratos")).json()).map((k) => k.id), [direto.id]);
   assert.equal((await (await pedir(um, `/api/cotacoes/${c.id}`, "PATCH", { status: "Enviada" })).json()).contratoRemovido, false);
 });
+
+test("Histórico: sem editar Contratos Vendidos, a cotação vendida não sai de Vendida (o contrato ficaria apagado)", async (t) => {
+  const { banco, pedir, comum } = await comPermissoes(t, { cotacao: "editar", planos: "ver", documentos: "ver", historico: "editar", aceites: "editar", contratos: "ver" });
+  const eu = await (await pedir(comum, "/api/eu")).json();
+  const c = banco.salvarCotacao({ ...cotacao(), usuarioId: eu.id }).cotacao;
+  banco.venderCotacao(c.id, { nome: "Maria", fone: "34999990000", email: "", plano: "PLAM SAÚDE", valor: 2, ativacao: "2026-12-01", usuarioId: eu.id });
+  const lista = await (await pedir(comum, "/api/cotacoes")).json();
+  assert.deepEqual([lista[0].contratoDaVenda, lista[0].emContratos], [true, true]);
+  assert.equal((await pedir(comum, `/api/cotacoes/${c.id}`, "PATCH", { status: "Em Negociação" })).status, 403);
+  assert.equal(banco.listarContratos({ usuarioId: eu.id }).length, 1);
+  assert.equal(banco.obterCotacao(c.id).status, "Vendida");
+});

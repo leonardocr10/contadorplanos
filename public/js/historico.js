@@ -5,7 +5,7 @@ import { carregarContratos } from "./contratos.js";
 import { carregarFinanceiro } from "./financeiro.js";
 import { linkConversaDireta, waHtml } from "./mensagem.js";
 import { normalizar } from "./filtro-select.js";
-import { botaoIcone, cabecalho, desenharCards, desenharPaginacao, desenharSeletorDeDia, desenharSeletorDeMes, diaLocal, mesLocal, guardarPorPagina, lerPorPagina, ordenarPor, paginar, proximaOrdem } from "./grade.js";
+import { confirmar, botaoIcone, cabecalho, desenharCards, desenharPaginacao, desenharSeletorDeDia, desenharSeletorDeMes, diaLocal, mesLocal, guardarPorPagina, lerPorPagina, ordenarPor, paginar, proximaOrdem } from "./grade.js";
 
 const STATUS = ["Enviada", "Em Negociação", "Vendida", "Negativa"];
 const stClass = (s) => ({ "Em Negociação": "st-neg", "Vendida": "st-ok", "Negativa": "st-off" }[s] || "st-env");
@@ -79,6 +79,15 @@ function wireRows(box) {
       // Cancelar volta a situação de antes.
       if (nova === "Vendida" && !h.emContratos && pode("contratos", "editar")) {
         abrirVenda(h, () => (st.value = h.status || "Enviada"));
+        return;
+      }
+      // Sair de Vendida tira de Contratos Vendidos o contrato desta venda (com os documentos dele): pede confirmação.
+      if (nova !== "Vendida" && h.contratoDaVenda && !(await confirmar({
+        titulo: "Tirar de Vendida?",
+        texto: `O contrato de <b>${esc(h.cliente || "este cliente")}</b> sai de <b>Contratos Vendidos</b>, com os documentos salvos nele. Não dá para desfazer.`,
+        botao: `Mudar para ${nova}`, perigo: true,
+      }))) {
+        st.value = h.status || "Enviada";
         return;
       }
       try {
@@ -366,6 +375,7 @@ export function iniciarHistorico() {
   iniciarVenda();
   const cot = $("#hist-cotacoes");
   cot.querySelectorAll("[data-fechar]").forEach((b) => (b.onclick = () => cot.close()));
+  cot.addEventListener("click", (e) => { if (e.target === cot) cot.close(); });
   cot.addEventListener("close", () => { clienteAberto = null; });
   $("#hist-busca").addEventListener("input", () => { pagina = 1; renderHist(); });
   $("#hist-filtro").onchange = () => { filtroSt = $("#hist-filtro").value; pagina = 1; renderHist(); };

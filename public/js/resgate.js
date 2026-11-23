@@ -4,7 +4,7 @@ import { fmtFone } from "./calculo.js";
 import { $, api, avisoCentral, esc, pode, toast } from "./estado.js";
 import { MENSAGEM_RESGATE_PADRAO, linkConversaDireta, waHtml } from "./mensagem.js";
 import { normalizar } from "./filtro-select.js";
-import { abrirJanelaDaGrade, janelaDaGrade, botaoIcone, cabecalho, desenharCards, desenharPaginacao, desenharSeletorDeMes, guardarPorPagina, lerPorPagina, mesLocal, ordenarPor, paginar, proximaOrdem } from "./grade.js";
+import { confirmar, abrirJanelaDaGrade, janelaDaGrade, botaoIcone, cabecalho, desenharCards, desenharPaginacao, desenharSeletorDeMes, guardarPorPagina, lerPorPagina, mesLocal, ordenarPor, paginar, proximaOrdem } from "./grade.js";
 
 const SITUACOES = [
   { chave: "pendente", rotulo: "Na fila", classe: "st-neg" },
@@ -101,7 +101,7 @@ async function conectarWhatsApp() {
 }
 
 async function desconectarWhatsApp() {
-  if (!confirm("Desconectar o seu WhatsApp do cotador? As mensagens de resgate param de sair até você conectar de novo.")) return;
+  if (!(await confirmar({ titulo: "Desconectar o WhatsApp?", texto: "As mensagens de resgate param de sair até você conectar de novo.", botao: "Desconectar", perigo: true }))) return;
   try {
     await api("/api/resgate/whatsapp/desconectar", { metodo: "POST" });
     await verificarWhatsApp();

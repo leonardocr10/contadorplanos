@@ -407,7 +407,12 @@ export function criarApp({ banco, pastaPublica, pastaUploads, pastaBackups, env 
 
   app.patch("/api/cotacoes/:id", exige("historico", "editar"), (req, res) => {
     if (!STATUS.includes(req.body?.status)) throw new ErroEntrada("Situação inválida.");
-    if (!cotacaoVisivel(req)) return res.status(404).json(NAO_ACHOU_COTACAO);
+    const c = cotacaoVisivel(req);
+    if (!c) return res.status(404).json(NAO_ACHOU_COTACAO);
+    // Sair de Vendida tira de Contratos Vendidos o contrato que a cotação gerou: precisa poder editar os contratos.
+    if (req.body.status !== "Vendida" && c.contratoDaVenda && !pode(req, "contratos", "editar")) {
+      return res.status(403).json({ erro: "Tirar de Vendida apaga o contrato desta venda em Contratos Vendidos, e o seu usuário não altera contratos." });
+    }
     res.json(banco.mudarStatus(req.params.id, req.body.status));
   });
 

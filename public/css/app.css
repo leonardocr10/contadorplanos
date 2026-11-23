@@ -873,6 +873,7 @@ a.ctr-doc-mini:hover{border-color:var(--accent)}
 /* Venda pelo Histórico: plano e e-mail na largura toda, o resto em duas colunas. */
 .hist-venda{width:min(620px,96vw)}
 .hist-cotacoes{width:min(860px,96vw)}
+.janela-confirmar{width:min(480px,96vw)}
 .hist-venda-corpo{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
 .hist-venda-corpo .field{margin:0}
 .hist-venda-largo{grid-column:1/-1}

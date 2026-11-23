@@ -4,6 +4,34 @@ import { esc } from "./estado.js";
 
 export const POR_PAGINA = [10, 25, 50, 100];
 
+/* ---------- confirmação numa janela do sistema (no lugar do confirm do navegador) ---------- */
+// Devolve true se a pessoa confirmar; Cancelar, × ou Esc devolvem false.
+export function confirmar({ titulo, texto, botao = "Confirmar", perigo = false }) {
+  return new Promise((resolver) => {
+    const dlg = document.createElement("dialog");
+    dlg.className = "men-modal janela-confirmar";
+    dlg.setAttribute("aria-label", titulo);
+    dlg.innerHTML = `<header class="men-modal-topo"><h2>${esc(titulo)}</h2><button class="gaveta-fechar" type="button" data-nao aria-label="Fechar">×</button></header>
+      <div class="men-modal-corpo"><p style="margin:0">${texto}</p></div>
+      <footer class="men-modal-rodape"><button class="btn" type="button" data-nao>Cancelar</button><button class="btn ${perigo ? "danger" : "primary"}" type="button" data-sim>${esc(botao)}</button></footer>`;
+    // Os botões respondem na hora; o evento close (Esc) é só o caminho que sobra.
+    let respondeu = false;
+    const responder = (sim) => {
+      if (respondeu) return;
+      respondeu = true;
+      if (dlg.open) dlg.close();
+      dlg.remove();
+      resolver(sim);
+    };
+    dlg.querySelectorAll("[data-nao]").forEach((b) => (b.onclick = () => responder(false)));
+    dlg.querySelector("[data-sim]").onclick = () => responder(true);
+    dlg.addEventListener("close", () => responder(false));
+    document.body.append(dlg);
+    dlg.showModal();
+    dlg.querySelector("[data-sim]").focus();
+  });
+}
+
 /* ---------- janela dos painéis da linha ---------- */
 // O que um ícone da linha abre (editar, documentos, mensagem, confirmar exclusão...) aparece numa janela dentro do
 // sistema. A janela fica dentro da última célula da linha: o painel continua achando a linha dele (closest), como antes.
@@ -27,6 +55,8 @@ export function abrirJanelaDaGrade(caixa, aoFechar) {
     estadoDasJanelas.set(caixa.id, { chave: dlg.dataset.janela, id: dentro ? a.id : "", inicio, fim, rolagem: corpo.scrollTop });
   };
   dlg.querySelector("[data-janela-fechar]").onclick = () => dlg.close();
+  // Clicar fora da janela (no fundo escuro) fecha, como nas outras janelas do sistema.
+  dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
   dlg.addEventListener("close", () => { if (dlg.isConnected) { estadoDasJanelas.delete(caixa.id); aoFechar(); } });
   for (const ev of ["focusin", "input", "keyup", "click"]) dlg.addEventListener(ev, guardar);
   corpo.addEventListener("scroll", guardar);
