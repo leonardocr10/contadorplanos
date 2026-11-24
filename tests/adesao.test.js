@@ -172,3 +172,20 @@ test("SulAmérica por adesão: a tabela das 24 entidades e da ANAPROLIE 002, o C
     novo.fechar();
   }
 });
+
+test("Unicor é a administradora: o nome do plano editado com UNICOR perde a palavra", (t) => {
+  const pasta = mkdtempSync(join(tmpdir(), "cotador-unicor-"));
+  t.after(() => rmSync(pasta, { recursive: true, force: true }));
+  const caminho = join(pasta, "c.db");
+  const antigo = new Banco(caminho, seed);
+  antigo.db.exec("UPDATE planos SET nome = 'HAPVIDA NOSSO PLANO UNICOR' WHERE id = 'hapvida-nosso-plano-uberaba-total'; UPDATE planos SET nome = 'HAPVIDA NOSSO PLANO UNICOR PARCIAL' WHERE id = 'hapvida-nosso-plano-uberaba-parcial'; PRAGMA user_version = 69");
+  antigo.fechar();
+  const novo = new Banco(caminho, seed);
+  try {
+    assert.equal(novo.obterPlano("hapvida-nosso-plano-uberaba-total").nome, "HAPVIDA NOSSO PLANO");
+    assert.equal(novo.obterPlano("hapvida-nosso-plano-uberaba-parcial").nome, "HAPVIDA NOSSO PLANO PARCIAL");
+    assert.equal(novo.obterPlano("hapvida-nosso-plano-total").nome, "HAPVIDA NOSSO PLANO");
+  } finally {
+    novo.fechar();
+  }
+});

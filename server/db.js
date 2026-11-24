@@ -477,6 +477,9 @@ const MIGRACOES = [
   () => {},
   // Sem mudança na estrutura: Hapvida individual (PF) de Uberlândia e Uberaba (ver PLANOS_NOVOS).
   () => {},
+  // Unicor é a administradora, não faz parte do nome do plano: "HAPVIDA NOSSO PLANO UNICOR" vira "HAPVIDA NOSSO PLANO" e
+  // passa a ser uma opção de administradora no mesmo cartão.
+  "UPDATE planos SET nome = TRIM(REPLACE(REPLACE(nome, ' UNICOR', ''), '  ', ' ')) WHERE nome LIKE '%UNICOR%'",
 ];
 
 // Troca os documentos dos planos CNPJ pela lista empresarial; com unimed, a Unimed PME recebe a lista dela.
