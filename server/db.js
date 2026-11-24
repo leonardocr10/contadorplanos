@@ -475,6 +475,8 @@ const MIGRACOES = [
   // Sem mudança na estrutura: SulAmérica por adesão com as 24 entidades do guia de MG, o Clássico 100 e a tabela 001
   // da ANAPROLIE (ver PLANOS_NOVOS e atualizarEntidadesSulamerica).
   () => {},
+  // Sem mudança na estrutura: Hapvida individual (PF) de Uberlândia e Uberaba (ver PLANOS_NOVOS).
+  () => {},
 ];
 
 // Troca os documentos dos planos CNPJ pela lista empresarial; com unimed, a Unimed PME recebe a lista dela.
@@ -561,7 +563,9 @@ const PLANOS_NOVOS = [{ id: "plamedh-basic-pme", versao: 6 }, { id: "plam-total-
   // Unimed BH por adesão (Qualicorp): uma tabela por produto e entidade, com os documentos da SulAmérica por adesão.
   ...UNIMED_BH_ADESAO.map((id) => ({ id, versao: 67, documentosDe: "sulamerica-direto-nacional" })),
   // SulAmérica por adesão: Clássico 100 e a tabela 001 da ANAPROLIE.
-  ...["sulamerica-classico-100", "sulamerica-direto-nacional-anaprolie-001", "sulamerica-especial-100-rc-anaprolie-001", "sulamerica-especial-100-r1-anaprolie-001", "sulamerica-executivo-pleno-anaprolie-001", "sulamerica-classico-100-anaprolie-001"].map((id) => ({ id, versao: 68, documentosDe: "sulamerica-direto-nacional" }))];
+  ...["sulamerica-classico-100", "sulamerica-direto-nacional-anaprolie-001", "sulamerica-especial-100-rc-anaprolie-001", "sulamerica-especial-100-r1-anaprolie-001", "sulamerica-executivo-pleno-anaprolie-001", "sulamerica-classico-100-anaprolie-001"].map((id) => ({ id, versao: 68, documentosDe: "sulamerica-direto-nacional" })),
+  // Hapvida individual (PF) de Uberlândia e Uberaba.
+  ...["hapvida-pf-uberlandia-total", "hapvida-pf-uberlandia-parcial", "hapvida-pf-uberaba-total", "hapvida-pf-uberaba-parcial"].map((id) => ({ id, versao: 69, documentosDe: "hapvida-nosso-plano-total" }))];
 
 function migrar(db) {
   const versao = db.prepare("PRAGMA user_version").get().user_version;

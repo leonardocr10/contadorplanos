@@ -15,8 +15,11 @@ const planos = JSON.parse(readFileSync(seed, "utf8"));
 const pf = planos.filter((p) => p.categoria === "PF");
 const plano = (id) => planos.find((p) => p.id === id);
 
-test("todo plano de pessoa física tem a administradora das tabelas", () => {
-  for (const p of pf) assert.ok(p.administradora, p.id);
+test("todo plano de pessoa física por adesão tem a administradora das tabelas", () => {
+  // O Hapvida individual (PF) é contratado direto com a operadora: sem administradora e sem entidade.
+  const individual = (p) => p.id.startsWith("hapvida-pf-");
+  for (const p of pf.filter((x) => !individual(x))) assert.ok(p.administradora, p.id);
+  for (const p of pf.filter(individual)) assert.deepEqual([p.administradora, p.entidades], ["", ""], p.id);
   assert.equal(plano("sulamerica-executivo-pleno").administradora, "Qualicorp");
   assert.equal(plano("hapvida-nosso-plano-total").administradora, "Affix");
   assert.equal(plano("aurora-saude-pf").administradora, "Quali");
