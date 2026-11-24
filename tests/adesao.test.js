@@ -21,14 +21,14 @@ test("todo plano de pessoa física por adesão tem a administradora das tabelas"
   for (const p of pf.filter((x) => !individual(x))) assert.ok(p.administradora, p.id);
   for (const p of pf.filter(individual)) assert.deepEqual([p.administradora, p.entidades], ["", ""], p.id);
   assert.equal(plano("sulamerica-executivo-pleno").administradora, "Qualicorp");
-  assert.equal(plano("hapvida-nosso-plano-total").administradora, "Affix");
+  assert.equal(plano("hapvida-nosso-plano-total").administradora, "Unicor");
   assert.equal(plano("aurora-saude-pf").administradora, "Quali");
   // Plano CNPJ não tem administradora.
   assert.ok(planos.filter((p) => p.categoria === "CNPJ").every((p) => !p.administradora));
 });
 
 test("as entidades são lidas uma por linha, com a sigla e o público", () => {
-  assert.deepEqual(entidadesDoPlano(plano("hapvida-nosso-plano-total")).map((e) => e.sigla), ["FNEL", "UNIPRO", "ASCOSERVI", "FADESP", "ANSP"]);
+  assert.deepEqual(entidadesDoPlano(plano("hapvida-nosso-plano-total")).map((e) => e.sigla), ["ASPROFI", "CAEEPP", "Mais Comerciários"]);
   const sula = entidadesDoPlano(plano("sulamerica-direto-nacional"));
   assert.equal(sula.length, 25);
   assert.deepEqual(sula[0], { sigla: "ANAPROLIE", publico: "Médicos, dentistas, direito, enfermagem, engenharia e outras (tabela 002)" });
@@ -38,9 +38,9 @@ test("as entidades são lidas uma por linha, com a sigla e o público", () => {
 
 test("o plano selecionado traz a administradora e a entidade escolhida; com uma entidade só, ela já vem escolhida", () => {
   const hap = plano("hapvida-nosso-plano-total"), sula = plano("sulamerica-direto-nacional");
-  assert.equal(adesaoDoPlano(hap).administradora, "Affix");
+  assert.equal(adesaoDoPlano(hap).administradora, "Unicor");
   assert.equal(adesaoDoPlano(hap).entidade, null);
-  assert.deepEqual(adesaoDoPlano(hap, { [hap.id]: { entidade: "unipro" } }).entidade, { sigla: "UNIPRO", publico: "Profissionais liberais" });
+  assert.deepEqual(adesaoDoPlano(hap, { [hap.id]: { entidade: "caeepp" } }).entidade, { sigla: "CAEEPP", publico: "Estudantes" });
   // Com várias entidades, nenhuma vem escolhida; com uma só (tabela 001 da ANAPROLIE), ela já vem.
   assert.equal(adesaoDoPlano(sula).entidade, null);
   assert.equal(adesaoDoPlano(sula, { [sula.id]: { entidade: "aasp" } }).entidade.sigla, "AASP");
@@ -57,12 +57,12 @@ test("o plano selecionado traz a administradora e a entidade escolhida; com uma 
 test("a mensagem e a proposta não citam a administradora nem a entidade, mas usam o preço do plano escolhido", () => {
   const hap = plano("hapvida-nosso-plano-total");
   const vidas = [0, 0, 0, 1, 0, 0, 0, 0, 0, 0];
-  const over = { [hap.id]: { entidade: "UNIPRO" } };
+  const over = { [hap.id]: { entidade: "CAEEPP" } };
   const msg = buildMsg({ items: [hap], vidas, over, nome: "Maria", corretor: { nome: "", fone: "", empresa: "" }, opts: {} });
-  assert.ok(!msg.includes("Administradora") && !msg.includes("UNIPRO"));
+  assert.ok(!msg.includes("Administradora") && !msg.includes("CAEEPP"));
   assert.ok(msg.includes("R$"));
   const html = renderizarProposta(montarSnapshot(hap, { vidas, over, cliente: "Maria", opts: {} }, { nome: "", fone: "", empresa: "" }));
-  assert.ok(!html.includes("Administradora") && !html.includes("UNIPRO"));
+  assert.ok(!html.includes("Administradora") && !html.includes("CAEEPP"));
 });
 
 test("ao atualizar, os planos recebem administradora e entidades; o que foi editado à mão fica", (t) => {
@@ -185,6 +185,31 @@ test("Unicor é a administradora: o nome do plano editado com UNICOR perde a pal
     assert.equal(novo.obterPlano("hapvida-nosso-plano-uberaba-total").nome, "HAPVIDA NOSSO PLANO");
     assert.equal(novo.obterPlano("hapvida-nosso-plano-uberaba-parcial").nome, "HAPVIDA NOSSO PLANO PARCIAL");
     assert.equal(novo.obterPlano("hapvida-nosso-plano-total").nome, "HAPVIDA NOSSO PLANO");
+  } finally {
+    novo.fechar();
+  }
+});
+
+test("Nosso Plano por adesão: a administradora é a Unicor, com ASPROFI, CAEEPP e Mais Comerciários", (t) => {
+  const ids = ["hapvida-nosso-plano-total", "hapvida-nosso-plano-parcial", "hapvida-nosso-plano-uberaba-total", "hapvida-nosso-plano-uberaba-parcial"];
+  for (const id of ids) {
+    assert.equal(plano(id).administradora, "Unicor", id);
+    assert.deepEqual(entidadesDoPlano(plano(id)).map((e) => e.sigla), ["ASPROFI", "CAEEPP", "Mais Comerciários"], id);
+    assert.ok(!/Affix|FNEL|entidade CAEEPP/.test(plano(id).descricao), id);
+  }
+  // Banco existente: troca a administradora, as entidades e os trechos da descrição.
+  const pasta = mkdtempSync(join(tmpdir(), "cotador-unicor-adm-"));
+  t.after(() => rmSync(pasta, { recursive: true, force: true }));
+  const caminho = join(pasta, "c.db");
+  const antigo = new Banco(caminho, seed);
+  antigo.db.exec("UPDATE planos SET administradora = 'Affix', entidades = 'FNEL – Estudantes', descricao = 'Plano coletivo por adesão (Affix Administradora de Benefícios), atendimento. Minha nota.' WHERE id = 'hapvida-nosso-plano-total'; UPDATE planos SET entidades = 'CAEEPP – Estudantes', descricao = 'Plano coletivo por adesão (Unicor, entidade CAEEPP), em Uberaba.' WHERE id = 'hapvida-nosso-plano-uberaba-total'; PRAGMA user_version = 70");
+  antigo.fechar();
+  const novo = new Banco(caminho, seed);
+  try {
+    for (const id of ids) assert.equal(novo.obterPlano(id).administradora, "Unicor", id);
+    assert.equal(novo.obterPlano("hapvida-nosso-plano-total").descricao, "Plano coletivo por adesão (Unicor), atendimento. Minha nota.");
+    assert.equal(novo.obterPlano("hapvida-nosso-plano-uberaba-total").descricao, "Plano coletivo por adesão (Unicor), em Uberaba.");
+    assert.equal(novo.obterPlano("hapvida-nosso-plano-uberaba-total").entidades, plano("hapvida-nosso-plano-uberaba-total").entidades);
   } finally {
     novo.fechar();
   }

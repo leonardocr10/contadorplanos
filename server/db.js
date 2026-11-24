@@ -480,6 +480,9 @@ const MIGRACOES = [
   // Unicor é a administradora, não faz parte do nome do plano: "HAPVIDA NOSSO PLANO UNICOR" vira "HAPVIDA NOSSO PLANO" e
   // passa a ser uma opção de administradora no mesmo cartão.
   "UPDATE planos SET nome = TRIM(REPLACE(REPLACE(nome, ' UNICOR', ''), '  ', ' ')) WHERE nome LIKE '%UNICOR%'",
+  // Nosso Plano por adesão (Uberlândia e Uberaba): a administradora é a Unicor, com as entidades ASPROFI, CAEEPP e Mais
+  // Comerciários; a descrição troca só os trechos da Affix e da entidade única, se ainda estiverem lá.
+  "UPDATE planos SET administradora = 'Unicor', entidades = 'ASPROFI' || char(10) || 'CAEEPP – Estudantes' || char(10) || 'Mais Comerciários', descricao = REPLACE(REPLACE(REPLACE(REPLACE(descricao, '(Affix Administradora de Benefícios)', '(Unicor)'), 'O titular precisa ter vínculo com uma entidade: FNEL (estudantes, R$ 10,00/mês), UNIPRO (profissionais liberais, R$ 5,00/mês), ASCOSERVI (comércio, indústria e serviços, R$ 10,00/mês), FADESP (advogados, bacharéis e estagiários de Direito, R$ 7,00/mês) ou ANSP (servidores públicos, R$ 10,00/mês).', 'O titular precisa ter vínculo com uma entidade: ASPROFI, CAEEPP (estudantes) ou Mais Comerciários.'), '(Unicor, entidade CAEEPP)', '(Unicor)'), 'Titular: estudante com vínculo à entidade (', 'O titular precisa ter vínculo com uma entidade: ASPROFI, CAEEPP ou Mais Comerciários. Na CAEEPP, o titular é estudante (') WHERE id IN ('hapvida-nosso-plano-total', 'hapvida-nosso-plano-parcial', 'hapvida-nosso-plano-uberaba-total', 'hapvida-nosso-plano-uberaba-parcial')",
 ];
 
 // Troca os documentos dos planos CNPJ pela lista empresarial; com unimed, a Unimed PME recebe a lista dela.
