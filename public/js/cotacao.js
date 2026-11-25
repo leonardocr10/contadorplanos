@@ -725,6 +725,8 @@ export function renderCotacao() {
     agendarSalvar();
   }
   cardsProntos = false;
+  // A primeira imagem leva alguns segundos: sem imagem na tela ainda, avisa que está sendo gerada.
+  if (planosEscolhidos().length && !$("#imgs figure")) $("#imgs").innerHTML = `<div class="note" role="status">Gerando a imagem da proposta…</div>`;
   clearTimeout(cardTimer);
   cardTimer = setTimeout(renderCards, 250);
 }
