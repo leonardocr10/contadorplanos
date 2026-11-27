@@ -142,6 +142,12 @@ test("a rede junta os nomes diferentes do mesmo hospital", () => {
   assert.equal(rede.filter((r) => /Madrecor/.test(r.nome)).length, 1);
 });
 
+test("a rede do comparativo mostra só hospitais", () => {
+  const html = comparar("hapvida-pf-uberlandia-total", "amil-ouro-total", "unimed-udiplan-on-pf");
+  assert.ok(html.includes("Madrecor") && html.includes("UMC"));
+  for (const fora of ["Clínica Marechal Deodoro", "Laboratório", "Labormed", "Check Up", "Santa Marta Imagem", "Radioclinica", "APS", "Medjairo", "PNEUMOCENTER"]) assert.ok(!html.includes(fora), fora);
+});
+
 test("Hospital de Clínicas do Triângulo e Hospital do Triângulo são o mesmo hospital", () => {
   const propostas = ["plam-saude-pf", "amil-ouro-total"].map((id) => paraProposta(snapshot(id)));
   const triangulo = montarRede(propostas).filter((r) => /Hospital.*Triângulo/.test(r.nome) && !/^Laboratório/.test(r.nome));

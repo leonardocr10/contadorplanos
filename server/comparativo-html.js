@@ -61,10 +61,14 @@ function chaveDaRede(nome) {
   return APELIDOS[limpo] ?? limpo;
 }
 
+// O comparativo mostra só hospitais: laboratórios, clínicas e centros de imagem ficam na proposta de cada plano.
+const HOSPITAL = /\bhosp(ital)?\b|\bhospitalar\b|santa casa|\bsta\.? casa|casa (de )?caridade|casa de sa[uú]de|maternidade|\bmat\.|interna[cç][aã]o|irmandade|\bfund(a[cç][aã]o|\.)|medical center|madrecor|prontocor|biocor|lifecenter/i;
+export const ehHospital = (nome) => HOSPITAL.test(nome) && !/^(lab|laborat)/i.test(nome);
+
 export function montarRede(propostas) {
   const itens = new Map();
   propostas.forEach((P, i) => {
-    for (const nome of P.rede.hospitais) {
+    for (const nome of P.rede.hospitais.filter(ehHospital)) {
       const chave = chaveDaRede(nome);
       if (!itens.has(chave)) itens.set(chave, { nome: semCidade(nome), planos: new Set() });
       const item = itens.get(chave);
